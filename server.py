@@ -8095,7 +8095,7 @@ async def mcp_opendaw_set_clip_mute(unit_index: int, track_index: int, clip_inde
             const clip = clips[{clip_index}];
             const oldMute = clip.mute;
             h.modify(() => {{
-                clip.box.mute?.setValue?.({mute_val}) ?? clip.box.muted?.setValue?.({mute_val});
+                clip.box.mute.setValue({mute_val});
             }});
             return {{success: true, old_mute: oldMute, new_mute: {mute_val}}};
         }} catch(e) {{
@@ -8125,7 +8125,7 @@ async def mcp_opendaw_set_clip_label(unit_index: int, track_index: int, clip_ind
             const clip = clips[{clip_index}];
             const oldLabel = clip.label;
             h.modify(() => {{
-                clip.box.name?.setValue?.({safe_label}) ?? clip.box.label?.setValue?.({safe_label});
+                clip.box.label.setValue({safe_label});
             }});
             return {{success: true, old_label: oldLabel, new_label: {safe_label}}};
         }} catch(e) {{
