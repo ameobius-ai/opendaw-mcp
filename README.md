@@ -252,6 +252,19 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.9.2 (2026-07-03)
+
+- **DRY refactoring: 113+ tools migrated to `h.allAUBoxes()` / `h.auBox()` helpers**
+  - Replaced 133 occurrences of raw `[...rootBox.audioUnits.pointerHub.incoming()].map(({box}) => box).sort(...)` boilerplate with `h.allAUBoxes()` across 113+ MCP tools
+  - Box-level helpers eliminate ~3000 lines of duplicated AU enumeration code
+  - E2E verified: allAUBoxes returns sorted array, auBox(i) returns box by index, count matches raw, box identity matches
+- **Security hardening**
+  - Transport action enum validation (`play`, `stop`, `toggle`) — prevents JS injection
+  - `duplicate_effect` chain_type enum validation (`audio`, `midi`)
+  - `_safe_filename()` + `_safe_path()` helpers — `os.path.basename()` sanitization + path traversal protection on 6 render/export locations
+  - `_unwrap_eval` bare except → `json.JSONDecodeError`
+- **245 total tools** (no tool count change — refactoring only)
+
 ### v1.9.1 (2026-07-03)
 
 - **2 new generic tools: Boolean & Integer effect parameter setters**
