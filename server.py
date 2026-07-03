@@ -1307,8 +1307,7 @@ Returns effect_index — use it with mcp_opendaw_set_effect_parameter.
     """
     safe_effect = effect_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const api = p.api;
+        const h = window.DAW_HELPERS;
         const ef = window.DAW_EffectFactories;
         const effectType = "{safe_effect}";
         const unitIndex = {unit_index};
@@ -1316,14 +1315,15 @@ Returns effect_index — use it with mcp_opendaw_set_effect_parameter.
         const factory = ef.AudioNamed[effectType];
         if (!factory) return {{error: "Effect factory not found: " + effectType}};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIndex >= units.length) return {{error: "No audio unit at index " + unitIndex + ". Total: " + units.length}};
         const au = units[unitIndex];
 
         let effectBox;
-        p.editing.modify(() => {{
-            effectBox = api.insertEffect(au.audioEffects, factory);
+        h.modify(() => {{
+            effectBox = h.api.insertEffect(au.audioEffects, factory);
         }});
 
         // Get effect index in the chain
@@ -1353,13 +1353,12 @@ dst_unit: Destination audio unit index (effects appended to existing chain).
 Returns list of cloned effects with their new indices.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const api = p.api;
+        const h = window.DAW_HELPERS;
         const ef = window.DAW_EffectFactories;
         const srcIdx = {src_unit};
         const dstIdx = {dst_unit};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No source AU at index " + srcIdx}};
         if (dstIdx >= units.length) return {{error: "No dest AU at index " + dstIdx}};
 
@@ -1373,7 +1372,7 @@ Returns list of cloned effects with their new indices.
         if (srcEffects.length === 0) return {{error: "Source AU has no effects"}};
 
         const cloned = [];
-        p.editing.modify(() => {{
+        h.modify(() => {{
             for (const srcEffect of srcEffects) {{
                 const className = srcEffect.constructor.name;
                 let factoryKey = null;
@@ -1390,7 +1389,7 @@ Returns list of cloned effects with their new indices.
                 }}
 
                 const factory = ef.AudioNamed[factoryKey];
-                const newEffect = api.insertEffect(dstAU.audioEffects, factory);
+                const newEffect = h.api.insertEffect(dstAU.audioEffects, factory);
 
                 // Copy all parameter values
                 const srcRecord = srcEffect.record();
@@ -1448,12 +1447,12 @@ to_index: Target effect position (0-based).
 Effects between from and to shift accordingly.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const fromIdx = {from_index};
         const toIdx = {to_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -1465,7 +1464,7 @@ Effects between from and to shift accordingly.
         if (fromIdx === toIdx) return {{success: true, message: "No change needed"}};
 
         const movedEffect = effects[fromIdx];
-        p.editing.modify(() => {{
+        h.modify(() => {{
             if (toIdx < fromIdx) {{
                 // Moving earlier: shift effects between toIdx and fromIdx-1 forward by 1
                 for (let i = toIdx; i < fromIdx; i++) {{
@@ -1523,8 +1522,7 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
 
     safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const AuxSendBox = window.DAW_AuxSendBox;
         const AudioBusBox = window.DAW_AudioBusBox;
         const AudioUnitBox = window.DAW_AudioUnitBox;
@@ -1538,12 +1536,12 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
         const routingVal = {routing_val};
         const fxName = "{safe_name}";
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No src AU at index " + srcIdx}};
 
         const srcAU = units[srcIdx];
-        const primaryBus = p.primaryAudioBusBox;
-        const boxGraph = p.boxGraph;
+        const primaryBus = h.primaryAudioBusBox;
+        const boxGraph = h.boxGraph;
         const AudioUnitType = window.DAW_AudioUnitType;
 
         // Aux type = 3 (AudioUnitType.Aux)
@@ -1551,19 +1549,19 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
 
         let sendBox, fxBus, fxUnit;
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // 1. Create FX AudioUnitBox (Aux type) — owns the effect chain, output → primary bus
-            const existingCount = [...p.rootBox.audioUnits.pointerHub.incoming()].length;
-            fxUnit = AudioUnitBox.create(boxGraph, UUID.generate(), (box) => {{
-                box.collection.refer(p.rootBox.audioUnits);
+            const existingCount = [...h.rootBox.audioUnits.pointerHub.incoming()].length;
+            fxUnit = AudioUnitBox.create(boxGraph, h.uuid.generate(), (box) => {{
+                box.collection.refer(h.rootBox.audioUnits);
                 box.output.refer(primaryBus.input);
                 box.index.setValue(existingCount);
                 box.type.setValue(auxType);
             }});
 
             // 2. Create FX bus (AudioBusBox) — routes audio INTO fxUnit
-            fxBus = AudioBusBox.create(boxGraph, UUID.generate(), (box) => {{
-                box.collection.refer(p.rootBox.audioBusses);
+            fxBus = AudioBusBox.create(boxGraph, h.uuid.generate(), (box) => {{
+                box.collection.refer(h.rootBox.audioBusses);
                 box.output.refer(fxUnit.input);
                 box.enabled.setValue(true);
                 box.label.setValue(fxName);
@@ -1571,18 +1569,17 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
 
             // 3. Create AuxSendBox: src AU → FX bus (parallel send, no redirect)
             const currentSends = [...srcAU.auxSends.pointerHub.incoming()].length;
-            sendBox = AuxSendBox.create(boxGraph, UUID.generate(), (box) => {{
+            sendBox = AuxSendBox.create(boxGraph, h.uuid.generate(), (box) => {{
                 box.audioUnit.refer(srcAU.auxSends);
                 box.targetBus.refer(fxBus.input);
                 box.routing.setValue(routingVal);
                 box.sendGain.setValue(sendDb);
                 box.sendPan.setValue(0.0);
-                box.index.setValue(currentSends);
             }});
         }});
 
         // Get updated unit list to find FX unit index
-        const updatedUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const updatedUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const fxUnitIdx = updatedUnits.findIndex(b => b.address.equals(fxUnit.address));
 
         const sendIndex = [...srcAU.auxSends.pointerHub.incoming()]
@@ -1611,12 +1608,12 @@ send_index: Send index on the source AU (from create_send return).
 level_db: Send level in dB.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const srcIdx = {src_unit};
         const sendIdx = {send_index};
         const levelDb = {level_db};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1625,7 +1622,7 @@ level_db: Send level in dB.
             .sort((a, b) => a.index.getValue() - b.index.getValue());
         if (sendIdx >= sends.length) return {{error: "No send at index " + sendIdx + " (total: " + sends.length + ")"}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             sends[sendIdx].sendGain.setValue(levelDb);
         }});
 
@@ -1647,9 +1644,9 @@ unit_index: Audio unit index to inspect.
 Returns list of sends with: send_index, target_bus_name, send_level_db, routing.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const srcIdx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1689,10 +1686,10 @@ unit_index: Source audio unit index.
 send_index: Send index to remove (from list_sends).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const srcIdx = {unit_index};
         const sendIdx = {send_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1702,7 +1699,7 @@ send_index: Send index to remove (from list_sends).
         if (sendIdx >= sends.length) return {{error: "No send at index " + sendIdx + " (total: " + sends.length + ")"}};
 
         const sendBox = sends[sendIdx];
-        p.editing.modify(() => {{
+        h.modify(() => {{
             sendBox.delete();
         }});
 
@@ -1725,11 +1722,11 @@ routing: 'pre' (pre-fader, before volume/pan) or 'post' (post-fader, default).
 """
     routing_val = json.dumps(routing)
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const srcIdx = {unit_index};
         const sendIdx = {send_index};
         const routingVal = {routing_val};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1738,7 +1735,7 @@ routing: 'pre' (pre-fader, before volume/pan) or 'post' (post-fader, default).
             .sort((a, b) => a.index.getValue() - b.index.getValue());
         if (sendIdx >= sends.length) return {{error: "No send at index " + sendIdx}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             sends[sendIdx].routing.setValue(routingVal);
         }});
 
@@ -1758,9 +1755,9 @@ async def mcp_opendaw_list_audio_buses() -> str:
 Returns bus index, name, enabled state, and the associated audio unit index.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const buses = [...p.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const h = window.DAW_HELPERS;
+        const buses = [...h.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
 
         const busList = buses.map((box, i) => {{
             let unitIdx = -1;
@@ -1796,11 +1793,11 @@ pan: Pan value from -1.0 (left) to 1.0 (right).
 """
     pan_val = json.dumps(pan)
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const srcIdx = {unit_index};
         const sendIdx = {send_index};
         const panVal = {pan_val};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1809,7 +1806,7 @@ pan: Pan value from -1.0 (left) to 1.0 (right).
             .sort((a, b) => a.index.getValue() - b.index.getValue());
         if (sendIdx >= sends.length) return {{error: "No send at index " + sendIdx}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             sends[sendIdx].sendPan.setValue(panVal);
         }});
 
@@ -1830,13 +1827,13 @@ bus_index: Bus index from list_audio_buses (0 = primary output).
 enabled: True to enable, False to mute.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const busIdx = {bus_index};
         const enableVal = {json.dumps(enabled)};
-        const buses = [...p.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
+        const buses = [...h.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
         if (busIdx >= buses.length) return {{error: "No bus at index " + busIdx + " (total: " + buses.length + ")"}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             buses[busIdx].enabled.setValue(enableVal);
         }});
 
@@ -1860,11 +1857,11 @@ bus_index: Bus index to remove (must be > 0, i.e. not primary).
 fx_unit_index: Alternative — the FX AU index returned by create_send.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const busIdx = {bus_index};
         const fxUnitIdx = {fx_unit_index};
-        const buses = [...p.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const buses = [...h.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
 
         let targetBus = null;
         let targetUnit = null;
@@ -1895,7 +1892,7 @@ fx_unit_index: Alternative — the FX AU index returned by create_send.
         if (!targetBus && !targetUnit) return {{error: "Could not find bus or unit to remove"}};
 
         const busName = targetBus?.label?.getValue?.() ?? "unknown";
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // Remove sends pointing to this bus first
             if (targetBus) {{
                 for (const au of units) {{
@@ -1931,12 +1928,13 @@ effect_index: Effect position in the chain (0-based, from add_effect return).
 Returns parameter names, current values, units, and ranges.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
