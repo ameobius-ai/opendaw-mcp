@@ -10485,6 +10485,79 @@ async def mcp_opendaw_get_sample_info(sample_uuid: str) -> str:
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_get_studio_settings() -> str:
+    """Get all studio preferences/settings (engine, visibility, editing, debug, storage, time-display, pointer).
+
+    Returns all settings categories with current values.
+    """
+    result = await bridge.evaluate("""async () => {
+        const prefs = window.DAW_StudioPreferences;
+        if (!prefs) return {error: "StudioPreferences not available"};
+        return {settings: prefs.settings};
+    }""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_set_studio_setting(category: str, key: str, value: str) -> str:
+    """Set a studio preference setting.
+
+    Args:
+        category: Settings category — one of: 'engine', 'visibility', 'editing', 'debug', 'storage', 'time-display', 'pointer'
+        key: Setting key within the category (e.g. 'auto-create-output-maximizer', 'overlapping-regions-behaviour', 'enable-beta-features')
+        value: New value as string — 'true'/'false' for booleans, or string values for enums
+
+    Common settings:
+        engine.auto-create-output-maximizer (bool): auto-create Maximizer on Output unit
+        engine.note-audition-while-editing (bool): play notes when editing
+        engine.stop-playback-when-overloading (bool): stop playback on CPU overload
+        editing.overlapping-regions-behaviour ('clip'|'push-existing'|'keep-existing'): how overlapping regions interact
+        editing.show-clipboard-menu (bool): show clipboard menu
+        debug.enable-beta-features (bool): enable beta features
+        debug.enable-debug-menu (bool): enable debug menu
+        debug.show-cpu-stats (bool): show CPU stats
+        storage.auto-delete-orphaned-samples (bool): auto-delete unused samples
+        visibility.auto-open-clips (bool): auto-open clips
+        visibility.base-frequency (bool): show base frequency
+    """
+    safe_cat = category.replace('"', '').replace('\\', '').replace("'", "").replace(';', '')
+    safe_key = key.replace('"', '').replace('\\', '').replace("'", "").replace(';', '')
+    cat_json = json.dumps(safe_cat)
+    key_json = json.dumps(safe_key)
+    val_json = json.dumps(value)
+    result = await bridge.evaluate(f"""async () => {{
+        const prefs = window.DAW_StudioPreferences;
+        if (!prefs) return {{error: "StudioPreferences not available"}};
+        try {{
+            const s = prefs.settings;
+            const cat = s[{cat_json}];
+            if (!cat) return {{error: "Unknown category: {safe_cat}"}};
+            const oldVal = cat[{key_json}];
+            // Parse value: 'true'/'false' → bool, else string
+            let newVal;
+            if (typeof oldVal === 'boolean') {{
+                newVal = ({val_json} === 'true' || {val_json} === true);
+            }} else if (typeof oldVal === 'number') {{
+                newVal = parseFloat({val_json});
+            }} else {{
+                newVal = {val_json};
+            }}
+            cat[{key_json}] = newVal;
+            return {{
+                success: true,
+                category: {cat_json},
+                key: {key_json},
+                old_value: oldVal,
+                new_value: newVal,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
