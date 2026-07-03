@@ -20,3 +20,4 @@ opendaw-mcp = "server:main"
 
 [tool.setuptools]
 py-modules = ["server"]
+package-data = { "" = ["py.typed"] }
