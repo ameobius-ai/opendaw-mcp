@@ -1126,6 +1126,7 @@ Returns unit_index and track_index for use with create_note.
 """
     factory_key = synth_type.capitalize() if synth_type else "Vaporisateur"
     safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
+    safe_synth_type = synth_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -1139,7 +1140,7 @@ Returns unit_index and track_index for use with create_note.
         if (!IconSymbol) throw new Error("IconSymbol not loaded.");
 
         const factory = InstrumentFactories["{factory_key}"];
-        if (!factory) throw new Error("Unknown synth type: {synth_type} (factory key: {factory_key})");
+        if (!factory) throw new Error("Unknown synth type: {safe_synth_type} (factory key: {factory_key})");
 
         const rootBox = p.rootBox;
         const primaryAudioBusBox = p.primaryAudioBusBox;
@@ -1182,7 +1183,7 @@ Returns unit_index and track_index for use with create_note.
             success: true,
             unit_index: unitIndex,
             track_index: trackIndex >= 0 ? trackIndex : 0,
-            synth_type: "{synth_type}",
+            synth_type: "{safe_synth_type}",
             synth_class: synthDevice.constructor?.name,
             instrument_au: String(instrumentAU.address),
             synth_device: String(synthDevice.address),
@@ -1504,7 +1505,7 @@ Effects between from and to shift accordingly.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_send(src_unit: str, name: str, send_level_db: float, routing: str) -> str:
+async def mcp_opendaw_create_send(src_unit: int, name: str, send_level_db: float, routing: str) -> str:
     """Create a parallel FX send bus from an audio unit.
 
 Creates a NEW AudioBusBox (FX bus) with its own AudioUnitBox, then sends
@@ -4144,7 +4145,7 @@ Returns remaining region count on the track.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_region_position(track_index: int, region_index: int, position_beats: int, unit_index: int, region_type: str) -> str:
+async def mcp_opendaw_set_region_position(track_index: int, region_index: int, position_beats: float, unit_index: int, region_type: str) -> str:
     """Move a region to a new position on the timeline.
 
 position_beats: New position in beats (e.g. 4.0 = start of bar 2 in 4/4).
@@ -4159,7 +4160,7 @@ region_index: Region to move (0-based).
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
-        const rType = "{region_type}";
+        const rType = "{safe_region_type}";
         const newPos = Math.round({position_beats} * PPQN.Quarter);
 
         let tracks = [];
@@ -6122,6 +6123,8 @@ Returns position, duration in PPQN, and playback rate.
     
 
     safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
+    
+    safe_transient_mode = transient_mode.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -8802,6 +8805,8 @@ async def mcp_opendaw_create_automation_event(unit_index: int, track_index: int,
     Returns the created/updated event info, or error.
     """
     ppqn_val = int(position_beats * 960)
+    
+    safe_interpolation = interpolation.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -8815,7 +8820,7 @@ async def mcp_opendaw_create_automation_event(unit_index: int, track_index: int,
             const collection = optCol.unwrap();
             let created;
             h.modify(() => {{
-                const interpType = "{interpolation}";
+                const interpType = "{safe_interpolation}";
                 let interpolation;
                 if (interpType === "none") interpolation = {{type: "none"}};
                 else if (interpType === "curve") interpolation = {{type: "curve", slope: {curve_slope}}};
@@ -8898,6 +8903,8 @@ async def mcp_opendaw_set_automation_interpolation(unit_index: int, track_index:
 
     Returns success, or error.
     """
+    
+    safe_interpolation = interpolation.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -8910,7 +8917,7 @@ async def mcp_opendaw_set_automation_interpolation(unit_index: int, track_index:
             if ({event_index} >= events.length) return {{error: "No event {event_index}"}};
             const event = events[{event_index}];
             h.modify(() => {{
-                const interpType = "{interpolation}";
+                const interpType = "{safe_interpolation}";
                 let interpolation;
                 if (interpType === "none") interpolation = {{type: "none"}};
                 else if (interpType === "curve") interpolation = {{type: "curve", slope: {curve_slope}}};
