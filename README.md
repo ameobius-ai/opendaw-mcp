@@ -106,9 +106,14 @@ python server.py --list-tools  # list all 243 registered MCP tools
 ### Docker
 
 ```bash
+# Pull pre-built image from GitHub Container Registry
+docker pull ghcr.io/ameobius/opendaw-mcp:1.9.6
+docker run -p 8080:8080 ghcr.io/ameobius/opendaw-mcp:1.9.6
+# MCP server available at http://localhost:8080/sse
+
+# Or build from source
 docker build -t opendaw-mcp .
 docker run -p 8080:8080 opendaw-mcp
-# MCP server available at http://localhost:8080/sse
 ```
 
 The Docker image bundles openDAW (built from source), Vite dev server, Chromium, and the MCP server. The entrypoint starts Vite, waits for it to be ready, then launches the MCP server in SSE mode.
