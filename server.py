@@ -8516,6 +8516,214 @@ async def mcp_opendaw_copy_region_fades(src_unit: int, src_track: int, src_regio
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_copy_playfield_sample(unit_index: int, sample_index: int, target_index: int) -> str:
+    """Copy a Playfield (drum machine) sample to a new index slot.
+
+    Duplicates the sample with all its parameters (mute, solo, pitch, attack,
+    release, sampleStart, sampleEnd, gate, exclude, polyphone) to a new slot.
+
+    unit_index: AU index containing the Playfield instrument.
+    sample_index: Source sample slot index.
+    target_index: Destination slot index.
+
+    Returns success or error.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const input = au.input.adapter();
+            if (input.isEmpty()) return {{error: "No instrument on AU " + {unit_index}}};
+            const inst = input.unwrap();
+            if (!inst.box.constructor.name.includes('Playfield')) return {{error: "Instrument is not a Playfield"}};
+            const samples = inst.box.samples ? [...inst.box.samples.pointerHub.incoming()] : [];
+            const sampleAdapter = samples.find(s => s.box.index.getValue() === {sample_index});
+            if (!sampleAdapter) return {{error: "No sample at index " + {sample_index}}};
+            const p = window.DAW;
+            const adapter = p.boxAdapters.adapterFor(sampleAdapter.box, inst.constructor);
+            p.editing.modify(() => {{
+                adapter.copyToIndex({target_index});
+            }});
+            return {{success: true, source: {sample_index}, target: {target_index}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_duplicate_note_event(unit_index: int, track_index: int, region_index: int, note_index: int,
+                                           position_offset: float = 0.0, pitch_offset: int = 0) -> str:
+    """Duplicate a note event within the same region with optional position/pitch offset.
+
+    Copies the note's position, duration, pitch, velocity, cent, chance, playCount.
+    Can transpose and shift the copy relative to the original.
+
+    unit_index/track_index/region_index: Region coordinates.
+    note_index: Note index within the region.
+    position_offset: PPQN offset from original position (default 0 = same position).
+    pitch_offset: Semitone offset from original pitch (default 0 = same pitch).
+
+    Returns the new note's position, pitch, and duration.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const reg = h.region(h.au({unit_index}), h.track({unit_index}, {track_index}), {region_index});
+            const events = reg.events.targetVertex.unwrap("events").box;
+            const noteAdapters = [...events.events.pointerHub.incoming()]
+                .map(({{box}}) => box)
+                .sort((a, b) => a.position.getValue() - b.position.getValue());
+            if ({note_index} >= noteAdapters.length) return {{error: "No note at index " + {note_index}}};
+            const srcBox = noteAdapters[{note_index}];
+            const p = window.DAW;
+            const adapter = p.boxAdapters.adapterFor(srcBox, p.NoteEventBoxAdapter || class {{}});
+            let newAdapter;
+            p.editing.modify(() => {{
+                newAdapter = adapter.copyTo({{
+                    position: srcBox.position.getValue() + {position_offset},
+                    pitch: srcBox.pitch.getValue() + {pitch_offset},
+                }});
+            }});
+            return {{
+                success: true,
+                new_position: newAdapter.position,
+                new_pitch: newAdapter.pitch,
+                new_duration: newAdapter.duration,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_get_neuralamp_model(unit_index: int, effect_index: int) -> str:
+    """Get the NeuralAmp (Tone3000) model JSON for a NeuralAmp effect.
+
+    Returns the full NAM model JSON string, or an error if the effect is not
+    a NeuralAmp or has no model loaded.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain.
+
+    Returns model_json (string) or empty if no model loaded.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const fx = au.audioEffects.adapters();
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const fxAdapter = fx[{effect_index}];
+            if (!fxAdapter.getModelJson) return {{error: "Effect is not a NeuralAmp"}};
+            const modelJson = fxAdapter.getModelJson();
+            return {{
+                effect_label: fxAdapter.labelField.getValue(),
+                has_model: modelJson.length > 0,
+                model_size: modelJson.length,
+                model_json: modelJson.length > 0 ? modelJson.substring(0, 500) + (modelJson.length > 500 ? '...[truncated]' : '') : null,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_list_transient_markers(unit_index: int, track_index: int, region_index: int) -> str:
+    """List transient markers for an audio region's audio file.
+
+    Transient markers are auto-detected hit points in the audio. Useful for
+    beat slicing and groove extraction.
+
+    unit_index/track_index/region_index: Audio region coordinates.
+
+    Returns array of transient positions (in samples) or empty if none.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const reg = h.region(h.au({unit_index}), h.track({unit_index}, {track_index}), {region_index});
+            const audioContent = reg.audioContent || reg.box.audioContent;
+            if (!audioContent) return {{error: "Region has no audio content (not an audio region)"}};
+            const fileVertex = audioContent.targetVertex || audioContent.file?.targetVertex;
+            if (!fileVertex || fileVertex.isEmpty()) return {{error: "No audio file attached"}};
+            const fileBox = fileVertex.unwrap().box;
+            const p = window.DAW;
+            const fileAdapter = p.boxAdapters.adapterFor(fileBox, p.AudioFileBoxAdapter || class {{}});
+            if (!fileAdapter.transients) return {{transients: [], note: "No transients available"}};
+            const transients = Array.from(fileAdapter.transients.iterate());
+            return {{
+                file_name: fileAdapter.fileName,
+                transient_count: transients.length,
+                transients: transients.map(t => ({{position: t.position, uuid: t.uuid?.toString?.() || null}})),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_get_signature_events() -> str:
+    """List all time signature change events in the project.
+
+    Returns the base signature (4/4 by default) and all signature change events
+    with their accumulated PPQN positions, bar counts, and nominator/denominator.
+
+    Returns base_signature, events array with index/position/bars/nominator/denominator.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const sigTrack = p.rootBoxAdapter.timeline.signatureTrack;
+            const events = Array.from(sigTrack.iterateAll());
+            return {{
+                enabled: sigTrack.enabled,
+                base_signature: [events[0].nominator, events[0].denominator],
+                event_count: events.length - 1,
+                events: events.map(e => ({{
+                    index: e.index,
+                    position_ppqn: e.accumulatedPpqn,
+                    bars: e.accumulatedBars,
+                    nominator: e.nominator,
+                    denominator: e.denominator,
+                }})),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_delete_signature_event(event_index: int) -> str:
+    """Delete a time signature change event by index.
+
+    Automatically recalculates relative positions of subsequent events.
+
+    event_index: Index of the signature event (from get_signature_events).
+
+    Returns success or error.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const sigTrack = p.rootBoxAdapter.timeline.signatureTrack;
+            const adapter = sigTrack.adapterAt({event_index});
+            if (adapter.isEmpty()) return {{error: "No signature event at index " + {event_index}}};
+            p.editing.modify(() => {{
+                sigTrack.deleteAdapter(adapter.unwrap());
+            }});
+            return {{success: true, deleted_index: {event_index}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')
