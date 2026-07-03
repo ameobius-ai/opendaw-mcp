@@ -93,6 +93,14 @@ For remote deployments and registry introspection (e.g. [Glama](https://glama.ai
 MCP_TRANSPORT=sse FASTMCP_HOST=0.0.0.0 FASTMCP_PORT=8080 python server.py
 ```
 
+### CLI
+
+```bash
+python server.py --help        # show usage and env vars
+python server.py --version     # print version and tool count
+python server.py --list-tools  # list all 243 registered MCP tools
+```
+
 ### Docker
 
 ```bash

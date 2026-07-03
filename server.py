@@ -11709,6 +11709,37 @@ async def mcp_opendaw_set_audio_region_waveform_offset(unit_index: int, track_in
 
 def main():
     """Entry point for opendaw-mcp command."""
+    import sys
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ("--version", "-v"):
+            print("opendaw-mcp 1.9.4 — 243 MCP tools")
+            return
+        if sys.argv[1] in ("--list-tools", "-l"):
+            import asyncio
+            tools = asyncio.run(mcp.list_tools())
+            for t in sorted(tools, key=lambda x: x.name):
+                print(f"  {t.name} — {t.description[:80]}")
+            print(f"\nTotal: {len(tools)} tools")
+            return
+        if sys.argv[1] in ("--help", "-h"):
+            print("opendaw-mcp — 243 MCP tools for agent-native openDAW control")
+            print()
+            print("Usage:")
+            print("  opendaw-mcp              Start MCP server (stdio transport)")
+            print("  MCP_TRANSPORT=sse opendaw-mcp  Start MCP server (SSE transport)")
+            print("  opendaw-mcp --version    Show version")
+            print("  opendaw-mcp --list-tools List all registered MCP tools")
+            print("  opendaw-mcp --help       Show this help")
+            print()
+            print("Environment variables:")
+            print("  OPENDAW_HOST_DIR  Path to headless openDAW directory")
+            print("  OPENDAW_URL       URL of openDAW Vite dev server")
+            print("  OPENDAW_EXPORT_DIR  Directory for audio exports")
+            print("  NODE_BIN_DIR      Path to Node.js bin directory")
+            print("  MCP_TRANSPORT     Transport type: stdio (default) or sse")
+            print("  FASTMCP_HOST      SSE host (default 0.0.0.0)")
+            print("  FASTMCP_PORT      SSE port (default 8080)")
+            return
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     mcp.run(transport=transport)
 
