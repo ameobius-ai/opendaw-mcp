@@ -325,6 +325,12 @@
 ## Transient Markers (1 tool)
 - **list_transient_markers(unit_index, track_index, region_index)** — List transient markers for an audio region's audio file. Returns marker positions and anchor flags.
 
+## Mixer Advanced (4 tools)
+- **set_unit_minimized(unit_index, minimized)** — Minimize or expand an AU in the mixer view (declutter when working with many tracks)
+- **list_aux_sends(unit_index)** — List all aux sends on an AU with level, enabled, and label
+- **capture_realtime(duration_seconds, filename)** — Capture realtime audio output from the DAW engine (requires start_engine first). Records live playback with effects and automation.
+- **get_sample_info(sample_uuid)** — Get detailed info about an audio sample by UUID (sample rate, channels, frames, duration) via SampleManager
+
 ## Debugging & Control (3 tools)
 - **screenshot_daw** — Take a screenshot of the openDAW UI. Returns base64-encoded PNG. Useful for visual debugging and verifying project state.
 - **wait_for_condition(condition_js, timeout_ms, poll_interval_ms)** — Poll a JavaScript condition in the DAW context until truthy or timeout. Useful for waiting on async operations (render completion, file loading).

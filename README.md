@@ -209,7 +209,7 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 211 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 215 tools with parameters and descriptions.
 
 ## Mastering
 

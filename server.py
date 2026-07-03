@@ -10336,6 +10336,155 @@ async def mcp_opendaw_evaluate_raw(script: str) -> str:
     return _wrap_eval(result)
 
 
+# ─── Mixer Advanced (v1.6.1) ─────────────────────────────────────────
+
+@mcp.tool()
+async def mcp_opendaw_set_unit_minimized(unit_index: int, minimized: bool) -> str:
+    """Minimize or expand an audio unit in the mixer view.
+
+    Minimized AUs take less space in the mixer — useful for decluttering
+    when working with many tracks.
+
+    unit_index: AU index.
+    minimized: True to minimize, False to expand.
+
+    Returns success with old and new minimized state.
+    """
+    val = "true" if minimized else "false"
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const oldVal = au.minimizedField.getValue();
+            h.modify(() => {{
+                au.minimizedField.setValue({val});
+            }});
+            return {{success: true, old_minimized: oldVal, new_minimized: {val}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_list_aux_sends(unit_index: int) -> str:
+    """List all aux sends on an audio unit.
+
+    Aux sends route audio from this AU to an audio bus (reverb, delay, etc).
+    Each send has a level (dB), routing (pre/post-fader), and target bus.
+
+    unit_index: AU index.
+
+    Returns list of sends with level, routing, and target info.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const sends = au.auxSends ? au.auxSends.adapters() : [];
+            return {{
+                unit_index: {unit_index},
+                send_count: sends.length,
+                sends: sends.map((s, i) => ({{
+                    index: i,
+                    level: s.level?.getValue?.() ?? 0,
+                    enabled: s.enabledField?.getValue?.() ?? true,
+                    label: s.labelField?.getValue?.() ?? '',
+                }})),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_capture_realtime(duration_seconds: float, filename: str) -> str:
+    """Capture realtime audio output from the DAW engine.
+
+    Records the live audio output for a specified duration. The engine must
+    be running (call start_engine first). Useful for capturing live playback
+    with effects, automation, and real-time processing.
+
+    duration_seconds: How long to record (float, e.g. 10.0).
+    filename: Output WAV filename (without extension).
+
+    Returns file path and size, or error if engine not running.
+    """
+    safe_name = filename.replace('"', '').replace('\\', '').replace("'", "").replace('/', '').replace(';', '')
+    result = await bridge.evaluate(f"""async () => {{
+        const captureFn = window.DAW_captureRealtime;
+        if (!captureFn) return {{error: "captureRealtime not available"}};
+        try {{
+            const audioData = await captureFn({duration_seconds});
+            const WavFile = window.DAW_WavFile;
+            if (!WavFile) return {{error: "WavFile not available"}};
+            const wav = WavFile.encodeFloats(audioData);
+            const bytes = new Uint8Array(wav);
+            let binary = "";
+            for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+            window.__lastCaptureB64 = btoa(binary);
+            return {{
+                success: true,
+                samples: audioData.frames[0]?.length || 0,
+                sample_rate: audioData.sampleRate,
+                channels: audioData.channels,
+                size_bytes: bytes.length,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    if isinstance(result, dict) and result.get("error"):
+        return _wrap_eval(result)
+
+    import base64 as b64mod
+    export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
+    os.makedirs(export_dir, exist_ok=True)
+    b64 = await bridge.evaluate("() => window.__lastCaptureB64")
+    filepath = os.path.join(export_dir, f"{safe_name}.wav")
+    if isinstance(b64, str) and b64:
+        wav_bytes = b64mod.b64decode(b64)
+        with open(filepath, "wb") as f:
+            f.write(wav_bytes)
+
+    if isinstance(result, dict):
+        result["filepath"] = filepath
+    return json.dumps(result)
+
+@mcp.tool()
+async def mcp_opendaw_get_sample_info(sample_uuid: str) -> str:
+    """Get detailed info about an audio sample by UUID.
+
+    Uses the SampleManager to fetch metadata about audio files registered
+    in the project. Returns sample rate, channels, frames, and loading state.
+
+    sample_uuid: UUID of the audio sample (from list_samples).
+
+    Returns sample metadata, or error if not found.
+    """
+    safe_uuid = sample_uuid.replace('"', '').replace('\\', '').replace("'", "").replace(';', '')
+    uuid_json = json.dumps(safe_uuid)
+    result = await bridge.evaluate(f"""async () => {{
+        const sm = window.DAW_sampleManager;
+        if (!sm) return {{error: "sampleManager not available"}};
+        try {{
+            const data = await sm.getAudioData({uuid_json});
+            if (!data) return {{error: "Sample not found"}};
+            return {{
+                success: true,
+                sample_rate: data.sampleRate,
+                channels: data.numChannels,
+                frames: data.numFrames,
+                duration_seconds: data.numFrames / data.sampleRate,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
