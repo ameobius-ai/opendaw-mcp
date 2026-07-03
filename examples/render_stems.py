@@ -3,13 +3,14 @@ Example: Render stems and full mix with LUFS targeting.
 
 Shows how to:
 - Render individual stems (per-AU exports)
-- Render the full mix
 - Target streaming LUFS levels (-14 for Spotify/YouTube)
+- Auto-gain to match loudness targets
 """
 
 import asyncio
 import json
 import server
+
 
 async def main():
     await server.bridge.start()
@@ -20,33 +21,36 @@ async def main():
     duration = json.loads(result)
     print(f"Project duration: {duration}")
 
-    # 2. Render individual stems
-    # Get all AUs
-    result = await server.mcp_opendaw_get_full_project_state()
-    state = json.loads(result)
-    aus = state.get("audio_units", [])
+    # 2. Start the engine (required for rendering)
+    await server.mcp_opendaw_start_engine()
+    print("Engine started")
 
-    for i, au in enumerate(aus):
-        result = await server.mcp_opendaw_render_stems(
-            unit_index=i,
-            filename=f"stem_{au.get('label', f'unit{i}')}.wav",
-            target_lufs=-14.0
-        )
-        data = json.loads(result)
-        print(f"Stem {i} ({au.get('label', '?')}): {data}")
+    # 3. Export individual stems
+    # export_stems(filename_prefix, sample_rate)
+    result = await server.mcp_opendaw_export_stems("stem", 48000)
+    stems_data = json.loads(result)
+    print(f"Stems exported: {stems_data}")
 
-    # 3. Render full mix
-    result = await server.mcp_opendaw_render_mix(
-        filename="full_mix.wav",
-        target_lufs=-14.0
-    )
-    data = json.loads(result)
-    print(f"Full mix: {data}")
+    # 4. Measure LUFS on the exported mix
+    # measure_lufs(filename)
+    mix_file = stems_data.get("mix_file") or stems_data.get("files", [{}])[0].get("path", "")
+    if mix_file:
+        result = await server.mcp_opendaw_measure_lufs(mix_file)
+        lufs_data = json.loads(result)
+        print(f"LUFS measurement: {lufs_data}")
+
+        # 5. Auto-gain to -14 LUFS (Spotify target)
+        # auto_gain(target_lufs, filename, sample_rate, max_iterations)
+        result = await server.mcp_opendaw_auto_gain("-14", mix_file, 48000, "10")
+        print(f"Auto-gain to -14 LUFS: {json.loads(result)}")
+    else:
+        print("No mix file found for LUFS measurement")
 
     print("\nRendering complete!")
-    print(f"Rendered {len(aus)} stems + 1 full mix at -14 LUFS")
+    print("Stems exported + LUFS measured + auto-gain applied")
 
     await server.bridge.stop()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

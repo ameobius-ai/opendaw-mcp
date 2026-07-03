@@ -1,61 +1,55 @@
 """
 Example: Filter cutoff automation sweep on a synth.
 
-Creates a synthesizer with a filter, then automates the cutoff
-frequency to create a sweeping effect over 4 bars.
+Creates a synthesizer with a delay effect, then automates the feedback
+parameter to create a sweeping effect over 4 bars.
 """
 
 import asyncio
 import json
 import server
 
-PPQN = 960
 
 async def main():
     await server.bridge.start()
     print("Bridge started")
 
     # 1. Create Vaporisateur
-    await server.mcp_opendaw_create_synth("Vaporisateur")
-    print("Vaporisateur created")
-
-    # 2. Create an automation track for the filter cutoff
-    # First, find the parameter name we want to automate
-    result = await server.mcp_opendaw_list_instrument_params(0)
-    params = json.loads(result)
-    print(f"Instrument params: {params}")
-
-    # 3. Create automation track (targeting cutoff parameter)
-    result = await server.mcp_opendaw_create_automation_track(0, "cutoff")
+    result = await server.mcp_opendaw_create_synth_track("Synth", "Vaporisateur")
     data = json.loads(result)
-    print(f"Automation track: {data}")
-    auto_track = data.get("track_index", 0)
+    uid = data["unit_index"]
+    print(f"Vaporisateur: unit_index={uid}")
 
-    # 4. Create a 4-bar automation region
-    bar = 4 * PPQN
-    result = await server.mcp_opendaw_create_value_region(0, auto_track, 0, 0, bar * 4)
-    print(f"Automation region: {json.loads(result)}")
+    # 2. List instrument params
+    result = await server.mcp_opendaw_list_instrument_params(uid)
+    params = json.loads(result)
+    print(f"Instrument params: {len(params.get('params', params.get('parameters', [])))} found")
 
-    # 5. Add automation events — low to high sweep
-    # Start at 0.1 (low cutoff), sweep to 0.9 (high), then back to 0.3
-    events = [
-        (0, 0.1),           # bar 0: closed filter
-        (bar * 2, 0.9),     # bar 2: open filter
-        (bar * 3, 0.3),     # bar 3: partially closed
-        (bar * 4, 0.1),     # bar 4: closed again
-    ]
+    # 3. Create a note track + region with a sustained chord
+    await server.mcp_opendaw_create_note_track(uid)
+    await server.mcp_opendaw_create_track_region(uid, 0, 0, 16, "Pad", 200)
+    for pitch in [60, 64, 67]:
+        await server.mcp_opendaw_create_note(0, pitch, 0, 16, 0.5, uid)
+    print("Sustained C major chord across 4 bars")
 
-    for pos, value in events:
-        result = await server.mcp_opendaw_create_automation_event(
-            0, auto_track, 0,
-            position=pos, value=value, interpolation="linear"
-        )
-        print(f"  Automation at {pos//PPQN} beats: {value} → {json.loads(result).get('success', '')}")
+    # 4. Add a delay effect (effect_index 0)
+    await server.mcp_opendaw_add_effect(uid, "Delay")
+    print("Delay added")
+
+    # 5. Add automation on delay feedback
+    # add_automation(unit_index, effect_index, parameter_name, points)
+    # points: JSON array of [position_beats, value_0_to_1] pairs
+    # Format: "[[0, 0.1], [4, 0.9], [8, 0.3], [16, 0.1]]"
+    points = "[[0, 0.1], [4, 0.9], [8, 0.3], [16, 0.1]]"
+    result = await server.mcp_opendaw_add_automation(uid, 0, "feedback", points)
+    auto_data = json.loads(result)
+    print(f"Automation: {auto_data}")
 
     print("\nFilter sweep automation created!")
-    print("4-bar sweep: low → high → medium → low")
+    print("4-bar feedback sweep: 0.1→0.9→0.3→0.1")
 
     await server.bridge.stop()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

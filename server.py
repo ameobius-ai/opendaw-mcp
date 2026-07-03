@@ -4827,7 +4827,7 @@ The parameter must be automatable (Field<Pointers.Automation>).
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
         const paramName = "{parameter_name}";
-        const points = {points_js};
+        const points = {points};
 
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box);
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
