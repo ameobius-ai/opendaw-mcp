@@ -1,0 +1,31 @@
+name: Feature Request
+description: Suggest a new MCP tool or improvement
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! openDAW MCP currently exposes 250+ tools.
+        Check [TOOL_CATALOG.md](../TOOL_CATALOG.md) to see if your request is already covered.
+  - type: textarea
+    id: description
+    attributes:
+      label: What feature would you like?
+      description: Describe the tool or improvement you'd like to see.
+    validations:
+      required: true
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+      description: What agent workflow or music production task does this enable?
+    validations:
+      required: true
+  - type: input
+    id: opendaw-ref
+    attributes:
+      label: openDAW API reference (optional)
+      description: Link to the relevant openDAW source file or API method if known.
+    validations:
+      required: false

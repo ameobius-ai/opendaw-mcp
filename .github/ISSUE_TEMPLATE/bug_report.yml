@@ -1,0 +1,43 @@
+name: Bug Report
+description: Report a problem with an MCP tool
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the issue. Include the tool name and the error output.
+    validations:
+      required: true
+  - type: input
+    id: tool-name
+    attributes:
+      label: Tool name
+      placeholder: e.g. create_synth_track
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Run `python server.py --version` to check.
+      placeholder: e.g. v1.9.8
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal sequence of tool calls that triggers the issue.
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options:
+        - stdio
+        - sse
+    validations:
+      required: true

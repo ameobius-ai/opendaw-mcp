@@ -21,3 +21,4 @@ exports/
 # mcp-publisher binary
 mcp-publisher
 .coverage
+.coverage
