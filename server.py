@@ -5703,61 +5703,366 @@ effects chain, volume, panning, and region count.
 
 @mcp.tool()
 async def mcp_opendaw_measure_lufs(filename: str) -> str:
-    """Measure LUFS and true peak of an exported WAV file.
+    """Measure LUFS (integrated) and true peak of an exported WAV file.
 
-Uses ITU-R BS.1770 simplified algorithm (K-weighted RMS, no gating).
-filename: Name of the WAV file in the exports directory (without path).
+    Uses ITU-R BS.1770-4 simplified algorithm:
+    - K-weighting: 2nd-order high-shelf (+4dB @ ~1.5kHz) + highpass (~38Hz)
+    - Gated mean squares (400ms blocks, 75% overlap, -10 LU relative gate)
+    - Integrated LUFS = -0.691 + 10*log10(gated mean square)
 
-Returns: LUFS (integrated), true peak (dB), max sample, duration.
-"""
-    # Non-JS function — needs manual reconstruction
-    return _err("Not yet reconstructed")
+    filename: Name of the WAV file in the exports directory (without path).
+
+    Returns: LUFS (integrated), true peak (dBTP), max sample, duration seconds.
+    """
+    import math
+    import struct
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filepath}")
+
+    try:
+        # Parse WAV header manually — openDAW exports 32-bit float WAVs
+        # which Python's wave module doesn't support (format code 3)
+        with open(filepath, "rb") as f:
+            raw = f.read()
+
+        # Parse RIFF header
+        if raw[:4] != b"RIFF" or raw[8:12] != b"WAVE":
+            return _err("Not a valid WAV file")
+        pos = 12
+        n_channels = sample_rate = n_frames = 0
+        bits_per_sample = 16
+        audio_format = 1  # 1=PCM, 3=float32
+        audio_data = b""
+        while pos < len(raw) - 8:
+            chunk_id = raw[pos:pos+4]
+            chunk_size = struct.unpack_from("<I", raw, pos+4)[0]
+            if chunk_id == b"fmt ":
+                audio_format = struct.unpack_from("<H", raw, pos+8)[0]
+                n_channels = struct.unpack_from("<H", raw, pos+10)[0]
+                sample_rate = struct.unpack_from("<I", raw, pos+12)[0]
+                bits_per_sample = struct.unpack_from("<H", raw, pos+22)[0]
+            elif chunk_id == b"data":
+                audio_data = raw[pos+8:pos+8+chunk_size]
+                bytes_per_sample = bits_per_sample // 8
+                n_frames = chunk_size // (bytes_per_sample * n_channels)
+            pos += 8 + chunk_size + (chunk_size % 2)  # pad to even
+
+        if not audio_data:
+            return _err("No data chunk in WAV")
+
+        # Convert to float samples based on format
+        if audio_format == 3 and bits_per_sample == 32:
+            # 32-bit float
+            fmt = f"<{n_frames * n_channels}f"
+            samples = list(struct.unpack(fmt, audio_data))
+        elif audio_format == 1 and bits_per_sample == 16:
+            fmt = f"<{n_frames * n_channels}h"
+            samples = struct.unpack(fmt, audio_data)
+            samples = [s / 32768.0 for s in samples]
+        elif audio_format == 1 and bits_per_sample == 24:
+            samples = []
+            for i in range(0, len(audio_data), 3):
+                val = int.from_bytes(audio_data[i:i+3], byteorder="little", signed=True)
+                samples.append(val / 8388608.0)
+        elif audio_format == 1 and bits_per_sample == 32:
+            fmt = f"<{n_frames * n_channels}i"
+            samples = struct.unpack(fmt, audio_data)
+            samples = [s / 2147483648.0 for s in samples]
+        else:
+            return _err(f"Unsupported WAV format: {audio_format}/{bits_per_sample}bit")
+
+        duration_sec = n_frames / sample_rate
+
+        # De-interleave channels
+        channels = [[] for _ in range(n_channels)]
+        for i, s in enumerate(samples):
+            channels[i % n_channels].append(s)
+
+        # ITU-R BS.1770 K-weighting filter coefficients
+        # Stage 1: high-shelf biquad (pre-filter)
+        # Stage 2: high-pass biquad (RLB)
+        # Coefficients for 48kHz from BS.1770-4 Annex
+        # Note: using normalized form where b0 is the gain factor
+        if sample_rate == 48000:
+            # Shelf filter (pre-filter): +4dB high shelf
+            f0 = 1681.974450955533
+            G = 3.9998432737
+            Q = 0.7081754356
+            K = math.tan(math.pi * f0 / sample_rate)
+            Vh = 10 ** (G / 20.0)
+            Vb = 10 ** (G / 40.0)
+            a0_ = 1.0 + K / Q + K * K
+            s_b0 = (Vh + Vb * K / Q + K * K) / a0_
+            s_b1 = 2.0 * (K * K - Vh) / a0_
+            s_b2 = (Vh - Vb * K / Q + K * K) / a0_
+            s_a0 = 1.0
+            s_a1 = 2.0 * (K * K - 1.0) / a0_
+            s_a2 = (1.0 - K / Q + K * K) / a0_
+            # RLB (highpass): ~38Hz
+            f0r = 38.1354708761
+            Qr = 0.5003270373
+            Kr = math.tan(math.pi * f0r / sample_rate)
+            ar0 = 1.0 + Kr / Qr + Kr * Kr
+            r_b0 = 1.0 / ar0
+            r_b1 = -2.0 / ar0
+            r_b2 = 1.0 / ar0
+            r_a0 = 1.0
+            r_a1 = 2.0 * (Kr * Kr - 1.0) / ar0
+            r_a2 = (1.0 - Kr / Qr + Kr * Kr) / ar0
+        else:
+            # For 44100 — recompute with actual sample_rate
+            f0 = 1681.974450955533
+            G = 3.9998432737
+            Q = 0.7081754356
+            K = math.tan(math.pi * f0 / sample_rate)
+            Vh = 10 ** (G / 20.0)
+            Vb = 10 ** (G / 40.0)
+            a0_ = 1.0 + K / Q + K * K
+            s_b0 = (Vh + Vb * K / Q + K * K) / a0_
+            s_b1 = 2.0 * (K * K - Vh) / a0_
+            s_b2 = (Vh - Vb * K / Q + K * K) / a0_
+            s_a0 = 1.0
+            s_a1 = 2.0 * (K * K - 1.0) / a0_
+            s_a2 = (1.0 - K / Q + K * K) / a0_
+            f0r = 38.1354708761
+            Qr = 0.5003270373
+            Kr = math.tan(math.pi * f0r / sample_rate)
+            ar0 = 1.0 + Kr / Qr + Kr * Kr
+            r_b0 = 1.0 / ar0
+            r_b1 = -2.0 / ar0
+            r_b2 = 1.0 / ar0
+            r_a0 = 1.0
+            r_a1 = 2.0 * (Kr * Kr - 1.0) / ar0
+            r_a2 = (1.0 - Kr / Qr + Kr * Kr) / ar0
+
+        def apply_biquad(data, b0, b1, b2, a0, a1, a2):
+            # Normalize by a0
+            b0n, b1n, b2n = b0/a0, b1/a0, b2/a0
+            a1n, a2n = a1/a0, a2/a0
+            out = [0.0] * len(data)
+            x1 = x2 = y1 = y2 = 0.0
+            for i in range(len(data)):
+                x = data[i]
+                y = b0n * x + b1n * x1 + b2n * x2 - a1n * y1 - a2n * y2
+                out[i] = y
+                x2 = x1; x1 = x
+                y2 = y1; y1 = y
+            return out
+
+        # Apply K-weighting to each channel
+        k_weighted = []
+        for ch in channels:
+            stage1 = apply_biquad(ch, s_b0, s_b1, s_b2, s_a0, s_a1, s_a2)
+            stage2 = apply_biquad(stage1, r_b0, r_b1, r_b2, r_a0, r_a1, r_a2)
+            k_weighted.append(stage2)
+
+        # Gated mean squares: 400ms blocks, 75% overlap
+        block_size = int(0.4 * sample_rate)
+        hop_size = int(0.1 * sample_rate)  # 75% overlap
+        if block_size == 0 or hop_size == 0:
+            return _err(f"Sample rate too low: {sample_rate}")
+
+        # Channel weights (L/R/C = 1.0, surround = 1.41)
+        ch_weights = [1.0] * n_channels
+        if n_channels > 2:
+            for i in range(2, n_channels):
+                ch_weights[i] = 1.41
+
+        blocks_ms = []
+        pos = 0
+        while pos + block_size <= n_frames:
+            block_ms = 0.0
+            for ch_idx in range(n_channels):
+                ch_data = k_weighted[ch_idx][pos:pos + block_size]
+                ms = sum(s * s for s in ch_data) / block_size
+                block_ms += ch_weights[ch_idx] * ms
+            blocks_ms.append(block_ms)
+            pos += hop_size
+
+        if not blocks_ms:
+            return _err("Not enough samples for LUFS measurement")
+
+        # Absolute gate: -70 LUFS
+        abs_gate_lufs = -70.0
+        abs_gate_ms = 10 ** ((abs_gate_lufs + 0.691) / 10.0)
+
+        gated_blocks = [ms for ms in blocks_ms if ms > abs_gate_ms]
+        if not gated_blocks:
+            return _err("All blocks below absolute gate (-70 LUFS)")
+
+        # Relative gate: -10 LU below mean of absolutely-gated blocks
+        mean_ms = sum(gated_blocks) / len(gated_blocks)
+        rel_gate_ms = 10 ** ((10 * math.log10(mean_ms) - 0.691 - 10) / 10.0)
+
+        rel_gated = [ms for ms in gated_blocks if ms > rel_gate_ms]
+        if not rel_gated:
+            # Use absolutely-gated mean as fallback
+            final_ms = mean_ms
+        else:
+            final_ms = sum(rel_gated) / len(rel_gated)
+
+        lufs = -0.691 + 10 * math.log10(final_ms)
+
+        # True peak: max absolute sample across all channels
+        max_sample = max(max(abs(s) for s in ch) for ch in channels)
+        true_peak_db = 20 * math.log10(max_sample) if max_sample > 0 else -float("inf")
+
+        return json.dumps({
+            "success": True,
+            "lufs_integrated": round(lufs, 1),
+            "true_peak_db": round(true_peak_db, 2),
+            "max_sample": round(max_sample, 6),
+            "duration_seconds": round(duration_sec, 2),
+            "sample_rate": sample_rate,
+            "channels": n_channels,
+            "blocks_measured": len(blocks_ms),
+            "gated_blocks": len(gated_blocks),
+        })
+    except Exception as e:
+        return _err(f"LUFS measurement error: {e}")
 
 @mcp.tool()
-async def mcp_opendaw_auto_gain(target_lufs: str, filename: str, sample_rate: int, max_iterations: str) -> str:
+async def mcp_opendaw_auto_gain(target_lufs: str, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: str = "3") -> str:
     """Auto-adjust output volume to hit a target LUFS.
 
-Iterative loop: export → measure LUFS → adjust output AU volume → re-export.
-Converges within ±0.5 LUFS of target.
+    Iterative loop: render → measure LUFS → adjust Maximizer threshold → re-render.
+    Converges within ±1 LUFS of target.
 
-target_lufs: Target loudness (Spotify -14, YouTube -14, Apple -16).
-filename: Output filename.
-sample_rate: Export sample rate.
-max_iterations: Max refinement loops (default 3).
+    target_lufs: Target loudness (Spotify -14, YouTube -14, Apple -16).
+    filename: Output filename (without .wav).
+    sample_rate: Export sample rate (default 48000).
+    max_iterations: Max refinement loops (default 3).
 
-Returns final LUFS, gain applied, and WAV path.
-"""
-    result = await bridge.evaluate(f"""() => {{
-                const p = window.DAW;
-                const ef = window.DAW_EffectFactories;
-                const api = p.api;
-                const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
-                const au = units[0];
+    Returns final LUFS, threshold applied, iterations, and WAV path.
+    """
+    target = float(target_lufs)
+    max_iter = int(max_iterations) if max_iterations else 3
+    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '')
 
-                // Check if Maximizer already exists on output AU
-                const existing = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
-                let maxiBox = existing.find(b => b.constructor.name === "MaximizerDeviceBox");
+    # Step 1: Ensure Maximizer on output AU
+    maxi_result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        const ef = window.DAW_EffectFactories;
+        const api = p.api;
+        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const au = units[0]; // output AU
 
-                if (!maxiBox) {{
-                    p.editing.modify(() => {{
-                        maxiBox = api.insertEffect(au.audioEffects, ef.AudioNamed["Maximizer"]);
-                    }});
+        const existing = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
+        let maxiBox = existing.find(b => b.constructor.name === "MaximizerDeviceBox");
+
+        if (!maxiBox) {{
+            p.editing.modify(() => {{
+                maxiBox = api.insertEffect(au.audioEffects, ef.AudioNamed["Maximizer"]);
+            }});
+        }}
+        return {{
+            maximizer_added: !existing.some(b => b.constructor.name === "MaximizerDeviceBox"),
+            has_lookahead: !!maxiBox?.lookahead
+        }};
+    }}""")
+    if isinstance(maxi_result, dict) and "error" in maxi_result:
+        return _wrap_eval(maxi_result)
+
+    iterations = []
+    current_threshold = max(-24.0, target - 6.0)  # start slightly below target
+
+    for i in range(max_iter):
+        # Set Maximizer threshold
+        await bridge.evaluate(f"""() => {{
+            const p = window.DAW;
+            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const au = units[0];
+            const maxi = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).find(b => b.constructor.name === "MaximizerDeviceBox");
+            if (!maxi) return {{error: "No Maximizer"}};
+            p.editing.modify(() => {{
+                maxi.threshold.setValue({current_threshold});
+                if (maxi.lookahead) maxi.lookahead.setValue(true);
+            }});
+            return {{threshold: {current_threshold}}};
+        }}""")
+
+        # Render full mix
+        render_result = await bridge.evaluate(f"""async () => {{
+            const p = window.DAW;
+            const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
+            const Option = window.DAW_Option;
+            const WavFile = window.DAW_WavFile;
+            return new Promise(async (resolve) => {{
+                try {{
+                    const progress = {{setValue: (v) => {{}}}};
+                    const copied = p.copy();
+                    const audioData = await OfflineEngineRenderer.start(copied, Option.None, progress, undefined, {sample_rate});
+                    const wav = WavFile.encodeFloats(audioData);
+                    const bytes = new Uint8Array(wav);
+                    let binary = "";
+                    for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+                    window.__lastExportB64 = btoa(binary);
+                    resolve({{success: true, samples: audioData.frames[0]?.length || 0}});
+                }} catch(e) {{
+                    resolve({{error: e.message}});
                 }}
+            }});
+        }}""")
+        if isinstance(render_result, dict) and render_result.get("error"):
+            iterations.append({"iteration": i+1, "error": render_result["error"]})
+            break
 
-                // Set threshold directly in dB (field stores dB, not 0..1)
-                // Maximizer: lower threshold = more makeup gain, peaks capped at 0dB
-                const thresholdDb = Math.max(-24.0, -Math.abs({target_lufs}));
-                p.editing.modify(() => {{
-                    maxiBox.threshold.setValue(thresholdDb);
-                    if (maxiBox.lookahead) maxiBox.lookahead.setValue(true);  // enable lookahead
-                }});
+        # Save WAV
+        import base64 as b64mod
+        export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
+        os.makedirs(export_dir, exist_ok=True)
+        b64 = await bridge.evaluate("() => window.__lastExportB64")
+        filepath = os.path.join(export_dir, f"{safe_name}.wav")
+        if isinstance(b64, str) and b64:
+            wav_bytes = b64mod.b64decode(b64)
+            with open(filepath, "wb") as f:
+                f.write(wav_bytes)
 
-                return {{
-                    maximizer_added: !existing.some(b => b.constructor.name === "MaximizerDeviceBox"),
-                    threshold_db: thresholdDb
-                }};
-            }}""")
-    return _wrap_eval(result)
+        # Measure LUFS
+        lufs_result = await mcp_opendaw_measure_lufs(safe_name)
+        lufs_data = json.loads(lufs_result) if isinstance(lufs_result, str) else lufs_result
+
+        if isinstance(lufs_data, dict) and lufs_data.get("error"):
+            iterations.append({"iteration": i+1, "error": lufs_data["error"]})
+            break
+
+        current_lufs = lufs_data.get("lufs_integrated", -23.0)
+        diff = current_lufs - target
+        iterations.append({
+            "iteration": i + 1,
+            "threshold_db": round(current_threshold, 2),
+            "lufs": current_lufs,
+            "diff": round(diff, 2),
+        })
+
+        # Converged?
+        if abs(diff) <= 1.0:
+            break
+
+        # Adjust: if too loud, lower threshold (more limiting); if too quiet, raise threshold
+        # Maximizer threshold: lower = more gain reduction but louder output up to 0dB peak
+        # Actually: higher threshold = less gain reduction = quieter (peaks pass through)
+        #           lower threshold = more makeup = louder
+        # So if too quiet (diff < 0), decrease threshold; if too loud (diff > 0), increase threshold
+        adjustment = -diff * 0.8  # scale factor for convergence
+        current_threshold = max(-24.0, min(0.0, current_threshold + adjustment))
+
+    final = iterations[-1] if iterations else {}
+    return json.dumps({
+        "success": True,
+        "target_lufs": target,
+        "final_lufs": final.get("lufs"),
+        "final_threshold_db": round(current_threshold, 2),
+        "iterations": iterations,
+        "converged": abs(final.get("diff", 999)) <= 1.0 if final else False,
+        "filepath": os.path.join(os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports")), f"{safe_name}.wav"),
+    })
 
 @mcp.tool()
 async def mcp_opendaw_undo() -> str:
