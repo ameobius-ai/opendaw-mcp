@@ -84,6 +84,9 @@ class HeadlessDawBridge:
                 // Get MIDI effect boxes for an AU (sorted by index)
                 midiEffectBoxes: (au) => [...au.midiEffects.pointerHub.incoming()].map(({box}) => box)
                     .sort((a, b) => a.index.getValue() - b.index.getValue()),
+                // Get track boxes for an AU (sorted by index)
+                trackBoxes: (au) => [...au.tracks.pointerHub.incoming()].map(({box}) => box)
+                    .sort((a, b) => a.index.getValue() - b.index.getValue()),
                 // Get all AU adapters sorted
                 allAUs: () => p.rootBoxAdapter.audioUnits.adapters(),
                 // Find instrument AU (first non-output, non-bus)
@@ -1255,8 +1258,7 @@ Use mcp_opendaw_create_instrument_track first if no instrument AU exists.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2); // TrackType.Audio = 2
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const trackBox = audioTracks[trackIdx];
@@ -2383,9 +2385,7 @@ Returns effect_index in the MIDI chain.
             effectBox = h.api.insertEffect(au.midiEffects, factory);
         }});
 
-        const effects = [...au.midiEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.midiEffectBoxes(au);
         const effectIndex = effects.findIndex(b => b.address.equals(effectBox.address));
 
         return {{
@@ -2414,9 +2414,7 @@ effect_index: MIDI effect position to remove (0-based).
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const effects = [...au.midiEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.midiEffectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No MIDI effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -2446,9 +2444,7 @@ Returns ordered list of MIDI effects with type, enabled state, and index.
         const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
-        const effects = [...au.midiEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.midiEffectBoxes(au);
 
         const chain = effects.map((box, i) => {{
             const className = box.constructor.name;
@@ -2488,9 +2484,7 @@ Returns parameter names, values, units, and constraints.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const effects = [...au.midiEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.midiEffectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No MIDI effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -2548,9 +2542,7 @@ Returns old and new values.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const effects = [...au.midiEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.midiEffectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No MIDI effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -3141,8 +3133,7 @@ Notes are added to the first clip on the track.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -3272,8 +3263,7 @@ Returns note count and time range.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -3358,8 +3348,7 @@ Returns count of notes transposed.
 
         h.modify(() => {{
             for (const au of targetUnits) {{
-                const noteTracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const noteTracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
                 for (const track of targetTracks) {{
@@ -3409,8 +3398,7 @@ region_index: Region index to delete (0-based).
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -3457,8 +3445,7 @@ region_index: Region index to delete (0-based).
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2);
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx + " (total: " + audioTracks.length + ")"}};
 
@@ -3499,8 +3486,7 @@ duration_beats, label, note_count.
         for (let ui = 0; ui < targetUnits.length; ui++) {{
             const au = targetUnits[ui];
             const auIdx = allUnits.indexOf(au);
-            const noteTracks = [...au.tracks.pointerHub.incoming()]
-                .map(({{box}}) => box)
+            const noteTracks = h.trackBoxes(au)
                 .filter(box => box.type?.getValue?.() === 1);
             const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
             for (let ti = 0; ti < targetTracks.length; ti++) {{
@@ -3557,8 +3543,7 @@ duration_seconds, file_name.
         const au = units[unitIdx];
         const Quarter = h.ppqn.Quarter;
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2);
         const targetTracks = trackIdx < 0 ? audioTracks : (trackIdx < audioTracks.length ? [audioTracks[trackIdx]] : []);
 
@@ -3629,8 +3614,7 @@ Returns updated fade values.
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2);
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const track = audioTracks[trackIdx];
@@ -3684,8 +3668,7 @@ Returns updated gain value.
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2);
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const track = audioTracks[trackIdx];
@@ -3742,8 +3725,7 @@ Returns count of notes quantized.
 
         h.modify(() => {{
             for (const au of targetUnits) {{
-                const noteTracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const noteTracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
                 for (const track of targetTracks) {{
@@ -3811,8 +3793,7 @@ Returns new region index.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -3913,8 +3894,7 @@ Returns count of duplicated notes and shift in beats.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -4002,8 +3982,7 @@ Returns list of notes sorted by position.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -4085,8 +4064,7 @@ Returns updated note properties.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -4159,8 +4137,7 @@ Returns remaining note count.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -4227,7 +4204,7 @@ Returns remaining region count on the track.
         const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
-                const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const ts = h.trackBoxes(au);
                 tracks.push(...ts);
             }}
         }} else {{
@@ -4279,7 +4256,7 @@ region_index: Region to move (0-based).
         const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
-                const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const ts = h.trackBoxes(au);
                 tracks.push(...ts);
             }}
         }} else {{
@@ -4322,7 +4299,7 @@ duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
         const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
-                const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const ts = h.trackBoxes(au);
                 tracks.push(...ts);
             }}
         }} else {{
@@ -4368,7 +4345,7 @@ mute: true to mute, false to unmute.
         const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
-                const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const ts = h.trackBoxes(au);
                 tracks.push(...ts);
             }}
         }} else {{
@@ -4414,7 +4391,7 @@ region_index: Region to rename (0-based).
         const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
-                const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const ts = h.trackBoxes(au);
                 tracks.push(...ts);
             }}
         }} else {{
@@ -4466,7 +4443,7 @@ Returns old and new hue values.
         const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
-                const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const ts = h.trackBoxes(au);
                 tracks.push(...ts);
             }}
         }} else {{
@@ -4509,7 +4486,7 @@ Single-call summary — lighter than get_project_state (no per-track detail).
         let maxPos = 0;
 
         for (const au of units) {{
-            const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+            const tracks = h.trackBoxes(au);
             totalTracks += tracks.length;
             for (const track of tracks) {{
                 const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
@@ -4603,7 +4580,7 @@ region_index: Region to modify (0-based).
         const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
-                const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const ts = h.trackBoxes(au);
                 tracks.push(...ts);
             }}
         }} else {{
@@ -4667,8 +4644,7 @@ Returns the saved file path.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                const tracks = [...au.tracks.pointerHub.incoming()]
-                    .map(({{box}}) => box)
+                const tracks = h.trackBoxes(au)
                     .filter(box => box.type?.getValue?.() === 1);
                 noteTracks.push(...tracks);
             }}
@@ -5320,7 +5296,7 @@ Returns list of automation regions.
         const regionList = [];
         for (let ui = 0; ui < targetAUs.length; ui++) {{
             const au = targetAUs[ui];
-            const allTracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+            const allTracks = h.trackBoxes(au);
             const valueTracks = allTracks.filter(t => t.type?.getValue?.() === 3);
             const targetTracks = trackIdx < 0 ? valueTracks : (trackIdx < valueTracks.length ? [valueTracks[trackIdx]] : []);
 
@@ -5391,7 +5367,7 @@ Returns updated playback values.
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const allTracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+        const allTracks = h.trackBoxes(au);
         if (trackIdx >= allTracks.length) return {{error: "No track at index " + trackIdx}};
         const track = allTracks[trackIdx];
 
@@ -5452,7 +5428,7 @@ Returns updated clip properties.
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const allTracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+        const allTracks = h.trackBoxes(au);
         if (trackIdx >= allTracks.length) return {{error: "No track at index " + trackIdx}};
         const track = allTracks[trackIdx];
 
@@ -5498,7 +5474,7 @@ Returns remaining clip count.
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const allTracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+        const allTracks = h.trackBoxes(au);
         if (trackIdx >= allTracks.length) return {{error: "No track at index " + trackIdx}};
         const track = allTracks[trackIdx];
 
@@ -5542,7 +5518,7 @@ Returns list of clips with type, index, duration, mute, label, loop.
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const allTracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+        const allTracks = h.trackBoxes(au);
         const targetTracks = trackIdx < 0 ? allTracks : (trackIdx < allTracks.length ? [allTracks[trackIdx]] : []);
 
         const clipList = [];
@@ -6250,8 +6226,7 @@ Returns position, duration in PPQN, and playback rate.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2);
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const trackBox = audioTracks[trackIdx];
@@ -6329,8 +6304,7 @@ Returns position and duration in PPQN.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2);
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const trackBox = audioTracks[trackIdx];
@@ -6399,7 +6373,7 @@ Returns the new region's position and index.
         if (unitIdx < 0) {{
             const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
-                tracks.push(...[...au.tracks.pointerHub.incoming()].map(({{box}}) => box));
+                tracks.push(...h.trackBoxes(au));
             }}
         }} else {{
             const units = h.allAUBoxes();
@@ -6534,7 +6508,7 @@ Returns region UUID, type, and position.
         let tracks = [];
         if (unitIdx < 0) {{
             for (const au of h.allAUBoxes()) {{
-                tracks.push(...[...au.tracks.pointerHub.incoming()].map(({{box}}) => box));
+                tracks.push(...h.trackBoxes(au));
             }}
         }} else {{
             const units = h.allAUBoxes();
@@ -6599,8 +6573,7 @@ Returns clip UUID and index.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const audioTracks = [...au.tracks.pointerHub.incoming()]
-            .map(({{box}}) => box)
+        const audioTracks = h.trackBoxes(au)
             .filter(box => box.type?.getValue?.() === 2);
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const trackBox = audioTracks[trackIdx];
@@ -7259,7 +7232,7 @@ Returns success or error.
         const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No unit at index {unit_index}"}};
         const au = units[{unit_index}];
-        const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box).sort((a,b) => a.index.getValue() - b.index.getValue());
+        const tracks = h.trackBoxes(au);
         if ({track_index} >= tracks.length) return {{error: "No track {track_index} in unit {unit_index}"}};
         const trackBox = tracks[{track_index}];
         const auAdapter = h.project.boxAdapters.adapterFor(au, AudioUnitBoxAdapter);
@@ -7400,7 +7373,7 @@ Returns success or error.
         const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No unit at {unit_index}"}};
         const au = units[{unit_index}];
-        const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box).sort((a,b) => a.index.getValue() - b.index.getValue());
+        const tracks = h.trackBoxes(au);
 
         // Filter to automation tracks (type 3)
         const autoTracks = tracks.filter(t => t.type?.getValue?.() === 3);
@@ -8035,7 +8008,7 @@ async def mcp_opendaw_validate_project() -> str:
         if (!valid) {{
             const units = h.allAUBoxes();
             for (const au of units) {{
-                const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
+                const tracks = h.trackBoxes(au);
                 for (const track of tracks) {{
                     const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box)
                         .sort((a, b) => a.position.getValue() - b.position.getValue());
