@@ -8955,5 +8955,371 @@ async def mcp_opendaw_set_bus_color(bus_index: int, hue: int) -> str:
     return _wrap_eval(result)
 
 
+# ─── Modular System ──────────────────────────────────────────────────
+
+@mcp.tool()
+async def mcp_opendaw_list_modular_devices() -> str:
+    """List all Modular audio effect devices in the project.
+
+    Returns a list of modular devices with their AU index, label, and module/connection counts.
+    Modular is a patchable modular synthesizer inside an audio effect slot.
+    """
+    result = await bridge.evaluate("""() => {
+        const p = window.DAW;
+        try {
+            const aus = p.rootBoxAdapter.audioUnits.adapters();
+            const modulars = [];
+            for (let i = 0; i < aus.length; i++) {
+                const effects = aus[i].audioEffects.adapters();
+                for (let j = 0; j < effects.length; j++) {
+                    if (effects[j].box instanceof window.DAW_ModularDeviceBox) {
+                        const modAdapter = effects[j];
+                        const modular = modAdapter.modular();
+                        modulars.push({
+                            au_index: i,
+                            effect_index: j,
+                            label: modAdapter.labelField.getValue(),
+                            module_count: modular.modules.length,
+                            connection_count: modular.connections.length,
+                            enabled: modAdapter.enabledField.getValue()
+                        });
+                    }
+                }
+            }
+            return {modular_devices: modulars, count: modulars.length};
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_list_modular_modules(au_index: int, effect_index: int) -> str:
+    """List all modules in a Modular device.
+
+    au_index: Audio unit index.
+    effect_index: Effect index within the AU.
+
+    Returns modules with their type, label, x/y position, inputs, outputs, and parameter values.
+    Module types: gain, delay, multiplier, audio-input, audio-output.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const au = p.rootBoxAdapter.audioUnits.adapters()[{au_index}];
+            if (!au) return {{error: "No AU at index {au_index}"}};
+            const effects = au.audioEffects.adapters();
+            const modDev = effects[{effect_index}];
+            if (!modDev || !(modDev.box instanceof window.DAW_ModularDeviceBox))
+                return {{error: "No Modular device at effect {effect_index}"}};
+            const modular = modDev.modular();
+            const mods = modular.modules.map((m, i) => {{
+                const inputs = m.inputs.map(c => ({{name: c.name, address: c.address.toString()}}));
+                const outputs = m.outputs.map(c => ({{name: c.name, address: c.address.toString()}}));
+                const params = {{}};
+                // Collect params from namedParameter if available
+                const np = m.namedParameter;
+                if (np) {{
+                    for (const key of Object.keys(np)) {{
+                        try {{ params[key] = np[key].getValue(); }} catch(e) {{}}
+                    }}
+                }}
+                // Also try direct box fields (gain, time) — works for ModuleGain/ModuleDelay
+                const box = m.box;
+                for (const prop of Object.getOwnPropertyNames(Object.getPrototypeOf(box))) {{
+                    try {{
+                        if (prop !== "accept" && prop !== "initializeFields" && prop !== "initialize" && typeof box[prop] === "object" && box[prop] && typeof box[prop].getValue === "function") {{
+                            if (!(prop in params)) {{
+                                params[prop] = box[prop].getValue();
+                            }}
+                        }}
+                    }} catch(e) {{}}
+                }}
+                return {{
+                    index: i,
+                    type: m.box.name.replace("Module","").replace("Modular","").replace("Box","").toLowerCase(),
+                    label: m.attributes.label.getValue(),
+                    x: m.attributes.x.getValue(),
+                    y: m.attributes.y.getValue(),
+                    inputs: inputs,
+                    outputs: outputs,
+                    parameters: params
+                }};
+            }});
+            return {{modules: mods, count: mods.length}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_list_modular_connections(au_index: int, effect_index: int) -> str:
+    """List all connections (patch cables) in a Modular device.
+
+    au_index: Audio unit index.
+    effect_index: Effect index within the AU.
+
+    Returns connections with source and target module/connector info.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const au = p.rootBoxAdapter.audioUnits.adapters()[{au_index}];
+            if (!au) return {{error: "No AU at index {au_index}"}};
+            const effects = au.audioEffects.adapters();
+            const modDev = effects[{effect_index}];
+            if (!modDev || !(modDev.box instanceof window.DAW_ModularDeviceBox))
+                return {{error: "No Modular device at effect {effect_index}"}};
+            const modular = modDev.modular();
+            const conns = modular.connections.map((c, i) => {{
+                const srcBox = c.source.box;
+                const tgtBox = c.target.box;
+                return {{
+                    index: i,
+                    source_module: srcBox.name,
+                    source_field: c.source.fieldName,
+                    source_address: c.source.address.toString(),
+                    target_module: tgtBox.name,
+                    target_field: c.target.fieldName,
+                    target_address: c.target.address.toString()
+                }};
+            }});
+            return {{connections: conns, count: conns.length}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_add_modular_module(au_index: int, effect_index: int, module_type: str, label: str = "", x: int = 0, y: int = 0) -> str:
+    """Add a module to a Modular device.
+
+    au_index: Audio unit index.
+    effect_index: Effect index within the AU.
+    module_type: One of "gain", "delay", "multiplier", "audio-input", "audio-output".
+    label: Optional label for the module.
+    x, y: Position in the modular editor grid.
+
+    Returns the new module's index and info.
+    """
+    safe_label = json.dumps(label)
+    type_map = {
+        "gain": "DAW_ModuleGainBox",
+        "delay": "DAW_ModuleDelayBox",
+        "multiplier": "DAW_ModuleMultiplierBox",
+        "audio-input": "DAW_ModularAudioInputBox",
+        "audio-output": "DAW_ModularAudioOutputBox",
+    }
+    box_global = type_map.get(module_type)
+    if not box_global:
+        return json.dumps({"error": f"Unknown module type: {module_type}. Valid: {list(type_map.keys())}"})
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const au = p.rootBoxAdapter.audioUnits.adapters()[{au_index}];
+            if (!au) return {{error: "No AU at index {au_index}"}};
+            const effects = au.audioEffects.adapters();
+            const modDev = effects[{effect_index}];
+            if (!modDev || !(modDev.box instanceof window.DAW_ModularDeviceBox))
+                return {{error: "No Modular device at effect {effect_index}"}};
+            const modular = modDev.modular();
+            const BoxClass = window.{box_global};
+            if (!BoxClass) return {{error: "Box class not available: {box_global}"}};
+            const graph = p.project.boxGraph;
+            const uuid = window.DAW_UUID.generate();
+            let newModule;
+            p.editing.modify(() => {{
+                newModule = BoxClass.create(graph, uuid, (box) => {{
+                    box.attributes.collection.refer(modular.box.modules);
+                    box.attributes.label.setValue({safe_label} || "{module_type}");
+                    box.attributes.x.setValue({x});
+                    box.attributes.y.setValue({y});
+                }});
+            }});
+            const modules = modular.modules;
+            const idx = modules.length - 1;
+            const m = modules[idx];
+            return {{
+                success: true,
+                module_index: idx,
+                module_type: "{module_type}",
+                label: m.attributes.label.getValue(),
+                uuid: m.uuid
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_connect_modular_modules(au_index: int, effect_index: int, source_module_index: int, source_output_name: str, target_module_index: int, target_input_name: str) -> str:
+    """Connect two modules in a Modular device (create a patch cable).
+
+    au_index: Audio unit index.
+    effect_index: Effect index within the AU.
+    source_module_index: Index of the source module.
+    source_output_name: Name of the output connector (e.g. "Output", "Result").
+    target_module_index: Index of the target module.
+    target_input_name: Name of the input connector (e.g. "Input", "X", "Y").
+
+    Returns success or error.
+    """
+    safe_src_name = json.dumps(source_output_name)
+    safe_tgt_name = json.dumps(target_input_name)
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const au = p.rootBoxAdapter.audioUnits.adapters()[{au_index}];
+            if (!au) return {{error: "No AU at index {au_index}"}};
+            const effects = au.audioEffects.adapters();
+            const modDev = effects[{effect_index}];
+            if (!modDev || !(modDev.box instanceof window.DAW_ModularDeviceBox))
+                return {{error: "No Modular device at effect {effect_index}"}};
+            const modular = modDev.modular();
+            const modules = modular.modules;
+            if ({source_module_index} >= modules.length) return {{error: "No source module at index {source_module_index}"}};
+            if ({target_module_index} >= modules.length) return {{error: "No target module at index {target_module_index}"}};
+            const srcMod = modules[{source_module_index}];
+            const tgtMod = modules[{target_module_index}];
+            const srcOutput = srcMod.outputs.find(c => c.name === {safe_src_name});
+            if (!srcOutput) return {{error: "Source output not found: " + {safe_src_name}, available: srcMod.outputs.map(c=>c.name)}};
+            const tgtInput = tgtMod.inputs.find(c => c.name === {safe_tgt_name});
+            if (!tgtInput) return {{error: "Target input not found: " + {safe_tgt_name}, available: tgtMod.inputs.map(c=>c.name)}};
+            const graph = p.project.boxGraph;
+            const uuid = window.DAW_UUID.generate();
+            p.editing.modify(() => {{
+                window.DAW_ModuleConnectionBox.create(graph, uuid, (box) => {{
+                    box.collection.refer(modular.box.connections);
+                    box.source.refer(srcOutput.field);
+                    box.target.refer(tgtInput.field);
+                }});
+            }});
+            return {{
+                success: true,
+                source: {{module_index: {source_module_index}, output: {safe_src_name}}},
+                target: {{module_index: {target_module_index}, input: {safe_tgt_name}}}
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_modular_module_param(au_index: int, effect_index: int, module_index: int, param_name: str, value: float) -> str:
+    """Set a parameter on a module in a Modular device.
+
+    au_index: Audio unit index.
+    effect_index: Effect index within the AU.
+    module_index: Module index.
+    param_name: Parameter name — "gain" for ModuleGain, "time" for ModuleDelay.
+    value: New parameter value (in physical units: dB for gain, ms for delay).
+
+    Returns success or error.
+    """
+    safe_param = json.dumps(param_name)
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const au = p.rootBoxAdapter.audioUnits.adapters()[{au_index}];
+            if (!au) return {{error: "No AU at index {au_index}"}};
+            const effects = au.audioEffects.adapters();
+            const modDev = effects[{effect_index}];
+            if (!modDev || !(modDev.box instanceof window.DAW_ModularDeviceBox))
+                return {{error: "No Modular device at effect {effect_index}"}};
+            const modular = modDev.modular();
+            const modules = modular.modules;
+            if ({module_index} >= modules.length) return {{error: "No module at index {module_index}"}};
+            const m = modules[{module_index}];
+            // Try namedParameter first (works if adapter exposes it), then direct box field
+            const np = m.namedParameter;
+            let param = null;
+            if (np && np[{safe_param}]) {{
+                param = np[{safe_param}];
+            }} else {{
+                // Try direct getter on adapter (parameterGain, parameterTime, etc.)
+                const getterName = "parameter" + {safe_param}.charAt(0).toUpperCase() + {safe_param}.slice(1);
+                if (m[getterName]) {{
+                    param = m[getterName];
+                }} else {{
+                    // Try direct box field
+                    const boxField = m.box[{safe_param}];
+                    if (boxField) {{
+                        const oldVal = boxField.getValue();
+                        p.editing.modify(() => {{
+                            boxField.setValue({value});
+                        }});
+                        return {{
+                            success: true,
+                            module_index: {module_index},
+                            param: {safe_param},
+                            old_value: oldVal,
+                            new_value: boxField.getValue(),
+                            source: "box-field"
+                        }};
+                    }}
+                    const available = np ? Object.keys(np) : "no namedParameter; adapter getters: " + Object.getOwnPropertyNames(Object.getPrototypeOf(m)).filter(k => k.startsWith("parameter")).join(", ");
+                    return {{error: "Parameter not found: " + {safe_param}, available: available}};
+                }}
+            }}
+            const oldVal = param.getValue();
+            p.editing.modify(() => {{
+                param.field.setValue({value});
+            }});
+            return {{
+                success: true,
+                module_index: {module_index},
+                param: {safe_param},
+                old_value: oldVal,
+                new_value: {value}
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_remove_modular_module(au_index: int, effect_index: int, module_index: int) -> str:
+    """Remove a module from a Modular device.
+
+    au_index: Audio unit index.
+    effect_index: Effect index within the AU.
+    module_index: Module index to remove.
+
+    Returns success or error. All connections to/from this module are also removed.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const au = p.rootBoxAdapter.audioUnits.adapters()[{au_index}];
+            if (!au) return {{error: "No AU at index {au_index}"}};
+            const effects = au.audioEffects.adapters();
+            const modDev = effects[{effect_index}];
+            if (!modDev || !(modDev.box instanceof window.DAW_ModularDeviceBox))
+                return {{error: "No Modular device at effect {effect_index}"}};
+            const modular = modDev.modular();
+            const modules = modular.modules;
+            if ({module_index} >= modules.length) return {{error: "No module at index {module_index}"}};
+            const m = modules[{module_index}];
+            const label = m.attributes.label.getValue();
+            p.editing.modify(() => {{
+                m.box.delete();
+            }});
+            return {{
+                success: true,
+                removed_module_index: {module_index},
+                label: label
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     mcp.run(transport='stdio')
