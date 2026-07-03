@@ -201,6 +201,7 @@ The `examples/` directory contains 7 Python scripts demonstrating the full workf
 | `automation_sweep.py` | Filter cutoff automation |
 | `modular_patch.py` | Modular system with patch cables |
 | `full_production_pipeline.py` | Complete track: synth + drums + DSP + automation + render |
+| `scriptable_devices_demo.py` | All 3 scriptable device types: Apparat synth + Werkstatt DSP + Spielwerk MIDI |
 
 ## Tool Catalog
 
