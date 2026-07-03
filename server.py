@@ -933,7 +933,7 @@ Range: -96 dB (mute) to +6 dB. 0 dB = raw 0.768.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_track_panning(unit_index: int, panning: str) -> str:
+async def mcp_opendaw_set_track_panning(unit_index: int, panning: float) -> str:
     """Set panning of an audio unit. -1.0 = full left, 0.0 = center, 1.0 = full right."""
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
@@ -1439,7 +1439,7 @@ Returns list of cloned effects with their new indices.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_move_effect(unit_index: int, from_index: str, to_index: str) -> str:
+async def mcp_opendaw_move_effect(unit_index: int, from_index: int, to_index: int) -> str:
     """Reorder an effect within an audio unit's effect chain.
 
 Chain order matters: EQ → Compressor → Reverb sounds different than
@@ -1502,7 +1502,7 @@ Effects between from and to shift accordingly.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_send(src_unit: str, name: str, send_level_db: str, routing: str) -> str:
+async def mcp_opendaw_create_send(src_unit: str, name: str, send_level_db: float, routing: str) -> str:
     """Create a parallel FX send bus from an audio unit.
 
 Creates a NEW AudioBusBox (FX bus) with its own AudioUnitBox, then sends
@@ -1683,7 +1683,7 @@ Returns list of sends with: send_index, target_bus_name, send_level_db, routing.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_remove_send(unit_index: int, send_index: str) -> str:
+async def mcp_opendaw_remove_send(unit_index: int, send_index: int) -> str:
     """Remove an aux send from an audio unit.
 
 unit_index: Source audio unit index.
@@ -1851,7 +1851,7 @@ enabled: True to enable, False to mute.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_remove_audio_bus(bus_index: str, fx_unit_index: str) -> str:
+async def mcp_opendaw_remove_audio_bus(bus_index: int, fx_unit_index: int) -> str:
     """Remove an FX audio bus and its associated audio unit.
 
 Provide either bus_index (from list_audio_buses) or fx_unit_index (from create_send).
@@ -2388,7 +2388,7 @@ Returns parameter names, values, units, and constraints.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_midi_effect_param(unit_index: int, effect_index: int, param_name: str, value: float, param_index: str) -> str:
+async def mcp_opendaw_set_midi_effect_param(unit_index: int, effect_index: int, param_name: str, value: float, param_index: int) -> str:
     """Set a parameter on a MIDI effect.
 
 unit_index: Audio unit index.
@@ -2540,7 +2540,7 @@ Returns:
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_vaporisateur_osc_param(osc_index: str, param_name: str, value: float, unit_index: int) -> str:
+async def mcp_opendaw_set_vaporisateur_osc_param(osc_index: int, param_name: str, value: float, unit_index: int) -> str:
     """Set a parameter on a Vaporisateur oscillator.
 
 osc_index: Oscillator index (0, 1).
@@ -2672,7 +2672,7 @@ Nano (volume/release), Soundfont (presetIndex), MIDIOutput (channel), Playfield,
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_instrument_param(unit_index: int, param_name: str, value: float, param_index: str) -> str:
+async def mcp_opendaw_set_instrument_param(unit_index: int, param_name: str, value: float, param_index: int) -> str:
     """Set a parameter on the instrument connected to an audio unit.
 
 unit_index: Audio unit index (-1 = auto-detect first non-master AU with an instrument).
@@ -2833,7 +2833,7 @@ unit_index: Audio unit index (-1 = auto-detect Playfield).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_playfield_sample(midi_note: str, sample_name: str, duration_seconds: str, unit_index: int) -> str:
+async def mcp_opendaw_create_playfield_sample(midi_note: str, sample_name: str, duration_seconds: float, unit_index: int) -> str:
     """Add a drum pad to a Playfield drum machine.
 
 midi_note: MIDI note number for this pad (36=C1, 38=D1, 42=F#1, etc).
@@ -3094,7 +3094,7 @@ Notes are added to the first clip on the track.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_import_midi(file_path: str, unit_index: int, track_index: int, offset_beats: str) -> str:
+async def mcp_opendaw_import_midi(file_path: str, unit_index: int, track_index: int, offset_beats: float) -> str:
     """Import a MIDI file and create note events on a note track.
 
 Parses standard MIDI (.mid) files and creates note regions with all notes.
@@ -3210,7 +3210,7 @@ Returns note count and time range.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_transpose_notes(semitones: str, unit_index: int, track_index: int) -> str:
+async def mcp_opendaw_transpose_notes(semitones: int, unit_index: int, track_index: int) -> str:
     """Transpose all notes by a number of semitones.
 
 semitones: Positive = up, negative = down (e.g. +12 = octave up, -5 = perfect fourth down).
@@ -3654,7 +3654,7 @@ Returns count of notes quantized.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_duplicate_note_region(unit_index: int, track_index: int, region_index: int, offset_beats: str) -> str:
+async def mcp_opendaw_duplicate_note_region(unit_index: int, track_index: int, region_index: int, offset_beats: float) -> str:
     """Duplicate a note region to a new position.
 
 Copies the region and all its notes to offset_beats after the original.
@@ -4314,7 +4314,7 @@ region_index: Region to rename (0-based).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_region_color(track_index: int, region_index: int, hue: str, unit_index: int) -> str:
+async def mcp_opendaw_set_region_color(track_index: int, region_index: int, hue: int, unit_index: int) -> str:
     """Set the color (hue) of a region or clip.
 
 Regions and clips use an Int32Field 'hue' for color. The hue is an integer
@@ -4451,7 +4451,7 @@ unit_index: Audio unit index (-1 = all AUs).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_region_loop(track_index: int, region_index: int, loop_beats: str, loop_offset_beats: str, event_offset_beats: str, unit_index: int) -> str:
+async def mcp_opendaw_set_region_loop(track_index: int, region_index: int, loop_beats: str, loop_offset_beats: float, event_offset_beats: float, unit_index: int) -> str:
     """Set loop parameters for a note region.
 
 Looping repeats the note pattern within the region. The region duration
@@ -5230,7 +5230,7 @@ Returns list of automation regions.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_clip_playback(unit_index: int, track_index: int, clip_index: int, loop: bool, reverse: bool, speed: str) -> str:
+async def mcp_opendaw_set_clip_playback(unit_index: int, track_index: int, clip_index: int, loop: bool, reverse: bool, speed: float) -> str:
     """Set clip playback parameters (loop, reverse, speed) on a clip.
 
 Clips have a ClipPlaybackFields (triggerMode) object with:
@@ -5295,7 +5295,7 @@ Returns updated playback values.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_clip_properties(unit_index: int, track_index: int, clip_index: int, label: str, hue: str, mute: bool, duration_beats: int) -> str:
+async def mcp_opendaw_set_clip_properties(unit_index: int, track_index: int, clip_index: int, label: str, hue: int, mute: bool, duration_beats: int) -> str:
     """Set properties on a clip (session view): label, color, mute, duration.
 
 Pass empty string for label to skip, -1 for hue/duration to skip,
@@ -5460,7 +5460,7 @@ Returns list of clips with type, index, duration, mute, label, loop.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_connect_sidechain(source_unit_index: str, target_unit_index: str, effect_index: int) -> str:
+async def mcp_opendaw_connect_sidechain(source_unit_index: int, target_unit_index: int, effect_index: int) -> str:
     """Connect one audio unit's output as sidechain source to a Compressor/Gate on another unit.
 
 source_unit_index: Audio unit whose output triggers the sidechain (e.g. drums).
@@ -5901,7 +5901,7 @@ async def mcp_opendaw_measure_lufs(filename: str) -> str:
         return _err(f"LUFS measurement error: {e}")
 
 @mcp.tool()
-async def mcp_opendaw_auto_gain(target_lufs: str, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: str = "3") -> str:
+async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: str = "3") -> str:
     """Auto-adjust output volume to hit a target LUFS.
 
     Iterative loop: render → measure LUFS → adjust Maximizer threshold → re-render.
@@ -6085,7 +6085,7 @@ async def mcp_opendaw_serialize() -> str:
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_time_stretched_region(sample_id: str, unit_index: int, start_beat: int, track_index: int, playback_rate: str, transient_mode: str, bpm: int) -> str:
+async def mcp_opendaw_create_time_stretched_region(sample_id: str, unit_index: int, start_beat: int, track_index: int, playback_rate: float, transient_mode: str, bpm: int) -> str:
     """Place a time-stretched audio region on a track.
 
 Unlike place_audio_region (which uses TimeBase.Seconds), this creates a
@@ -6310,7 +6310,7 @@ Returns the new region's position and index.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_note_clip(unit_index: int, track_index: int, clip_index: int, name: str, hue: str) -> str:
+async def mcp_opendaw_create_note_clip(unit_index: int, track_index: int, clip_index: int, name: str, hue: int) -> str:
     """Create a note clip in the session view (clip launcher).
 
 Note clips are the session-view counterpart to note regions. They contain
@@ -6371,7 +6371,7 @@ Returns clip UUID and index.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_track_region(unit_index: int, track_index: int, start_beat: int, duration_beats: int, name: str, hue: str) -> str:
+async def mcp_opendaw_create_track_region(unit_index: int, track_index: int, start_beat: int, duration_beats: int, name: str, hue: int) -> str:
     """Create a region on any track (note or value) using the generic createTrackRegion API.
 
 Automatically detects track type and creates the appropriate region:
@@ -6510,7 +6510,7 @@ Returns clip UUID and index.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_time_stretched_clip(sample_id: str, unit_index: int, clip_index: int, track_index: int, bpm: int, playback_rate: str, transient_mode: str) -> str:
+async def mcp_opendaw_create_time_stretched_clip(sample_id: str, unit_index: int, clip_index: int, track_index: int, bpm: int, playback_rate: float, transient_mode: str) -> str:
     """Create a time-stretched audio clip in session view.
 
 sample_id: ID from mcp_opendaw_load_audio.
