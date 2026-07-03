@@ -6836,6 +6836,106 @@ Returns success or error.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_move_automation_event(unit_index: int, track_index: int, event_index: int, new_position_beats: float) -> str:
+    """Move an automation event to a new position on the timeline.
+
+    unit_index: AU index.
+    track_index: Value (automation) track index.
+    event_index: Event index (from list_automation_events).
+    new_position_beats: New position in beats (float).
+
+    Returns success with old and new positions.
+    """
+    new_ppqn = int(new_position_beats * 960)
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const auAdapter = p.rootBoxAdapter.audioUnits.adapters()[{unit_index}];
+            if (!auAdapter) return {{error: "No AU at {unit_index}"}};
+            const tracks = auAdapter.tracks.collection.adapters();
+            if ({track_index} >= tracks.length) return {{error: "No track {track_index}"}};
+            const track = tracks[{track_index}];
+            const regions = track.regions.collection.asArray();
+            if (regions.length === 0) return {{error: "No regions on track"}};
+            const region = regions[0];
+            if (!region.isValueRegion?.()) return {{error: "Not a value region"}};
+            const optCol = region.optCollection;
+            if (optCol.isEmpty()) return {{error: "No event collection"}};
+            const collection = optCol.unwrap();
+            const events = collection.events.asArray();
+            if ({event_index} >= events.length) return {{error: "No event {event_index} (found " + events.length + ")"}};
+            const evt = events[{event_index}];
+            const oldPos = evt.position;
+            p.editing.modify(() => {{
+                evt.box.position.setValue({new_ppqn});
+            }});
+            collection.requestSorting();
+            return {{success: true, old_position_ppqn: oldPos, new_position_ppqn: {new_ppqn}, old_position_beats: oldPos / 960, new_position_beats: {new_position_beats}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_update_automation_event(unit_index: int, track_index: int, event_index: int, value: float = -1, interpolation: str = "", curve_slope: float = -1) -> str:
+    """Update an existing automation event's value and/or interpolation.
+
+    Only updates parameters that are provided (value >= 0, non-empty interpolation, curve_slope >= 0).
+
+    unit_index: AU index.
+    track_index: Value (automation) track index.
+    event_index: Event index (from list_automation_events).
+    value: New normalized value 0.0-1.0 (skip if -1).
+    interpolation: "none", "linear", or "curve" (skip if empty string).
+    curve_slope: Slope for curve interpolation 0.0-1.0 (skip if -1).
+
+    Returns success with updated values.
+    """
+    updates = []
+    if value >= 0:
+        updates.append(f"evt.box.value.setValue({value});")
+    if interpolation:
+        if interpolation == "none":
+            updates.append("evt.interpolation = {type: 'none'};")
+        elif interpolation == "linear":
+            updates.append("evt.interpolation = {type: 'linear'};")
+        elif interpolation == "curve" and curve_slope >= 0:
+            updates.append(f"evt.interpolation = {{type: 'curve', slope: {curve_slope}}};")
+    update_js = "\n                ".join(updates)
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const auAdapter = p.rootBoxAdapter.audioUnits.adapters()[{unit_index}];
+            if (!auAdapter) return {{error: "No AU at {unit_index}"}};
+            const tracks = auAdapter.tracks.collection.adapters();
+            if ({track_index} >= tracks.length) return {{error: "No track {track_index}"}};
+            const track = tracks[{track_index}];
+            const regions = track.regions.collection.asArray();
+            if (regions.length === 0) return {{error: "No regions on track"}};
+            const region = regions[0];
+            if (!region.isValueRegion?.()) return {{error: "Not a value region"}};
+            const optCol = region.optCollection;
+            if (optCol.isEmpty()) return {{error: "No event collection"}};
+            const collection = optCol.unwrap();
+            const events = collection.events.asArray();
+            if ({event_index} >= events.length) return {{error: "No event {event_index}"}};
+            const evt = events[{event_index}];
+            const oldVal = evt.value;
+            const oldInterp = evt.interpolation.type;
+            p.editing.modify(() => {{
+                const evt2 = collection.events.asArray()[{event_index}];
+                {update_js}
+            }});
+            const updated = collection.events.asArray()[{event_index}];
+            return {{success: true, old_value: oldVal, new_value: updated.value, old_interpolation: oldInterp, new_interpolation: updated.interpolation.type}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_move_audio_unit(unit_index: int, delta: int) -> str:
     """Move an audio unit up or down in the mixer order.
 
@@ -7968,6 +8068,97 @@ async def mcp_opendaw_consolidate_clip(unit_index: int, track_index: int, clip_i
                 was_mirrored: wasMirrored,
                 is_mirrored: clip.isMirrowed,
             }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_clip_mute(unit_index: int, track_index: int, clip_index: int, mute: bool) -> str:
+    """Mute or unmute a clip in the session view.
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    clip_index: Clip index.
+    mute: True to mute, false to unmute.
+
+    Returns success with old and new mute state.
+    """
+    mute_val = "true" if mute else "false"
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const track = h.track({unit_index}, {track_index});
+            const clips = track.clips.collection.adapters();
+            if ({clip_index} >= clips.length) return {{error: "No clip {clip_index}"}};
+            const clip = clips[{clip_index}];
+            const oldMute = clip.mute;
+            h.modify(() => {{
+                clip.box.mute?.setValue?.({mute_val}) ?? clip.box.muted?.setValue?.({mute_val});
+            }});
+            return {{success: true, old_mute: oldMute, new_mute: {mute_val}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_clip_label(unit_index: int, track_index: int, clip_index: int, label: str) -> str:
+    """Set the label (name) of a clip in the session view.
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    clip_index: Clip index.
+    label: New clip name.
+
+    Returns success with old and new label.
+    """
+    safe_label = json.dumps(label)
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const track = h.track({unit_index}, {track_index});
+            const clips = track.clips.collection.adapters();
+            if ({clip_index} >= clips.length) return {{error: "No clip {clip_index}"}};
+            const clip = clips[{clip_index}];
+            const oldLabel = clip.label;
+            h.modify(() => {{
+                clip.box.name?.setValue?.({safe_label}) ?? clip.box.label?.setValue?.({safe_label});
+            }});
+            return {{success: true, old_label: oldLabel, new_label: {safe_label}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_clip_hue(unit_index: int, track_index: int, clip_index: int, hue: int) -> str:
+    """Set the color (hue) of a clip in the session view.
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    clip_index: Clip index.
+    hue: Color hue 0-360.
+
+    Returns success with old and new hue.
+    """
+    if hue < 0 or hue > 360:
+        return json.dumps({"error": f"hue must be 0-360, got {hue}"})
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const track = h.track({unit_index}, {track_index});
+            const clips = track.clips.collection.adapters();
+            if ({clip_index} >= clips.length) return {{error: "No clip {clip_index}"}};
+            const clip = clips[{clip_index}];
+            const oldHue = clip.hue;
+            h.modify(() => {{
+                clip.box.hue.setValue({hue});
+            }});
+            return {{success: true, old_hue: oldHue, new_hue: {hue}}};
         }} catch(e) {{
             return {{error: e.message}};
         }}

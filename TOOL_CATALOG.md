@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-202 MCP tools for headless openDAW control via Playwright bridge.
+207 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -97,14 +97,17 @@
 - `create_track_region` — generic api.createTrackRegion for note/value tracks
 - `delete_region` — delete region + all contents (note/audio/value)
 
-## Clips (8)
+## Clips (11)
 - `list_clips` — list NoteClipBox/AudioClipBox/ValueClipBox on tracks (session view)
 - `create_note_clip` — create NoteClipBox in session view (api.createNoteClip)
 - `create_audio_clip` — create AudioClipBox in session view (api.createNotStretchedClip)
 - `create_time_stretched_clip` — audio clip with playback rate + transient mode (api.createTimeStretchedClip)
 - `create_pitch_stretched_clip` — pitch-aligned audio clip (api.createPitchStretchedClip)
 - `set_clip_playback` — ClipPlaybackFields (loop/reverse/speed/quantise/trigger)
-- `set_clip_properties` — label/hue/mute/duration on clips
+- `set_clip_properties` — label/hue/mute/duration on clips (batch setter)
+- `set_clip_mute` — mute/unmute individual clip (granular)
+- `set_clip_label` — set clip name (granular)
+- `set_clip_hue` — set clip color 0-360 (granular)
 - `delete_clip` — remove clip from track
 
 ## MIDI Export (1)
@@ -230,10 +233,12 @@
 - `clone_clip(unit_index, track_index, clip_index, consolidate)` — Clone a note/value clip on the same track. consolidate=true for independent event collection.
 - `consolidate_clip(unit_index, track_index, clip_index)` — Make a clip's event collection unique (not shared/mirrored).
 
-## Automation Event Management (3)
+## Automation Event Management (5)
 - `create_automation_event(unit_index, track_index, position_beats, value, interpolation, curve_slope)` — Create a single automation point with interpolation (none/linear/curve).
 - `list_automation_events_detail(unit_index, track_index)` — List all automation events with full detail: position, value, interpolation type, curve slope.
 - `set_automation_interpolation(unit_index, track_index, region_index, event_index, interpolation, curve_slope)` — Change interpolation type of an existing automation event.
+- `move_automation_event(unit_index, track_index, event_index, new_position_beats)` — Move an automation event to a new position. Returns old/new positions.
+- `update_automation_event(unit_index, track_index, event_index, value, interpolation, curve_slope)` — Update value and/or interpolation of an existing event. Skip with -1/empty.
 
 ## Note Collection Analysis (2)
 - `get_note_range(unit_index, track_index, region_index)` — Pitch range (min/max), max note duration, note count. Useful for transpose planning.
