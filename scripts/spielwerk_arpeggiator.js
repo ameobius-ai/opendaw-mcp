@@ -1,109 +1,132 @@
 // @spielwerk arpeggiator 1 1
 // @label Arpeggiator
-// @param rate 240 60 1920 int
-// @param mode 0 0 3 int
-// @param octaves 2 1 4 int
-// @param gate 0.8 0.1 1 linear
-// @param velDecay 0.7 0.3 1 linear
+// @param rate 0.25 0.0625 4 linear
+// @param octaves 2 1 4 linear
+// @param direction 0 0 2 linear
+// @param hold 0.85 0.1 1 linear
+// @param velocity 0.8 0 1 linear
+// @param swing 0 0 0.5 linear
 
 class Processor {
-    heldNotes = []
-    stepCounter = 0
-    nextStepPos = 0  // ppqn position for next step
-    lastFrom = -1
+    rate = 0.25
+    octaves = 2
+    direction = 0
+    hold = 0.85
+    velocity = 0.8
+    swing = 0
 
-    process(block, events) {
-        const rate = this.rate || 240
-        const mode = this.mode || 0
-        const octaves = this.octaves || 2
-        const gateLen = this.gate || 0.8
-        const velDecay = this.velDecay || 0.7
-        const out = []
+    // held notes — sorted by pitch
+    held = []
+    // arpeggio state
+    step = 0
+    // note id counter
+    nextId = 1000
+    // active output notes (for note-off scheduling)
+    active = new Map()
 
-        // update held notes
-        for (const ev of events) {
-            if (ev.gate) {
-                if (!this.heldNotes.find(n => n.pitch === ev.pitch)) {
-                    this.heldNotes.push({pitch: ev.pitch, velocity: ev.velocity})
-                }
-            } else {
-                this.heldNotes = this.heldNotes.filter(n => n.pitch !== ev.pitch)
-            }
-        }
-
-        if (this.heldNotes.length === 0) {
-            this.stepCounter = 0
-            this.nextStepPos = block.to
-            return out
-        }
-
-        // reset step position on transport jump
-        if (this.lastFrom < 0 || block.from < this.lastFrom) {
-            this.nextStepPos = block.from
-            this.stepCounter = 0
-        }
-        this.lastFrom = block.from
-
-        // sort held notes by pitch
-        const sorted = [...this.heldNotes].sort((a, b) => a.pitch - b.pitch)
-
-        // build arpeggiated sequence across octaves
-        const seq = []
-        for (let oct = 0; oct < octaves; oct++) {
-            for (const n of sorted) {
-                const p = n.pitch + oct * 12
-                if (p <= 127) {
-                    seq.push({pitch: p, velocity: n.velocity})
-                }
-            }
-        }
-        if (seq.length === 0) return out
-
-        // apply mode
-        let indices = []
-        if (mode === 0) {
-            for (let i = 0; i < seq.length; i++) indices.push(i)
-        } else if (mode === 1) {
-            for (let i = seq.length - 1; i >= 0; i--) indices.push(i)
-        } else if (mode === 2) {
-            for (let i = 0; i < seq.length; i++) indices.push(i)
-            for (let i = seq.length - 2; i > 0; i--) indices.push(i)
-        } else {
-            for (let i = 0; i < seq.length * 2; i++) {
-                indices.push(Math.floor(Math.random() * seq.length))
-            }
-        }
-
-        const dur = Math.max(30, Math.floor(rate * gateLen))
-
-        // generate notes within this block range
-        while (this.nextStepPos < block.to) {
-            if (this.nextStepPos >= block.from) {
-                const idx = indices[this.stepCounter % indices.length]
-                const note = seq[idx]
-                out.push({
-                    position: this.nextStepPos,
-                    duration: dur,
-                    pitch: note.pitch,
-                    velocity: note.velocity * Math.pow(velDecay, this.stepCounter % seq.length),
-                    cent: 0
-                })
-            }
-            this.stepCounter++
-            this.nextStepPos += rate
-        }
-
-        return out
-    }
-
-    paramChanged(label, value) {
-        this[label] = value
+    paramChanged(name, value) {
+        if (name === "rate") this.rate = value
+        if (name === "octaves") this.octaves = Math.round(value)
+        if (name === "direction") this.direction = Math.round(value)
+        if (name === "hold") this.hold = value
+        if (name === "velocity") this.velocity = value
+        if (name === "swing") this.swing = value
     }
 
     reset() {
-        this.heldNotes = []
-        this.stepCounter = 0
-        this.nextStepPos = 0
-        this.lastFrom = -1
+        this.held = []
+        this.step = 0
+        this.active.clear()
+    }
+
+    // build arpeggio pattern from held notes + octave spread
+    buildPattern() {
+        if (this.held.length === 0) return []
+        const notes = [...this.held].sort((a, b) => a.pitch - b.pitch)
+        const pattern = []
+        const oct = this.octaves
+        const dir = this.direction
+
+        for (let o = 0; o < oct; o++) {
+            const offset = o * 12
+            for (const n of notes) {
+                pattern.push(n.pitch + offset)
+            }
+        }
+
+        // direction: 0=up, 1=down, 2=updown
+        if (dir === 1) {
+            pattern.reverse()
+        } else if (dir === 2) {
+            const down = [...pattern].reverse().slice(1, -1)
+            pattern.push(...down)
+        }
+
+        return pattern
+    }
+
+    * process(block, events) {
+        const ppqn = 960
+        const ratePpqn = Math.round(this.rate * ppqn)
+        if (ratePpqn <= 0) return
+
+        // collect held notes from events
+        for (const e of events) {
+            if (e.gate) {
+                // note on — add to held
+                this.held.push({ id: e.id, pitch: e.pitch, velocity: e.velocity })
+            } else {
+                // note off — remove from held
+                this.held = this.held.filter(n => n.id !== e.id)
+                // also remove from active
+                this.active.delete(e.id)
+            }
+        }
+
+        if (this.held.length === 0) {
+            // no held notes — yield nothing (silence)
+            return
+        }
+
+        const pattern = this.buildPattern()
+        if (pattern.length === 0) return
+
+        // generate arpeggio notes within this block
+        const from = block.p0
+        const to = block.p1
+        const swingAmt = this.swing * ratePpqn * 0.5
+
+        let pos = from
+        // align to rate grid
+        const offset = from % ratePpqn
+        if (offset !== 0) pos = from + (ratePpqn - offset)
+
+        let localStep = this.step
+
+        while (pos < to) {
+            const noteIdx = localStep % pattern.length
+            const pitch = pattern[noteIdx]
+
+            // swing: odd steps delayed
+            let notePos = pos
+            if (localStep % 2 === 1) notePos += swingAmt
+            if (notePos >= to) break
+
+            const dur = Math.round(ratePpqn * this.hold)
+            const id = this.nextId++
+
+            yield {
+                position: notePos,
+                duration: dur,
+                pitch: pitch,
+                velocity: this.velocity,
+                cent: 0
+            }
+
+            localStep++
+            pos += ratePpqn
+        }
+
+        this.step = localStep
     }
 }
