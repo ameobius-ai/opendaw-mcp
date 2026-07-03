@@ -4682,22 +4682,28 @@ Returns list of exported stem files.
 Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) →
           add_effect(s) → export_stems
 """
-    # Build stems list from all instrument AUs
-    stems_list = []
+    # Build stems config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
     result_temp = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box);
         return units.map((au, i) => ({{
             index: i,
+            uuid: window.DAW_UUID.toString(au.address.uuid),
             name: au.name?.getValue?.() || 'Unit ' + i,
             type: au.type?.getValue?.() ?? 0,
         }}));
     }}""")
+    stems_map = {}
     if isinstance(result_temp, list):
         for u in result_temp:
-            if u.get('type') == 1:  # Instrument
-                stems_list.append(u['index'])
-    stems_js = json.dumps(stems_list)
+            if u.get('type') == 1 or u.get('type') == 'instrument':
+                stems_map[u['uuid']] = {
+                    "includeAudioEffects": True,
+                    "includeSends": True,
+                    "useInstrumentOutput": True,
+                    "fileName": u.get('name', f"stem_{u['index']}")
+                }
+    stems_js = json.dumps(stems_map)
     result = await bridge.evaluate(f"""async () => {{
         const p = window.DAW;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
@@ -4709,8 +4715,9 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
             try {{
                 const exportConfig = {{stems: stemsConfig}};
                 const progress = {{setValue: (v) => {{}}}};
+                const copiedProject = p.copy();
                 const audioData = await OfflineEngineRenderer.start(
-                    p, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
 
                 const wav = WavFile.encodeFloats(audioData);
@@ -7968,11 +7975,16 @@ async def mcp_opendaw_get_full_project_state() -> str:
                     midi_effect_count: midiFxAdapters.length,
                     effects: fxAdapters.map(fx => fx.label),
                     midi_effects: midiFxAdapters.map(fx => fx.label),
-                    tracks: tracks.map(t => ({{
-                        type: typeNames[t.type] || String(t.type),
-                        region_count: t.regions.collection.asArray().length,
-                        clip_count: t.clips.collection.asArray().length,
-                    }})),
+                    tracks: tracks.map(t => {{
+                        const tbox = t.box;
+                        const regCount = [...tbox.regions.pointerHub.incoming()].length;
+                        const clipCount = [...tbox.clips.pointerHub.incoming()].length;
+                        return {{
+                            type: typeNames[t.type] || String(t.type),
+                            region_count: regCount,
+                            clip_count: clipCount,
+                        }};
+                    }}),
                 }};
             }}),
         }};
