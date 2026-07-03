@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-232 MCP tools for headless openDAW control via Playwright bridge.
+235 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -224,8 +224,11 @@
 - `flatten_note_regions(unit_index, track_index, region_indices)` — Merge overlapping note regions into one. Originals deleted, notes combined. Requires 2+ regions.
 - `consolidate_region(unit_index, track_index, region_index)` — Make a region's event collection unique (not shared/mirrored). Edits won't affect other regions.
 
-## Warp Markers & Play Mode (3)
+## Warp Markers & Play Mode (6)
 - `list_warp_markers(unit_index, track_index, region_index)` — List warp markers (position, seconds, isAnchor) on stretched audio regions.
+- `create_warp_marker(unit_index, track_index, region_index, position_beats, seconds)` — Add a warp marker to a stretched audio region.
+- `delete_warp_marker(unit_index, track_index, region_index, marker_index)` — Delete a non-anchor warp marker from a stretched region.
+- `update_warp_marker(unit_index, track_index, region_index, marker_index, position_beats, seconds)` — Update a warp marker's position and/or seconds (-1 = unchanged).
 - `get_region_play_mode(unit_index, track_index, region_index)` — Get stretch type, playback rate, cents, transient mode for audio regions.
 - `set_time_stretch_cents(unit_index, track_index, region_index, cents)` — Set pitch shift in cents on time-stretched regions. ±1200 cents = ±1 octave.
 

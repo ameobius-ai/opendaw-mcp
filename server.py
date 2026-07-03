@@ -11248,6 +11248,155 @@ async def mcp_opendaw_export_stems_format(filename_prefix: str, sample_rate: int
     })
 
 
+@mcp.tool()
+async def mcp_opendaw_create_warp_marker(unit_index: int, track_index: int, region_index: int, position_beats: float, seconds: float) -> str:
+    """Add a warp marker to a time-stretched or pitch-stretched audio region.
+
+    Warp markers define the mapping between musical position (ppqn) and audio time (seconds).
+    The first and last markers are anchors — they pin the start and end of the audio.
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    region_index: Audio region index.
+    position_beats: Musical position in beats (e.g. 0.0 = start of region).
+    seconds: Audio time in seconds at this position.
+
+    Returns the new marker count and the added marker's position/seconds.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const WarpMarkerBox = window.DAW_WarpMarkerBox;
+        if (!WarpMarkerBox) return {{error: "WarpMarkerBox not loaded"}};
+        const auAdapters = h.allAUs();
+        if ({unit_index} >= auAdapters.length) return {{error: "No AU at {unit_index}"}};
+        const auAdapter = auAdapters[{unit_index}];
+        const trackAdapters = auAdapter.tracks.collection.adapters();
+        if ({track_index} >= trackAdapters.length) return {{error: "No track {track_index}"}};
+        const trackAdapter = trackAdapters[{track_index}];
+        const regions = trackAdapter.regions.collection.asArray();
+        if ({region_index} >= regions.length) return {{error: "No region {region_index}"}};
+        const region = regions[{region_index}];
+        if (!region.isAudioRegion?.()) return {{error: "Region is not an audio region"}};
+        const optPlayMode = region.observableOptPlayMode;
+        if (optPlayMode.isEmpty()) return {{error: "Region has no stretch mode (not stretched)"}};
+        const playMode = optPlayMode.unwrap();
+        const stretchBox = playMode.box;
+        const posPpqn = Math.round({position_beats} * h.ppqn.Quarter);
+        const secVal = {seconds};
+        h.modify(() => {{
+            WarpMarkerBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                box.position.setValue(posPpqn);
+                box.seconds.setValue(secVal);
+                box.owner.refer(stretchBox.warpMarkers);
+            }});
+        }});
+        const markers = playMode.warpMarkers.asArray();
+        return {{
+            success: true,
+            marker_count: markers.length,
+            added: {{position: posPpqn, seconds: secVal}},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_delete_warp_marker(unit_index: int, track_index: int, region_index: int, marker_index: int) -> str:
+    """Delete a warp marker from a time-stretched or pitch-stretched audio region.
+
+    Cannot delete anchor markers (first and last) — they pin the audio mapping.
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    region_index: Audio region index.
+    marker_index: Warp marker index (0-based, from list_warp_markers).
+
+    Returns remaining marker count.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const auAdapters = h.allAUs();
+        if ({unit_index} >= auAdapters.length) return {{error: "No AU at {unit_index}"}};
+        const auAdapter = auAdapters[{unit_index}];
+        const trackAdapters = auAdapter.tracks.collection.adapters();
+        if ({track_index} >= trackAdapters.length) return {{error: "No track {track_index}"}};
+        const trackAdapter = trackAdapters[{track_index}];
+        const regions = trackAdapter.regions.collection.asArray();
+        if ({region_index} >= regions.length) return {{error: "No region {region_index}"}};
+        const region = regions[{region_index}];
+        if (!region.isAudioRegion?.()) return {{error: "Region is not an audio region"}};
+        const optPlayMode = region.observableOptPlayMode;
+        if (optPlayMode.isEmpty()) return {{error: "Region has no stretch mode (not stretched)"}};
+        const playMode = optPlayMode.unwrap();
+        const markers = playMode.warpMarkers.asArray();
+        if ({marker_index} >= markers.length) return {{error: "No marker at index {marker_index}"}};
+        const marker = markers[{marker_index}];
+        if (marker.isAnchor) return {{error: "Cannot delete anchor marker (first/last)"}};
+        const markerBox = marker.box;
+        h.modify(() => {{
+            markerBox.delete();
+        }});
+        const remaining = playMode.warpMarkers.asArray().length;
+        return {{
+            success: true,
+            deleted_marker_index: {marker_index},
+            remaining_markers: remaining,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_update_warp_marker(unit_index: int, track_index: int, region_index: int, marker_index: int, position_beats: float = -1.0, seconds: float = -1.0) -> str:
+    """Update a warp marker's position and/or seconds value.
+
+    Pass -1.0 for either parameter to leave it unchanged.
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    region_index: Audio region index.
+    marker_index: Warp marker index (0-based).
+    position_beats: New musical position in beats (-1 = unchanged).
+    seconds: New audio time in seconds (-1 = unchanged).
+
+    Returns updated marker values.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const auAdapters = h.allAUs();
+        if ({unit_index} >= auAdapters.length) return {{error: "No AU at {unit_index}"}};
+        const auAdapter = auAdapters[{unit_index}];
+        const trackAdapters = auAdapter.tracks.collection.adapters();
+        if ({track_index} >= trackAdapters.length) return {{error: "No track {track_index}"}};
+        const trackAdapter = trackAdapters[{track_index}];
+        const regions = trackAdapter.regions.collection.asArray();
+        if ({region_index} >= regions.length) return {{error: "No region {region_index}"}};
+        const region = regions[{region_index}];
+        if (!region.isAudioRegion?.()) return {{error: "Region is not an audio region"}};
+        const optPlayMode = region.observableOptPlayMode;
+        if (optPlayMode.isEmpty()) return {{error: "Region has no stretch mode (not stretched)"}};
+        const playMode = optPlayMode.unwrap();
+        const markers = playMode.warpMarkers.asArray();
+        if ({marker_index} >= markers.length) return {{error: "No marker at index {marker_index}"}};
+        const marker = markers[{marker_index}];
+        const markerBox = marker.box;
+        const newPos = {position_beats};
+        const newSec = {seconds};
+        h.modify(() => {{
+            if (newPos >= 0) markerBox.position.setValue(Math.round(newPos * h.ppqn.Quarter));
+            if (newSec >= 0) markerBox.seconds.setValue(newSec);
+        }});
+        return {{
+            success: true,
+            marker_index: {marker_index},
+            position: markerBox.position.getValue(),
+            seconds: markerBox.seconds.getValue(),
+            is_anchor: marker.isAnchor,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
