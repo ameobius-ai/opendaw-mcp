@@ -2967,7 +2967,7 @@ Returns ordered list of effects with their type, enabled state, and index.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_note(track_index: int, pitch: int, start_beat: int, duration_beats: int, velocity: int, unit_index: int) -> str:
+async def mcp_opendaw_create_note(track_index: int, pitch: int, start_beat: float, duration_beats: float, velocity: float, unit_index: int) -> str:
     """Create a MIDI note on a note track.
 
 pitch: MIDI note number (60 = C4, 69 = A4).
@@ -3920,7 +3920,7 @@ Returns list of notes sorted by position.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_note_properties(note_index: int, unit_index: int, track_index: int, region_index: int, position_beats: int, duration_beats: int, pitch: int, velocity: int, cent: str, chance: str) -> str:
+async def mcp_opendaw_set_note_properties(note_index: int, unit_index: int, track_index: int, region_index: int, position_beats: float, duration_beats: float, pitch: int, velocity: float, cent: str, chance: str) -> str:
     """Edit properties of a single note within a region.
 
 Pass -1 for any parameter to skip changing it (keep current value).
@@ -8977,7 +8977,7 @@ async def mcp_opendaw_find_overlapping_notes(unit_index: int, track_index: int, 
 # ─────────────────────────────────────────────────────────────────────
 
 @mcp.tool()
-async def mcp_opendaw_set_note_advanced(unit_index: int, track_index: int, region_index: int, note_index: int, chance: int = -1, cent: float = -999, play_count: int = -1, play_curve: int = -999) -> str:
+async def mcp_opendaw_set_note_advanced(unit_index: int, track_index: int, region_index: int, note_index: int, chance: int = -1, cent: float = -999, play_count: int = -1, play_curve: float = -999) -> str:
     """Set advanced note properties — chance, cent, playCount, playCurve.
 
     These properties are beyond basic position/duration/pitch/velocity:
