@@ -68,6 +68,16 @@ class HeadlessDawBridge:
                     if (regIdx >= regions.length) throw new Error('No region ' + regIdx);
                     return regions[regIdx];
                 },
+                // Get AU box by index (sorted by index field) — for box-level access
+                auBox: (i) => {
+                    const aus = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({box}) => box)
+                        .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+                    if (i >= aus.length) throw new Error('No AU at ' + i);
+                    return aus[i];
+                },
+                // Get all AU boxes sorted
+                allAUBoxes: () => [...p.rootBox.audioUnits.pointerHub.incoming()].map(({box}) => box)
+                    .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0)),
                 // Get all AU adapters sorted
                 allAUs: () => p.rootBoxAdapter.audioUnits.adapters(),
                 // Find instrument AU (first non-output, non-bus)
