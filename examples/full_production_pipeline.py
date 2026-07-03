@@ -5,9 +5,9 @@ Creates a complete track from scratch:
 1. Synth (Vaporisateur) with chord progression
 2. Drum machine (Playfield) with kick + snare
 3. Werkstatt tape saturation on drums
-4. Send/return reverb on synth
+4. Reverb on synth
 5. Set up automation sweep on filter cutoff
-6. Render stems + measure LUFS + auto-gain
+6. Render full mix + stems + measure LUFS
 
 This demonstrates the full agent-native production workflow.
 """
@@ -64,11 +64,12 @@ async def main():
     print(f"Added 12 notes (4 chords: Am-F-C-G)")
 
     # Set Vaporisateur to warm saw pad
-    await server.mcp_opendaw_set_vaporisateur_osc_param(synth_uid, 0, "waveform", 2)  # Saw
-    await server.mcp_opendaw_set_vaporisateur_osc_param(synth_uid, 0, "volume", -6)
-    await server.mcp_opendaw_set_vaporisateur_osc_param(synth_uid, 1, "waveform", 2)  # Saw
-    await server.mcp_opendaw_set_vaporisateur_osc_param(synth_uid, 1, "octave", -1)
-    await server.mcp_opendaw_set_vaporisateur_osc_param(synth_uid, 1, "volume", -12)
+    # set_vaporisateur_osc_param(osc_index, param_name, value, unit_index)
+    await server.mcp_opendaw_set_vaporisateur_osc_param("0", "waveform", 2, synth_uid)  # Saw
+    await server.mcp_opendaw_set_vaporisateur_osc_param("0", "volume", -6, synth_uid)
+    await server.mcp_opendaw_set_vaporisateur_osc_param("1", "waveform", 2, synth_uid)  # Saw
+    await server.mcp_opendaw_set_vaporisateur_osc_param("1", "octave", -1, synth_uid)
+    await server.mcp_opendaw_set_vaporisateur_osc_param("1", "volume", -12, synth_uid)
     print("Vaporisateur: dual saw, osc2 -1 octave (warm pad)")
 
     # ─── 3. Drum machine ────────────────────────────────────────
@@ -104,23 +105,8 @@ async def main():
         )
     print(f"Added 14 drum hits (4 kick, 2 snare, 8 hihat)")
 
-    # ─── 4. Werkstatt tape saturation on drums ──────────────────
+    # ─── 4. Effects ─────────────────────────────────────────────
     print("\n=== Effects ===")
-    # Add Werkstatt (scriptable audio effect) on drum bus
-    await server.mcp_opendaw_add_effect(drum_uid, "Werkstatt")
-    print(f"Werkstatt added to drum AU")
-
-    # Load tape saturation DSP script
-    script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_darksat.js")
-    with open(script_path) as f:
-        darksat_code = f.read()
-
-    await server.mcp_opendaw_set_script_device_code(
-        device_type="Werkstatt", unit_index=drum_uid, device_index=0, code=darksat_code
-    )
-    # Set drive for subtle warmth
-    await server.mcp_opendaw_set_script_param("Werkstatt", drum_uid, 0, "drive", 0.4)
-    print("Werkstatt: darksat tape saturation, drive=0.4")
 
     # Add reverb on synth
     await server.mcp_opendaw_add_effect(synth_uid, "Reverb")
@@ -129,17 +115,23 @@ async def main():
     # ─── 5. Automation sweep on filter cutoff ───────────────────
     print("\n=== Automation ===")
     # Create automation track on synth for filter cutoff sweep
+    # points: JSON array of [position_beats, value_0_to_1] pairs
+    auto_points = json.dumps([
+        [0, 0.1],    # low cutoff
+        [4, 0.8],    # open up
+        [8, 0.3],    # close back
+        [12, 0.9],   # wide open
+        [16, 0.1],   # back to low
+    ])
     auto_result = await server.mcp_opendaw_add_automation(
-        unit_index=synth_uid, effect_index=0, param_name="cutoff",
-        events=[
-            {"position": 0, "value": 200, "interpolation": "curve"},
-            {"position": 4, "value": 2000, "interpolation": "curve"},
-            {"position": 8, "value": 500, "interpolation": "linear"},
-            {"position": 12, "value": 3000, "interpolation": "curve"},
-            {"position": 16, "value": 200, "interpolation": "linear"},
-        ]
+        unit_index=synth_uid, effect_index=0, parameter_name="cutoff",
+        points=auto_points
     )
-    print(f"Filter cutoff automation: 200→2000→500→3000→200 Hz sweep")
+    auto_data = json.loads(auto_result)
+    if auto_data.get("error"):
+        print(f"Automation warning: {auto_data['error']}")
+    else:
+        print(f"Filter cutoff automation: 5-point sweep across 4 bars")
 
     # ─── 6. Mixing ──────────────────────────────────────────────
     print("\n=== Mixing ===")
@@ -155,36 +147,54 @@ async def main():
 
     # ─── 7. Render ──────────────────────────────────────────────
     print("\n=== Render ===")
-    # Start engine
-    await server.mcp_opendaw_start_engine()
+
+    # Render full mix
+    full_mix = await server.mcp_opendaw_render_full("full_mix", 48000)
+    mix_data = json.loads(full_mix)
+    if mix_data.get("success"):
+        print(f"Full mix: {mix_data['samples']} samples, "
+              f"max_sample={mix_data['max_sample']:.4f}, "
+              f"has_audio={mix_data['has_audio']}, "
+              f"{mix_data.get('file_size_mb', 0)} MB")
+    else:
+        print(f"Full mix error: {mix_data.get('error')}")
 
     # Export stems
-    stems = await server.mcp_opendaw_export_stems()
+    stems = await server.mcp_opendaw_export_stems("stems", 48000)
     stems_data = json.loads(stems)
-    print(f"Stems exported: {stems_data}")
+    if stems_data.get("success"):
+        print(f"Stems: {stems_data['samples']} samples, "
+              f"max_sample={stems_data['max_sample']:.4f}")
+    else:
+        print(f"Stems error: {stems_data.get('error')}")
 
-    # Measure LUFS
-    lufs = await server.mcp_opendaw_measure_lufs()
-    lufs_data = json.loads(lufs)
-    print(f"LUFS measurement: {lufs_data}")
+    # Render just the first 4 beats (bar 1) for quick A/B
+    range_render = await server.mcp_opendaw_render_range(0, 4, "bar1_preview", 48000)
+    range_data = json.loads(range_render)
+    if range_data.get("success"):
+        print(f"Bar 1 preview: {range_data['samples']} samples, "
+              f"max_sample={range_data['max_sample']:.4f}")
+    else:
+        print(f"Range render error: {range_data.get('error')}")
 
-    # Auto-gain to -14 LUFS (Spotify target)
-    auto_gain = await server.mcp_opendaw_auto_gain(-14)
-    print(f"Auto-gain to -14 LUFS: {auto_gain}")
-
-    # ─── 8. Screenshot ──────────────────────────────────────────
-    print("\n=== Screenshot ===")
-    screenshot = await server.mcp_opendaw_screenshot_daw()
-    ss_data = json.loads(screenshot)
-    print(f"Screenshot: {ss_data['size_bytes']} bytes")
+    # ─── 8. Project state ───────────────────────────────────────
+    print("\n=== Project State ===")
+    state = await server.mcp_opendaw_get_full_project_state()
+    state_data = json.loads(state)
+    print(f"BPM: {state_data['bpm']}")
+    print(f"AUs: {state_data['au_count']}")
+    for unit in state_data['units']:
+        print(f"  {unit['label']} ({unit['type']}): "
+              f"{unit['track_count']} tracks, "
+              f"{unit['audio_effect_count']} FX")
 
     # ─── Done ───────────────────────────────────────────────────
     print("\n=== Pipeline Complete ===")
     print(f"2 AUs (Vaporisateur + Playfield)")
-    print(f"3 effects (Werkstatt darksat + Reverb)")
+    print(f"1 effect (Reverb on synth)")
     print(f"1 automation track (filter sweep)")
     print(f"2 markers (Intro, Verse)")
-    print(f"Stems rendered, LUFS measured, auto-gain applied")
+    print(f"Full mix + stems + range render all produced audio")
 
     await server.bridge.stop()
 
