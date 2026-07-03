@@ -89,6 +89,8 @@ class HeadlessDawBridge:
                     .sort((a, b) => a.index.getValue() - b.index.getValue()),
                 // Get region boxes for a track (unsorted, insertion order)
                 regionBoxes: (track) => [...track.regions.pointerHub.incoming()].map(({box}) => box),
+                // Get event boxes from a collection (note events, signature events)
+                eventBoxes: (coll) => [...coll.events.pointerHub.incoming()].map(({box}) => box),
                 // Get all AU adapters sorted
                 allAUs: () => p.rootBoxAdapter.audioUnits.adapters(),
                 // Find instrument AU (first non-output, non-bus)
@@ -546,7 +548,7 @@ Returns the created signature event details.
         let created;
         h.modify(() => {{
             // Find next index
-            const existing = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
+            const existing = h.eventBoxes(sigTrack);
             const maxIndex = existing.reduce((mx, b) => Math.max(mx, b.index?.getValue?.() ?? 0), -1);
             const idx = maxIndex + 1;
 
@@ -560,7 +562,7 @@ Returns the created signature event details.
         }});
 
         // List all signature events
-        const allEvents = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
+        const allEvents = h.eventBoxes(sigTrack);
         const eventList = allEvents.map(e => ({{
             position_beats: (e.relativePosition?.getValue?.() ?? 0) / h.ppqn.Quarter,
             numerator: e.nominator?.getValue?.() ?? 4,
@@ -624,7 +626,7 @@ Returns the created tempo event and full tempo map.
                 tempoTrack.events.refer(collection.owners);
             }}
 
-            const existingEvents = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
+            const existingEvents = h.eventBoxes(collection);
             const maxIndex = existingEvents.reduce((mx, b) => Math.max(mx, b.index?.getValue?.() ?? 0), -1);
 
             ValueEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
@@ -637,7 +639,7 @@ Returns the created tempo event and full tempo map.
         }});
 
         const coll = tempoTrack.events.targetVertex.unwrap().box;
-        const events = [...coll.events.pointerHub.incoming()].map(({{box}}) => box);
+        const events = h.eventBoxes(coll);
         const eventList = events.map(e => ({{
             position_beats: (e.position?.getValue?.() ?? 0) / h.ppqn.Quarter,
             bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
@@ -684,7 +686,7 @@ The tempo track uses normalized values mapped to minBpm..maxBpm (default 60..240
         }};
 
         const collection = eventsVertex.unwrap().box;
-        const events = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
+        const events = h.eventBoxes(collection);
         const eventList = events.map(e => ({{
             position_beats: (e.position?.getValue?.() ?? 0) / h.ppqn.Quarter,
             bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
@@ -716,7 +718,7 @@ Returns each signature event with position (beats), numerator, and denominator.
         const sigTrack = tl.signatureTrack;
         const enabled = sigTrack.enabled?.getValue?.() ?? false;
 
-        const events = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
+        const events = h.eventBoxes(sigTrack);
         const eventList = events.map(e => ({{
             position_beats: (e.relativePosition?.getValue?.() ?? 0) / h.ppqn.Quarter,
             numerator: e.nominator?.getValue?.() ?? 4,
@@ -750,7 +752,7 @@ Returns updated signature event list.
         if (!tl || !tl.signatureTrack) return {{error: "No signatureTrack on timeline"}};
 
         const sigTrack = tl.signatureTrack;
-        const events = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
+        const events = h.eventBoxes(sigTrack);
         if (events.length === 0) return {{error: "No signature events to delete"}};
 
         events.sort((a, b) => (a.relativePosition?.getValue?.() ?? 0) - (b.relativePosition?.getValue?.() ?? 0));
@@ -774,7 +776,7 @@ Returns updated signature event list.
             events[targetIdx].delete();
         }});
 
-        const remaining = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
+        const remaining = h.eventBoxes(sigTrack);
         const eventList = remaining.map(e => ({{
             position_beats: (e.relativePosition?.getValue?.() ?? 0) / h.ppqn.Quarter,
             numerator: e.nominator?.getValue?.() ?? 4,
@@ -3360,7 +3362,7 @@ Returns count of notes transposed.
                             const vertex = region.events.targetVertex.unwrap();
                             const collectionBox = vertex.box || vertex;
                             if (collectionBox && collectionBox.events) {{
-                                const noteEvents = [...collectionBox.events.pointerHub.incoming()].map(({{box}}) => box);
+                                const noteEvents = h.eventBoxes(collectionBox);
                                 for (const evt of noteEvents) {{
                                     const current = evt.pitch.getValue();
                                     const newPitch = Math.max(0, Math.min(127, current + semis));
@@ -3742,7 +3744,7 @@ Returns count of notes quantized.
                             const vertex = region.events.targetVertex.unwrap();
                             const collectionBox = vertex.box || vertex;
                             if (collectionBox && collectionBox.events) {{
-                                const noteEvents = [...collectionBox.events.pointerHub.incoming()].map(({{box}}) => box);
+                                const noteEvents = h.eventBoxes(collectionBox);
                                 for (const evt of noteEvents) {{
                                     const current = evt.position.getValue();
                                     const nearest = Math.round(current / gridTicks) * gridTicks;
@@ -3830,7 +3832,7 @@ Returns new region index.
             if (srcCollection && srcCollection.events) {{
                 // Create new collection and copy all note events
                 const newCollection = NoteEventCollectionBox.create(h.boxGraph, h.uuid.generate());
-                const srcNotes = [...srcCollection.events.pointerHub.incoming()].map(({{box}}) => box);
+                const srcNotes = h.eventBoxes(srcCollection);
                 for (const srcNote of srcNotes) {{
                     NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                         box.position.setValue(srcNote.position.getValue());
@@ -3923,7 +3925,7 @@ Returns count of duplicated notes and shift in beats.
 
         if (!collection || !collection.events) return {{error: "No note collection in region"}};
 
-        const notes = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
+        const notes = h.eventBoxes(collection);
         if (notes.length === 0) return {{error: "No notes in region"}};
 
         let blockStart = Infinity, blockEnd = -Infinity;
@@ -4009,7 +4011,7 @@ Returns list of notes sorted by position.
         }} catch(e) {{}}
         if (!collection || !collection.events) return {{error: "No note collection in region"}};
 
-        const notes = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
+        const notes = h.eventBoxes(collection);
         const noteList = notes.map((n, i) => ({{
             index: i,
             position_beats: (n.position?.getValue?.() ?? 0) / Quarter,
@@ -4091,7 +4093,7 @@ Returns updated note properties.
         }} catch(e) {{}}
         if (!collection || !collection.events) return {{error: "No note collection in region"}};
 
-        const notes = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
+        const notes = h.eventBoxes(collection);
         if (noteIdx < 0 || noteIdx >= notes.length) return {{error: "Note index " + noteIdx + " out of range (0.." + (notes.length-1) + ")"}};
         const note = notes[noteIdx];
 
@@ -4164,7 +4166,7 @@ Returns remaining note count.
         }} catch(e) {{}}
         if (!collection || !collection.events) return {{error: "No note collection in region"}};
 
-        const notes = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
+        const notes = h.eventBoxes(collection);
         if (noteIdx < 0 || noteIdx >= notes.length) return {{error: "Note index " + noteIdx + " out of range (0.." + (notes.length-1) + ")"}};
 
         h.modify(() => {{
@@ -4666,7 +4668,7 @@ Returns the saved file path.
 
         const region = regions[regionIdx];
         const collection = region.events.targetVertex.unwrap().box;
-        const notes = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
+        const notes = h.eventBoxes(collection);
 
         if (notes.length === 0) return {{error: "Region has no notes"}};
 

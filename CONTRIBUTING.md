@@ -75,11 +75,18 @@ async def mcp_opendaw_my_tool(param: str) -> str:
 | Helper | Description |
 |--------|-------------|
 | `h.au(i)` | Get audio unit adapter by index |
+| `h.auBox(i)` | Get audio unit box by index (throws if out of range) |
+| `h.allAUBoxes()` | All AU boxes sorted by index |
+| `h.allAUs()` | All audio unit adapters |
 | `h.track(auIdx, trackIdx)` | Get track adapter |
+| `h.trackBoxes(au)` | Track boxes for an AU, sorted by index |
 | `h.region(au, track, reg)` | Get region adapter |
-| `h.instrumentAU()` | Get first instrument AU |
+| `h.regionBoxes(track)` | Region boxes for a track (insertion order) |
+| `h.effectBoxes(au)` | Audio effect boxes for an AU, sorted by index |
+| `h.midiEffectBoxes(au)` | MIDI effect boxes for an AU, sorted by index |
+| `h.eventBoxes(collection)` | Event boxes from a collection (note/signature events) |
+| `h.instrumentAU()` | First instrument AU adapter |
 | `h.modify(fn)` | Wrapper for `editing.modify()` |
-| `h.allAUs()` | List all audio unit adapters |
 
 ### Key Patterns
 
