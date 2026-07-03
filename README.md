@@ -3,10 +3,10 @@
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-235-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-237-brightgreen)](TOOL_CATALOG.md)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
-**235 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**237 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -209,7 +209,7 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 235 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 237 tools with parameters and descriptions.
 
 ## Mastering
 
@@ -251,6 +251,14 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.8.2 (2026-07-03)
+
+- **2 new tools: Audio Region Time Base & Waveform Offset**
+  - `set_audio_region_time_base(unit_index, track_index, region_index, time_base)` — Switch duration interpretation between 'musical' (PPQN, tempo-following) and 'seconds' (fixed wall-clock)
+  - `set_audio_region_waveform_offset(unit_index, track_index, region_index, offset)` — Set waveform display offset for visual alignment
+- **PR #280 closed** — andremichelle confirmed it's our bundler setup issue, not upstream. Closing as requested.
+- **237 total tools**
 
 ### v1.8.1 (2026-07-03)
 

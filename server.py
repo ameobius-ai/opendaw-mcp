@@ -11397,6 +11397,90 @@ async def mcp_opendaw_update_warp_marker(unit_index: int, track_index: int, regi
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_set_audio_region_time_base(unit_index: int, track_index: int, region_index: int, time_base: str) -> str:
+    """Set the time base of an audio region.
+
+    Controls how the region's duration is interpreted:
+    - 'musical' — duration in PPQN (musical beats, follows tempo changes)
+    - 'seconds' — duration in seconds (fixed wall-clock time, independent of tempo)
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    region_index: Audio region index.
+    time_base: 'musical' or 'seconds'.
+
+    Returns old and new time base.
+    """
+    safe_tb = time_base.replace('"', '').replace("'", '').replace('\\', '').strip().lower()
+    if safe_tb not in ("musical", "seconds"):
+        return json.dumps({"error": f"Invalid time_base '{safe_tb}'. Use 'musical' or 'seconds'."})
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const auAdapters = h.allAUs();
+        if ({unit_index} >= auAdapters.length) return {{error: "No AU at {unit_index}"}};
+        const auAdapter = auAdapters[{unit_index}];
+        const trackAdapters = auAdapter.tracks.collection.adapters();
+        if ({track_index} >= trackAdapters.length) return {{error: "No track {track_index}"}};
+        const trackAdapter = trackAdapters[{track_index}];
+        const regions = trackAdapter.regions.collection.asArray();
+        if ({region_index} >= regions.length) return {{error: "No region {region_index}"}};
+        const region = regions[{region_index}];
+        if (!region.isAudioRegion?.()) return {{error: "Region is not an audio region"}};
+        const regionBox = region.box;
+        const oldVal = regionBox.timeBase.getValue();
+        h.modify(() => {{
+            regionBox.timeBase.setValue("{safe_tb}");
+        }});
+        return {{
+            success: true,
+            old_time_base: oldVal,
+            new_time_base: "{safe_tb}",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_set_audio_region_waveform_offset(unit_index: int, track_index: int, region_index: int, offset: float) -> str:
+    """Set the waveform display offset of an audio region.
+
+    The waveform offset shifts the visual start of the waveform within the region,
+    useful for aligning the waveform display with the actual audio content.
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    region_index: Audio region index.
+    offset: Waveform offset value (in seconds).
+
+    Returns old and new offset.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const auAdapters = h.allAUs();
+        if ({unit_index} >= auAdapters.length) return {{error: "No AU at {unit_index}"}};
+        const auAdapter = auAdapters[{unit_index}];
+        const trackAdapters = auAdapter.tracks.collection.adapters();
+        if ({track_index} >= trackAdapters.length) return {{error: "No track {track_index}"}};
+        const trackAdapter = trackAdapters[{track_index}];
+        const regions = trackAdapter.regions.collection.asArray();
+        if ({region_index} >= regions.length) return {{error: "No region {region_index}"}};
+        const region = regions[{region_index}];
+        if (!region.isAudioRegion?.()) return {{error: "Region is not an audio region"}};
+        const regionBox = region.box;
+        const oldVal = regionBox.waveformOffset.getValue();
+        h.modify(() => {{
+            regionBox.waveformOffset.setValue({offset});
+        }});
+        return {{
+            success: true,
+            old_offset: oldVal,
+            new_offset: {offset},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")

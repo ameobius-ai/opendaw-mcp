@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-235 MCP tools for headless openDAW control via Playwright bridge.
+237 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -56,6 +56,8 @@
 - `list_audio_regions` — list all audio regions
 - `set_audio_region_fade` — fade in/out (seconds + curve slope)
 - `set_audio_region_gain` — per-region gain in dB
+- `set_audio_region_time_base` — set time base ('musical' or 'seconds') for audio region duration interpretation
+- `set_audio_region_waveform_offset` — set waveform display offset (seconds) for visual alignment
 
 ## Effects (14)
 - `list_effects` — list available effect types
