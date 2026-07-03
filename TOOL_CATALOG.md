@@ -339,3 +339,7 @@
 ## Studio Settings (2 tools)
 - **get_studio_settings()** — Get all studio preferences/settings (engine, visibility, editing, debug, storage, time-display, pointer categories)
 - **set_studio_setting(category, key, value)** — Set a studio preference. Categories: engine, visibility, editing, debug, storage, time-display, pointer. Common keys: auto-create-output-maximizer, overlapping-regions-behaviour, enable-beta-features, auto-delete-orphaned-samples, note-audition-while-editing
+
+## DawProject Interop (2 tools)
+- **export_dawproject(filename)** — Export the current project as a .dawproject file (Bitwig/Ableton/rePitch compatible). ZIP with project.xml, metadata.xml, and audio samples.
+- **import_dawproject(filename)** — Import a .dawproject file into the current session. Loads project structure, tracks, and audio samples from other DAWs.

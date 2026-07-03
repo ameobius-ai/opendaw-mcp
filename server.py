@@ -10558,6 +10558,119 @@ async def mcp_opendaw_set_studio_setting(category: str, key: str, value: str) ->
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_export_dawproject(filename: str = "project") -> str:
+    """Export the current project as a .dawproject file (Bitwig/Ableton/rePitch compatible format).
+
+    The dawproject format is a ZIP containing project.xml, metadata.xml, and audio samples.
+    This enables interoperability with other DAWs that support the dawproject format.
+
+    Args:
+        filename: Output filename (without extension). The .dawproject extension is added automatically.
+
+    Returns the file path of the exported .dawproject file.
+    """
+    safe_fn = filename.replace('"', '').replace('\\', '').replace("'", "").replace(';', '').replace('/', '').replace('..', '')
+    fn_json = json.dumps(safe_fn)
+    export_dir = os.environ.get("OPENDAW_EXPORT_DIR", "/tmp/opendaw-exports")
+    result = await bridge.evaluate("""async () => {
+        const daw = window.DAW_DawProject;
+        const project = window.DAW;
+        if (!daw) return {error: "DawProject module not available"};
+        if (!project) return {error: "No active project"};
+        try {
+            const skeleton = {
+                boxGraph: project.boxGraph,
+                mandatoryBoxes: window.DAW_ProjectSkeleton.findMandatoryBoxes(project.boxGraph)
+            };
+            const metaData = {application: {name: "openDAW-MCP", version: "1.6.2"}};
+            const buffer = await daw.encode(skeleton, window.DAW_sampleManager, metaData);
+            // Convert ArrayBuffer to base64 for transfer
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+            return {
+                success: true,
+                base64: base64,
+                size: bytes.length,
+                format: "dawproject"
+            };
+        } catch(e) {
+            return {error: e.message, stack: e.stack?.split('\\n').slice(0, 5).join(' | ')};
+        }
+    }""")
+    r = _wrap_eval(result)
+    if '"success": true' in r or '"success":true' in r:
+        import base64 as b64mod
+        try:
+            data = json.loads(r)
+            if data.get("success") and data.get("base64"):
+                buf = b64mod.b64decode(data["base64"])
+                os.makedirs(export_dir, exist_ok=True)
+                filepath = os.path.join(export_dir, f"{safe_fn}.dawproject")
+                with open(filepath, "wb") as f:
+                    f.write(buf)
+                return json.dumps({
+                    "success": True,
+                    "file": filepath,
+                    "size": data["size"],
+                    "format": "dawproject"
+                })
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+    return r
+
+
+@mcp.tool()
+async def mcp_opendaw_import_dawproject(filename: str) -> str:
+    """Import a .dawproject file into the current session.
+
+    The dawproject format is a ZIP containing project.xml, metadata.xml, and audio samples.
+    This enables loading projects created in Bitwig, Ableton, or other DAWs supporting dawproject.
+
+    Args:
+        filename: Path to the .dawproject file to import.
+
+    Returns the import result with track and sample counts.
+    """
+    safe_fn = filename.replace('"', '').replace('\\', '').replace("'", "").replace(';', '')
+    if not os.path.exists(safe_fn):
+        return json.dumps({"error": f"File not found: {safe_fn}"})
+    fn_json = json.dumps(safe_fn)
+    with open(safe_fn, "rb") as f:
+        file_bytes = f.read()
+    import base64 as b64mod
+    file_b64 = b64mod.b64encode(file_bytes).decode('ascii')
+    file_b64_json = json.dumps(file_b64)
+    result = await bridge.evaluate(f"""async () => {{
+        const daw = window.DAW_DawProject;
+        if (!daw) return {{error: "DawProject module not available"}};
+        try {{
+            // Decode base64 to ArrayBuffer
+            const binary = atob({file_b64_json});
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const buffer = bytes.buffer;
+            const {{metaData, project, resources}} = await daw.decode(buffer);
+            const result = await window.DAW_DawProjectImport.read(project, resources);
+            // Load the imported skeleton into the DAW
+            const newProject = window.DAW_loadProject(window.DAW_ProjectSkeleton.encode(result.skeleton.boxGraph));
+            return {{
+                success: true,
+                audioIds: result.audioIds.length,
+                boxes: newProject?.boxGraph?.boxes()?.length ?? 0,
+                application: metaData?.application?.name ?? "unknown"
+            }};
+        }} catch(e) {{
+            return {{error: e.message, stack: e.stack?.split('\\\\n').slice(0, 5).join(' | ')}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
