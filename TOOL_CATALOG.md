@@ -298,3 +298,7 @@
 - **connect_modular_modules** — Create patch cable between source output and target input
 - **set_modular_module_param** — Set module parameter (gain in dB, time in ms) via box field
 - **remove_modular_module** — Delete module and all its connections
+
+## PianoMode (2 tools)
+- **set_transpose** — Set global piano roll transpose (-48 to +48 semitones)
+- **get_piano_mode** — Get keyboard type, time range, note scale, labels, transpose

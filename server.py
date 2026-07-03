@@ -9321,5 +9321,56 @@ async def mcp_opendaw_remove_modular_module(au_index: int, effect_index: int, mo
     return _wrap_eval(result)
 
 
+# ─── PianoMode ───────────────────────────────────────────────────────
+
+@mcp.tool()
+async def mcp_opendaw_set_transpose(semitones: int) -> str:
+    """Set global transpose for the piano roll view (does not affect audio playback).
+
+    semitones: Number of semitones to transpose (-48 to +48).
+
+    Returns success with old and new values.
+    """
+    if semitones < -48 or semitones > 48:
+        return json.dumps({"error": f"Transpose must be -48 to +48, got {semitones}"})
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const pm = p.rootBoxAdapter.pianoMode;
+            const old = pm.transpose.getValue();
+            p.editing.modify(() => {{
+                pm.transpose.field.setValue({semitones});
+            }});
+            return {{success: true, old_transpose: old, new_transpose: {semitones}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_get_piano_mode() -> str:
+    """Get piano roll view settings.
+
+    Returns keyboard type (88/76/61/49), time range, note scale, note labels, transpose.
+    """
+    result = await bridge.evaluate("""() => {
+        const p = window.DAW;
+        try {
+            const pm = p.rootBoxAdapter.pianoMode;
+            return {
+                keyboard: pm.keyboard.getValue(),
+                time_range_in_quarters: pm.timeRangeInQuarters.getValue(),
+                note_scale: pm.noteScale.getValue(),
+                note_labels: pm.noteLabels.getValue(),
+                transpose: pm.transpose.getValue()
+            };
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     mcp.run(transport='stdio')
