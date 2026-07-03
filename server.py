@@ -10613,7 +10613,10 @@ async def mcp_opendaw_get_engine_status() -> str:
         cpu_load: CPU load percentage (0-1)
         is_recording: bool
         is_counting_in: bool
+        count_in_beats_remaining: beats left in count-in
+        playback_timestamp: playback timestamp in beats
         marker: current marker [uuid, index] or null
+        engine_started: whether engine is initialized
     """
     result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
@@ -10626,6 +10629,8 @@ async def mcp_opendaw_get_engine_status() -> str:
                 cpu_load: eng.cpuLoad?.getValue?.() ?? 0,
                 is_recording: eng.isRecording?.getValue?.() ?? false,
                 is_counting_in: eng.isCountingIn?.getValue?.() ?? false,
+                count_in_beats_remaining: eng.countInBeatsRemaining?.getValue?.() ?? 0,
+                playback_timestamp: (eng.playbackTimestamp?.getValue?.() ?? 0) / h.ppqn.Quarter,
                 marker: eng.markerState?.getValue?.() ?? null,
                 engine_started: typeof window.DAW_engineStarted === 'function' && window.DAW_engineStarted(),
             };
