@@ -2460,18 +2460,18 @@ Returns:
   - main: cutoff, resonance, attack, release, filterEnvelope, decay, sustain, etc.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         let vap = null;
 
         if (unitIdx >= 0) {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
             const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
             vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of units) {{
                 const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
                 vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
@@ -2558,7 +2558,7 @@ Returns old and new values.
 """
     safe_param = param_name.replace('"', '').replace("'", '').replace('\\', '')
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const oscIdx = {osc_index};
         const paramName = "{safe_param}";
@@ -2566,13 +2566,13 @@ Returns old and new values.
 
         let vap = null;
         if (unitIdx >= 0) {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
             const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
             vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of units) {{
                 const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
                 vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
@@ -2597,7 +2597,7 @@ Returns old and new values.
 
         const field = osc.getField(fieldIdx);
         const oldValue = field.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             field.setValue(newVal);
         }});
 
@@ -2622,10 +2622,10 @@ Works with: Vaporisateur (cutoff/resonance/ADSR/etc), Tape (flutter/wow/noise/sa
 Nano (volume/release), Soundfont (presetIndex), MIDIOutput (channel), Playfield, Apparat.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         let instBox = null;
         let auName = "";
 
