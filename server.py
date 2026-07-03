@@ -119,9 +119,6 @@ def _wrap_eval(result) -> str:
     if isinstance(result, dict) and "error" in result: return json.dumps(result)
     return json.dumps(result)
 
-async def _find_script_device_js(au_index, device_type, device_index):
-    pass  # unused — scriptable device tools have inline JS
-
 @mcp.tool()
 async def mcp_opendaw_get_project_state() -> str:
     """Get full project state: BPM, sample rate, playing status, track list, effects chain."""
@@ -1058,6 +1055,7 @@ and outputs sound. The instrument AU is connected to the output AU's bus.
 name: Display name for the instrument (default "Tape").
 Returns the unit_index and track_index for use with place_audio_region.
 """
+    safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -1086,7 +1084,7 @@ Returns the unit_index and track_index for use with place_audio_region.
 
             // Create TapeDeviceBox (audio player instrument)
             tapeDevice = TapeDeviceBox.create(p.boxGraph, UUID.generate(), (box) => {{
-                box.label.setValue("{name}");
+                box.label.setValue("{safe_name}");
                 box.host.refer(instrumentAU.input);
             }});
 
@@ -1166,7 +1164,7 @@ Returns unit_index and track_index for use with create_note.
             // oscillator waveforms/volumes, voicing mode, LFO — all the params
             // that prevent NaN in the audio buffer.
             const icon = IconSymbol.Piano;
-            synthDevice = factory.create(p.boxGraph, instrumentAU.input, "{name}", icon);
+            synthDevice = factory.create(p.boxGraph, instrumentAU.input, "{safe_name}", icon);
 
             // Create note track on the instrument AU
             trackBox = p.api.createNoteTrack(instrumentAU);
@@ -1527,6 +1525,9 @@ adding effects).
 Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_unit_index)
 """
     routing_val = json.dumps(routing)
+    
+
+    safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -1541,7 +1542,7 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
         const srcIdx = {src_unit};
         const sendDb = {send_level_db};
         const routingVal = {routing_val};
-        const fxName = "{name}";
+        const fxName = "{safe_name}";
 
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (srcIdx >= units.length) return {{error: "No src AU at index " + srcIdx}};
@@ -3602,8 +3603,15 @@ track_index: Specific note track (-1 = all note tracks).
 strength: 1.0 = full quantize, 0.5 = 50% (keeps some groove).
 
 Returns count of notes quantized.
-"""
-    grid_ticks = int(float(division) * 960 / 4)
+    """
+    # Parse division: "1/4" → 240 ticks, "1/8" → 120, "1/16" → 60, "1/32" → 30
+    if '/' in division:
+        num, den = division.split('/')
+        grid_ticks = int(float(num.strip()) / float(den.strip()) * 960)
+    else:
+        grid_ticks = int(float(division) * 960)
+
+    safe_division = division.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const unitIdx = {unit_index};
@@ -3652,7 +3660,7 @@ Returns count of notes quantized.
 
         return {{
             success: true,
-            division: "{division}",
+            division: "{safe_division}",
             grid_ticks: gridTicks,
             strength: strength,
             notes_quantized: count,
@@ -6111,6 +6119,9 @@ bpm: Source BPM of the sample (for warp marker calculation).
 Returns position, duration in PPQN, and playback rate.
 """
     mode_val = json.dumps(transient_mode)
+    
+
+    safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -6119,7 +6130,7 @@ Returns position, duration in PPQN, and playback rate.
         const AudioFileBox = window.DAW_AudioFileBox;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
-        const sampleId = "{sample_id}";
+        const sampleId = "{safe_sample_id}";
         const startBeat = {start_beat};
         const playbackRate = {playback_rate};
         const transientMode = {mode_val};
@@ -6191,6 +6202,7 @@ bpm: Source BPM of the sample (for warp marker calculation).
 
 Returns position and duration in PPQN.
 """
+    safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -6199,7 +6211,7 @@ Returns position and duration in PPQN.
         const AudioFileBox = window.DAW_AudioFileBox;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
-        const sampleId = "{sample_id}";
+        const sampleId = "{safe_sample_id}";
         const startBeat = {start_beat};
         const sampleBpm = {bpm};
 
@@ -6332,12 +6344,13 @@ hue: Color hue 0-360 (-1 = auto from track type).
 
 Returns clip UUID and index.
 """
+    safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const clipIdx = {clip_index};
-        const clipName = "{name}";
+        const clipName = "{safe_name}";
         const clipHue = {hue};
 
         // Find note track
@@ -6396,6 +6409,7 @@ hue: Color 0-360 (-1 = auto from track type).
 
 Returns region UUID, type, and position.
 """
+    safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const PPQN = window.DAW_PPQN;
@@ -6404,7 +6418,7 @@ Returns region UUID, type, and position.
         const trackIdx = {track_index};
         const startBeat = {start_beat};
         const durBeats = {duration_beats};
-        const regionName = "{name}";
+        const regionName = "{safe_name}";
         const regionHue = {hue};
 
         let tracks = [];
@@ -6460,6 +6474,7 @@ bpm: Source BPM of the sample (for warp marker calculation).
 
 Returns clip UUID and index.
 """
+    safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -6467,7 +6482,7 @@ Returns clip UUID and index.
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const clipIdx = {clip_index};
-        const sampleId = "{sample_id}";
+        const sampleId = "{safe_sample_id}";
         const sampleBpm = {bpm};
 
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
@@ -6530,6 +6545,9 @@ playback_rate: Playback rate (1.0 = normal, 0.5 = half speed, 2.0 = double).
 transient_mode: "Pingpong", "Monoton", "Cycles", or "Plode".
 """
     safe_mode = transient_mode.replace('"', '').replace("'", '').replace('\\', '')
+    
+
+    safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -6537,7 +6555,7 @@ transient_mode: "Pingpong", "Monoton", "Cycles", or "Plode".
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const clipIdx = {clip_index};
-        const sampleId = "{sample_id}";
+        const sampleId = "{safe_sample_id}";
         const sampleBpm = {bpm};
         const rate = {playback_rate};
         const modeName = "{safe_mode}";
@@ -6601,6 +6619,7 @@ clip_index: Slot index in clip launcher.
 track_index: Audio track index within AU.
 bpm: Source BPM of the sample.
 """
+    safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -6608,7 +6627,7 @@ bpm: Source BPM of the sample.
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const clipIdx = {clip_index};
-        const sampleId = "{sample_id}";
+        const sampleId = "{safe_sample_id}";
         const sampleBpm = {bpm};
 
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
@@ -6668,13 +6687,16 @@ See the openDAW plans/apparat.md, plans/spielwerk.md for the full API.
 device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MIDI effect)
 """
     code_json = json.dumps(code)
+    
+
+    safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(rf"""async () => {{
         const p = window.DAW;
         const allAU = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}".toLowerCase();
+        const dt = "{safe_device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6688,7 +6710,7 @@ device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MI
         if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
         const boxGraph = device.graph;
         const UUID = window.DAW_UUID;
-        const headerTag = "{device_type}".toLowerCase();
+        const headerTag = "{safe_device_type}".toLowerCase();
         const headerPattern = new RegExp('^// @' + headerTag + ' \w+ \d+ \d+\\n');
         const source = {code_json};
         const headerMatch = source.match(headerPattern);
@@ -6846,13 +6868,14 @@ async def mcp_opendaw_get_script_device_code(device_type: str, unit_index: int, 
 
 Returns the full code string, header line, and code length.
 """
+    safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(rf"""() => {{
         const p = window.DAW;
         const allAU = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}".toLowerCase();
+        const dt = "{safe_device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6884,13 +6907,14 @@ Each parameter is a WerkstattParameterBox with: label, index, value, defaultValu
 Parameters are auto-created from `// @param <name> <min> <max> <default> <scaling> <unit>`
 declarations in the code. They appear after the code is compiled and loaded.
 """
+    safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const allAU = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}".toLowerCase();
+        const dt = "{safe_device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6925,13 +6949,14 @@ async def mcp_opendaw_set_script_param(device_type: str, unit_index: int, device
 The parameter must exist (created from a `// @param` declaration in the code).
 The value is set directly on the WerkstattParameterBox.value field.
 """
+    safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const allAU = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}".toLowerCase();
+        const dt = "{safe_device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6969,13 +6994,14 @@ Each sample slot is a WerkstattSampleBox with: label, index, file (pointer to Au
 Sample slots are auto-created from `// @sample <name>` declarations in the code.
 The file pointer is null until a sample is loaded.
 """
+    safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const allAU = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}".toLowerCase();
+        const dt = "{safe_device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -7199,6 +7225,7 @@ name: Bus label.
 
 Returns the new bus index.
 """
+    safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -7244,7 +7271,7 @@ Returns the new bus index.
             }});
         }});
 
-        return {{success: true, bus_index: newIdx, label: "{name}", unit_uuid: String(newUnit.address).slice(0,8)}};
+        return {{success: true, bus_index: newIdx, label: "{safe_name}", unit_uuid: String(newUnit.address).slice(0,8)}};
     }}""")
     return _wrap_eval(result)
 
@@ -7770,6 +7797,7 @@ effect_type: "audio" for audio effects, "midi" for MIDI effects.
 
 Returns base64 preset bytes, or error.
 """
+    safe_effect_type = effect_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const PresetEncoder = window.DAW_PresetEncoder;
@@ -7780,7 +7808,7 @@ Returns base64 preset bytes, or error.
         if ({unit_index} >= units.length) return {{error: "No AU at {unit_index}"}};
         const au = units[{unit_index}];
 
-        const kind = "{effect_type}" === "midi" ? 0 : 1;  // ChainKind.Midi=0, Audio=1
+        const kind = "{safe_effect_type}" === "midi" ? 0 : 1;  // ChainKind.Midi=0, Audio=1
         const field = kind === 0 ? au.midiEffects : au.audioEffects;
         const effects = [...field.pointerHub.incoming()].map(({{box}}) => box)
             .sort((a, b) => a.index.getValue() - b.index.getValue());
@@ -9103,6 +9131,7 @@ async def mcp_opendaw_set_device_label(unit_index: int, effect_index: int, label
 
     Returns success, or error.
     """
+    safe_label = label.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -9112,7 +9141,7 @@ async def mcp_opendaw_set_device_label(unit_index: int, effect_index: int, label
             if ({effect_index} >= adapters.length) return {{error: "No effect at {effect_index}"}};
             const device = adapters[{effect_index}];
             h.modify(() => {{
-                device.labelField.setValue("{label}");
+                device.labelField.setValue("{safe_label}");
             }});
             return {{
                 success: true,
@@ -9920,6 +9949,9 @@ async def mcp_opendaw_add_modular_module(au_index: int, effect_index: int, modul
     box_global = type_map.get(module_type)
     if not box_global:
         return json.dumps({"error": f"Unknown module type: {module_type}. Valid: {list(type_map.keys())}"})
+    
+
+    safe_module_type = module_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         try {{
@@ -9938,7 +9970,7 @@ async def mcp_opendaw_add_modular_module(au_index: int, effect_index: int, modul
             p.editing.modify(() => {{
                 newModule = BoxClass.create(graph, uuid, (box) => {{
                     box.attributes.collection.refer(modular.box.modules);
-                    box.attributes.label.setValue({safe_label} || "{module_type}");
+                    box.attributes.label.setValue({safe_label} || "{safe_module_type}");
                     box.attributes.x.setValue({x});
                     box.attributes.y.setValue({y});
                 }});
@@ -9949,7 +9981,7 @@ async def mcp_opendaw_add_modular_module(au_index: int, effect_index: int, modul
             return {{
                 success: true,
                 module_index: idx,
-                module_type: "{module_type}",
+                module_type: "{safe_module_type}",
                 label: m.attributes.label.getValue(),
                 uuid: m.uuid
             }};
