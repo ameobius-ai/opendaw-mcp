@@ -8390,6 +8390,132 @@ async def mcp_opendaw_get_device_chain_detail(unit_index: int) -> str:
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_ppqn_to_parts(position_ppqn: float) -> str:
+    """Convert a PPQN position to musical parts: bars, beats, semiquavers, ticks.
+
+    Useful for understanding where a position falls in the musical grid,
+    accounting for time signature changes.
+
+    position_ppqn: Position in PPQN (960 = 1 quarter note).
+
+    Returns bars, beats, semiquavers, ticks, and the active time signature.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const sigTrack = p.rootBoxAdapter.timeline.signatureTrack;
+            const parts = sigTrack.toParts({position_ppqn});
+            const sig = sigTrack.signatureAt({position_ppqn});
+            return {{
+                bars: parts.bars,
+                beats: parts.beats,
+                semiquavers: parts.semiquavers,
+                ticks: parts.ticks,
+                time_signature: [sig[0], sig[1]],
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_get_bar_interval(position_ppqn: float) -> str:
+    """Get the start and end PPQN of the bar containing the given position.
+
+    Useful for snapping regions, clips, and events to bar boundaries.
+
+    position_ppqn: Position in PPQN.
+
+    Returns bar_start (ppqn), bar_end (ppqn), bar_length (ppqn), and time signature.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const sigTrack = p.rootBoxAdapter.timeline.signatureTrack;
+            const interval = sigTrack.getBarInterval({position_ppqn});
+            const sig = sigTrack.signatureAt({position_ppqn});
+            const barLen = sigTrack.barLengthAt({position_ppqn});
+            return {{
+                bar_start: interval.position,
+                bar_end: interval.complete,
+                bar_length: barLen,
+                time_signature: [sig[0], sig[1]],
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_move_signature_event(event_index: int, target_ppqn: float) -> str:
+    """Move a time signature change event to a new PPQN position.
+
+    Automatically recalculates relative positions of subsequent events.
+
+    event_index: Index of the signature event (from add_signature_change list).
+    target_ppqn: New position in PPQN.
+
+    Returns success or error.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const sigTrack = p.rootBoxAdapter.timeline.signatureTrack;
+            const adapter = sigTrack.adapterAt({event_index});
+            if (adapter.isEmpty()) return {{error: "No signature event at index " + {event_index}}};
+            p.editing.modify(() => {{
+                sigTrack.moveEvent(adapter.unwrap(), {target_ppqn});
+            }});
+            return {{success: true, event_index: {event_index}, new_position: {target_ppqn}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_copy_region_fades(src_unit: int, src_track: int, src_region: int,
+                                        dst_unit: int, dst_track: int, dst_region: int) -> str:
+    """Copy fade in/out settings from one audio region to another.
+
+    Copies fadeIn, fadeOut, fadeInSlope, fadeOutSlope from the source region's
+    Fading object to the destination region's Fading object.
+
+    src_unit/src_track/src_region: Source region coordinates.
+    dst_unit/dst_track/dst_region: Destination region coordinates.
+
+    Returns the copied fade values.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const srcReg = h.region(h.au({src_unit}), h.track({src_unit}, {src_track}), {src_region});
+            const dstReg = h.region(h.au({dst_unit}), h.track({dst_unit}, {dst_track}), {dst_region});
+            if (!srcReg.fading || !dstReg.fading) return {{error: "Both regions must have fading (audio regions only)"}};
+            const fadeIn = srcReg.fading.fadeIn.getValue();
+            const fadeOut = srcReg.fading.fadeOut.getValue();
+            const fadeInSlope = srcReg.fading.fadeInSlope.getValue();
+            const fadeOutSlope = srcReg.fading.fadeOutSlope.getValue();
+            window.DAW.editing.modify(() => {{
+                dstReg.fading.fadeIn.setValue(fadeIn);
+                dstReg.fading.fadeOut.setValue(fadeOut);
+                dstReg.fading.fadeInSlope.setValue(fadeInSlope);
+                dstReg.fading.fadeOutSlope.setValue(fadeOutSlope);
+            }});
+            return {{
+                success: true,
+                fade_in: fadeIn, fade_out: fadeOut,
+                fade_in_slope: fadeInSlope, fade_out_slope: fadeOutSlope,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')
