@@ -6707,7 +6707,7 @@ device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MI
             const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
-        if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
+        if (!device) return {{error: "Scriptable device '" + dt + "' not found on unit {unit_index}"}};
         const boxGraph = device.graph;
         const UUID = window.DAW_UUID;
         const headerTag = "{safe_device_type}".toLowerCase();
@@ -6886,7 +6886,7 @@ Returns the full code string, header line, and code length.
             const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
-        if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
+        if (!device) return {{error: "Scriptable device '" + dt + "' not found on unit {unit_index}"}};
         const code = device.code.getValue();
         const header = code.split('\\\\n')[0] || '';
         return {{
@@ -6925,7 +6925,7 @@ declarations in the code. They appear after the code is compiled and loaded.
             const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
-        if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
+        if (!device) return {{error: "Scriptable device '" + dt + "' not found on unit {unit_index}"}};
         if (!device.parameters) return {{error: "Device has no parameters field"}};
         const params = [...device.parameters.pointerHub.incoming()].map(({{box}}) => box);
         return {{
@@ -6967,12 +6967,12 @@ The value is set directly on the WerkstattParameterBox.value field.
             const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
-        if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
+        if (!device) return {{error: "Scriptable device '" + dt + "' not found on unit {unit_index}"}};
         if (!device.parameters) return {{error: "Device has no parameters field"}};
         const params = [...device.parameters.pointerHub.incoming()].map(({{box}}) => box);
         const targetLabel = {json.dumps(param_label)};
         const param = params.find(p => p.label.getValue() === targetLabel);
-        if (!param) return {{error: "Parameter '{param_label}' not found. Available: " + params.map(p => p.label.getValue()).join(", ")}};
+        if (!param) return {{error: "Parameter '" + targetLabel + "' not found. Available: " + params.map(p => p.label.getValue()).join(", ")}};
         const oldVal = param.value.getValue();
         p.editing.modify(() => {{
             param.value.setValue({value});
@@ -7012,7 +7012,7 @@ The file pointer is null until a sample is loaded.
             const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
-        if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
+        if (!device) return {{error: "Scriptable device '" + dt + "' not found on unit {unit_index}"}};
         if (!device.samples) return {{error: "Device has no samples field"}};
         const samples = [...device.samples.pointerHub.incoming()].map(({{box}}) => box);
         return {{
