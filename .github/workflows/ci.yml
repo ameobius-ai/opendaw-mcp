@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install mcp playwright
+      - name: Python syntax check
+        run: python -m py_compile server.py
+      - name: AST tool count verification
+        run: |
+          python -c "
+          import ast
+          tree = ast.parse(open('server.py').read())
+          tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]
+          count = len(tools)
+          print(f'MCP tools found: {count}')
+          assert count >= 150, f'Expected at least 150 tools, got {count}'
+          print('Tool count verification passed!')
+          "
+      - name: Validate DSP scripts exist
+        run: |
+          for f in scripts/werkstatt_darksat.js scripts/werkstatt_coldfold.js scripts/apparat_darkbass.js scripts/apparat_coldlead.js scripts/spielwerk_arpeggiator.js scripts/spielwerk_powerchord.js; do
+            test -f "$f" || { echo "Missing: $f"; exit 1; }
+          done
+          echo "All DSP scripts present"
+      - name: Check for hardcoded paths
+        run: |
+          if grep -r "/home/" server.py --include="*.py"; then
+            echo "Found hardcoded /home/ paths in server.py!"
+            exit 1
+          fi
+          echo "No hardcoded paths found"
