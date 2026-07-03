@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-244 MCP tools for headless openDAW control via Playwright bridge.
+247 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -103,8 +103,11 @@
 ## Device-Specific Parameters (8)
 - `list_vaporisateur_params` — Get full Vaporisateur synthesizer state: oscillators, LFO, noise, main params.
 - `set_crusher_bits` — Set the bit depth on a Crusher (bitcrusher) effect.
+- `set_crusher_crush` — Set the sample-rate reduction (crush) on a Crusher effect (0=clean, 1=max).
 - `set_fold_oversampling` — Set the oversampling level on a Fold (wavefolding) effect.
 - `set_stereo_tool_panning` — Set the panning mixing mode on a StereoTool effect.
+- `set_waveshaper_equation` — Set the transfer function on a Waveshaper (hardclip/cubicSoft/tanh/sigmoid/arctan/asymmetric).
+- `set_revamp_filter` — Configure a filter section on a Revamp parametric EQ (highpass/lowshelf/lowbell/midbell/highbell/highshelf/lowpass).
 - `set_time_stretch_cents` — Set the pitch shift (in cents) on a time-stretched audio region.
 - `set_vaporisateur_osc_param` — Set a parameter on a Vaporisateur oscillator.
 - `set_vocoder_band_count` — Set the band count on a Vocoder effect (number of filter bands, typically 8-32).
@@ -310,7 +313,7 @@
 - `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
 - `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
-**Total: 244 tools**
+**Total: 247 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)

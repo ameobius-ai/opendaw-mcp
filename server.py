@@ -9673,6 +9673,141 @@ async def mcp_opendaw_set_crusher_bits(unit_index: int, effect_index: int, bits:
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_set_waveshaper_equation(unit_index: int, effect_index: int, equation: str) -> str:
+    """Set the transfer function equation on a Waveshaper effect.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Waveshaper).
+    equation: One of: "hardclip", "cubicSoft", "tanh", "sigmoid", "arctan", "asymmetric".
+        - hardclip: harsh digital clipping
+        - cubicSoft: warm soft clipping, odd harmonics
+        - tanh: classic smooth saturation
+        - sigmoid: exponential saturation
+        - arctan: gentlest symmetric saturation
+        - asymmetric: tube-like, even harmonics from asymmetry
+    """
+    safe_eq = equation.replace('"', '').replace('\\', '').replace("'", "")
+    valid = {"hardclip", "cubicSoft", "tanh", "sigmoid", "arctan", "asymmetric"}
+    if safe_eq not in valid:
+        return _err(f"Invalid equation '{safe_eq}'. Valid: {', '.join(sorted(valid))}")
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const box = fx[{effect_index}];
+            if (!box.equation) return {{error: "Effect has no equation field (not a Waveshaper)"}};
+            const oldValue = box.equation.getValue();
+            h.modify(() => {{
+                box.equation.setValue("{safe_eq}");
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                old_equation: oldValue,
+                new_equation: box.equation.getValue(),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_crusher_crush(unit_index: int, effect_index: int, crush: float) -> str:
+    """Set the sample-rate reduction (crush) on a Crusher effect.
+
+    The crush value is inverted internally: 0.0=clean (20kHz), 0.15=retro lo-fi (~8kHz),
+    0.25=AM radio (~3.5kHz), 0.55=glitchy (~500Hz), 1.0=inaudible (20Hz).
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Crusher).
+    crush: Sample rate reduction amount (0.0-1.0, 0=clean, 1=max destruction).
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const box = fx[{effect_index}];
+            if (!box.crush) return {{error: "Effect has no crush field (not a Crusher)"}};
+            const oldValue = box.crush.getValue();
+            h.modify(() => {{
+                box.crush.setValue({crush});
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                old_value: oldValue,
+                new_value: box.crush.getValue(),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_revamp_filter(unit_index: int, effect_index: int, section: str, enabled: bool, frequency: float = 0.0, gain: float = 0.0, q: float = 1.0, order: int = 1) -> str:
+    """Configure a filter section on a Revamp (parametric EQ) effect.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Revamp).
+    section: One of: "highpass", "lowshelf", "lowbell", "midbell", "highbell", "highshelf", "lowpass".
+    enabled: Enable/disable this filter section.
+    frequency: Center/cutoff frequency in Hz (20-20000, exponential).
+    gain: Boost/cut in dB (-24 to 24, for shelves and bells only).
+    q: Bandwidth/resonance (0.01-10, for bells and LPF).
+    order: Filter steepness 1-4 (for HPF/LPF only).
+    """
+    safe_section = section.replace('"', '').replace('\\', '').replace("'", "").lower()
+    section_map = {
+        "highpass": "highPass",
+        "lowshelf": "lowShelf",
+        "lowbell": "lowBell",
+        "midbell": "midBell",
+        "highbell": "highBell",
+        "highshelf": "highShelf",
+        "lowpass": "lowPass",
+    }
+    if safe_section not in section_map:
+        return _err(f"Invalid section '{safe_section}'. Valid: {', '.join(sorted(section_map.keys()))}")
+    box_field = section_map[safe_section]
+    is_pass = safe_section in ("highpass", "lowpass")
+    is_bell = safe_section in ("lowbell", "midbell", "highbell")
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const box = fx[{effect_index}];
+            const sectionObj = box["{box_field}"];
+            if (!sectionObj) return {{error: "Section '{box_field}' not found (is this a Revamp effect?)"}};
+            const changes = {{}};
+            h.modify(() => {{
+                if (sectionObj.enabled) {{ changes.enabled = {{old: sectionObj.enabled.getValue(), new: {1 if enabled else 0}}}; sectionObj.enabled.setValue({1 if enabled else 0}); }}
+                if (sectionObj.frequency && {frequency} > 0) {{ changes.frequency = {{old: sectionObj.frequency.getValue(), new: {frequency}}}; sectionObj.frequency.setValue({frequency}); }}
+                if (sectionObj.gain && {"true" if not is_pass else "false"}) {{ changes.gain = {{old: sectionObj.gain.getValue(), new: {gain}}}; sectionObj.gain.setValue({gain}); }}
+                if (sectionObj.q && {"true" if is_bell else "false"}) {{ changes.q = {{old: sectionObj.q.getValue(), new: {q}}}; sectionObj.q.setValue({q}); }}
+                if (sectionObj.order && {"true" if is_pass else "false"}) {{ changes.order = {{old: sectionObj.order.getValue(), new: {order}}}; sectionObj.order.setValue({order}); }}
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                section: "{safe_section}",
+                box_field: "{box_field}",
+                changes: changes,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_list_transient_markers(unit_index: int, track_index: int, region_index: int) -> str:
     """List transient markers for an audio region's audio file.
 
@@ -11654,7 +11789,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.9.6 — 244 MCP tools")
+            print("opendaw-mcp 1.9.6 — 247 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -11664,7 +11799,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 244 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 247 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
