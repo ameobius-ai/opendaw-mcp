@@ -289,3 +289,12 @@
 - **get_project_metadata** — Creation date, time signature, AU count, track count in one call
 - **set_bus_label** — Rename an audio bus
 - **set_bus_color** — Set bus color hue (0-360)
+
+## Modular System (7 tools)
+- **list_modular_devices** — Find all Modular audio effects in project (AU index, module/connection counts)
+- **list_modular_modules** — List modules with type/label/x,y/inputs/outputs/parameter values
+- **list_modular_connections** — List patch cables (source module.field → target module.field)
+- **add_modular_module** — Add module: gain/delay/multiplier/audio-input/audio-output
+- **connect_modular_modules** — Create patch cable between source output and target input
+- **set_modular_module_param** — Set module parameter (gain in dB, time in ms) via box field
+- **remove_modular_module** — Delete module and all its connections
