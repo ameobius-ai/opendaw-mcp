@@ -280,10 +280,12 @@
 - **delete_signature_event** — Delete signature change, auto-recalculate
 - **change_base_signature** — Change project base time signature (4/4 → 3/4 etc), recalculates events
 
-## Advanced Operations (6 tools)
+## Advanced Operations (8 tools)
 - **copy_playfield_sample** — Duplicate drum sample slot with all params (mute/solo/pitch/ADSR/gate)
 - **reset_playfield_params** — Reset drum sample params to defaults
 - **duplicate_note_event** — Copy note with position/pitch offset
 - **duplicate_automation_event** — Copy automation event with position/value override
 - **copy_region_to_track** — Copy any region (note/audio/automation) to a different track at optional new position
 - **get_project_metadata** — Creation date, time signature, AU count, track count in one call
+- **set_bus_label** — Rename an audio bus
+- **set_bus_color** — Set bus color hue (0-360)
