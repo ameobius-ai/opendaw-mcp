@@ -8906,6 +8906,31 @@ async def mcp_opendaw_get_project_metadata() -> str:
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_list_midi_output_devices() -> str:
+    """List all MIDI output devices registered in the project (hardware MIDI outputs).
+
+    Returns id, label, delayInMs, sendTransportMessages for each device.
+    """
+    result = await bridge.evaluate("""() => {
+        const p = window.DAW;
+        try {
+            const devices = p.rootBoxAdapter.midiOutputDevices;
+            return {
+                count: devices.length,
+                devices: devices.map(d => ({
+                    id: d.id.getValue(),
+                    label: d.label.getValue(),
+                    delay_ms: d.delayInMs.getValue(),
+                    send_transport: d.sendTransportMessages.getValue()
+                }))
+            };
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_set_bus_label(bus_index: int, label: str) -> str:
     """Set the label (name) of an audio bus.
 
@@ -9371,6 +9396,106 @@ async def mcp_opendaw_get_piano_mode() -> str:
             return {error: e.message};
         }
     }""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_piano_keyboard(keyboard_type: int) -> str:
+    """Set the piano roll keyboard type.
+
+    keyboard_type: One of 88 (full piano), 76 (stage), 61 (compact), 49 (controller).
+
+    Returns success with old and new values.
+    """
+    valid = [88, 76, 61, 49]
+    if keyboard_type not in valid:
+        return json.dumps({"error": f"keyboard_type must be one of {valid}, got {keyboard_type}"})
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const pm = p.rootBoxAdapter.pianoMode;
+            const old = pm.keyboard.getValue();
+            p.editing.modify(() => {{
+                pm.keyboard.field.setValue({keyboard_type});
+            }});
+            return {{success: true, old_keyboard: old, new_keyboard: {keyboard_type}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_piano_note_scale(scale: float) -> str:
+    """Set the piano roll note scale (vertical zoom).
+
+    scale: Note scale factor (0.5 to 2.0). 1.0 = default, 2.0 = maximum zoom in, 0.5 = maximum zoom out.
+
+    Returns success with old and new values.
+    """
+    if scale < 0.5 or scale > 2.0:
+        return json.dumps({"error": f"scale must be 0.5 to 2.0, got {scale}"})
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const pm = p.rootBoxAdapter.pianoMode;
+            const old = pm.noteScale.getValue();
+            p.editing.modify(() => {{
+                pm.noteScale.field.setValue({scale});
+            }});
+            return {{success: true, old_note_scale: old, new_note_scale: {scale}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_piano_note_labels(show: bool) -> str:
+    """Toggle note labels (C, C#, D, etc.) in the piano roll.
+
+    show: True to show note labels, false to hide.
+
+    Returns success with old and new values.
+    """
+    val = "true" if show else "false"
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const pm = p.rootBoxAdapter.pianoMode;
+            const old = pm.noteLabels.getValue();
+            p.editing.modify(() => {{
+                pm.noteLabels.field.setValue({val});
+            }});
+            return {{success: true, old_note_labels: old, new_note_labels: {val}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_piano_time_range(quarters: float) -> str:
+    """Set the piano roll time range (horizontal view width in quarter notes).
+
+    quarters: Time range in quarter notes (1.0 to 64.0). Smaller = more zoomed in.
+
+    Returns success with old and new values.
+    """
+    if quarters < 1.0 or quarters > 64.0:
+        return json.dumps({"error": f"quarters must be 1.0 to 64.0, got {quarters}"})
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const pm = p.rootBoxAdapter.pianoMode;
+            const old = pm.timeRangeInQuarters.getValue();
+            p.editing.modify(() => {{
+                pm.timeRangeInQuarters.field.setValue({quarters});
+            }});
+            return {{success: true, old_time_range: old, new_time_range: {quarters}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
     return _wrap_eval(result)
 
 

@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-197 MCP tools for headless openDAW control via Playwright bridge.
+202 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -299,9 +299,16 @@
 - **set_modular_module_param** — Set module parameter (gain in dB, time in ms) via box field
 - **remove_modular_module** — Delete module and all its connections
 
-## PianoMode (2 tools)
+## PianoMode (6 tools)
 - **set_transpose** — Set global piano roll transpose (-48 to +48 semitones)
 - **get_piano_mode** — Get keyboard type, time range, note scale, labels, transpose
+- **set_piano_keyboard(keyboard_type)** — Set keyboard type: 88 (full piano), 76 (stage), 61 (compact), 49 (controller)
+- **set_piano_note_scale(scale)** — Set vertical note zoom (0.5–2.0, 1.0=default)
+- **set_piano_note_labels(show)** — Toggle note labels (C, C#, D, etc.) in piano roll
+- **set_piano_time_range(quarters)** — Set horizontal view width in quarter notes (1.0–64.0)
+
+## MIDI Output Devices (1 tool)
+- **list_midi_output_devices** — List hardware MIDI output devices registered in the project (id, label, delay_ms, send_transport)
 
 ## Debugging & Control (3 tools)
 - **screenshot_daw** — Take a screenshot of the openDAW UI. Returns base64-encoded PNG. Useful for visual debugging and verifying project state.
