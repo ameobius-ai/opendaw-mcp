@@ -1,375 +1,344 @@
 # openDAW MCP Tool Catalog
 
-237 MCP tools for headless openDAW control via Playwright bridge.
+245 MCP tools for headless openDAW control via Playwright bridge.
 
-## Project (7)
-- `get_project_state` — full state: BPM, sample rate, tracks, effects
-- `get_project_info` — quick summary: BPM, time sig, counts, duration
-- `serialize` — serialize project to JSON
-- `reset_project` — clear all AUs/tracks/effects (keep master output)
-- `save_project` — save to .odaw binary file
-- `load_project` — load from .odaw file
-- `list_tracks` — list all tracks across all AUs
+## Project & Info (12)
+- `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
+- `get_project_duration` — Get the total project duration — the end position of the last region across all tracks.
+- `get_project_info` — Get a quick project overview: BPM, time signature, track/AU/effect counts, total duration.
+- `get_project_metadata` — Get project metadata: creation date, BPM, time signature, AU count, track count.
+- `get_project_state` — Get full project state: BPM, sample rate, playing status, track list, effects chain.
+- `get_studio_settings` — Get all studio preferences/settings (engine, visibility, editing, debug, storage, time-display, p...
+- `load_project` — Load a previously saved project from a .odaw file.
+- `reset_project` — Reset the project to a fresh state — removes all audio units, tracks, regions, effects.
+- `save_project` — Save the current project state to a binary file.
+- `serialize` — Serialize the current project state to JSON. Returns the serialized project data.
+- `set_studio_setting` — Set a studio preference setting.
+- `validate_project` — Check if the project is valid — detects overlapping regions on the same track.
 
 ## Transport (5)
-- `transport` — play/stop/toggle
-- `set_position` — set playback position in beats
-- `set_bpm` — set tempo
-- `set_time_signature` — set numerator/denominator
-- `set_loop_region` — loop playback between two positions (from/to/enabled)
+- `set_bpm` — Set the project tempo in BPM.
+- `set_loop_region` — Set the playback loop region.
+- `set_position` — Set the playback position in beats.
+- `set_time_signature` — Set the project time signature (e.g. 4/4, 3/4, 6/8, 7/8).
+- `transport` — Control transport: play, stop, or toggle.
 
-## Tempo & Signature (5)
-- `add_tempo_change` — BPM automation point (ValueEventBox on TempoTrack, normalized 0..1→minBpm..maxBpm)
-- `list_tempo_changes` — list all tempo events with BPM/interpolation
-- `add_signature_change` — time signature change mid-track (SignatureEventBox)
-- `list_signature_changes` — list all signature events
-- `delete_signature_change` — remove signature event by index/position
+## Tempo & Signature (14)
+- `add_signature_change` — Add a time signature change at a specific position in the track.
+- `add_tempo_change` — Add a tempo (BPM) change at a specific position in the track.
+- `change_base_signature` — Change the base time signature of the project.
+- `delete_signature_change` — Delete a time signature change from the timeline.
+- `delete_signature_event` — Delete a time signature change event by index.
+- `get_bar_interval` — Get the start and end PPQN of the bar containing the given position.
+- `get_signature_events` — List all time signature change events in the project.
+- `get_tempo_at` — Get the BPM at a specific position, accounting for tempo automation.
+- `list_signature_changes` — List all time signature changes on the timeline's signature track.
+- `list_tempo_changes` — List all tempo (BPM) changes on the timeline's tempo track.
+- `move_signature_event` — Move a time signature change event to a new PPQN position.
+- `ppqn_to_parts` — Convert a PPQN position to musical parts: bars, beats, semiquavers, ticks.
+- `ppqn_to_seconds` — Convert a position in beats (PPQN units) to seconds using the project's tempo map.
+- `seconds_to_beats` — Convert a time in seconds to beats using the project's tempo map.
 
 ## Groove & Tuning (2)
-- `set_groove_shuffle` — swing/groove amount (0=straight, 1=full swing)
-- `set_tuning` — A4 base frequency (440/432/415/466 Hz)
+- `set_groove_shuffle` — Set the groove/shuffle (swing) amount for the project.
+- `set_tuning` — Set the A4 base frequency (concert pitch tuning).
 
-## Markers (5)
-- `add_marker` — timeline marker at position (Verse, Chorus, etc.)
-- `list_markers` — list all markers with positions and labels
-- `delete_marker` — remove marker by index
-- `set_marker_position` — move marker to new position
-- `set_marker_label` — rename marker
+## Tracks (10)
+- `compact_tracks` — Remove empty tracks from an audio unit (or all AUs).
+- `create_audio_track` — Create a new audio track on the primary audio unit.
+- `create_instrument_track` — Create a new instrument audio unit with a Tape device and an audio track.
+- `create_note_track` — Create a new note/MIDI track on an audio unit.
+- `create_synth_track` — Create a new instrument audio unit with a synthesizer device and a note track.
+- `delete_track` — Delete a track from an audio unit. Removes all regions, clips, and notes on that track.
+- `get_track_info` — Get detailed info about a track — type, regions, clips, enabled state, target.
+- `list_tracks` — List all tracks across all audio units with their type, effects, and regions.
+- `move_track` — Move a track up or down within an audio unit.
+- `set_track_enabled` — Enable or disable a track (equivalent to track mute in the UI).
 
-## Tracks (7)
-- `create_audio_track` — audio track on primary AU
-- `create_note_track` — note track on an AU
-- `create_instrument_track` — Tape device (audio playback)
-- `create_synth_track` — synth instrument (Vaporisateur/Nano/Soundfont/Apparat)
-- `delete_audio_unit` — remove AU + all tracks/effects/sends (index >= 1)
-- `rename_unit` — set InstrumentBox.label + icon via au.input.pointerHub.incoming()
-- `set_track_enabled` — enable/disable (mute) individual track via track.enabled field
+## Audio Units (11)
+- `delete_audio_unit` — Delete an entire audio unit with all its tracks, effects, and sends.
+- `duplicate_audiounit` — Duplicate an audio unit with all its content: instrument, effects, tracks, regions, notes, automa...
+- `freeze_audiounit` — Freeze an audio unit — pre-render its output offline to save CPU.
+- `get_device_chain_detail` — Get detailed info about all devices on an AU — instrument, audio effects, MIDI effects.
+- `get_unit_freeze_status` — Check if an audio unit is frozen and whether it can be frozen.
+- `move_audio_unit` — Move an audio unit up or down in the mixer order.
+- `rename_unit` — Rename an audio unit's instrument and optionally set its icon.
+- `replace_from_preset` — Replace an audio unit's instrument/effects/timeline from a preset.
+- `set_unit_minimized` — Minimize or expand an audio unit in the mixer view.
+- `transfer_audiounit` — Transfer/copy an audio unit (instrument/effects/tracks/regions) within the project.
+- `unfreeze_audiounit` — Unfreeze a frozen audio unit — resume real-time processing.
 
-## Instrument (1)
-- `replace_instrument` — replace MIDI instrument (Vaporisateur↔Nano↔Soundfont↔Apparat) via api.replaceMIDIInstrument
+## Instruments (4)
+- `list_automatable_fields` — List all automatable parameter fields on an instrument (or specific Playfield sample).
+- `list_instrument_params` — List all parameters of the instrument connected to an audio unit.
+- `replace_instrument` — Replace the instrument on an audio unit with a different MIDI instrument.
+- `set_instrument_param` — Set a parameter on the instrument connected to an audio unit.
 
-## Audio (7)
-- `load_audio` — load WAV/MP3 into DAW
-- `place_audio_region` — place audio on timeline
-- `start_engine` — start audio engine
-- `delete_audio_region` — remove audio region
-- `list_audio_regions` — list all audio regions
-- `set_audio_region_fade` — fade in/out (seconds + curve slope)
-- `set_audio_region_gain` — per-region gain in dB
-- `set_audio_region_time_base` — set time base ('musical' or 'seconds') for audio region duration interpretation
-- `set_audio_region_waveform_offset` — set waveform display offset (seconds) for visual alignment
-
-## Effects (14)
-- `list_effects` — list available effect types
-- `add_effect` — add effect to AU chain
-- `list_effect_parameters` — params with value/unit/min/max/scaling
-- `get_effect_state` — full snapshot: enabled/minimized/sidechain + all params
-- `set_effect_parameter` — set numeric (float) parameter
-- `set_effect_parameter_string` — set string parameter
-- `set_effect_parameter_bool` — set boolean parameter (Compressor lookahead/automakeup/autoattack/autorelease, Gate inverse, Maximizer lookahead, StereoTool invertL/invertR/swap, NeuralAmp mono)
-- `set_effect_parameter_int` — set integer parameter (Vocoder bandCount, StereoTool panningMixing, Fold overSampling, Crusher bits). Device-specific tools preferred when available.
-- `remove_effect` — remove effect from chain
-- `get_effect_chain` — full chain listing
-- `set_effect_enabled` — bypass/enable effect
-- `connect_sidechain` — wire sidechain source to compressor
-- `add_automation` — automate effect parameter over time
-- `clone_effect_chain` — copy chain from one AU to another
-- `move_effect` — reorder effect in chain
-- `duplicate_effect` — duplicate single effect in-place with all params copied (audio or MIDI chain)
-- `compact_tracks` — remove empty tracks from AU
-
-## Notes (9)
-- `create_note` — add MIDI note to track
-- `import_midi` — import .mid file (custom parser, PPQN 480→960)
-- `transpose_notes` — shift all notes by semitones
-- `delete_note_region` — remove note region
-- `list_note_regions` — list all note regions
-- `quantize_notes` — snap to grid (1/4, 1/8, 1/16, 1/32, 1/64)
-- `duplicate_note_region` — copy region + notes to new position
-- `duplicate_notes` — duplicate all notes within region (shift after last note)
-- `list_notes` — list all note events in a region (position/duration/pitch/velocity/cent/chance)
-
-## Note Editing (2)
-- `set_note_properties` — edit single note: position/duration/pitch/velocity/cent/chance (-1=skip)
-- `delete_note` — delete single note by index
-
-## Regions (8)
-- `set_region_position` — move region
-- `set_region_duration` — resize region
-- `set_region_mute` — mute/unmute
-- `set_region_label` — rename
-- `set_region_loop` — set loop offset/duration
-- `set_region_color` — set region/clip hue (0-360 HSL)
-- `create_track_region` — generic api.createTrackRegion for note/value tracks
-- `delete_region` — delete region + all contents (note/audio/value)
-
-## Clips (11)
-- `list_clips` — list NoteClipBox/AudioClipBox/ValueClipBox on tracks (session view)
-- `create_note_clip` — create NoteClipBox in session view (api.createNoteClip)
-- `create_audio_clip` — create AudioClipBox in session view (api.createNotStretchedClip)
-- `create_time_stretched_clip` — audio clip with playback rate + transient mode (api.createTimeStretchedClip)
-- `create_pitch_stretched_clip` — pitch-aligned audio clip (api.createPitchStretchedClip)
-- `set_clip_playback` — ClipPlaybackFields (loop/reverse/speed/quantise/trigger)
-- `set_clip_properties` — label/hue/mute/duration on clips (batch setter)
-- `set_clip_mute` — mute/unmute individual clip (granular)
-- `set_clip_label` — set clip name (granular)
-- `set_clip_hue` — set clip color 0-360 (granular)
-- `delete_clip` — remove clip from track
-
-## MIDI Export (1)
-- `export_midi` — export note region to .mid file (lib-midi encoder)
-
-## Export (10)
-- `export_mix` — render full mix to WAV (offline/realtime/auto)
-- `render_full` — render entire project as stereo WAV (OfflineEngineRenderer, Option.None)
-- `export_stems` — render per-track stems
-- `export_single_stem` — render one stem
-- `render_range` — render a time range (OfflineEngineRenderer with ExportConfiguration.range)
-- `measure_lufs` — measure integrated LUFS
-- `auto_gain` — auto-adjust gain to LUFS target via Maximizer
-- `convert_audio` — convert WAV to MP3/FLAC via system ffmpeg
-- `render_full_format` — render + convert to MP3/FLAC in one step
-- `export_stems_format` — export stems + convert each to MP3/FLAC
-
-## Sends (6)
-- `create_send` — create aux send to FX bus
-- `set_send_level` — set send gain (dB)
-- `set_send_pan` — set send pan
-- `set_send_routing` — pre/post fader
-- `list_sends` — list all sends on AU
-- `remove_send` — remove a send
-
-## Buses (3)
-- `list_audio_buses` — list FX buses
-- `set_bus_enabled` — mute/unmute FX bus
-- `remove_audio_bus` — remove FX bus + AU + sends
-
-## Mixing (4)
-- `set_track_volume` — set AU volume (dB)
-- `set_track_panning` — set AU pan
-- `set_track_mute` — mute AU
-- `set_track_solo` — solo AU
-
-## Automation (5)
-- `add_automation` — create automation track + value events
-- `add_instrument_automation` — automate instrument params (Vaporisateur cutoff, Playfield mute, Tape flutter, etc) with optional sample_index for Playfield samples
-- `list_automatable_fields` — list which instrument/sample fields support Pointers.Automation (true/false per field)
-- `create_value_clip` — create automation clip in session view (api.createValueClip)
-- `list_automation_events` — list ValueEventBox points on automation tracks
-- `list_value_regions` — list ValueRegionBox on automation tracks
-- `delete_automation_event` — delete single automation event (ValueEventBox) by index
-
-## Audio Stretch (3)
-- `create_time_stretched_region` — audio region with playback rate + transient mode (api.createTimeStretchedRegion)
-- `create_pitch_stretched_region` — pitch-stretched audio region (api.createPitchStretchedRegion)
-- `duplicate_region` — duplicate any region via api.duplicateRegion (findFreeSpace option)
+## Effects (17)
+- `add_effect` — Add an audio effect to an audio unit's effect chain.
+- `clone_effect_chain` — Copy all effects from one audio unit to another, including parameter values.
+- `connect_sidechain` — Connect one audio unit's output as sidechain source to a Compressor/Gate on another unit.
+- `duplicate_effect` — Duplicate a single effect within an AU's effect chain, copying all parameter values.
+- `export_effect_chain` — Export an effect chain (audio or MIDI) from an AU as a base64 preset.
+- `get_effect_chain` — Get the full effect chain for an audio unit.
+- `get_effect_state` — Get full state of an effect: enabled, minimized, sidechain, all parameters.
+- `list_effect_parameters` — List all parameters of an effect on an audio unit.
+- `list_effects` — List all available audio and MIDI effect types.
+- `move_effect` — Reorder an effect within an audio unit's effect chain.
+- `remove_effect` — Remove an audio effect from an audio unit's chain.
+- `set_device_label` — Rename an effect or MIDI effect device.
+- `set_effect_enabled` — Enable or bypass an specific effect on an audio unit.
+- `set_effect_parameter` — Set a parameter on an audio effect.
+- `set_effect_parameter_bool` — Set a boolean parameter on an audio effect.
+- `set_effect_parameter_int` — Set an integer parameter on an audio effect.
+- `set_effect_parameter_string` — Set a string parameter on an audio effect (e.g. Waveshaper equation).
 
 ## MIDI Effects (6)
-- `list_midi_effects` — list available MIDI effect types (Arpeggio/Pitch/Velocity/Zeitgeist/Spielwerk)
-- `add_midi_effect` — add MIDI effect to au.midiEffects chain
-- `remove_midi_effect` — remove MIDI effect from chain
-- `get_midi_effect_chain` — get full MIDI effect chain for AU
-- `list_midi_effect_params` — list MIDI effect parameters with values
-- `set_midi_effect_param` — set MIDI effect parameter by name or field index
+- `add_midi_effect` — Add a MIDI effect to an audio unit's MIDI effect chain.
+- `get_midi_effect_chain` — Get the MIDI effect chain for an audio unit.
+- `list_midi_effect_params` — List all parameters of a MIDI effect with current values.
+- `list_midi_effects` — List all available MIDI effect types.
+- `remove_midi_effect` — Remove a MIDI effect from an audio unit's MIDI chain.
+- `set_midi_effect_param` — Set a parameter on a MIDI effect.
 
-## Vaporisateur Synth (2)
-- `list_vaporisateur_params` — full synth state: oscillators (waveform/volume/octave/tune), LFO, noise, main params (cutoff/resonance/ADSR/etc)
-- `set_vaporisateur_osc_param` — set oscillator parameter (waveform: 0=Sine/1=Triangle/2=Saw/3=Square, volume dB, octave, tune)
+## Device-Specific Parameters (8)
+- `list_vaporisateur_params` — Get full Vaporisateur synthesizer state: oscillators, LFO, noise, main params.
+- `set_crusher_bits` — Set the bit depth on a Crusher (bitcrusher) effect.
+- `set_fold_oversampling` — Set the oversampling level on a Fold (wavefolding) effect.
+- `set_stereo_tool_panning` — Set the panning mixing mode on a StereoTool effect.
+- `set_time_stretch_cents` — Set the pitch shift (in cents) on a time-stretched audio region.
+- `set_vaporisateur_osc_param` — Set a parameter on a Vaporisateur oscillator.
+- `set_vocoder_band_count` — Set the band count on a Vocoder effect (number of filter bands, typically 8-32).
+- `set_vocoder_modulator_source` — Set the modulator source on a Vocoder effect.
 
-## Instrument Parameters (2)
-- `list_instrument_params` — universal: list all params of any instrument (Vaporisateur/Tape/Nano/Soundfont/MIDIOutput/Playfield/Apparat)
-- `set_instrument_param` — universal: set any instrument parameter by name or field index
+## Notes (11)
+- `create_note` — Create a MIDI note on a note track.
+- `delete_note` — Delete a single note from a region.
+- `duplicate_note_event` — Duplicate a note event within the same region with optional position/pitch offset.
+- `duplicate_notes` — Duplicate all notes within a region, shifting them after the last note.
+- `find_overlapping_notes` — Find notes that overlap a given pitch and time range within a note region.
+- `get_note_range` — Get the pitch range and max duration of notes in a note region.
+- `list_notes` — List all note events within a region.
+- `quantize_notes` — Quantize note positions to a grid division.
+- `set_note_advanced` — Set advanced note properties — chance, cent, playCount, playCurve.
+- `set_note_properties` — Edit properties of a single note within a region.
+- `transpose_notes` — Transpose all notes by a number of semitones.
 
-## Playfield / Drum Machine (3)
-- `list_playfield_samples` — list drum pads (MIDI note, enabled, file status)
-- `set_playfield_sample_enabled` — enable/disable a drum pad
-- `create_playfield_sample` — add a drum pad (AudioFileBox + PlayfieldSampleBox, needs existing samples)
+## Note Editing (2)
+- `consolidate_note` — Consolidate a repeated note (playCount > 1) into individual separate notes.
+- `flatten_note_regions` — Flatten (merge) multiple overlapping note regions into a single region.
+
+## Regions (20)
+- `consolidate_region` — Consolidate a region's event collection — make it unique (not shared/mirrored).
+- `list_note_regions` — List all note regions with position, duration, and note count.
+- `copy_region_fades` — Copy fade in/out settings from one audio region to another.
+- `copy_region_to_track` — Copy a region to a different track (or same track at new position).
+- `create_track_region` — Create a region on any track (note or value) using the generic createTrackRegion API.
+- `delete_audio_region` — Delete an audio region from the timeline.
+- `delete_note_region` — Delete a note region from the timeline.
+- `delete_region` — Delete a region from a track.
+- `duplicate_note_region` — Duplicate a note region to a new position.
+- `duplicate_region` — Duplicate any region (audio, note, or value) using the DAW's built-in duplicateRegion API.
+- `get_region_info` — Get detailed info about a single region — position, duration, loop, mute, content.
+- `move_region_content` — Shift the content start of a region without moving the region itself.
+- `move_region_to_track` — Move a region from one track to another (possibly in a different audio unit).
+- `set_region_color` — Set the color (hue) of a region or clip.
+- `set_region_duration` — Set the duration of a region.
+- `set_region_label` — Rename a region's label (display name).
+- `set_region_loop` — Set loop parameters for a note region.
+- `set_region_mute` — Mute or unmute a specific region without deleting it.
+- `set_region_position` — Move a region to a new position on the timeline.
+- `transfer_region` — Transfer/copy a region to another track at a specific position.
+
+## Audio Regions (8)
+- `get_audio_file_info` — Get metadata about the audio file referenced by an audio region.
+- `get_region_play_mode` — Get the play mode of an audio region — stretch type, playback rate, cents, transient mode.
+- `list_audio_regions` — List all audio regions with file name, position, and duration.
+- `place_audio_region` — Place a previously loaded audio sample as a region on a track.
+- `set_audio_region_fade` — Set fade in/out on an audio region.
+- `set_audio_region_gain` — Set gain (in dB) on an audio region.
+- `set_audio_region_time_base` — Set the time base of an audio region.
+- `set_audio_region_waveform_offset` — Set the waveform display offset of an audio region.
+
+## Audio Stretch & Warp (7)
+- `create_pitch_stretched_region` — Place a pitch-stretched audio region on a track.
+- `create_time_stretched_region` — Place a time-stretched audio region on a track.
+- `create_warp_marker` — Add a warp marker to a time-stretched or pitch-stretched audio region.
+- `delete_warp_marker` — Delete a warp marker from a time-stretched or pitch-stretched audio region.
+- `list_transient_markers` — List transient markers for an audio region's audio file.
+- `list_warp_markers` — List warp markers on a time-stretched or pitch-stretched audio region.
+- `update_warp_marker` — Update a warp marker's position and/or seconds value.
+
+## Clips (16)
+- `clone_clip` — Clone a clip (note or value) on the same track. Optionally consolidate (make event collection uni...
+- `consolidate_clip` — Consolidate a clip's event collection — make it unique (not shared/mirrored).
+- `create_audio_clip` — Create an audio clip in the session view (clip launcher).
+- `create_note_clip` — Create a note clip in the session view (clip launcher).
+- `create_pitch_stretched_clip` — Create a pitch-stretched audio clip in session view.
+- `create_time_stretched_clip` — Create a time-stretched audio clip in session view.
+- `create_value_clip` — Create a value clip (automation clip) on an automation track in session view.
+- `delete_clip` — Delete a clip from a track (session view).
+- `list_clips` — List clips (session view / clip launcher) on tracks.
+- `schedule_clip_play` — Schedule clips to play in session view (live triggering).
+- `schedule_clip_stop` — Schedule clips to stop on specified tracks (session view).
+- `set_clip_hue` — Set the color (hue) of a clip in the session view.
+- `set_clip_label` — Set the label (name) of a clip in the session view.
+- `set_clip_mute` — Mute or unmute a clip in the session view.
+- `set_clip_playback` — Set clip playback parameters (loop, reverse, speed) on a clip.
+- `set_clip_properties` — Set properties on a clip (session view): label, color, mute, duration.
+
+## Markers (5)
+- `add_marker` — Add a timeline marker at a position.
+- `delete_marker` — Delete a timeline marker by index.
+- `list_markers` — List all timeline markers with positions and labels.
+- `set_marker_label` — Rename a timeline marker.
+- `set_marker_position` — Move a timeline marker to a new position.
+
+## Sends & Buses (13)
+- `create_audio_bus` — Create a new audio bus (aux bus) with its own audio unit and track.
+- `create_send` — Create a parallel FX send bus from an audio unit.
+- `list_audio_buses` — List all audio buses in the project (primary output + FX buses).
+- `list_aux_sends` — List all aux sends on an audio unit.
+- `list_sends` — List all aux sends on an audio unit.
+- `remove_audio_bus` — Remove an FX audio bus and its associated audio unit.
+- `remove_send` — Remove an aux send from an audio unit.
+- `set_bus_color` — Set the color (hue 0-360) of an audio bus.
+- `set_bus_enabled` — Enable or mute an audio bus (FX bus A/B comparison).
+- `set_bus_label` — Set the label (name) of an audio bus.
+- `set_send_level` — Set the send level for an existing aux send.
+- `set_send_pan` — Set the stereo pan for an aux send (-1.0 = full left, 0.0 = center, 1.0 = full right).
+- `set_send_routing` — Set the routing mode for an aux send (pre-fader or post-fader).
+
+## Mixing (5)
+- `get_mixer_state` — Get the full mixer state — all audio units with volume, panning, mute, solo, and type.
+- `set_track_mute` — Mute or unmute an audio unit.
+- `set_track_panning` — Set panning of an audio unit. -1.0 = full left, 0.0 = center, 1.0 = full right.
+- `set_track_solo` — Solo or unsolo an audio unit.
+- `set_track_volume` — Set volume of an audio unit in dB.
+
+## Automation (12)
+- `add_automation` — Add parameter automation to an effect on an audio unit.
+- `add_instrument_automation` — Automate a parameter on the instrument connected to an audio unit.
+- `create_automation_event` — Create a single automation event at a specific position on a value track.
+- `delete_automation_event` — Delete a single automation event (ValueEventBox) from an automation track.
+- `duplicate_automation_event` — Duplicate an automation event within the same region.
+- `get_automation_value` — Get the automation value at a specific position on a value (automation) track.
+- `list_automation_events` — List automation events (ValueEventBox) on a unit's automation tracks.
+- `list_automation_events_detail` — List all automation events on a value track with full detail — position, value, interpolation.
+- `list_value_regions` — List automation regions (ValueRegionBox) on value/automation tracks.
+- `move_automation_event` — Move an automation event to a new position on the timeline.
+- `set_automation_interpolation` — Set the interpolation type of an existing automation event.
+- `update_automation_event` — Update an existing automation event's value and/or interpolation.
+
+## Export & Rendering (13)
+- `auto_gain` — Auto-adjust output volume to hit a target LUFS.
+- `convert_audio` — Convert an exported WAV file to MP3 or FLAC using system ffmpeg.
+- `export_midi` — Export a note region's notes as a standard MIDI file (.mid).
+- `export_mix` — Render the full project mix to a WAV file.
+- `export_single_stem` — Export a single audio unit as a stem WAV with its effect chain applied.
+- `export_stems` — Export each audio unit as a separate stem WAV file.
+- `export_stems_format` — Export stems as separate files and convert each to MP3 or FLAC.
+- `import_midi` — Import a MIDI file and create note events on a note track.
+- `load_audio` — Load an audio file (WAV/MP3/FLAC/OGG) into the DAW project.
+- `measure_lufs` — Measure LUFS (integrated) and true peak of an exported WAV file.
+- `render_full` — Render the entire project as a single stereo WAV file (full mixdown).
+- `render_full_format` — Render the entire project and convert to MP3 or FLAC in one step.
+- `render_range` — Render only a portion of the project (e.g. chorus only) for quick A/B comparison.
+
+## Presets & DawProject (4)
+- `export_dawproject` — Export the current project as a .dawproject file (Bitwig/Ableton/rePitch compatible format).
+- `export_preset` — Export an audio unit as a preset (base64-encoded binary).
+- `import_dawproject` — Import a .dawproject file into the current session.
+- `import_preset` — Import a preset (base64-encoded binary) as a new audio unit.
 
 ## Scriptable Devices (5)
-- `set_script_device_code(device_type, unit_index, device_index, code)` — Compile JS code on Apparat/Werkstatt/Spielwerk. Parses @param/@sample, creates boxes, validates, registers worklet. device_index for multiple devices of same type.
-- `get_script_device_code(device_type, unit_index, device_index)` — Read current JS code + header
-- `list_script_params(device_type, unit_index, device_index)` — List @param WerkstattParameterBox entries (label, index, value, defaultValue)
-- `set_script_param(device_type, unit_index, device_index, param_label, value)` — Set parameter value by label
-- `list_script_samples(device_type, unit_index, device_index)` — List @sample WerkstattSampleBox entries (label, index, hasFile)
+- `get_script_device_code` — Read the current user JavaScript code from a scriptable device.
+- `list_script_params` — List @param declarations on a scriptable device.
+- `list_script_samples` — List @sample declaration slots on a scriptable device.
+- `set_script_device_code` — Set the user JavaScript code on a scriptable device (Apparat/Werkstatt/Spielwerk).
+- `set_script_param` — Set a parameter value on a scriptable device by label.
+
+## Playfield / Drum Machine (5)
+- `copy_playfield_sample` — Copy a Playfield (drum machine) sample to a new index slot.
+- `create_playfield_sample` — Add a drum pad to a Playfield drum machine.
+- `list_playfield_samples` — List all drum pads (samples) on a Playfield drum machine.
+- `reset_playfield_params` — Reset all parameters of a Playfield drum sample to defaults.
+- `set_playfield_sample_enabled` — Enable/disable a drum pad on a Playfield drum machine.
+
+## Modular System (7)
+- `add_modular_module` — Add a module to a Modular device.
+- `connect_modular_modules` — Connect two modules in a Modular device (create a patch cable).
+- `list_modular_connections` — List all connections (patch cables) in a Modular device.
+- `list_modular_devices` — List all Modular audio effect devices in the project.
+- `list_modular_modules` — List all modules in a Modular device.
+- `remove_modular_module` — Remove a module from a Modular device.
+- `set_modular_module_param` — Set a parameter on a module in a Modular device.
+
+## Piano Mode (6)
+- `get_piano_mode` — Get piano roll view settings.
+- `set_piano_keyboard` — Set the piano roll keyboard type.
+- `set_piano_note_labels` — Toggle note labels (C, C#, D, etc.) in the piano roll.
+- `set_piano_note_scale` — Set the piano roll note scale (vertical zoom).
+- `set_piano_time_range` — Set the piano roll time range (horizontal view width in quarter notes).
+- `set_transpose` — Set global transpose for the piano roll view (does not affect audio playback).
+
+## NeuralAmp (2)
+- `get_neuralamp_model` — Get the NeuralAmp (Tone3000) model JSON for a NeuralAmp effect.
+- `set_neuralamp_model` — Load a Neural Amp Modeler (NAM/Tone3000) model JSON into a NeuralAmp effect.
+
+## Engine Control (7)
+- `capture_realtime` — Capture realtime audio output from the DAW engine.
+- `engine_panic` — Send a panic signal to the engine — stops all notes immediately.
+- `engine_sleep` — Put the audio engine to sleep — suspends audio processing to save CPU.
+- `engine_wake` — Wake the audio engine from sleep — resumes audio processing.
+- `get_engine_status` — Get real-time engine status: playing state, position, BPM, CPU load, recording state.
+- `query_loading_complete` — Check if all audio samples are loaded and ready for playback.
+- `start_engine` — Start the audio engine (AudioWorklet) after setting up tracks and regions.
+
+## MIDI Output (1)
+- `list_midi_output_devices` — List all MIDI output devices registered in the project (hardware MIDI outputs).
+
+## Samples (2)
+- `get_sample_info` — Get detailed info about an audio sample by UUID.
+- `list_samples` — List all audio file samples used in the project.
 
 ## Editing (2)
-- `undo` — undo last action
-- `redo` — redo
+- `redo` — Redo the last undone operation.
+- `undo` — Undo the last editing operation.
 
-## Audio Unit (8)
-- `duplicate_audiounit(unit_index)` — Deep-copy an AU: instrument (same factory + all params), audio effects (same types + all param values), MIDI effects, note tracks/regions/events, track volume/panning, AU label/volume. Python-orchestrated via existing MCP tools (create_synth_track → copy params → add_effect → create_note).
-- `delete_track(unit_index, track_index)` — Delete a track from an AU via AudioUnitBoxAdapter.deleteTrack. Removes all regions/clips/notes.
-- `move_region_to_track(src_unit_index, src_track_index, region_index, dst_unit_index, dst_track_index)` — Move a region between tracks (same or different AU). Checks type compatibility. Region keeps position/duration/content.
-- `create_audio_bus(name)` — Create a new aux bus (AudioBusBox) routed to primary bus output. Use as send target.
-- `move_audio_unit(unit_index, delta)` — Move AU up/down in mixer order (delta: +1 down, -1 up)
-- `move_track(unit_index, track_index, delta)` — Move track up/down within an AU (delta: +1 down, -1 up)
-- `transfer_region(src_unit_index, src_track_index, region_index, dst_unit_index, dst_track_index, insert_position, delete_source)` — Transfer/copy a region to another track at a specific position via TransferRegions.transfer. Copies region + all dependencies (notes, events, audio files). Preserved resources shared. delete_source=true for move semantics.
-- `transfer_audiounit(unit_index, delete_source, insert_index)` — Deep-copy an AU with all dependencies (instrument, effects, MIDI effects, tracks, regions, notes, automation) via TransferAudioUnits.transfer. Box-graph serialization, more complete than duplicate_audiounit. Output unit cannot be copied.
+## Debugging & Control (3)
+- `evaluate_raw` — Execute arbitrary JavaScript in the DAW V8 context and return the result.
+- `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
+- `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
-## Presets (4)
-- `export_preset(unit_index, include_timeline)` — Serialize an AU to base64 binary preset via PresetEncoder.encode. Includes instrument, effects, MIDI effects. include_timeline=true adds tracks/regions/notes.
-- `import_preset(preset_b64)` — Import a base64 preset as a new AU via PresetDecoder.decode. Recreates instrument, effects, MIDI effects, tracks from the preset.
-- `replace_from_preset(unit_index, preset_b64, keep_midi_effects, keep_audio_effects, keep_timeline)` — Replace an AU's instrument from preset via PresetDecoder.replaceAudioUnit. Optionally keep target's MIDI/audio effects and timeline. Preset must be compatible type (MIDI→MIDI).
-- `export_effect_chain(unit_index, effect_type)` — Export an effect chain (audio or MIDI) as base64 preset via PresetEncoder.encodeEffects.
-
-## Tempo & Project Info (7)
-- `ppqn_to_seconds(position_beats)` — Convert beats to seconds using the project's VaryingTempoMap. Accounts for tempo automation. 1 beat = 960 ppqn.
-- `seconds_to_beats(seconds)` — Convert seconds to beats using the tempo map. Roundtrip-accurate with tempo automation.
-- `get_tempo_at(position_beats)` — Get BPM at a specific position, accounting for tempo automation events.
-- `get_project_duration()` — Total project duration: end of last region across all tracks. Returns beats, ppqn, and seconds.
-- `validate_project()` — Check for overlapping regions and validity issues. Returns valid (bool) + issue details.
-- `list_samples()` — List all audio file sample UUIDs referenced in the project.
-- `get_unit_freeze_status(unit_index)` — Check if an AU is frozen (pre-rendered) and whether it can be frozen (no sidechain dependents).
-- `freeze_audiounit(unit_index)` — Freeze an AU — pre-render its output offline to save CPU. Cannot freeze AUs with sidechain dependents.
-- `unfreeze_audiounit(unit_index)` — Unfreeze a frozen AU — resume real-time processing.
-
-## Mixer & Region Advanced (3)
-- `get_mixer_state()` — All AU channel strips: index, label, type, volume_db, panning, mute, solo, is_output/bus/instrument.
-- `flatten_note_regions(unit_index, track_index, region_indices)` — Merge overlapping note regions into one. Originals deleted, notes combined. Requires 2+ regions.
-- `consolidate_region(unit_index, track_index, region_index)` — Make a region's event collection unique (not shared/mirrored). Edits won't affect other regions.
-
-## Warp Markers & Play Mode (6)
-- `list_warp_markers(unit_index, track_index, region_index)` — List warp markers (position, seconds, isAnchor) on stretched audio regions.
-- `create_warp_marker(unit_index, track_index, region_index, position_beats, seconds)` — Add a warp marker to a stretched audio region.
-- `delete_warp_marker(unit_index, track_index, region_index, marker_index)` — Delete a non-anchor warp marker from a stretched region.
-- `update_warp_marker(unit_index, track_index, region_index, marker_index, position_beats, seconds)` — Update a warp marker's position and/or seconds (-1 = unchanged).
-- `get_region_play_mode(unit_index, track_index, region_index)` — Get stretch type, playback rate, cents, transient mode for audio regions.
-- `set_time_stretch_cents(unit_index, track_index, region_index, cents)` — Set pitch shift in cents on time-stretched regions. ±1200 cents = ±1 octave.
-
-## Automation & Audio Info (3)
-- `get_automation_value(unit_index, track_index, position_beats)` — Resolve automation curve value at a position. Accounts for interpolation, loops, overlapping regions.
-- `get_audio_file_info(unit_index, track_index, region_index)` — Audio region file metadata: name, start/end seconds, duration, sample rate, channels, loading state.
-- `move_region_content(unit_index, track_index, region_index, delta_beats)` — Shift content inside a region without moving the region. Adjusts waveform offset (audio) or note positions (MIDI).
-
-## Inspection Helpers (3) — using DAW_HELPERS
-- `get_track_info(unit_index, track_index)` — Track metadata: type, enabled, regions (position/duration/mute/label/mirrored), clips.
-- `get_full_project_state()` — Complete project snapshot: BPM, duration, all AUs (label/type/volume/pan/mute/solo/tracks/effects), all tracks (type/regions/clips).
-- `get_region_info(unit_index, track_index, region_index)` — Single region: position/duration/loop/mute/label/hue/mirrored/type + notes count (MIDI) or file info (audio).
-
-## Clip Operations (2)
-- `clone_clip(unit_index, track_index, clip_index, consolidate)` — Clone a note/value clip on the same track. consolidate=true for independent event collection.
-- `consolidate_clip(unit_index, track_index, clip_index)` — Make a clip's event collection unique (not shared/mirrored).
-
-## Automation Event Management (5)
-- `create_automation_event(unit_index, track_index, position_beats, value, interpolation, curve_slope)` — Create a single automation point with interpolation (none/linear/curve).
-- `list_automation_events_detail(unit_index, track_index)` — List all automation events with full detail: position, value, interpolation type, curve slope.
-- `set_automation_interpolation(unit_index, track_index, region_index, event_index, interpolation, curve_slope)` — Change interpolation type of an existing automation event.
-- `move_automation_event(unit_index, track_index, event_index, new_position_beats)` — Move an automation event to a new position. Returns old/new positions.
-- `update_automation_event(unit_index, track_index, event_index, value, interpolation, curve_slope)` — Update value and/or interpolation of an existing event. Skip with -1/empty.
-
-## Note Collection Analysis (2)
-- `get_note_range(unit_index, track_index, region_index)` — Pitch range (min/max), max note duration, note count. Useful for transpose planning.
-- `find_overlapping_notes(unit_index, track_index, region_index, pitch, from_beat, to_beat)` — Find notes at a specific pitch within a time range. Collision detection.
-
-## Note Advanced Properties (2)
-- `set_note_advanced(unit_index, track_index, region_index, note_index, chance, cent, play_count, play_curve)` — Set chance (0-100%), cent (-50..+50), playCount (1-16), playCurve (-1..+1). Sentinel -1/-999 to skip.
-- `consolidate_note(unit_index, track_index, region_index, note_index)` — Expand repeated note (playCount>1) into N individual notes via playCurve.
-
-## Device Management (2)
-- `set_device_label(unit_index, effect_index, label, is_midi_effect)` — Rename an audio or MIDI effect device.
-- `get_device_chain_detail(unit_index)` — Full device chain: instrument (label/type/enabled), audio effects (index/label/type/enabled/minimized), MIDI effects.
-
-## Key Technical Details
-
-- **PPQN.Quarter = 960** — all positions in ticks, 1 beat = 960 ticks
-- **Field values = physical units** — `field.setValue(thresholdDb)` directly
-- **editing.modify()** — required wrapper for all box mutations
-- **Send topology:** fxUnit→primaryBus, fxBus→fxUnit.input, send→fxBus.input (parallel)
-- **Note events:** `region.events.targetVertex.unwrap().box` → `collection.events.pointerHub.incoming()`
-- **NoteEventBox:** position(ppqn), duration(ppqn), pitch(0-127), velocity(0-1), cent, chance(0-100)
-- **TempoTrack:** ValueEventBox with normalized value 0..1, bpm = minBpm + norm*(maxBpm-minBpm), default 60..240
-- **SignatureEventBox:** relativePosition(bars), nominator, denominator
-- **Region/clip hue:** Int32Field 0-360 (HSL)
-- **Effect params:** `field.unit` and `field.constraints` public getters (scaling: unipolar/bipolar/decibel/exponential)
-- **Bridge:** Playwright headless Chromium, Vite dev server on :5174, COOP/COEP enabled
-- **AudioContext 44100 Hz** (realtime), OfflineEngineRenderer 48000 Hz
-- **f-string:** ALL JS {/}→{{/}} in Python f-strings
+**Total: 245 tools**
 
 ## DSP Scripts (scripts/)
-- **werkstatt_darksat.js** — Tape saturation/drive effect. Params: drive (0-1, tanh), bias (-0.5..0.5, DC offset), tone (0-1, shelving), mix (0-1, dry/wet), output (-24..6 dB). DC blocker one-pole HPF ~20Hz. API: `process(io, block)` where `io.src[0/1]` = input, `io.out[0/1]` = output.
-- **werkstatt_coldfold.js** — Wavefolding + bitcrush effect. Params: drive (0-2), fold (0-1, mirror distortion), crush (0-1, bit depth 16→1), slew (0-1, sample-rate reduction), mix (0-1). API: `process(io, block)`.
-- **apparat_darkbass.js** — Subtractive bass synth. Params: waveform (0=Sine/1=Tri/2=Saw/3=Square), cutoff (50-8000Hz exp), resonance (0.1-8), attack/decay/sustain/release (ADSR), subOsc (0-1, square one octave down), detune (0-0.5), volume (0-1). Multi-voice, lazy voice allocation. Constructor must accept `opts` with optional `sampleRate` (default 48000) — ApparatDeviceProcessor calls `new ProcessorClass()` without args. API: `process([outL, outR], block)` where block has s0/s1/bpm.
-- **apparat_coldlead.js** — Cold lead synth (post-punk clav). Params: waveform (default triangle), cutoff (50-8000Hz exp), resonance, ADSR (long release), detune (0-0.5), volume. Two detuned oscillators with random phase start. Constructor accepts optional `opts.sampleRate`.
-- **spielwerk_arpeggiator.js** — MIDI arpeggiator. Params: rate (60-1920 ppqn), mode (0=up/1=down/2=up-down/3=random), octaves (1-4), gate (0.1-1), velDecay (0.3-1). Tracks `nextStepPos` across blocks — critical because block size (~5ppqn) is much smaller than rate (240ppqn). API: `process(block, events)` returns array of `{position, duration, pitch, velocity, cent}`. Must use `return array` NOT `* process()` generator — `new Function()` rejects generator methods.
-- **spielwerk_powerchord.js** — MIDI effect that generates power chord harmonies.
+- `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)
+- `werkstatt_coldfold.js` — Wavefolding + bitcrush DSP (drive, fold, crush, slew, mix)
+- `apparat_darkbass.js` — Sub bass synth (oscillator, envelope, filter)
+- `apparat_coldlead.js` — Cold lead synth (oscillator, envelope, filter)
+- `apparat_subcrusher.js` — Sub crusher synth (oscillator, distortion, envelope)
+- `spielwerk_arpeggiator.js` — MIDI arpeggiator (rate, octave, pattern)
+- `spielwerk_powerchord.js` — MIDI powerchord generator (interval, voicing)
 
-## Musical Grid & Signature (7 tools)
-- **ppqn_to_parts** — Convert PPQN to bars/beats/semiquavers/ticks with time signature awareness
-- **get_bar_interval** — Get bar boundaries (start/end/length) for a PPQN position
-- **move_signature_event** — Move time signature change to new PPQN, auto-recalculates subsequent events
-- **copy_region_fades** — Copy fade in/out + slopes between audio regions
-- **get_signature_events** — List all time signature changes with accumulated positions
-- **delete_signature_event** — Delete signature change, auto-recalculate
-- **change_base_signature** — Change project base time signature (4/4 → 3/4 etc), recalculates events
-
-## Advanced Operations (8 tools)
-- **copy_playfield_sample** — Duplicate drum sample slot with all params (mute/solo/pitch/ADSR/gate)
-- **reset_playfield_params** — Reset drum sample params to defaults
-- **duplicate_note_event** — Copy note with position/pitch offset
-- **duplicate_automation_event** — Copy automation event with position/value override
-- **copy_region_to_track** — Copy any region (note/audio/automation) to a different track at optional new position
-- **get_project_metadata** — Creation date, time signature, AU count, track count in one call
-- **set_bus_label** — Rename an audio bus
-- **set_bus_color** — Set bus color hue (0-360)
-
-## Modular System (7 tools)
-- **list_modular_devices** — Find all Modular audio effects in project (AU index, module/connection counts)
-- **list_modular_modules** — List modules with type/label/x,y/inputs/outputs/parameter values
-- **list_modular_connections** — List patch cables (source module.field → target module.field)
-- **add_modular_module** — Add module: gain/delay/multiplier/audio-input/audio-output
-- **connect_modular_modules** — Create patch cable between source output and target input
-- **set_modular_module_param** — Set module parameter (gain in dB, time in ms) via box field
-- **remove_modular_module** — Delete module and all its connections
-
-## PianoMode (6 tools)
-- **set_transpose** — Set global piano roll transpose (-48 to +48 semitones)
-- **get_piano_mode** — Get keyboard type, time range, note scale, labels, transpose
-- **set_piano_keyboard(keyboard_type)** — Set keyboard type: 88 (full piano), 76 (stage), 61 (compact), 49 (controller)
-- **set_piano_note_scale(scale)** — Set vertical note zoom (0.5–2.0, 1.0=default)
-- **set_piano_note_labels(show)** — Toggle note labels (C, C#, D, etc.) in piano roll
-- **set_piano_time_range(quarters)** — Set horizontal view width in quarter notes (1.0–64.0)
-
-## MIDI Output Devices (1 tool)
-- **list_midi_output_devices** — List hardware MIDI output devices registered in the project (id, label, delay_ms, send_transport)
-
-## NeuralAmp (2 tools)
-- **get_neuralamp_model(unit_index, effect_index)** — Get the NeuralAmp (Tone3000) model JSON for a NeuralAmp effect. Returns model metadata and parameters.
-- **set_neuralamp_model(unit_index, effect_index, model_json, label, pack_id)** — Load NAM/Tone3000 model JSON directly into a NeuralAmp effect. Creates NeuralAmpModelBox and links it via pointer, bypassing popup-based Select Flow.
-
-## Device-Specific Parameters (5 tools)
-- **set_vocoder_modulator_source(unit_index, effect_index, source)** — Set Vocoder modulator source: noise-white, noise-pink, noise-brown, self, external.
-- **set_vocoder_band_count(unit_index, effect_index, band_count)** — Set Vocoder filter band count (8-32).
-- **set_stereo_tool_panning(unit_index, effect_index, panning_mixing)** — Set StereoTool panning law (0=linear, 1=equal-power).
-- **set_fold_oversampling(unit_index, effect_index, oversampling)** — Set Fold wavefolder oversampling (0=off, 1=2x, 2=4x).
-- **set_crusher_bits(unit_index, effect_index, bits)** — Set Crusher bitcrusher bit depth (1-16).
-
-## Transient Markers (1 tool)
-- **list_transient_markers(unit_index, track_index, region_index)** — List transient markers for an audio region's audio file. Returns marker positions and anchor flags.
-
-## Mixer Advanced (4 tools)
-- **set_unit_minimized(unit_index, minimized)** — Minimize or expand an AU in the mixer view (declutter when working with many tracks)
-- **list_aux_sends(unit_index)** — List all aux sends on an AU with level, enabled, and label
-- **capture_realtime(duration_seconds, filename)** — Capture realtime audio output from the DAW engine (requires start_engine first). Records live playback with effects and automation.
-- **get_sample_info(sample_uuid)** — Get detailed info about an audio sample by UUID (sample rate, channels, frames, duration) via SampleManager
-
-## Debugging & Control (3 tools)
-- **screenshot_daw** — Take a screenshot of the openDAW UI. Returns base64-encoded PNG. Useful for visual debugging and verifying project state.
-- **wait_for_condition(condition_js, timeout_ms, poll_interval_ms)** — Poll a JavaScript condition in the DAW context until truthy or timeout. Useful for waiting on async operations (render completion, file loading).
-- **evaluate_raw(script)** — Execute arbitrary JavaScript in the DAW V8 context. For power users and debugging — explore openDAW internals directly. Script is wrapped in an async arrow function with access to window.DAW and all DAW_ globals.
-
-## Studio Settings (2 tools)
-- **get_studio_settings()** — Get all studio preferences/settings (engine, visibility, editing, debug, storage, time-display, pointer categories)
-- **set_studio_setting(category, key, value)** — Set a studio preference. Categories: engine, visibility, editing, debug, storage, time-display, pointer. Common keys: auto-create-output-maximizer, overlapping-regions-behaviour, enable-beta-features, auto-delete-orphaned-samples, note-audition-while-editing
-
-## DawProject Interop (2 tools)
-- **export_dawproject(filename)** — Export the current project as a .dawproject file (Bitwig/Ableton/rePitch compatible). ZIP with project.xml, metadata.xml, and audio samples.
-- **import_dawproject(filename)** — Import a .dawproject file into the current session. Loads project structure, tracks, and audio samples from other DAWs.
-
-## Engine Control (7 tools)
-- **engine_panic()** — Send a panic signal to stop all notes immediately (hanging notes, frozen synthesis)
-- **engine_sleep()** — Suspend audio processing to save CPU (use wake() to resume)
-- **engine_wake()** — Resume audio processing after sleep()
-- **get_engine_status()** — Get real-time engine status: playing state, position, BPM, CPU load, recording state, marker
-- **query_loading_complete()** — Check if all audio samples are loaded and ready
-- **schedule_clip_play(clip_ids)** — Schedule clips to play in session view (live triggering). Comma-separated clip UUIDs.
-- **schedule_clip_stop(track_ids)** — Schedule clips to stop on specified tracks (session view). Comma-separated track UUIDs.
+## DAW_HELPERS (17 helpers)
+All box enumeration is done through typed helpers injected into the bridge context:
+- `h.auBox(i)` — AU box by index
+- `h.allAUBoxes()` — all audio unit boxes
+- `h.effectBoxes(au)` — audio effects on an AU (sorted by index)
+- `h.midiEffectBoxes(au)` — MIDI effects on an AU (sorted by index)
+- `h.trackBoxes(au)` — tracks on an AU (sorted by index)
+- `h.regionBoxes(track)` — regions on a track (no sort)
+- `h.eventBoxes(collection)` — events in a collection (note or signature)
+- `h.inputBoxes(au)` — input boxes on an AU
+- `h.markerBoxes(mt)` — markers on a marker track
+- `h.sendBoxes(au)` — aux sends on an AU (sorted by index)
+- `h.busBoxes()` — all audio buses
+- `h.sampleBoxes(pf)` — samples on a Playfield device
+- `h.noteTrackBoxes(au)` — note tracks only (type===1, sorted)
+- `h.clipBoxes(track)` — clips on a track
+- `h.rootClipBoxes()` — root-level clips
+- `h.scriptParams(device)` — @param declarations on a scriptable device
+- `h.scriptSamples(device)` — @sample declarations on a scriptable device
+- `h.chainBoxes(au, field)` — dynamic chain field (audioEffects or midiEffects)
