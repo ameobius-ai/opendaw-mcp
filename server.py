@@ -15,7 +15,7 @@ import logging
 import subprocess
 import os
 import atexit
-from pathlib import Path
+
 from mcp.server.fastmcp import FastMCP
 from playwright.async_api import async_playwright
 
