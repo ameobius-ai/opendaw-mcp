@@ -8873,6 +8873,36 @@ async def mcp_opendaw_copy_region_to_track(src_unit: int, src_track: int, src_re
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_get_project_metadata() -> str:
+    """Get project metadata: creation date, BPM, time signature, AU count, track count.
+
+    Quick overview of the project state in one call.
+
+    Returns created (ISO date), bpm, time_signature, audio_unit_count, total_track_count.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const root = p.rootBoxAdapter;
+            const aus = root.audioUnits.adapters();
+            let trackCount = 0;
+            aus.forEach(au => {{ trackCount += au.tracks.collection.adapters().length; }});
+            const sigTrack = root.timeline.signatureTrack;
+            const sig = sigTrack.storageSignature;
+            return {{
+                created: root.created.toISOString(),
+                time_signature: [sig[0], sig[1]],
+                audio_unit_count: aus.length,
+                total_track_count: trackCount,
+                groove_enabled: root.groove.enabled,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')
