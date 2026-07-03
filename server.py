@@ -8834,6 +8834,45 @@ async def mcp_opendaw_duplicate_automation_event(unit_index: int, track_index: i
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_copy_region_to_track(src_unit: int, src_track: int, src_region: int,
+                                           dst_unit: int, dst_track: int, position: float = None) -> str:
+    """Copy a region to a different track (or same track at new position).
+
+    Works with note, audio, and automation regions. The copy includes all
+    content — notes, audio content, or automation events.
+
+    src_unit/src_track/src_region: Source region coordinates.
+    dst_unit/dst_track: Destination track coordinates.
+    position: New position in PPQN (omit to use source position).
+
+    Returns new region position and duration.
+    """
+    pos_str = "null" if position is None else str(position)
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const srcReg = h.region(h.au({src_unit}), h.track({src_unit}, {src_track}), {src_region});
+            const dstTrack = h.track({dst_unit}, {dst_track});
+            let newAdapter;
+            window.DAW.editing.modify(() => {{
+                newAdapter = srcReg.copyTo({{
+                    target: dstTrack.box.regions,
+                    position: {pos_str},
+                }});
+            }});
+            return {{
+                success: true,
+                new_position: newAdapter.position,
+                new_duration: newAdapter.duration,
+                track_type: dstTrack.type?.getValue?.() ?? 'unknown',
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')
