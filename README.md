@@ -4,7 +4,7 @@
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-249-brightgreen)](TOOL_CATALOG.md)
-[![Tests](https://img.shields.io/badge/Tests-31%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-54%20passing-brightgreen)](tests/)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
@@ -280,7 +280,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **`set_delay_sync`** — musical fraction string → Delay synced time index (21 entries, includes "off")
 - **Effect lookup case-insensitive** — `add_effect("werkstatt")` now works alongside `Werkstatt`
 - **naomiaro/opendaw-test research** — 543 commits, 17 SDK doc chapters used as authoritative reference for effect parameters and box field names
-- **31 tests, ruff clean, CI green**
+- **54 tests, ruff clean, CI green**
 
 ### v1.9.6 (2026-07-03)
 
@@ -300,7 +300,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
   - `_ok()` — `{"success": False}` in data overwrote the `True` flag (security fix)
   - `_safe_filename()` — case-sensitive extension stripping (`.MP3` not stripped)
   - `_safe_filename()` — Windows backslash path traversal not handled on Linux
-- **CI enhanced** — now runs pytest (31 tests) alongside syntax/AST/smoke/ruff checks
+- **CI enhanced** — now runs pytest (54 tests) alongside syntax/AST/smoke/ruff checks
 - **PEP 561** — `py.typed` marker for type checker support
 - **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
 - **15 examples total** — all documented in examples/README.md

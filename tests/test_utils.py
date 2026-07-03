@@ -257,3 +257,135 @@ class TestComputeLufs:
         # Stereo should be ~3 LU louder than mono (double power)
         mono = _compute_lufs([tone], sr)
         assert result["lufs_integrated"] > mono["lufs_integrated"]
+
+
+class TestTidalRateMap:
+    """Verify Tidal LFO rate fraction-to-index mapping."""
+    def test_basic_fractions(self):
+        from server import TIDAL_RATE_MAP
+        assert TIDAL_RATE_MAP["1/1"] == 0
+        assert TIDAL_RATE_MAP["1/4"] == 3
+        assert TIDAL_RATE_MAP["1/8"] == 6
+        assert TIDAL_RATE_MAP["1/16"] == 9
+        assert TIDAL_RATE_MAP["1/128"] == 16
+
+    def test_count(self):
+        from server import TIDAL_RATE_MAP
+        assert len(TIDAL_RATE_MAP) == 17
+
+    def test_indices_contiguous(self):
+        from server import TIDAL_RATE_MAP
+        indices = sorted(TIDAL_RATE_MAP.values())
+        assert indices == list(range(17))
+
+    def test_triplets(self):
+        from server import TIDAL_RATE_MAP
+        assert TIDAL_RATE_MAP["3/16"] == 4
+        assert TIDAL_RATE_MAP["3/32"] == 7
+        assert TIDAL_RATE_MAP["3/64"] == 10
+
+
+class TestDelaySyncMap:
+    """Verify Delay sync fraction-to-index mapping."""
+    def test_off(self):
+        from server import DELAY_SYNC_MAP
+        assert DELAY_SYNC_MAP["off"] == 0
+
+    def test_basic_fractions(self):
+        from server import DELAY_SYNC_MAP
+        assert DELAY_SYNC_MAP["1/128"] == 1
+        assert DELAY_SYNC_MAP["1/16"] == 8
+        assert DELAY_SYNC_MAP["1/8"] == 11
+        assert DELAY_SYNC_MAP["1/4"] == 14
+        assert DELAY_SYNC_MAP["1/1"] == 20
+
+    def test_count(self):
+        from server import DELAY_SYNC_MAP
+        assert len(DELAY_SYNC_MAP) == 21
+
+    def test_indices_contiguous(self):
+        from server import DELAY_SYNC_MAP
+        indices = sorted(DELAY_SYNC_MAP.values())
+        assert indices == list(range(21))
+
+    def test_smallest_to_largest_order(self):
+        from server import DELAY_SYNC_MAP
+        # 1/128 should have smaller index than 1/1
+        assert DELAY_SYNC_MAP["1/128"] < DELAY_SYNC_MAP["1/1"]
+
+
+class TestWaveshaperFuncs:
+    """Verify waveshaper transfer function lookup table."""
+    def test_known_funcs(self):
+        from server import WAVESHAPER_FUNCS
+        expected = {"hardclip", "cubicSoft", "tanh", "sigmoid", "arctan", "asymmetric"}
+        assert set(WAVESHAPER_FUNCS.keys()) == expected
+
+    def test_count(self):
+        from server import WAVESHAPER_FUNCS
+        assert len(WAVESHAPER_FUNCS) == 6
+
+    def test_expressions_nonempty(self):
+        from server import WAVESHAPER_FUNCS
+        for name, expr in WAVESHAPER_FUNCS.items():
+            assert isinstance(expr, str)
+            assert len(expr) > 5
+            assert "x" in expr  # all must reference x
+
+    def test_hardclip(self):
+        from server import WAVESHAPER_FUNCS
+        assert "min" in WAVESHAPER_FUNCS["hardclip"]
+        assert "max" in WAVESHAPER_FUNCS["hardclip"]
+
+
+class TestRevampSections:
+    """Verify Revamp EQ section names."""
+    def test_known_sections(self):
+        from server import REVAMP_SECTIONS
+        expected = {"highPass", "lowShelf", "lowBell", "midBell",
+                     "highBell", "highShelf", "lowPass"}
+        assert set(REVAMP_SECTIONS) == expected
+
+    def test_count(self):
+        from server import REVAMP_SECTIONS
+        assert len(REVAMP_SECTIONS) == 7
+
+    def test_camelcase(self):
+        from server import REVAMP_SECTIONS
+        for s in REVAMP_SECTIONS:
+            # Each section should be camelCase (starts lowercase, has uppercase)
+            assert s[0].islower()
+            assert any(c.isupper() for c in s)
+
+
+class TestSafeFilenameEdgeCases:
+    """Additional edge cases for filename sanitization."""
+    def test_dawproject_extension(self):
+        assert _safe_filename("project.dawproject") == "project"
+
+    def test_multiple_dots(self):
+        assert _safe_filename("my.track.v2") == "my.track.v2"
+
+    def test_unicode(self):
+        assert _safe_filename("трек") == "трек"
+
+    def test_only_extension(self):
+        assert _safe_filename(".wav") == "output" or _safe_filename(".wav") == ".wav"
+
+    def test_double_extension(self):
+        # only the last extension is stripped
+        result = _safe_filename("track.wav.wav")
+        assert result == "track.wav"
+
+
+class TestOkErrCombo:
+    """Verify _ok and _err produce valid JSON."""
+    def test_ok_has_success_key(self):
+        result = json.loads(_ok({"data": [1, 2, 3]}))
+        assert "success" in result
+        assert "data" in result
+
+    def test_err_has_error_key(self):
+        result = json.loads(_err("fail"))
+        assert "error" in result
+        assert "success" not in result

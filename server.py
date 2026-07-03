@@ -27,6 +27,33 @@ DAW_URL = os.environ.get("OPENDAW_URL", "http://localhost:5174")
 EXPORT_DIR = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "..", "exports"))
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
+# ---------------------------------------------------------------------------
+# Module-level lookup tables (extracted from tool functions for testability)
+# ---------------------------------------------------------------------------
+TIDAL_RATE_MAP: dict[str, int] = {
+    "1/1": 0, "1/2": 1, "1/3": 2, "1/4": 3, "3/16": 4, "1/6": 5, "1/8": 6,
+    "3/32": 7, "1/12": 8, "1/16": 9, "3/64": 10, "1/24": 11, "1/32": 12,
+    "1/48": 13, "1/64": 14, "1/96": 15, "1/128": 16,
+}
+DELAY_SYNC_MAP: dict[str, int] = {
+    "off": 0, "1/128": 1, "1/96": 2, "1/64": 3, "1/48": 4, "1/32": 5,
+    "1/24": 6, "3/64": 7, "1/16": 8, "1/12": 9, "3/32": 10, "1/8": 11,
+    "1/6": 12, "3/16": 13, "1/4": 14, "5/16": 15, "1/3": 16, "3/8": 17,
+    "7/16": 18, "1/2": 19, "1/1": 20,
+}
+WAVESHAPER_FUNCS: dict[str, str] = {
+    "hardclip": "min(1, max(-1, x))",
+    "cubicSoft": "x - (x*x*x) / 3.0",
+    "tanh": "tanh(x)",
+    "sigmoid": "2.0 / (1.0 + exp(-x)) - 1.0",
+    "arctan": "atan(x) / (PI/2)",
+    "asymmetric": "x > 0 ? tanh(x*1.5) : tanh(x*0.7)",
+}
+REVAMP_SECTIONS: tuple[str, ...] = (
+    "highPass", "lowShelf", "lowBell", "midBell",
+    "highBell", "highShelf", "lowPass",
+)
+
 class HeadlessDawBridge:
     """Playwright bridge to headless openDAW."""
     def __init__(self):
@@ -9616,14 +9643,9 @@ async def mcp_opendaw_set_tidal_rate(unit_index: int, effect_index: int, rate: s
         "1/1", "1/2", "1/3", "3/16", "1/6", "1/8", "3/32", "1/12",
         "1/16", "3/64", "1/24", "1/32", "1/48", "1/64", "1/96", "1/128".
     """
-    rate_map = {
-        "1/1": 0, "1/2": 1, "1/3": 2, "1/4": 3, "3/16": 4, "1/6": 5, "1/8": 6,
-        "3/32": 7, "1/12": 8, "1/16": 9, "3/64": 10, "1/24": 11, "1/32": 12,
-        "1/48": 13, "1/64": 14, "1/96": 15, "1/128": 16,
-    }
-    if rate not in rate_map:
-        return _err(f"Invalid rate '{rate}'. Valid: {', '.join(sorted(rate_map.keys()))}")
-    idx = rate_map[rate]
+    if rate not in TIDAL_RATE_MAP:
+        return _err(f"Invalid rate '{rate}'. Valid: {', '.join(sorted(TIDAL_RATE_MAP.keys()))}")
+    idx = TIDAL_RATE_MAP[rate]
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -9656,15 +9678,9 @@ async def mcp_opendaw_set_delay_sync(unit_index: int, effect_index: int, fractio
         "1/16", "1/12", "3/32", "1/8", "1/6", "3/16", "1/4", "5/16",
         "1/3", "3/8", "7/16", "1/2", "1/1".
     """
-    fraction_map = {
-        "off": 0, "1/128": 1, "1/96": 2, "1/64": 3, "1/48": 4, "1/32": 5,
-        "1/24": 6, "3/64": 7, "1/16": 8, "1/12": 9, "3/32": 10, "1/8": 11,
-        "1/6": 12, "3/16": 13, "1/4": 14, "5/16": 15, "1/3": 16, "3/8": 17,
-        "7/16": 18, "1/2": 19, "1/1": 20,
-    }
-    if fraction not in fraction_map:
-        return _err(f"Invalid fraction '{fraction}'. Valid: {', '.join(sorted(fraction_map.keys()))}")
-    idx = fraction_map[fraction]
+    if fraction not in DELAY_SYNC_MAP:
+        return _err(f"Invalid fraction '{fraction}'. Valid: {', '.join(sorted(DELAY_SYNC_MAP.keys()))}")
+    idx = DELAY_SYNC_MAP[fraction]
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -9767,9 +9783,8 @@ async def mcp_opendaw_set_waveshaper_equation(unit_index: int, effect_index: int
         - asymmetric: tube-like, even harmonics from asymmetry
     """
     safe_eq = equation.replace('"', '').replace('\\', '').replace("'", "")
-    valid = {"hardclip", "cubicSoft", "tanh", "sigmoid", "arctan", "asymmetric"}
-    if safe_eq not in valid:
-        return _err(f"Invalid equation '{safe_eq}'. Valid: {', '.join(sorted(valid))}")
+    if safe_eq not in WAVESHAPER_FUNCS:
+        return _err(f"Invalid equation '{safe_eq}'. Valid: {', '.join(sorted(WAVESHAPER_FUNCS.keys()))}")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -9843,15 +9858,7 @@ async def mcp_opendaw_set_revamp_filter(unit_index: int, effect_index: int, sect
     order: Filter steepness 1-4 (for HPF/LPF only).
     """
     safe_section = section.replace('"', '').replace('\\', '').replace("'", "").lower()
-    section_map = {
-        "highpass": "highPass",
-        "lowshelf": "lowShelf",
-        "lowbell": "lowBell",
-        "midbell": "midBell",
-        "highbell": "highBell",
-        "highshelf": "highShelf",
-        "lowpass": "lowPass",
-    }
+    section_map = {k.lower(): k for k in REVAMP_SECTIONS}
     if safe_section not in section_map:
         return _err(f"Invalid section '{safe_section}'. Valid: {', '.join(sorted(section_map.keys()))}")
     box_field = section_map[safe_section]
