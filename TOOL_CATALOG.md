@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-138 MCP tools for headless openDAW control via Playwright bridge.
+194 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
