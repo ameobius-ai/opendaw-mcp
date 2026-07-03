@@ -175,6 +175,10 @@ async def tool_name(param: str) -> str:
 
 The bridge is a singleton — state persists within a single Python process. All box mutations go through `editing.modify()` as required by openDAW's transactional model.
 
+### Input Sanitization
+
+All string parameters that are interpolated into JavaScript template literals are sanitized before evaluation — quotes, backslashes, and braces are stripped to prevent JS injection. Numeric parameters use proper `int`/`float` type annotations for FastMCP type coercion.
+
 ## DSP Scripts
 
 The `scripts/` directory contains example Werkstatt and Apparat DSP scripts:
