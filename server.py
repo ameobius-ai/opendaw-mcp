@@ -4365,9 +4365,9 @@ async def mcp_opendaw_get_project_info() -> str:
 Single-call summary — lighter than get_project_state (no per-track detail).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const tl = p.timelineBox;
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const h = window.DAW_HELPERS;
+        const tl = h.timelineBox;
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
 
         let totalTracks = 0, totalRegions = 0, totalEffects = 0, totalNotes = 0;
         let maxPos = 0;
@@ -4381,7 +4381,6 @@ Single-call summary — lighter than get_project_state (no per-track detail).
                 for (const reg of regions) {{
                     const endPos = (reg.position?.getValue?.() ?? 0) + (reg.duration?.getValue?.() ?? 0);
                     if (endPos > maxPos) maxPos = endPos;
-                    // Count notes in note regions
                     try {{
                         const col = reg.events?.targetVertex?.unwrap()?.box;
                         if (col && col.events) {{
@@ -4402,8 +4401,8 @@ Single-call summary — lighter than get_project_state (no per-track detail).
             regions: totalRegions,
             effects: totalEffects,
             notes: totalNotes,
-            duration_beats: maxPos / 960,
-            duration_bars: Math.ceil(maxPos / (960 * (tl?.signature?.nominator?.getValue?.() ?? 4))),
+            duration_beats: maxPos / h.ppqn.Quarter,
+            duration_bars: Math.ceil(maxPos / (h.ppqn.Quarter * (tl?.signature?.nominator?.getValue?.() ?? 4))),
         }};
     }}""")
     return _wrap_eval(result)
@@ -4418,22 +4417,22 @@ Useful cleanup after deleting regions or editing.
 unit_index: Audio unit index (-1 = all AUs).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
 
         const results = [];
         if (unitIdx < 0) {{
             for (let i = 0; i < units.length; i++) {{
                 const before = [...units[i].tracks.pointerHub.incoming()].length;
-                p.editing.modify(() => p.api.compactTracks(units[i]));
+                h.modify(() => h.api.compactTracks(units[i]));
                 const after = [...units[i].tracks.pointerHub.incoming()].length;
                 results.push({{au: i, before, after, removed: before - after}});
             }}
         }} else {{
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             const before = [...units[unitIdx].tracks.pointerHub.incoming()].length;
-            p.editing.modify(() => p.api.compactTracks(units[unitIdx]));
+            h.modify(() => h.api.compactTracks(units[unitIdx]));
             const after = [...units[unitIdx].tracks.pointerHub.incoming()].length;
             results.push({{au: unitIdx, before, after, removed: before - after}});
         }}
@@ -4456,17 +4455,16 @@ track_index: Track index within the AU.
 region_index: Region to modify (0-based).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const PPQN = window.DAW_PPQN;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
-        const loopTicks = Math.round({loop_beats} * PPQN.Quarter);
-        const loopOffsetTicks = Math.round({loop_offset_beats} * PPQN.Quarter);
-        const eventOffsetTicks = Math.round({event_offset_beats} * PPQN.Quarter);
+        const loopTicks = Math.round({loop_beats} * h.ppqn.Quarter);
+        const loopOffsetTicks = Math.round({loop_offset_beats} * h.ppqn.Quarter);
+        const eventOffsetTicks = Math.round({event_offset_beats} * h.ppqn.Quarter);
 
         let tracks = [];
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4483,7 +4481,7 @@ region_index: Region to modify (0-based).
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldLoop = regions[regionIdx].loopDuration?.getValue?.() ?? 0;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].loopDuration.setValue(loopTicks);
             if (regions[regionIdx].loopOffset) regions[regionIdx].loopOffset.setValue(loopOffsetTicks);
             if (regions[regionIdx].eventOffset) regions[regionIdx].eventOffset.setValue(eventOffsetTicks);
@@ -4491,10 +4489,10 @@ region_index: Region to modify (0-based).
 
         return {{
             success: true,
-            old_loop_beats: oldLoop / PPQN.Quarter,
-            new_loop_beats: loopTicks / PPQN.Quarter,
-            loop_offset_beats: loopOffsetTicks / PPQN.Quarter,
-            event_offset_beats: eventOffsetTicks / PPQN.Quarter,
+            old_loop_beats: oldLoop / h.ppqn.Quarter,
+            new_loop_beats: loopTicks / h.ppqn.Quarter,
+            loop_offset_beats: loopOffsetTicks / h.ppqn.Quarter,
+            event_offset_beats: eventOffsetTicks / h.ppqn.Quarter,
         }};
     }}""")
     return _wrap_eval(result)
@@ -4514,13 +4512,12 @@ region_index: Region to export (0-based).
 Returns the saved file path.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const MidiFile = window.DAW_MidiFile;
         const MidiTrack = window.DAW_MidiTrack;
         const ControlEvent = window.DAW_ControlEvent;
         const ControlType = window.DAW_ControlType;
         const ArrayMultimap = window.DAW_ArrayMultimap;
-        const PPQN = window.DAW_PPQN;
 
         if (!MidiFile) throw new Error("lib-midi not loaded — reload page");
         if (!ArrayMultimap) throw new Error("ArrayMultimap not loaded — reload page");
@@ -4532,7 +4529,7 @@ Returns the saved file path.
         // Find note tracks
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -4540,7 +4537,7 @@ Returns the saved file path.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4560,7 +4557,7 @@ Returns the saved file path.
         if (notes.length === 0) return {{error: "Region has no notes"}};
 
         // Convert to MIDI events (timeDivision=96)
-        const toTicks = (position, timeDivision = 96) => Math.floor(position / PPQN.Quarter * timeDivision);
+        const toTicks = (position, timeDivision = 96) => Math.floor(position / h.ppqn.Quarter * timeDivision);
         const events = [];
         for (const note of notes) {{
             const pos = note.position.getValue();
@@ -4629,14 +4626,13 @@ Returns the path to the exported WAV and audio metadata.
 """
     safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
     result = await bridge.evaluate(f"""async () => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
         const Option = window.DAW_Option;
         const WavFile = window.DAW_WavFile;
-        const PPQN = window.DAW_PPQN;
 
-        const startPos = Math.round({start_beat} * PPQN.Quarter);
-        const endPos = Math.round({end_beat} * PPQN.Quarter);
+        const startPos = Math.round({start_beat} * h.ppqn.Quarter);
+        const endPos = Math.round({end_beat} * h.ppqn.Quarter);
 
         return new Promise(async (resolve) => {{
             try {{
@@ -4645,7 +4641,7 @@ Returns the path to the exported WAV and audio metadata.
                     range: {{ start: startPos, end: endPos }}
                 }};
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = p.copy();
+                const copiedProject = h.project.copy();
                 const audioData = await OfflineEngineRenderer.start(
                     copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
@@ -4709,7 +4705,7 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
     """
     safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
     result = await bridge.evaluate(f"""async () => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
         const Option = window.DAW_Option;
         const WavFile = window.DAW_WavFile;
@@ -4718,7 +4714,7 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
             try {{
                 // Option.None = no stems config → full mix (1 stem, all AUs mixed)
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = p.copy();
+                const copiedProject = h.project.copy();
                 const audioData = await OfflineEngineRenderer.start(
                     copiedProject, Option.None, progress, undefined, {sample_rate}
                 );
@@ -4780,11 +4776,11 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
 """
     # Build stems config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
     result_temp = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const h = window.DAW_HELPERS;
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         return units.map((au, i) => ({{
             index: i,
-            uuid: window.DAW_UUID.toString(au.address.uuid),
+            uuid: h.uuid.toString(au.address.uuid),
             name: au.name?.getValue?.() || 'Unit ' + i,
             type: au.type?.getValue?.() ?? 0,
         }}));
@@ -4801,7 +4797,7 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
                 }
     stems_js = json.dumps(stems_map)
     result = await bridge.evaluate(f"""async () => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
         const Option = window.DAW_Option;
         const WavFile = window.DAW_WavFile;
@@ -4811,7 +4807,7 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
             try {{
                 const exportConfig = {{stems: stemsConfig}};
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = p.copy();
+                const copiedProject = h.project.copy();
                 const audioData = await OfflineEngineRenderer.start(
                     copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
@@ -4876,13 +4872,13 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
     safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
     # Build per-AU stem config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
     result_temp = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+        const h = window.DAW_HELPERS;
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
             .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if ({unit_index} >= units.length) return {{error: "No AU at index {unit_index}"}};
         const au = units[{unit_index}];
         return {{
-            uuid: window.DAW_UUID.toString(au.address.uuid),
+            uuid: h.uuid.toString(au.address.uuid),
             name: au.name?.getValue?.() || 'Unit {unit_index}',
             type: au.type?.getValue?.() ?? 0,
         }};
@@ -4901,7 +4897,7 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
     }
     stems_js = json.dumps(stems_map)
     result = await bridge.evaluate(f"""async () => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
         const Option = window.DAW_Option;
         const WavFile = window.DAW_WavFile;
@@ -4911,7 +4907,7 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
             try {{
                 const exportConfig = {{stems: stemsConfig}};
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = p.copy();
+                const copiedProject = h.project.copy();
                 const audioData = await OfflineEngineRenderer.start(
                     copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
