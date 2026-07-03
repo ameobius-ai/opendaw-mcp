@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-208 MCP tools for headless openDAW control via Playwright bridge.
+209 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -114,11 +114,12 @@
 ## MIDI Export (1)
 - `export_midi` — export note region to .mid file (lib-midi encoder)
 
-## Export (6)
+## Export (7)
 - `export_mix` — render full mix to WAV (offline/realtime/auto)
+- `render_full` — render entire project as stereo WAV (OfflineEngineRenderer, Option.None)
 - `export_stems` — render per-track stems
 - `export_single_stem` — render one stem
-- `render_range` — render a time range
+- `render_range` — render a time range (OfflineEngineRenderer with ExportConfiguration.range)
 - `measure_lufs` — measure integrated LUFS
 - `auto_gain` — auto-adjust gain to LUFS target via Maximizer
 

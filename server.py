@@ -4759,6 +4759,78 @@ Returns the path to the exported WAV and audio metadata.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int = 48000) -> str:
+    """Render the entire project as a single stereo WAV file (full mixdown).
+
+    filename: Output filename (without .wav extension).
+    sample_rate: Export sample rate (default 48000).
+
+    Uses OfflineEngineRenderer with Option.None (no stems config = full mix).
+    Renders from beat 0 to the end of the last region.
+
+    Returns the path to the exported WAV and audio metadata.
+    """
+    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
+    result = await bridge.evaluate(f"""async () => {{
+        const p = window.DAW;
+        const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
+        const Option = window.DAW_Option;
+        const WavFile = window.DAW_WavFile;
+
+        return new Promise(async (resolve) => {{
+            try {{
+                // Option.None = no stems config → full mix (1 stem, all AUs mixed)
+                const progress = {{setValue: (v) => {{}}}};
+                const copiedProject = p.copy();
+                const audioData = await OfflineEngineRenderer.start(
+                    copiedProject, Option.None, progress, undefined, {sample_rate}
+                );
+
+                const wav = WavFile.encodeFloats(audioData);
+                const bytes = new Uint8Array(wav);
+                let binary = "";
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                window.__lastExportB64 = btoa(binary);
+
+                let maxSample = 0;
+                for (let ch = 0; ch < audioData.frames.length; ch++) {{
+                    const frame = audioData.frames[ch];
+                    for (let i = 0; i < Math.min(frame.length, 100000); i++) {{
+                        maxSample = Math.max(maxSample, Math.abs(frame[i]));
+                    }}
+                }}
+
+                resolve({{
+                    success: true,
+                    filename: "{safe_name}.wav",
+                    frames: audioData.frames.length,
+                    samples: audioData.frames[0]?.length || 0,
+                    max_sample: maxSample,
+                    has_audio: maxSample > 0.001,
+                    size: wav.byteLength,
+                    sample_rate: audioData.sampleRate,
+                }});
+            }} catch(e) {{
+                resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
+            }}
+        }});
+    }}""")
+    # Save WAV file if export succeeded
+    if isinstance(result, dict) and result.get("success"):
+        import base64 as b64mod
+        export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
+        os.makedirs(export_dir, exist_ok=True)
+        b64 = await bridge.evaluate("() => window.__lastExportB64")
+        if isinstance(b64, str) and b64:
+            wav_bytes = b64mod.b64decode(b64)
+            filepath = os.path.join(export_dir, f"{safe_name}.wav")
+            with open(filepath, "wb") as f:
+                f.write(wav_bytes)
+            result["filepath"] = filepath
+            result["file_size_mb"] = round(os.path.getsize(filepath) / (1024*1024), 2)
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_export_stems(filename_prefix: str, sample_rate: int) -> str:
     """Export each audio unit as a separate stem WAV file.
 
