@@ -3595,17 +3595,17 @@ Returns count of notes quantized.
 
     safe_division = division.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const gridTicks = {grid_ticks};
         const strength = {strength};
 
         let count = 0;
-        const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             for (const au of targetUnits) {{
                 const noteTracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3614,13 +3614,11 @@ Returns count of notes quantized.
                 for (const track of targetTracks) {{
                     const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
                     for (const region of regions) {{
-                        // Quantize region position (absolute timeline position)
                         const regPos = region.position.getValue();
                         const nearestReg = Math.round(regPos / gridTicks) * gridTicks;
                         const newRegPos = regPos + (nearestReg - regPos) * strength;
                         region.position.setValue(Math.round(newRegPos));
 
-                        // Also quantize note events within the region (relative positions)
                         try {{
                             const vertex = region.events.targetVertex.unwrap();
                             const collectionBox = vertex.box || vertex;
@@ -3665,19 +3663,18 @@ offset_beats: How far to shift the copy (in beats, e.g. 4.0 = next bar in 4/4).
 Returns new region index.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const NoteRegionBox = window.DAW_NoteRegionBox;
         const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
         const NoteEventBox = window.DAW_NoteEventBox;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
-        const offsetTicks = Math.round({offset_beats} * 960);
+        const offsetTicks = Math.round({offset_beats} * h.ppqn.Quarter);
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3685,7 +3682,7 @@ Returns new region index.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3704,7 +3701,7 @@ Returns new region index.
         const newPos = srcPos + offsetTicks;
 
         let newRegionIdx = -1;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // Get source collection
             let srcCollection = null;
             try {{
@@ -3714,10 +3711,10 @@ Returns new region index.
 
             if (srcCollection && srcCollection.events) {{
                 // Create new collection and copy all note events
-                const newCollection = NoteEventCollectionBox.create(p.boxGraph, UUID.generate());
+                const newCollection = NoteEventCollectionBox.create(h.boxGraph, h.uuid.generate());
                 const srcNotes = [...srcCollection.events.pointerHub.incoming()].map(({{box}}) => box);
                 for (const srcNote of srcNotes) {{
-                    NoteEventBox.create(p.boxGraph, UUID.generate(), (box) => {{
+                    NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                         box.position.setValue(srcNote.position.getValue());
                         box.duration.setValue(srcNote.duration.getValue());
                         box.velocity.setValue(srcNote.velocity.getValue());
@@ -3729,7 +3726,7 @@ Returns new region index.
                 }}
 
                 // Create new region
-                NoteRegionBox.create(p.boxGraph, UUID.generate(), (box) => {{
+                NoteRegionBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                     box.position.setValue(newPos);
                     box.label.setValue((srcRegion.label?.getValue?.() ?? "Region") + " copy");
                     box.mute.setValue(false);
@@ -3750,7 +3747,7 @@ Returns new region index.
         return {{
             success: true,
             new_region_index: newRegionIdx,
-            new_position_beats: newPos / 960,
+            new_position_beats: newPos / h.ppqn.Quarter,
             offset_beats: {offset_beats},
         }};
     }}""")
