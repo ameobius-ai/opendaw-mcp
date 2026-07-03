@@ -3353,12 +3353,12 @@ Returns list of regions with: region_index, unit_index, track_index, position_be
 duration_beats, label, note_count.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
-        const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
-        const Quarter = 960;
+        const Quarter = h.ppqn.Quarter;
 
         const regionList = [];
         for (let ui = 0; ui < targetUnits.length; ui++) {{
@@ -3414,13 +3414,13 @@ Returns list of regions with: region_index, track_index, position_beats,
 duration_seconds, file_name.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
-        const Quarter = 960;
+        const Quarter = h.ppqn.Quarter;
 
         const audioTracks = [...au.tracks.pointerHub.incoming()]
             .map(({{box}}) => box)
@@ -3481,7 +3481,7 @@ out_slope: Fade-out curve 0-1 (-1 = skip).
 Returns updated fade values.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
@@ -3490,7 +3490,7 @@ Returns updated fade values.
         const inSlope = {in_slope};
         const outSlope = {out_slope};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -3506,7 +3506,7 @@ Returns updated fade values.
 
         if (!region.fading) return {{error: "Region has no fading field"}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             if (fadeIn >= 0) region.fading.in.setValue(fadeIn);
             if (fadeOut >= 0) region.fading.out.setValue(fadeOut);
             if (inSlope >= 0) region.fading.inSlope.setValue(inSlope);
@@ -3539,13 +3539,13 @@ gain_db: Gain in dB (0 = unity, -6 = half volume, +6 = double).
 Returns updated gain value.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
         const gainDb = {gain_db};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -3561,7 +3561,7 @@ Returns updated gain value.
 
         if (!region.gain) return {{error: "Region has no gain field"}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             region.gain.setValue(gainDb);
         }});
 
