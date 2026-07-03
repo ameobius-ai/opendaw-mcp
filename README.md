@@ -190,7 +190,7 @@ The `scripts/` directory contains example Werkstatt and Apparat DSP scripts:
 
 ## Examples
 
-The `examples/` directory contains 7 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 9 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -206,6 +206,29 @@ The `examples/` directory contains 7 Python scripts demonstrating the full workf
 ## Tool Catalog
 
 See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 209 tools with parameters and descriptions.
+
+## Mastering
+
+The MCP server includes a full mastering chain for streaming-ready output:
+
+1. **Render** — `render_full` (full mixdown) or `export_stems` (per-track stems)
+2. **Measure LUFS** — `measure_lufs` (ITU-R BS.1770-4 K-weighting, gated mean squares)
+3. **Auto-gain** — `auto_gain` (iterative: render → measure → adjust Maximizer threshold + output volume → re-render, converges ±1 LUFS)
+
+```python
+# Render full mix
+await server.mcp_opendaw_render_full("my_mix", 48000)
+
+# Measure loudness
+lufs = json.loads(await server.mcp_opendaw_measure_lufs("my_mix"))
+# → {"lufs_integrated": -18.3, "true_peak_db": -3.71, ...}
+
+# Auto-gain to Spotify target (-14 LUFS)
+result = json.loads(await server.mcp_opendaw_auto_gain("-14", "mastered", 48000, "3"))
+# → converges to -13.7 LUFS in 3 iterations
+```
+
+Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS.
 
 ## Limitations
 

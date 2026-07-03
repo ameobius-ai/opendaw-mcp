@@ -4607,74 +4607,20 @@ Returns the saved file path.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_export_mix(filename: str, sample_rate: int, method: str) -> str:
+async def mcp_opendaw_export_mix(filename: str, sample_rate: int = 48000, method: str = "offline") -> str:
     """Render the full project mix to a WAV file.
 
-Two methods available:
-- 'offline': Uses OfflineEngineRenderer (Worker-based, faster than real-time, no engine needed)
-- 'realtime': Uses ScriptProcessorNode capture (requires engine started, records in real-time)
-- 'auto' (default): Tries offline first, falls back to realtime if it fails
+    Uses OfflineEngineRenderer (same as render_full).
+    The 'method' parameter is accepted for backward compatibility but
+    always uses offline rendering (faster, no engine needed).
 
-Returns the path to the exported WAV.
+    filename: Output filename (without .wav extension).
+    sample_rate: Export sample rate (default 48000).
+    method: 'offline' (default), 'realtime', or 'auto' — all use offline.
 
-Workflow: create_instrument_track → load_audio → place_audio_region →
-          (start_engine if realtime) → export_mix
-"""
-    result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const PPQN = window.DAW_PPQN;
-        const Quarter = PPQN.Quarter;
-        const bpm = p.timelineBox?.bpm?.getValue?.() ?? 120;
-
-        // Check audio regions (lastRegionAction)
-        let lastPos = p.lastRegionAction ? p.lastRegionAction() : 0;
-
-        // Also check note clips/events — find the latest note end position
-        const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
-        for (const au of allUnits) {{
-            // Note clips on note tracks
-            const noteTracks = [...au.tracks.pointerHub.incoming()]
-                .map(({{box}}) => box)
-                .filter(box => box.type?.getValue?.() === 1); // Notes type
-            for (const track of noteTracks) {{
-                const clips = [...track.clips.pointerHub.incoming()].map(({{box}}) => box);
-                for (const clip of clips) {{
-                    const clipPos = clip.position?.getValue?.() ?? 0;
-                    const clipDur = clip.duration?.getValue?.() ?? 0;
-                    const clipEnd = clipPos + clipDur;
-                    if (clipEnd > lastPos) lastPos = clipEnd;
-                    // Also check individual note events within the clip
-                    const collection = clip.events?.targetVertex?.unwrap?.()?.box;
-                    if (collection) {{
-                        const events = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
-                        for (const evt of events) {{
-                            const notePos = evt.position?.getValue?.() ?? 0;
-                            const noteDur = evt.duration?.getValue?.() ?? 0;
-                            const noteEnd = clipPos + notePos + noteDur;
-                            if (noteEnd > lastPos) lastPos = noteEnd;
-                        }}
-                    }}
-                }}
-            }}
-            // Audio regions on audio tracks
-            const audioTracks = [...au.tracks.pointerHub.incoming()]
-                .map(({{box}}) => box)
-                .filter(box => box.type?.getValue?.() === 2); // Audio type
-            for (const track of audioTracks) {{
-                const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
-                for (const region of regions) {{
-                    const regPos = region.position?.getValue?.() ?? 0;
-                    const regDur = region.duration?.getValue?.() ?? 0;
-                    const regEnd = regPos + regDur;
-                    if (regEnd > lastPos) lastPos = regEnd;
-                }}
-            }}
-        }}
-
-        const durationSeconds = (lastPos / Quarter) * (60 / bpm);
-        return {{ duration: durationSeconds, lastPos, bpm }};
-    }}""")
-    return _wrap_eval(result)
+    Returns the path to the exported WAV and audio metadata.
+    """
+    return await mcp_opendaw_render_full(filename, sample_rate)
 
 @mcp.tool()
 async def mcp_opendaw_render_range(start_beat: int, end_beat: int, filename: str, sample_rate: int = 48000) -> str:
