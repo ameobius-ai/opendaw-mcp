@@ -90,6 +90,8 @@ class HeadlessDawBridge:
                 rootBox: p.rootBox,
                 timelineBox: p.timelineBox,
                 engine: p.engine,
+                primaryAudioUnitBox: p.primaryAudioUnitBox,
+                primaryAudioBusBox: p.primaryAudioBusBox,
                 uuid: window.DAW_UUID,
                 ppqn: window.DAW_PPQN,
             };
@@ -475,28 +477,26 @@ denominator: Note value per beat (bottom number: 4=quarter, 8=eighth).
 Returns the created signature event details.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const SignatureEventBox = window.DAW_SignatureEventBox;
-        const Quarter = 960;
-        const posTicks = Math.round({position_beats} * Quarter);
+        const posTicks = Math.round({position_beats} * h.ppqn.Quarter);
         const nom = {numerator};
         const denom = {denominator};
 
         if (!SignatureEventBox) return {{error: "SignatureEventBox not loaded — reload page"}};
-        const tl = p.timelineBox;
+        const tl = h.timelineBox;
         if (!tl || !tl.signatureTrack) return {{error: "No signatureTrack on timeline"}};
 
         const sigTrack = tl.signatureTrack;
 
         let created;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // Find next index
             const existing = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
             const maxIndex = existing.reduce((mx, b) => Math.max(mx, b.index?.getValue?.() ?? 0), -1);
             const idx = maxIndex + 1;
 
-            created = SignatureEventBox.create(p.boxGraph, UUID.generate(), (box) => {{
+            created = SignatureEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                 box.events.refer(sigTrack.events);
                 box.index.setValue(idx);
                 box.relativePosition.setValue(posTicks);
@@ -508,7 +508,7 @@ Returns the created signature event details.
         // List all signature events
         const allEvents = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = allEvents.map(e => ({{
-            position_beats: e.relativePosition?.getValue?.() / Quarter ?? 0,
+            position_beats: e.relativePosition?.getValue?.() / h.ppqn.Quarter ?? 0,
             numerator: e.nominator?.getValue?.() ?? 4,
             denominator: e.denominator?.getValue?.() ?? 4,
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -542,17 +542,15 @@ Returns the created tempo event and full tempo map.
 """
     interp_val = json.dumps(interpolation)
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const ValueEventBox = window.DAW_ValueEventBox;
         const ValueEventCollectionBox = window.DAW_ValueEventCollectionBox;
-        const Quarter = 960;
-        const posTicks = Math.round({position_beats} * Quarter);
+        const posTicks = Math.round({position_beats} * h.ppqn.Quarter);
         const targetBpm = {bpm};
         const interpVal = {interp_val};
 
         if (!ValueEventBox || !ValueEventCollectionBox) return {{error: "Box types not loaded — reload page"}};
-        const tl = p.timelineBox;
+        const tl = h.timelineBox;
         if (!tl || !tl.tempoTrack) return {{error: "No tempoTrack on timeline"}};
 
         const tempoTrack = tl.tempoTrack;
@@ -560,7 +558,7 @@ Returns the created tempo event and full tempo map.
         const maxBpm = tempoTrack.maxBpm.getValue();
         const normalizedValue = (targetBpm - minBpm) / (maxBpm - minBpm);
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             tempoTrack.enabled.setValue(true);
 
             let collection;
@@ -568,14 +566,14 @@ Returns the created tempo event and full tempo map.
             if (!existingVertex.isEmpty()) {{
                 collection = existingVertex.unwrap().box;
             }} else {{
-                collection = ValueEventCollectionBox.create(p.boxGraph, UUID.generate());
+                collection = ValueEventCollectionBox.create(h.boxGraph, h.uuid.generate());
                 tempoTrack.events.refer(collection.owners);
             }}
 
             const existingEvents = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
             const maxIndex = existingEvents.reduce((mx, b) => Math.max(mx, b.index?.getValue?.() ?? 0), -1);
 
-            ValueEventBox.create(p.boxGraph, UUID.generate(), (box) => {{
+            ValueEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                 box.events.refer(collection.events);
                 box.position.setValue(posTicks);
                 box.index.setValue(maxIndex + 1);
@@ -587,7 +585,7 @@ Returns the created tempo event and full tempo map.
         const coll = tempoTrack.events.targetVertex.unwrap().box;
         const events = [...coll.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = events.map(e => ({{
-            position_beats: e.position?.getValue?.() / Quarter ?? 0,
+            position_beats: e.position?.getValue?.() / h.ppqn.Quarter ?? 0,
             bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
             interpolation: e.interpolation?.getValue?.() === 1 ? "linear" : "hold",
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -612,9 +610,8 @@ Returns each tempo event with position (beats), BPM, and interpolation type.
 The tempo track uses normalized values mapped to minBpm..maxBpm (default 60..240).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const Quarter = 960;
-        const tl = p.timelineBox;
+        const h = window.DAW_HELPERS;
+        const tl = h.timelineBox;
         if (!tl || !tl.tempoTrack) return {{error: "No tempoTrack on timeline"}};
 
         const tempoTrack = tl.tempoTrack;
@@ -635,7 +632,7 @@ The tempo track uses normalized values mapped to minBpm..maxBpm (default 60..240
         const collection = eventsVertex.unwrap().box;
         const events = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = events.map(e => ({{
-            position_beats: e.position?.getValue?.() / Quarter ?? 0,
+            position_beats: e.position?.getValue?.() / h.ppqn.Quarter ?? 0,
             bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
             interpolation: e.interpolation?.getValue?.() === 1 ? "linear" : "hold",
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -658,9 +655,8 @@ async def mcp_opendaw_list_signature_changes() -> str:
 Returns each signature event with position (beats), numerator, and denominator.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const Quarter = 960;
-        const tl = p.timelineBox;
+        const h = window.DAW_HELPERS;
+        const tl = h.timelineBox;
         if (!tl || !tl.signatureTrack) return {{error: "No signatureTrack on timeline"}};
 
         const sigTrack = tl.signatureTrack;
@@ -668,7 +664,7 @@ Returns each signature event with position (beats), numerator, and denominator.
 
         const events = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = events.map(e => ({{
-            position_beats: e.relativePosition?.getValue?.() / Quarter ?? 0,
+            position_beats: e.relativePosition?.getValue?.() / h.ppqn.Quarter ?? 0,
             numerator: e.nominator?.getValue?.() ?? 4,
             denominator: e.denominator?.getValue?.() ?? 4,
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -695,9 +691,8 @@ index: 0-based index in sorted order (-1 = use position match).
 Returns updated signature event list.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const Quarter = 960;
-        const tl = p.timelineBox;
+        const h = window.DAW_HELPERS;
+        const tl = h.timelineBox;
         if (!tl || !tl.signatureTrack) return {{error: "No signatureTrack on timeline"}};
 
         const sigTrack = tl.signatureTrack;
@@ -708,7 +703,7 @@ Returns updated signature event list.
 
         let targetIdx = {index};
         if (targetIdx < 0) {{
-            const posTicks = Math.round({position_beats} * Quarter);
+            const posTicks = Math.round({position_beats} * h.ppqn.Quarter);
             if (posTicks < 0) {{
                 targetIdx = events.length - 1;
             }} else {{
@@ -721,13 +716,13 @@ Returns updated signature event list.
         }}
         if (targetIdx < 0 || targetIdx >= events.length) return {{error: "Invalid index " + targetIdx}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             events[targetIdx].delete();
         }});
 
         const remaining = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = remaining.map(e => ({{
-            position_beats: e.relativePosition?.getValue?.() / Quarter ?? 0,
+            position_beats: e.relativePosition?.getValue?.() / h.ppqn.Quarter ?? 0,
             numerator: e.nominator?.getValue?.() ?? 4,
             denominator: e.denominator?.getValue?.() ?? 4,
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -745,10 +740,10 @@ Returns updated signature event list.
 async def mcp_opendaw_create_audio_track() -> str:
     """Create a new audio track on the primary audio unit."""
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         let trackBox;
-        p.editing.modify(() => {{
-            trackBox = p.api.createAudioTrack(p.primaryAudioUnitBox);
+        h.modify(() => {{
+            trackBox = h.api.createAudioTrack(h.primaryAudioUnitBox);
         }});
         return {{success: !!trackBox, type: 'audio'}};
     }}""")
@@ -762,19 +757,19 @@ unit_index: Audio unit index. Use -1 (default) for the primary audio unit,
 or specify an instrument AU index that contains a synth device (Vaporisateur, Nano, etc).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const idx = {unit_index};
         let au;
         if (idx < 0) {{
-            au = p.primaryAudioUnitBox;
+            au = h.primaryAudioUnitBox;
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
             au = units[idx];
         }}
         let trackBox;
-        p.editing.modify(() => {{
-            trackBox = p.api.createNoteTrack(au);
+        h.modify(() => {{
+            trackBox = h.api.createNoteTrack(au);
         }});
         return {{success: !!trackBox, type: 'note', unit_index: idx}};
     }}""")
@@ -797,12 +792,12 @@ Returns old and new name/icon.
     name_val = json.dumps(name)
     icon_val = json.dumps(icon)
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const nameVal = {name_val};
         const iconVal = {icon_val};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -816,7 +811,7 @@ Returns old and new name/icon.
         const oldName = instBox.label?.getValue?.() ?? "";
         const oldIcon = instBox.icon?.getValue?.() ?? "";
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             if (nameVal !== null) instBox.label.setValue(nameVal);
             if (iconVal !== null && instBox.icon) instBox.icon.setValue(iconVal);
         }});
@@ -852,7 +847,7 @@ Returns old and new instrument type.
     """
     safe_instrument = new_instrument.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const ef = window.DAW_InstrumentFactories;
         const unitIdx = {unit_index};
         const factoryKey = "{safe_instrument}";
@@ -861,7 +856,7 @@ Returns old and new instrument type.
         const factory = ef[factoryKey];
         if (!factory) return {{error: "Unknown factory: " + factoryKey}};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -874,8 +869,8 @@ Returns old and new instrument type.
 
         let newInst;
         let replaceError = "";
-        p.editing.modify(() => {{
-            const attempt = p.api.replaceMIDIInstrument(oldInst, factory);
+        h.modify(() => {{
+            const attempt = h.api.replaceMIDIInstrument(oldInst, factory);
             if (attempt.isSuccess()) {{
                 newInst = attempt.result();
             }} else {{
@@ -905,10 +900,11 @@ Range: -96 dB (mute) to +6 dB. 0 dB = raw 0.768.
 """
     vol_db = volume_db
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (idx >= units.length) return {{error: "No audio unit at index " + idx + ". Total: " + units.length}};
         const au = units[idx];
 
@@ -920,7 +916,7 @@ Range: -96 dB (mute) to +6 dB. 0 dB = raw 0.768.
             else if (c?.mapper) raw = c.mapper.mapToNormalized(volDb);
         }} catch(e) {{}}
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             au.volume.setValue(raw);
         }});
         return {{
@@ -936,14 +932,15 @@ Range: -96 dB (mute) to +6 dB. 0 dB = raw 0.768.
 async def mcp_opendaw_set_track_panning(unit_index: int, panning: float) -> str:
     """Set panning of an audio unit. -1.0 = full left, 0.0 = center, 1.0 = full right."""
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
         const au = units[idx];
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             au.panning.setValue({panning});
         }});
         return {{
@@ -959,14 +956,15 @@ async def mcp_opendaw_set_track_mute(unit_index: int, mute: bool) -> str:
     """Mute or unmute an audio unit."""
     mute_val = json.dumps(mute)
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
         const au = units[idx];
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             au.mute.setValue({mute_val});
         }});
         return {{
@@ -982,14 +980,15 @@ async def mcp_opendaw_set_track_solo(unit_index: int, solo: bool) -> str:
     """Solo or unsolo an audio unit."""
     solo_val = json.dumps(solo)
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
         const au = units[idx];
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             au.solo.setValue({solo_val});
         }});
         return {{
@@ -1130,8 +1129,7 @@ Returns unit_index and track_index for use with create_note.
     safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     safe_synth_type = synth_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const AudioUnitBox = window.DAW_AudioUnitBox;
         const CaptureAudioBox = window.DAW_CaptureAudioBox;
         const AudioUnitType = window.DAW_AudioUnitType;
@@ -1144,16 +1142,16 @@ Returns unit_index and track_index for use with create_note.
         const factory = InstrumentFactories["{factory_key}"];
         if (!factory) throw new Error("Unknown synth type: {safe_synth_type} (factory key: {factory_key})");
 
-        const rootBox = p.rootBox;
-        const primaryAudioBusBox = p.primaryAudioBusBox;
+        const rootBox = h.rootBox;
+        const primaryAudioBusBox = h.primaryAudioBusBox;
 
         let instrumentAU, synthDevice, captureBox, trackBox;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // Create CaptureAudioBox
-            captureBox = CaptureAudioBox.create(p.boxGraph, UUID.generate());
+            captureBox = CaptureAudioBox.create(h.boxGraph, h.uuid.generate());
 
             // Create instrument AudioUnitBox connected to output bus
-            instrumentAU = AudioUnitBox.create(p.boxGraph, UUID.generate(), (box) => {{
+            instrumentAU = AudioUnitBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                 box.type.setValue(AudioUnitType.Instrument);
                 box.collection.refer(rootBox.audioUnits);
                 box.output.refer(primaryAudioBusBox.input);
@@ -1163,14 +1161,11 @@ Returns unit_index and track_index for use with create_note.
             }});
 
             // Create synth device using InstrumentFactories (proper init values!)
-            // This sets cutoff, resonance, attack, decay, sustain, release,
-            // oscillator waveforms/volumes, voicing mode, LFO — all the params
-            // that prevent NaN in the audio buffer.
             const icon = IconSymbol.Piano;
-            synthDevice = factory.create(p.boxGraph, instrumentAU.input, "{safe_name}", icon);
+            synthDevice = factory.create(h.boxGraph, instrumentAU.input, "{safe_name}", icon);
 
             // Create note track on the instrument AU
-            trackBox = p.api.createNoteTrack(instrumentAU);
+            trackBox = h.api.createNoteTrack(instrumentAU);
         }});
 
         // Find unit_index and track_index
