@@ -3767,17 +3767,16 @@ region_index: Region whose notes to duplicate (0-based).
 Returns count of duplicated notes and shift in beats.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const NoteEventBox = window.DAW_NoteEventBox;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
-        const Quarter = 960;
+        const Quarter = h.ppqn.Quarter;
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3785,7 +3784,7 @@ Returns count of duplicated notes and shift in beats.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3821,9 +3820,9 @@ Returns count of duplicated notes and shift in beats.
         if (shift <= 0) return {{error: "Cannot duplicate: notes have zero span"}};
 
         let created = 0;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             for (const n of notes) {{
-                NoteEventBox.create(p.boxGraph, UUID.generate(), (box) => {{
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                     box.events.refer(collection.events);
                     box.position.setValue(n.position.getValue() + shift);
                     box.duration.setValue(n.duration.getValue());
@@ -3858,15 +3857,15 @@ region_index: Region to list notes from (0-based).
 Returns list of notes sorted by position.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
-        const Quarter = 960;
+        const Quarter = h.ppqn.Quarter;
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3874,7 +3873,7 @@ Returns list of notes sorted by position.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3934,12 +3933,12 @@ chance: New chance 0-100 (-1 = skip).
 Returns updated note properties.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
         const noteIdx = {note_index};
-        const Quarter = 960;
+        const Quarter = h.ppqn.Quarter;
         const newPos = {position_beats};
         const newDur = {duration_beats};
         const newPitch = {pitch};
@@ -3949,7 +3948,7 @@ Returns updated note properties.
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3957,7 +3956,7 @@ Returns updated note properties.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3981,7 +3980,7 @@ Returns updated note properties.
         if (noteIdx < 0 || noteIdx >= notes.length) return {{error: "Note index " + noteIdx + " out of range (0.." + (notes.length-1) + ")"}};
         const note = notes[noteIdx];
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             if (newPos >= 0) note.position.setValue(Math.round(newPos * Quarter));
             if (newDur >= 0) note.duration.setValue(Math.round(newDur * Quarter));
             if (newPitch >= 0) note.pitch.setValue(newPitch);
@@ -4015,7 +4014,7 @@ region_index: Region containing the note (0-based).
 Returns remaining note count.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
@@ -4023,7 +4022,7 @@ Returns remaining note count.
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -4031,7 +4030,7 @@ Returns remaining note count.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4054,7 +4053,7 @@ Returns remaining note count.
         const notes = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
         if (noteIdx < 0 || noteIdx >= notes.length) return {{error: "Note index " + noteIdx + " out of range (0.." + (notes.length-1) + ")"}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             notes[noteIdx].delete();
         }});
 
