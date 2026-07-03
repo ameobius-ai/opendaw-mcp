@@ -2908,9 +2908,9 @@ The primary output AU (index 0) cannot be deleted.
 unit_index: Audio unit to delete (must be >= 1, as index 0 is the master output).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2918,9 +2918,9 @@ unit_index: Audio unit to delete (must be >= 1, as index 0 is the master output)
         const trackCount = [...au.tracks.pointerHub.incoming()].length;
         const effectCount = [...au.audioEffects.pointerHub.incoming()].length;
 
-        p.editing.modify(() => p.api.deleteAudioUnit(au));
+        h.modify(() => h.api.deleteAudioUnit(au));
 
-        const remaining = [...p.rootBox.audioUnits.pointerHub.incoming()].length;
+        const remaining = [...h.rootBox.audioUnits.pointerHub.incoming()].length;
         return {{
             success: true,
             deleted_au_index: unitIdx,
@@ -2941,11 +2941,12 @@ unit_index: Audio unit index.
 Returns ordered list of effects with their type, enabled state, and index.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2982,11 +2983,8 @@ If no clip exists on the track yet, one is auto-created.
 Notes are added to the first clip on the track.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const api = p.api;
-        const bg = p.boxGraph;
-        const UUID = window.DAW_UUID;
-        const PPQN = window.DAW_PPQN;
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
         const NoteEventBox = window.DAW_NoteEventBox;
         const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
         const NoteRegionBox = window.DAW_NoteRegionBox;
@@ -2998,16 +2996,14 @@ Notes are added to the first clip on the track.
         const velocity = {velocity};
         const unitIdx = {unit_index};
 
-        const Quarter = PPQN.Quarter;
+        const Quarter = h.ppqn.Quarter;
         const startPosition = Math.round(startBeat * Quarter);
         const noteDuration = Math.round(durationBeats * Quarter);
 
         // Find note tracks — either on specified AU or across all AUs
-        // IMPORTANT: pointerHub.incoming() does NOT guarantee order by index field.
-        // Sort by index to match DAW_HELPERS.au() ordering (adapters() sorts by index).
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3015,7 +3011,7 @@ Notes are added to the first clip on the track.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
                 .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
@@ -3028,7 +3024,7 @@ Notes are added to the first clip on the track.
 
         const trackBox = noteTracks[trackIndex];
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // Find existing region on this track, or create one
             const existingRegions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
             let regionBox = null;
@@ -3041,12 +3037,12 @@ Notes are added to the first clip on the track.
 
             if (!regionBox) {{
                 // Create new NoteEventCollectionBox + NoteRegionBox
-                collection = NoteEventCollectionBox.create(bg, UUID.generate());
-                regionBox = NoteRegionBox.create(bg, UUID.generate(), (box) => {{
+                collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
                     box.position.setValue(0);
                     box.label.setValue("Notes");
                     box.mute.setValue(false);
-                    box.duration.setValue(Math.max(noteDuration, 4 * Quarter));  // at least 1 bar
+                    box.duration.setValue(Math.max(noteDuration, 4 * Quarter));
                     box.loopDuration.setValue(0);
                     box.loopDuration.setValue(Math.max(noteDuration, 4 * Quarter));
                     box.eventOffset.setValue(0);
@@ -3058,14 +3054,11 @@ Notes are added to the first clip on the track.
             // Create the note event — position relative to region start
             const regionStart = regionBox.position.getValue();
             const notePos = Math.max(0, startPosition - regionStart);
-            
-            // Get the events collection box from the region
-            // regionBox.events is a PointerField → targetVertex.unwrap() returns a Field
-            // whose .box is the NoteEventCollectionBox
+
             const eventsField = regionBox.events.targetVertex.unwrap();
             const collBox = eventsField.box;
-            
-            NoteEventBox.create(bg, UUID.generate(), (box) => {{
+
+            NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
                 box.position.setValue(notePos);
                 box.duration.setValue(noteDuration);
                 box.velocity.setValue(velocity);
@@ -3128,10 +3121,8 @@ Returns note count and time range.
     offset_ticks = int(offset_beats * 960)
     ppqn = 960
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const bg = p.boxGraph;
-        const UUID = window.DAW_UUID;
-        const PPQN = window.DAW_PPQN;
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
         const NoteEventBox = window.DAW_NoteEventBox;
         const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
         const NoteRegionBox = window.DAW_NoteRegionBox;
@@ -3144,7 +3135,7 @@ Returns note count and time range.
         // Find note tracks
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3152,7 +3143,7 @@ Returns note count and time range.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3169,12 +3160,12 @@ Returns note count and time range.
         const regionStart = minStart;
         const regionDuration = maxEnd - minStart;
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // Create collection for all notes
-            const collection = NoteEventCollectionBox.create(bg, UUID.generate());
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
 
             // Create region
-            NoteRegionBox.create(bg, UUID.generate(), (box) => {{
+            NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
                 box.position.setValue(regionStart);
                 box.label.setValue("MIDI Import");
                 box.mute.setValue(false);
@@ -3188,7 +3179,7 @@ Returns note count and time range.
 
             // Create all note events
             for (const n of notes) {{
-                NoteEventBox.create(bg, UUID.generate(), (box) => {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
                     box.position.setValue(n.start - regionStart);  // relative to region
                     box.duration.setValue(n.duration);
                     box.velocity.setValue(n.velocity);
@@ -3203,8 +3194,8 @@ Returns note count and time range.
         return {{
             success: true,
             notes_imported: notes.length,
-            start_beat: regionStart / 960,
-            total_beats: maxEnd / 960,
+            start_beat: regionStart / h.ppqn.Quarter,
+            total_beats: maxEnd / h.ppqn.Quarter,
             ppqn_source: {ppqn},
         }};
     }}""")
@@ -3221,16 +3212,16 @@ track_index: Specific note track (-1 = all note tracks on the AU).
 Returns count of notes transposed.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const semis = {semitones};
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
 
         let count = 0;
-        const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             for (const au of targetUnits) {{
                 const noteTracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3239,8 +3230,6 @@ Returns count of notes transposed.
                 for (const track of targetTracks) {{
                     const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
                     for (const region of regions) {{
-                        // region.events → targetVertex → field → field.box = NoteEventCollectionBox
-                        // collection.events field → incoming = NoteEventBox array
                         try {{
                             const vertex = region.events.targetVertex.unwrap();
                             const collectionBox = vertex.box || vertex;
@@ -3276,14 +3265,14 @@ track_index: Note track index within the AU.
 region_index: Region index to delete (0-based).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3291,7 +3280,7 @@ region_index: Region index to delete (0-based).
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3304,7 +3293,7 @@ region_index: Region index to delete (0-based).
         const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx + " (total: " + regions.length + ")"}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].delete();
         }});
 
@@ -3324,12 +3313,12 @@ track_index: Audio track index within the AU (type=2).
 region_index: Region index to delete (0-based).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -3342,7 +3331,7 @@ region_index: Region index to delete (0-based).
         const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx + " (total: " + regions.length + ")"}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].delete();
         }});
 
