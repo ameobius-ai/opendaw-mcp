@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+.worktrees/
+exports/
+*.wav
+*.ogg
+*.mp3
+*.flac
+
+# Test files contain local paths — keep them private for now
+test_*.py
+
+# Backups
+*.backup
+*.final
+*_recovered.py
