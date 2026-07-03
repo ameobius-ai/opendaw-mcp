@@ -2686,13 +2686,13 @@ Works with any instrument type. Returns old and new values.
 """
     safe_param = param_name.replace('"', '').replace("'", '').replace('\\', '')
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const paramName = "{safe_param}";
         const paramIdx = {param_index};
         const newVal = {value};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         let instBox = null;
 
         if (unitIdx >= 0) {{
@@ -2724,7 +2724,7 @@ Works with any instrument type. Returns old and new values.
         }}
 
         const oldValue = field.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             field.setValue(newVal);
         }});
 
@@ -2747,9 +2747,9 @@ unit_index: Audio unit index (-1 = auto-detect Playfield).
 Returns list of pads with MIDI note, enabled state, and effects.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         let pf = null;
 
         if (unitIdx >= 0) {{
@@ -2793,12 +2793,12 @@ enabled: true to enable, false to mute the pad.
 unit_index: Audio unit index (-1 = auto-detect Playfield).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const sampleIdx = {sample_index};
         const enabledVal = {json.dumps(enabled)};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         let pf = null;
 
         if (unitIdx >= 0) {{
@@ -2821,7 +2821,7 @@ unit_index: Audio unit index (-1 = auto-detect Playfield).
 
         const sample = samples[sampleIdx];
         const oldVal = sample.enabled.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             sample.enabled.setValue(enabledVal);
         }});
 
@@ -2847,14 +2847,13 @@ Returns the new pad index and MIDI note.
 """
     safe_name = sample_name.replace('"', '').replace("'", "").replace('\\', '')
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const note = {midi_note};
         const name = "{safe_name}";
         const dur = {duration_seconds};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         let pf = null;
 
         if (unitIdx >= 0) {{
@@ -2879,15 +2878,15 @@ Returns the new pad index and MIDI note.
         const newIndex = existingSamples.length;
 
         let result;
-        p.editing.modify(() => {{
-            const fileUUID = UUID.generate();
+        h.modify(() => {{
+            const fileUUID = h.uuid.generate();
             const AudioFileBox = window.DAW_AudioFileBox;
-            const fileBox = AudioFileBox.create(p.boxGraph, fileUUID, box => {{
+            const fileBox = AudioFileBox.create(h.boxGraph, fileUUID, box => {{
                 box.fileName.setValue(name);
                 box.endInSeconds.setValue(dur);
             }});
 
-            const sampleBox = SampleClass.create(p.boxGraph, UUID.generate(), box => {{
+            const sampleBox = SampleClass.create(h.boxGraph, h.uuid.generate(), box => {{
                 box.device.refer(pf.samples);
                 box.file.refer(fileBox);
                 box.index.setValue(note);
