@@ -4953,6 +4953,19 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
             }}
         }});
     }}""")
+    # Save WAV file if export succeeded
+    if isinstance(result, dict) and result.get("success"):
+        import base64 as b64mod
+        export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
+        os.makedirs(export_dir, exist_ok=True)
+        b64 = await bridge.evaluate("() => window.__lastExportB64")
+        if isinstance(b64, str) and b64:
+            wav_bytes = b64mod.b64decode(b64)
+            filepath = os.path.join(export_dir, f"{safe_name}.wav")
+            with open(filepath, "wb") as f:
+                f.write(wav_bytes)
+            result["filepath"] = filepath
+            result["file_size_mb"] = round(os.path.getsize(filepath) / (1024*1024), 2)
     return _wrap_eval(result)
 
 @mcp.tool()
