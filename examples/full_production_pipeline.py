@@ -177,7 +177,32 @@ async def main():
     else:
         print(f"Range render error: {range_data.get('error')}")
 
-    # ─── 8. Project state ───────────────────────────────────────
+    # ─── 8. Mastering: LUFS + auto-gain ─────────────────────────
+    print("\n=== Mastering ===")
+    # Measure LUFS of the full mix
+    lufs_result = await server.mcp_opendaw_measure_lufs("full_mix")
+    lufs_data = json.loads(lufs_result)
+    if lufs_data.get("success"):
+        print(f"Pre-master LUFS: {lufs_data['lufs_integrated']}, "
+              f"true peak: {lufs_data['true_peak_db']} dBTP, "
+              f"duration: {lufs_data['duration_seconds']}s")
+    else:
+        print(f"LUFS measurement error: {lufs_data.get('error')}")
+
+    # Auto-gain to -14 LUFS (Spotify target)
+    ag_result = await server.mcp_opendaw_auto_gain("-14", "mastered", 48000, "3")
+    ag_data = json.loads(ag_result)
+    if ag_data.get("success"):
+        print(f"Auto-gain → target -14 LUFS:")
+        for it in ag_data.get("iterations", []):
+            print(f"  iter {it['iteration']}: LUFS={it['lufs']}, "
+                  f"diff={it['diff']:+.1f}, vol={it['volume_db']}dB")
+        print(f"  Converged: {ag_data['converged']}, "
+              f"final LUFS: {ag_data['final_lufs']}")
+    else:
+        print(f"Auto-gain error: {ag_data.get('error')}")
+
+    # ─── 9. Project state ───────────────────────────────────────
     print("\n=== Project State ===")
     state = await server.mcp_opendaw_get_full_project_state()
     state_data = json.loads(state)
@@ -194,7 +219,7 @@ async def main():
     print(f"1 effect (Reverb on synth)")
     print(f"1 automation track (filter sweep)")
     print(f"2 markers (Intro, Verse)")
-    print(f"Full mix + stems + range render all produced audio")
+    print(f"Full mix + stems + range render + LUFS + auto-gain")
 
     await server.bridge.stop()
 
