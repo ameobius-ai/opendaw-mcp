@@ -3002,6 +3002,8 @@ Notes are added to the first clip on the track.
         const noteDuration = Math.round(durationBeats * Quarter);
 
         // Find note tracks — either on specified AU or across all AUs
+        // IMPORTANT: pointerHub.incoming() does NOT guarantee order by index field.
+        // Sort by index to match DAW_HELPERS.au() ordering (adapters() sorts by index).
         let noteTracks = [];
         if (unitIdx < 0) {{
             const allUnits = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box);
@@ -3012,7 +3014,8 @@ Notes are added to the first clip on the track.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box);
+            const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+                .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4674,27 +4677,85 @@ Workflow: create_instrument_track → load_audio → place_audio_region →
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_render_range(start_beat: int, end_beat: str, filename: str, sample_rate: int) -> str:
+async def mcp_opendaw_render_range(start_beat: int, end_beat: int, filename: str, sample_rate: int = 48000) -> str:
     """Render only a portion of the project (e.g. chorus only) for quick A/B comparison.
 
 start_beat: Start position in beats (0 = project start).
 end_beat: End position in beats.
-filename: Output filename.
-sample_rate: Export sample rate.
+filename: Output filename (without .wav extension).
+sample_rate: Export sample rate (default 48000).
 
 Uses OfflineEngineRenderer with custom range. Faster than full export for
 checking specific sections during mixing.
 
-Returns the path to the exported WAV and duration.
+Returns the path to the exported WAV and audio metadata.
 """
-    result = await bridge.evaluate(f"""() => {{
-            const p = window.DAW;
-            const PPQN = window.DAW_PPQN;
-            const bpmRaw = p.rootBox.bpm?.getValue?.() ?? 0.5;
-            // BPM mapping: raw 0..1 → 60..200 (powerByCenter)
-            const bpm = 60 + Math.pow(bpmRaw, Math.log(140/60) / Math.log(2)) * 140;
-            return {{ bpm: Math.round(bpm) }};
-        }}""")
+    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
+    result = await bridge.evaluate(f"""async () => {{
+        const p = window.DAW;
+        const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
+        const Option = window.DAW_Option;
+        const WavFile = window.DAW_WavFile;
+        const PPQN = window.DAW_PPQN;
+
+        const startPos = Math.round({start_beat} * PPQN.Quarter);
+        const endPos = Math.round({end_beat} * PPQN.Quarter);
+
+        return new Promise(async (resolve) => {{
+            try {{
+                // ExportConfiguration with range — no stems = full mix (1 stem)
+                const exportConfig = {{
+                    range: {{ start: startPos, end: endPos }}
+                }};
+                const progress = {{setValue: (v) => {{}}}};
+                const copiedProject = p.copy();
+                const audioData = await OfflineEngineRenderer.start(
+                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                );
+
+                const wav = WavFile.encodeFloats(audioData);
+                const bytes = new Uint8Array(wav);
+                let binary = "";
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                window.__lastExportB64 = btoa(binary);
+
+                let maxSample = 0;
+                for (let ch = 0; ch < audioData.frames.length; ch++) {{
+                    const frame = audioData.frames[ch];
+                    for (let i = 0; i < Math.min(frame.length, 50000); i++) {{
+                        maxSample = Math.max(maxSample, Math.abs(frame[i]));
+                    }}
+                }}
+
+                resolve({{
+                    success: true,
+                    filename: "{safe_name}.wav",
+                    frames: audioData.frames.length,
+                    samples: audioData.frames[0]?.length || 0,
+                    max_sample: maxSample,
+                    has_audio: maxSample > 0.001,
+                    size: wav.byteLength,
+                    sample_rate: audioData.sampleRate,
+                    range_beats: "{start_beat}-{end_beat}",
+                }});
+            }} catch(e) {{
+                resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
+            }}
+        }});
+    }}""")
+    # Save WAV file if export succeeded
+    if isinstance(result, dict) and result.get("success"):
+        import base64 as b64mod
+        export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
+        os.makedirs(export_dir, exist_ok=True)
+        b64 = await bridge.evaluate("() => window.__lastExportB64")
+        if isinstance(b64, str) and b64:
+            wav_bytes = b64mod.b64decode(b64)
+            filepath = os.path.join(export_dir, f"{safe_name}.wav")
+            with open(filepath, "wb") as f:
+                f.write(wav_bytes)
+            result["filepath"] = filepath
+            result["file_size_mb"] = round(os.path.getsize(filepath) / (1024*1024), 2)
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -4790,20 +4851,46 @@ sample_rate: Export sample rate.
 The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
 """
     safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
-    stems_config = json.dumps([unit_index])
-    result = await bridge.evaluate(f"""() => {{
+    # Build per-AU stem config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
+    result_temp = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        if ({unit_index} >= units.length) return {{error: "No AU at index {unit_index}"}};
+        const au = units[{unit_index}];
+        return {{
+            uuid: window.DAW_UUID.toString(au.address.uuid),
+            name: au.name?.getValue?.() || 'Unit {unit_index}',
+            type: au.type?.getValue?.() ?? 0,
+        }};
+    }}""")
+    if isinstance(result_temp, dict) and "error" in result_temp:
+        return _wrap_eval(result_temp)
+    if not isinstance(result_temp, dict):
+        return _err(f"Failed to get AU info for unit_index {unit_index}")
+    stems_map = {
+        result_temp['uuid']: {
+            "includeAudioEffects": True,
+            "includeSends": True,
+            "useInstrumentOutput": True,
+            "fileName": safe_name
+        }
+    }
+    stems_js = json.dumps(stems_map)
+    result = await bridge.evaluate(f"""async () => {{
         const p = window.DAW;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
         const Option = window.DAW_Option;
         const WavFile = window.DAW_WavFile;
-        const stemsConfig = {stems_config};
+        const stemsConfig = {stems_js};
 
         return new Promise(async (resolve) => {{
             try {{
                 const exportConfig = {{stems: stemsConfig}};
                 const progress = {{setValue: (v) => {{}}}};
+                const copiedProject = p.copy();
                 const audioData = await OfflineEngineRenderer.start(
-                    p, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
 
                 const wav = WavFile.encodeFloats(audioData);
