@@ -263,20 +263,18 @@ label: Marker text (e.g. "Verse 1", "Chorus", "Drop").
 """
     safe_label = label.replace('"', '').replace("'", '').replace('\\', '')
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
-        const PPQN = window.DAW_PPQN;
+        const h = window.DAW_HELPERS;
         const MarkerBox = window.DAW_MarkerBox;
         if (!MarkerBox) return {{error: "MarkerBox not loaded — reload page"}};
 
-        const markerTrack = p.timelineBox?.markerTrack;
+        const markerTrack = h.timelineBox?.markerTrack;
         if (!markerTrack) return {{error: "No markerTrack on timeline"}};
 
-        const pos = Math.round({position_beats} * PPQN.Quarter);
+        const pos = Math.round({position_beats} * h.ppqn.Quarter);
         let markerIdx = -1;
 
-        p.editing.modify(() => {{
-            MarkerBox.create(p.boxGraph, UUID.generate(), (box) => {{
+        h.modify(() => {{
+            MarkerBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                 box.position.setValue(pos);
                 box.plays.setValue(0);
                 box.label.setValue("{safe_label}");
@@ -290,7 +288,7 @@ label: Marker text (e.g. "Verse 1", "Chorus", "Drop").
         return {{
             success: true,
             marker_index: markerIdx,
-            position_beats: pos / PPQN.Quarter,
+            position_beats: pos / h.ppqn.Quarter,
             label: "{safe_label}",
             total_markers: markers.length,
         }};
@@ -301,14 +299,13 @@ label: Marker text (e.g. "Verse 1", "Chorus", "Drop").
 async def mcp_opendaw_list_markers() -> str:
     """List all timeline markers with positions and labels."""
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const PPQN = window.DAW_PPQN;
-        const markerTrack = p.timelineBox?.markerTrack;
+        const h = window.DAW_HELPERS;
+        const markerTrack = h.timelineBox?.markerTrack;
         if (!markerTrack) return {{error: "No markerTrack"}};
         const markers = [...markerTrack.markers.pointerHub.incoming()].map(({{box}}) => box);
         return markers.map((m, i) => ({{
             index: i,
-            position_beats: m.position.getValue() / PPQN.Quarter,
+            position_beats: m.position.getValue() / h.ppqn.Quarter,
             label: m.label?.getValue?.() ?? "",
             plays: m.plays?.getValue?.() ?? 0,
         }}));
@@ -323,12 +320,12 @@ amount: 0.0 = straight (no swing), 1.0 = full swing.
 Typical values: 0.15 = light swing, 0.25 = moderate, 0.5 = strong triplet feel.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const grooveVertex = p.rootBox?.groove?.targetVertex;
+        const h = window.DAW_HELPERS;
+        const grooveVertex = h.rootBox?.groove?.targetVertex;
         if (!grooveVertex) return {{error: "No groove on rootBox"}};
         const grooveBox = grooveVertex.unwrap().box;
         const oldAmount = grooveBox.amount?.getValue?.() ?? 0;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             grooveBox.amount.setValue({amount});
         }});
         return {{
@@ -346,11 +343,11 @@ async def mcp_opendaw_set_tuning(frequency: int) -> str:
 frequency: A4 frequency in Hz. Default 440. Common alternatives: 432 (verdi), 415 (baroque), 466 (baroque organ).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const bf = p.rootBox?.baseFrequency;
+        const h = window.DAW_HELPERS;
+        const bf = h.rootBox?.baseFrequency;
         if (!bf) return {{error: "No baseFrequency on rootBox"}};
         const old = bf.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             bf.setValue({frequency});
         }});
         return {{
@@ -368,20 +365,20 @@ async def mcp_opendaw_delete_marker(marker_index: int) -> str:
 marker_index: Index from list_markers (0-based).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const markerTrack = p.timelineBox?.markerTrack;
+        const h = window.DAW_HELPERS;
+        const markerTrack = h.timelineBox?.markerTrack;
         if (!markerTrack) return {{error: "No markerTrack"}};
         const markers = [...markerTrack.markers.pointerHub.incoming()].map(({{box}}) => box);
         if ({marker_index} >= markers.length) return {{error: "No marker at index {marker_index}"}};
         const target = markers[{marker_index}];
         const label = target.label?.getValue?.() ?? "";
         const pos = target.position?.getValue?.() ?? 0;
-        p.editing.modify(() => {{ target.delete(); }});
+        h.modify(() => {{ target.delete(); }});
         const remaining = [...markerTrack.markers.pointerHub.incoming()].length;
         return {{
             success: true,
             deleted_label: label,
-            deleted_position_beats: pos / 960,
+            deleted_position_beats: pos / h.ppqn.Quarter,
             remaining_markers: remaining,
         }};
     }}""")
@@ -395,22 +392,21 @@ marker_index: Index from list_markers (0-based).
 position_beats: New position in beats.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const PPQN = window.DAW_PPQN;
-        const markerTrack = p.timelineBox?.markerTrack;
+        const h = window.DAW_HELPERS;
+        const markerTrack = h.timelineBox?.markerTrack;
         if (!markerTrack) return {{error: "No markerTrack"}};
         const markers = [...markerTrack.markers.pointerHub.incoming()].map(({{box}}) => box);
         if ({marker_index} >= markers.length) return {{error: "No marker at index {marker_index}"}};
         const marker = markers[{marker_index}];
         const oldPos = marker.position?.getValue?.() ?? 0;
-        const newPos = Math.round({position_beats} * PPQN.Quarter);
-        p.editing.modify(() => {{ marker.position.setValue(newPos); }});
+        const newPos = Math.round({position_beats} * h.ppqn.Quarter);
+        h.modify(() => {{ marker.position.setValue(newPos); }});
         return {{
             success: true,
             marker_index: {marker_index},
             label: marker.label?.getValue?.() ?? "",
-            old_position_beats: oldPos / PPQN.Quarter,
-            new_position_beats: newPos / PPQN.Quarter,
+            old_position_beats: oldPos / h.ppqn.Quarter,
+            new_position_beats: newPos / h.ppqn.Quarter,
         }};
     }}""")
     return _wrap_eval(result)
@@ -424,14 +420,14 @@ label: New label text.
 """
     safe_label = label.replace('"', '').replace("'", '').replace('\\', '')
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const markerTrack = p.timelineBox?.markerTrack;
+        const h = window.DAW_HELPERS;
+        const markerTrack = h.timelineBox?.markerTrack;
         if (!markerTrack) return {{error: "No markerTrack"}};
         const markers = [...markerTrack.markers.pointerHub.incoming()].map(({{box}}) => box);
         if ({marker_index} >= markers.length) return {{error: "No marker at index {marker_index}"}};
         const marker = markers[{marker_index}];
         const oldLabel = marker.label?.getValue?.() ?? "";
-        p.editing.modify(() => {{ marker.label.setValue("{safe_label}"); }});
+        h.modify(() => {{ marker.label.setValue("{safe_label}"); }});
         return {{
             success: true,
             marker_index: {marker_index},
