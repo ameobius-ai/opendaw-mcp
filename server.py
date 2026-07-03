@@ -178,15 +178,20 @@ async def mcp_opendaw_transport(action: str) -> str:
 
 action: "play", "stop", or "toggle"
 """
+    act = (action or "toggle").lower().strip()
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const eng = h.engine;
-        if (eng.isPlaying?.getValue?.()) {{
-            eng.stop();
+        const isPlaying = !!eng.isPlaying?.getValue?.();
+        if ('{act}' === 'play') {{
+            if (!isPlaying) eng.play();
+            return {{status: 'playing'}};
+        }} else if ('{act}' === 'stop') {{
+            if (isPlaying) eng.stop();
             return {{status: 'stopped'}};
         }} else {{
-            eng.play();
-            return {{status: 'playing'}};
+            if (isPlaying) {{ eng.stop(); return {{status: 'stopped'}}; }}
+            else {{ eng.play(); return {{status: 'playing'}}; }}
         }}
     }}""")
     return _wrap_eval(result)
@@ -4170,7 +4175,7 @@ region_index: Region to move (0-based).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_region_duration(track_index: int, region_index: int, duration_beats: int, unit_index: int, region_type: str) -> str:
+async def mcp_opendaw_set_region_duration(track_index: int, region_index: int, duration_beats: int, unit_index: int = 0) -> str:
     """Set the duration of a region.
 
 duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
@@ -4216,7 +4221,7 @@ duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_region_mute(track_index: int, region_index: int, mute: bool, unit_index: int, region_type: str) -> str:
+async def mcp_opendaw_set_region_mute(track_index: int, region_index: int, mute: bool, unit_index: int = 0) -> str:
     """Mute or unmute a specific region without deleting it.
 
 mute: true to mute, false to unmute.
@@ -10787,6 +10792,91 @@ async def mcp_opendaw_import_dawproject(filename: str) -> str:
         }} catch(e) {{
             return {{error: e.message, stack: e.stack?.split('\\\\n').slice(0, 5).join(' | ')}};
         }}
+    }}""")
+    return _wrap_eval(result)
+
+
+# ─── Effect Duplication ──────────────────────────────────────────────
+
+@mcp.tool()
+async def mcp_opendaw_duplicate_effect(unit_index: int, effect_index: int, chain_type: str = "audio") -> str:
+    """Duplicate a single effect within an AU's effect chain, copying all parameter values.
+
+    Addresses upstream issue #273 (Ctrl+D for audio effects) via MCP.
+    Works for both audio and MIDI effect chains.
+
+    unit_index: AU index containing the effect.
+    effect_index: Index of the effect to duplicate within its chain.
+    chain_type: "audio" (default) or "midi" — which effect chain to operate on.
+
+    Returns the new effect's index and type.
+    """
+    safe_chain = (chain_type or "audio").lower().strip().replace('"', '').replace("'", '').replace('\\', '')
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const ef = window.DAW_EffectFactories;
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        if ({unit_index} >= units.length) return {{error: "No AU at index {unit_index}"}};
+        const au = units[{unit_index}];
+        const isMidi = "{safe_chain}" === "midi";
+        const chainField = isMidi ? au.midiEffects : au.audioEffects;
+        if (!chainField) return {{error: "No " + (isMidi ? "MIDI" : "audio") + " effect chain on this AU"}};
+
+        const effects = [...chainField.pointerHub.incoming()].map(({{box}}) => box)
+            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        if ({effect_index} >= effects.length) return {{error: "No effect at index {effect_index}"}};
+
+        const srcEffect = effects[{effect_index}];
+        const className = srcEffect.constructor.name;
+
+        // Find factory key
+        const factoryMap = isMidi ? ef.MidiNamed : ef.AudioNamed;
+        let factoryKey = null;
+        for (const key of Object.keys(factoryMap)) {{
+            if (className === key + "DeviceBox" || className === key) {{
+                factoryKey = key;
+                break;
+            }}
+        }}
+        if (!factoryKey) return {{error: "No factory for " + className}};
+
+        const factory = factoryMap[factoryKey];
+        let newEffect;
+        h.modify(() => {{
+            newEffect = h.api.insertEffect(chainField, factory);
+            // Copy all parameter values
+            const srcRecord = srcEffect.record();
+            const dstRecord = newEffect.record();
+            for (const [key, srcField] of Object.entries(srcRecord)) {{
+                const dstField = dstRecord[key];
+                if (!dstField || typeof dstField.getValue !== 'function') continue;
+                if (typeof srcField.getValue !== 'function') continue;
+                const fname = srcField._fieldName || srcField.fieldName || key;
+                if (['host', 'index', 'label', 'sideChain'].includes(fname)) continue;
+                try {{
+                    const value = srcField.getValue();
+                    if (typeof value === 'number' || typeof value === 'boolean') {{
+                        if (typeof dstField.setValue === 'function') {{
+                            dstField.setValue(value);
+                        }}
+                    }}
+                }} catch(e) {{}}
+            }}
+        }});
+
+        const updatedEffects = [...chainField.pointerHub.incoming()].map(({{box}}) => box)
+            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const newIdx = updatedEffects.findIndex(b => b.address.equals(newEffect.address));
+
+        return {{
+            success: true,
+            chain_type: isMidi ? "midi" : "audio",
+            original_index: {effect_index},
+            new_index: newIdx,
+            effect_type: factoryKey,
+            total_effects: updatedEffects.length,
+        }};
     }}""")
     return _wrap_eval(result)
 

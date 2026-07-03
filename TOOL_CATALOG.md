@@ -71,6 +71,7 @@
 - `add_automation` — automate effect parameter over time
 - `clone_effect_chain` — copy chain from one AU to another
 - `move_effect` — reorder effect in chain
+- `duplicate_effect` — duplicate single effect in-place with all params copied (audio or MIDI chain)
 - `compact_tracks` — remove empty tracks from AU
 
 ## Notes (9)
