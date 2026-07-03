@@ -269,3 +269,10 @@
 - **apparat_darkbass.js** — Subtractive bass synth. Params: waveform (0=Sine/1=Tri/2=Saw/3=Square), cutoff (50-8000Hz exp), resonance (0.1-8), attack/decay/sustain/release (ADSR), subOsc (0-1, square one octave down), detune (0-0.5), volume (0-1). Multi-voice, lazy voice allocation. Constructor must accept `opts` with optional `sampleRate` (default 48000) — ApparatDeviceProcessor calls `new ProcessorClass()` without args. API: `process([outL, outR], block)` where block has s0/s1/bpm.
 - **apparat_coldlead.js** — Cold lead synth (post-punk clav). Params: waveform (default triangle), cutoff (50-8000Hz exp), resonance, ADSR (long release), detune (0-0.5), volume. Two detuned oscillators with random phase start. Constructor accepts optional `opts.sampleRate`.
 - **spielwerk_arpeggiator.js** — MIDI arpeggiator. Params: rate (60-1920 ppqn), mode (0=up/1=down/2=up-down/3=random), octaves (1-4), gate (0.1-1), velDecay (0.3-1). Tracks `nextStepPos` across blocks — critical because block size (~5ppqn) is much smaller than rate (240ppqn). API: `process(block, events)` returns array of `{position, duration, pitch, velocity, cent}`. Must use `return array` NOT `* process()` generator — `new Function()` rejects generator methods.
+- **spielwerk_powerchord.js** — MIDI effect that generates power chord harmonies.
+
+## Musical Grid & Signature (4 tools)
+- **ppqn_to_parts** — Convert PPQN to bars/beats/semiquavers/ticks with time signature awareness
+- **get_bar_interval** — Get bar boundaries (start/end/length) for a PPQN position
+- **move_signature_event** — Move time signature change to new PPQN, auto-recalculates subsequent events
+- **copy_region_fades** — Copy fade in/out + slopes between audio regions
