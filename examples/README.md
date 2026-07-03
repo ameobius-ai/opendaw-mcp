@@ -13,6 +13,14 @@ This directory contains example scripts showing how to use the MCP tools to crea
 | `automation_sweep.py` | Create filter cutoff automation sweep on a synth |
 | `modular_patch.py` | Modular system patch: AU → Gain → Delay → Output with patch cables |
 | `full_production_pipeline.py` | Complete track from scratch: synth + drums + DSP + automation + render |
+| `full_production_pipeline_v2.py` | Enhanced pipeline with modular routing and scriptable devices |
+| `render_convert.py` | Render mix and convert to MP3/FLAC via ffmpeg |
+| `instrument_automation.py` | Automate instrument parameters (Vaporisateur filter sweep) |
+| `device_specific_params.py` | Control device-specific params (Vocoder, Crusher, Fold, StereoTool) |
+| `scriptable_devices_demo.py` | Apparat/Werkstatt/Spielwerk custom DSP scripts |
+| `warp_marker_tempo_match.py` | Warp markers for tempo-matching audio regions |
+| `dawproject_export.py` | Export to .dawproject format (Bitwig/Ableton/rePitch interop) |
+| `mastering_pipeline.py` | Full mastering chain: render → measure LUFS → auto-gain → stems → MP3 |
 
 ## Prerequisites
 
