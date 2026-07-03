@@ -306,7 +306,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **CI enhanced** — now runs pytest (54 tests) alongside syntax/AST/smoke/ruff checks
 - **PEP 561** — `py.typed` marker for type checker support
 - **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
-- **15 examples total** — all documented in examples/README.md
+- **16 examples total** — all syntax-validated
 - **250 total tools** (added `export_dry_stem` for freeze/flatten workflows)
 
 ### v1.9.4 (2026-07-03)
