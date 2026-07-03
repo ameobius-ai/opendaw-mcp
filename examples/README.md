@@ -11,6 +11,8 @@ This directory contains example scripts showing how to use the MCP tools to crea
 | `mix_workflow.py` | Full mixing workflow: set levels, add effects, route sends |
 | `render_stems.py` | Render individual stems and full mix with LUFS targeting |
 | `automation_sweep.py` | Create filter cutoff automation sweep on a synth |
+| `modular_patch.py` | Modular system patch: AU → Gain → Delay → Output with patch cables |
+| `full_production_pipeline.py` | Complete track from scratch: synth + drums + DSP + automation + render |
 
 ## Prerequisites
 

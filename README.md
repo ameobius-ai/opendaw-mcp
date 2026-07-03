@@ -188,9 +188,23 @@ The `scripts/` directory contains example Werkstatt and Apparat DSP scripts:
 | `spielwerk_powerchord.js` | Spielwerk | MIDI effect that generates power chord harmonies |
 | `spielwerk_arpeggiator.js` | Spielwerk | MIDI arpeggiator with sync |
 
+## Examples
+
+The `examples/` directory contains 7 Python scripts demonstrating the full workflow:
+
+| Example | Description |
+|---------|-------------|
+| `create_beat.py` | Drum beat with Playfield |
+| `create_chord_progression.py` | Chord progression with Vaporisateur |
+| `mix_workflow.py` | Mixing: levels, effects, sends |
+| `render_stems.py` | Stem export with LUFS targeting |
+| `automation_sweep.py` | Filter cutoff automation |
+| `modular_patch.py` | Modular system with patch cables |
+| `full_production_pipeline.py` | Complete track: synth + drums + DSP + automation + render |
+
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 194 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 197 tools with parameters and descriptions.
 
 ## Limitations
 
