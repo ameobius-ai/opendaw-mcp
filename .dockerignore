@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.worktrees/
+exports/
+test_*.py

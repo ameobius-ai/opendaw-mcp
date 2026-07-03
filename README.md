@@ -73,11 +73,29 @@ Create a headless host page (see `headless-daw/` for reference implementation).
 cd openDAW
 npm run dev     # typically serves on http://localhost:5174
 
-# Terminal 2: Start MCP server
+# Terminal 2: Start MCP server (stdio transport, default)
 cd opendaw-mcp
 source venv/bin/activate
 python server.py
 ```
+
+### SSE Transport
+
+For remote deployments and registry introspection (e.g. [Glama](https://glama.ai)):
+
+```bash
+MCP_TRANSPORT=sse FASTMCP_HOST=0.0.0.0 FASTMCP_PORT=8080 python server.py
+```
+
+### Docker
+
+```bash
+docker build -t opendaw-mcp .
+docker run -p 8080:8080 opendaw-mcp
+# MCP server available at http://localhost:8080/sse
+```
+
+The Docker image bundles openDAW (built from source), Vite dev server, Chromium, and the MCP server. The entrypoint starts Vite, waits for it to be ready, then launches the MCP server in SSE mode.
 
 ### Environment Variables
 
@@ -87,6 +105,9 @@ python server.py
 | `OPENDAW_URL` | `http://localhost:5174` | URL of the running openDAW instance |
 | `OPENDAW_EXPORT_DIR` | `../exports` | Directory for rendered audio exports |
 | `NODE_BIN_DIR` | *(from PATH)* | Path to Node.js binary directory (if not on PATH) |
+| `MCP_TRANSPORT` | `stdio` | Transport protocol: `stdio` or `sse` |
+| `FASTMCP_HOST` | `127.0.0.1` | SSE server bind host |
+| `FASTMCP_PORT` | `8000` | SSE server bind port |
 
 ## Architecture
 
@@ -141,7 +162,7 @@ The `scripts/` directory contains example Werkstatt and Apparat DSP scripts:
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 168 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 194 tools with parameters and descriptions.
 
 ## Limitations
 

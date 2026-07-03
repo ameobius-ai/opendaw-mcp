@@ -92,6 +92,8 @@ class HeadlessDawBridge:
         logging.info("DAW engine ready!")
     async def evaluate(self, script, timeout=30000):
         """Execute JS in the DAW context. All errors caught and returned."""
+        if self.page is None:
+            await self.start()
         wrapped = f"""async () => {{ try {{ return await ({script})(); }} catch (e) {{ return {{ __error: e.message, __stack: e.stack }}; }} }}"""
         self.page.set_default_timeout(timeout)
         result = await self.page.evaluate(wrapped)
@@ -9373,4 +9375,5 @@ async def mcp_opendaw_get_piano_mode() -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(transport='stdio')
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    mcp.run(transport=transport)
