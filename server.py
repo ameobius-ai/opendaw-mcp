@@ -91,6 +91,8 @@ class HeadlessDawBridge:
                 regionBoxes: (track) => [...track.regions.pointerHub.incoming()].map(({box}) => box),
                 // Get event boxes from a collection (note events, signature events)
                 eventBoxes: (coll) => [...coll.events.pointerHub.incoming()].map(({box}) => box),
+                // Get input device boxes for an AU (instruments, effects)
+                inputBoxes: (au) => [...au.input.pointerHub.incoming()].map(({box}) => box),
                 // Get all AU adapters sorted
                 allAUs: () => p.rootBoxAdapter.audioUnits.adapters(),
                 // Find instrument AU (first non-output, non-bus)
@@ -858,7 +860,7 @@ Returns old and new name/icon.
         const au = units[unitIdx];
 
         // Get InstrumentBox via au.input.pointerHub.incoming()
-        const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+        const incoming = h.inputBoxes(au);
         if (incoming.length === 0) return {{error: "AU has no instrument (output AU?)"}};
         const instBox = incoming[0];
 
@@ -917,7 +919,7 @@ Returns old and new instrument type.
         const au = units[unitIdx];
 
         // Get current InstrumentBox
-        const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+        const incoming = h.inputBoxes(au);
         if (incoming.length === 0) return {{error: "AU has no instrument"}};
         const oldInst = incoming[0];
         const oldName = oldInst.label?.getValue?.() ?? "";
@@ -2598,12 +2600,12 @@ Returns:
             const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
-            const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+            const incoming = h.inputBoxes(au);
             vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
         }} else {{
             const units = h.allAUBoxes();
             for (const au of units) {{
-                const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+                const incoming = h.inputBoxes(au);
                 vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
                 if (vap) break;
             }}
@@ -2699,12 +2701,12 @@ Returns old and new values.
             const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
-            const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+            const incoming = h.inputBoxes(au);
             vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
         }} else {{
             const units = h.allAUBoxes();
             for (const au of units) {{
-                const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+                const incoming = h.inputBoxes(au);
                 vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
                 if (vap) break;
             }}
@@ -2763,11 +2765,11 @@ Nano (volume/release), Soundfont (presetIndex), MIDIOutput (channel), Playfield,
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
             auName = au.name?.getValue?.() || "Unit " + unitIdx;
-            const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+            const incoming = h.inputBoxes(au);
             instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
         }} else {{
             for (const au of units) {{
-                const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+                const incoming = h.inputBoxes(au);
                 instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
                 if (instBox) {{ auName = au.name?.getValue?.() || "Unit"; break; }}
             }}
@@ -2828,11 +2830,11 @@ Works with any instrument type. Returns old and new values.
         if (unitIdx >= 0) {{
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
-            const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+            const incoming = h.inputBoxes(au);
             instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
         }} else {{
             for (const au of units) {{
-                const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+                const incoming = h.inputBoxes(au);
                 instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
                 if (instBox) break;
             }}
@@ -2885,11 +2887,11 @@ Returns list of pads with MIDI note, enabled state, and effects.
         if (unitIdx >= 0) {{
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
-            const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+            const incoming = h.inputBoxes(au);
             pf = incoming.find(b => b.constructor.name === "PlayfieldDeviceBox");
         }} else {{
             for (const au of units) {{
-                const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+                const incoming = h.inputBoxes(au);
                 pf = incoming.find(b => b.constructor.name === "PlayfieldDeviceBox");
                 if (pf) break;
             }}
@@ -2934,11 +2936,11 @@ unit_index: Audio unit index (-1 = auto-detect Playfield).
         if (unitIdx >= 0) {{
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
-            const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+            const incoming = h.inputBoxes(au);
             pf = incoming.find(b => b.constructor.name === "PlayfieldDeviceBox");
         }} else {{
             for (const au of units) {{
-                const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+                const incoming = h.inputBoxes(au);
                 pf = incoming.find(b => b.constructor.name === "PlayfieldDeviceBox");
                 if (pf) break;
             }}
@@ -2989,11 +2991,11 @@ Returns the new pad index and MIDI note.
         if (unitIdx >= 0) {{
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
-            const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+            const incoming = h.inputBoxes(au);
             pf = incoming.find(b => b.constructor.name === "PlayfieldDeviceBox");
         }} else {{
             for (const au of units) {{
-                const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+                const incoming = h.inputBoxes(au);
                 pf = incoming.find(b => b.constructor.name === "PlayfieldDeviceBox");
                 if (pf) break;
             }}
@@ -11308,7 +11310,7 @@ async def mcp_opendaw_add_instrument_automation(unit_index: int, parameter_name:
         const au = units[unitIdx];
 
         // Find instrument box
-        const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+        const incoming = h.inputBoxes(au);
         const instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
         if (!instBox) return {{error: "No instrument on AU " + unitIdx}};
 
@@ -11376,7 +11378,7 @@ async def mcp_opendaw_list_automatable_fields(unit_index: int, sample_index: int
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
         const au = units[unitIdx];
 
-        const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+        const incoming = h.inputBoxes(au);
         const instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
         if (!instBox) return {{error: "No instrument on AU " + unitIdx}};
 
