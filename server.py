@@ -7819,7 +7819,7 @@ async def mcp_opendaw_ppqn_to_seconds(position_beats: float) -> str:
 
     Returns seconds (float), or error.
     """
-    ppqn = int(position_beats * h.ppqn.Quarter)
+    ppqn = int(position_beats * 960)
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const tempoMap = h.tempoMap;
@@ -7858,7 +7858,7 @@ async def mcp_opendaw_get_tempo_at(position_beats: float) -> str:
 
     Returns BPM at that position, or error.
     """
-    ppqn = int(position_beats * h.ppqn.Quarter)
+    ppqn = int(position_beats * 960)
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const tempoMap = h.tempoMap;
