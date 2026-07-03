@@ -8903,6 +8903,57 @@ async def mcp_opendaw_get_project_metadata() -> str:
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_set_bus_label(bus_index: int, label: str) -> str:
+    """Set the label (name) of an audio bus.
+
+    bus_index: Bus index from create_audio_bus.
+    label: New name for the bus (e.g. "Reverb Bus", "Drum Bus").
+
+    Returns success or error.
+    """
+    safe_label = json.dumps(label)
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const buses = p.rootBoxAdapter.audioBusses.adapters();
+            if ({bus_index} >= buses.length) return {{error: "No bus at index " + {bus_index}}};
+            const bus = buses[{bus_index}];
+            p.editing.modify(() => {{
+                bus.labelField.setValue({safe_label});
+            }});
+            return {{success: true, bus_index: {bus_index}, label: {safe_label}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_bus_color(bus_index: int, hue: int) -> str:
+    """Set the color (hue 0-360) of an audio bus.
+
+    bus_index: Bus index.
+    hue: Color hue 0-360 (HSL).
+
+    Returns success or error.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const buses = p.rootBoxAdapter.audioBusses.adapters();
+            if ({bus_index} >= buses.length) return {{error: "No bus at index " + {bus_index}}};
+            const bus = buses[{bus_index}];
+            p.editing.modify(() => {{
+                bus.colorField.setValue({hue});
+            }});
+            return {{success: true, bus_index: {bus_index}, hue: {hue}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')
