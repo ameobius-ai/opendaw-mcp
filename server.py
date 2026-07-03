@@ -9374,6 +9374,10 @@ async def mcp_opendaw_get_piano_mode() -> str:
     return _wrap_eval(result)
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     mcp.run(transport=transport)
+
+if __name__ == "__main__":
+    main()

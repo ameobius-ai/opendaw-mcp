@@ -1,0 +1,19 @@
+[project]
+name = "opendaw-mcp"
+version = "1.0.0"
+description = "194 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.40",
+    "mcp>=0.3",
+    "uvicorn>=0.20",
+]
+
+[project.urls]
+Homepage = "https://github.com/AMEOBIUS/opendaw-mcp"
+Repository = "https://github.com/AMEOBIUS/opendaw-mcp"
+
+[project.scripts]
+opendaw-mcp = "server:main"

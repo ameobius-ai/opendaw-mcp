@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "opendaw": {
+      "command": "python",
+      "args": ["server.py"],
+      "env": {
+        "OPENDAW_HOST_DIR": "../headless-daw",
+        "OPENDAW_URL": "http://localhost:5174",
+        "OPENDAW_EXPORT_DIR": "../exports"
+      }
+    }
+  }
+}

@@ -33,6 +33,9 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 - **Transfer** — move regions and audio units between projects
 - **Project Info** — tempo map conversion (PPQN↔seconds), duration, validation, sample listing
 - **Notes** — pitch range, overlapping detection, advanced properties (chance, cent, playCount, playCurve)
+- **Modular System** — voltage modules (Gain, Delay, Multiplier, AudioInput, AudioOutput), patch cable connections
+- **Piano Mode** — global transpose, keyboard type, note scale, time range
+- **Project & Bus Metadata** — creation date, signature, AU/track count, bus labels and colors
 
 ## Quick Start
 
@@ -96,6 +99,28 @@ docker run -p 8080:8080 opendaw-mcp
 ```
 
 The Docker image bundles openDAW (built from source), Vite dev server, Chromium, and the MCP server. The entrypoint starts Vite, waits for it to be ready, then launches the MCP server in SSE mode.
+
+### Claude Desktop / MCP Client Config
+
+Add to your MCP client config (e.g. `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "opendaw": {
+      "command": "python",
+      "args": ["path/to/opendaw-mcp/server.py"],
+      "env": {
+        "OPENDAW_HOST_DIR": "path/to/headless-daw",
+        "OPENDAW_URL": "http://localhost:5174",
+        "OPENDAW_EXPORT_DIR": "path/to/exports"
+      }
+    }
+  }
+}
+```
+
+See `mcp.json` in the repo for a reference config.
 
 ### Environment Variables
 
