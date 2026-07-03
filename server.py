@@ -526,7 +526,7 @@ Returns the created signature event details.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_add_tempo_change(position_beats: int, bpm: int, interpolation: str) -> str:
+async def mcp_opendaw_add_tempo_change(position_beats: float, bpm: float, interpolation: str) -> str:
     """Add a tempo (BPM) change at a specific position in the track.
 
 Creates a ValueEventBox on the timeline's tempo track, allowing BPM
@@ -684,7 +684,7 @@ Returns each signature event with position (beats), numerator, and denominator.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_delete_signature_change(position_beats: int, index: str) -> str:
+async def mcp_opendaw_delete_signature_change(position_beats: int, index: int) -> str:
     """Delete a time signature change from the timeline.
 
 Delete by position (closest match) or by index (0-based in sorted order).
@@ -850,12 +850,13 @@ unit_index: Audio unit index (must be >= 1).
 new_instrument: Factory key — 'Vaporisateur', 'Nano', 'Soundfont', 'Apparat'.
 
 Returns old and new instrument type.
-"""
+    """
+    safe_instrument = new_instrument.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const ef = window.DAW_InstrumentFactories;
         const unitIdx = {unit_index};
-        const factoryKey = "{new_instrument}";
+        const factoryKey = "{safe_instrument}";
 
         if (!ef) return {{error: "InstrumentFactories not loaded"}};
         const factory = ef[factoryKey];
@@ -1126,6 +1127,7 @@ name: Display name for the instrument.
 Returns unit_index and track_index for use with create_note.
 """
     factory_key = synth_type.capitalize() if synth_type else "Vaporisateur"
+    safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -1192,7 +1194,7 @@ Returns unit_index and track_index for use with create_note.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_place_audio_region(sample_id: str, unit_index: int, start_beat: int, track_index: int) -> str:
+async def mcp_opendaw_place_audio_region(sample_id: str, unit_index: int, start_beat: float, track_index: int) -> str:
     """Place a previously loaded audio sample as a region on a track.
 
 sample_id: The ID returned by mcp_opendaw_load_audio.
@@ -1202,7 +1204,8 @@ track_index: Track index within the audio unit (default 0).
 
 NOTE: The audio unit must be an instrument AU with a Tape device.
 Use mcp_opendaw_create_instrument_track first if no instrument AU exists.
-"""
+    """
+    safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -1210,7 +1213,7 @@ Use mcp_opendaw_create_instrument_track first if no instrument AU exists.
         const Quarter = PPQN.Quarter;
         const AudioFileBox = window.DAW_AudioFileBox;
         const AudioRegionBox = window.DAW_AudioRegionBox;
-        const sampleId = "{sample_id}";
+        const sampleId = "{safe_sample_id}";
         const startBeat = {start_beat};
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
@@ -1309,12 +1312,13 @@ effect_type: One of the audio effect names from mcp_opendaw_list_effects:
     Tidal, Vocoder, Waveshaper, Werkstatt
 
 Returns effect_index — use it with mcp_opendaw_set_effect_parameter.
-"""
+    """
+    safe_effect = effect_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const api = p.api;
         const ef = window.DAW_EffectFactories;
-        const effectType = "{effect_type}";
+        const effectType = "{safe_effect}";
         const unitIndex = {unit_index};
 
         const factory = ef.AudioNamed[effectType];
@@ -1346,7 +1350,7 @@ Returns effect_index — use it with mcp_opendaw_set_effect_parameter.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_clone_effect_chain(src_unit: str, dst_unit: str) -> str:
+async def mcp_opendaw_clone_effect_chain(src_unit: int, dst_unit: int) -> str:
     """Copy all effects from one audio unit to another, including parameter values.
 
 Useful for applying the same vocal chain (EQ → compressor → reverb) to doubled vocal tracks.
@@ -2084,12 +2088,13 @@ Examples:
     set_effect_parameter(0, 0, "inputGain", 12.0)  # Waveshaper +12dB input
     set_effect_parameter(0, 0, "mix", 1.0)          # 100% wet
     set_effect_parameter(0, 0, "equation", 0)        # Use string_value for equation
-"""
+    """
+    safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
-        const paramName = "{parameter_name}";
+        const paramName = "{safe_param}";
         const newValue = {value};
 
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
@@ -2133,11 +2138,12 @@ parameter_name: Parameter name (e.g. "equation").
 string_value: String value (e.g. "hardclip", "tanh", "cubicSoft", "sigmoid", "arctan", "asymmetric").
 """
     safe_value = string_value.replace('"', '').replace("'", '').replace('\\', '')
+    safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
-        const paramName = "{parameter_name}";
+        const paramName = "{safe_param}";
         const newValue = "{safe_value}";
 
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
@@ -2233,12 +2239,13 @@ effect_type: One of: Arpeggio, Pitch, Velocity, Zeitgeist, Spielwerk
 
 unit_index: Audio unit index (must be an instrument AU, not output).
 Returns effect_index in the MIDI chain.
-"""
+    """
+    safe_effect = effect_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const api = p.api;
         const ef = window.DAW_EffectFactories;
-        const effectType = "{effect_type}";
+        const effectType = "{safe_effect}";
         const unitIndex = {unit_index};
 
         const factory = ef.MidiNamed[effectType];
@@ -2833,7 +2840,7 @@ unit_index: Audio unit index (-1 = auto-detect Playfield).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_create_playfield_sample(midi_note: str, sample_name: str, duration_seconds: float, unit_index: int) -> str:
+async def mcp_opendaw_create_playfield_sample(midi_note: int, sample_name: str, duration_seconds: float, unit_index: int) -> str:
     """Add a drum pad to a Playfield drum machine.
 
 midi_note: MIDI note number for this pad (36=C1, 38=D1, 42=F#1, etc).
@@ -3584,7 +3591,7 @@ Returns updated gain value.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_quantize_notes(division: str, unit_index: int, track_index: int, strength: str) -> str:
+async def mcp_opendaw_quantize_notes(division: str, unit_index: int, track_index: int, strength: float) -> str:
     """Quantize note positions to a grid division.
 
 Snaps each note's start position to the nearest grid line.
@@ -3920,7 +3927,7 @@ Returns list of notes sorted by position.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_note_properties(note_index: int, unit_index: int, track_index: int, region_index: int, position_beats: float, duration_beats: float, pitch: int, velocity: float, cent: str, chance: str) -> str:
+async def mcp_opendaw_set_note_properties(note_index: int, unit_index: int, track_index: int, region_index: int, position_beats: float, duration_beats: float, pitch: int, velocity: float, cent: float, chance: int) -> str:
     """Edit properties of a single note within a region.
 
 Pass -1 for any parameter to skip changing it (keep current value).
@@ -4982,7 +4989,8 @@ points: JSON array of [position_beats, value_0_to_1] pairs.
         Example: "[[0, 0.5], [4, 1.0], [8, 0.5]]"
 
 The parameter must be automatable (Field<Pointers.Automation>).
-"""
+    """
+    safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const UUID = window.DAW_UUID;
@@ -4991,7 +4999,7 @@ The parameter must be automatable (Field<Pointers.Automation>).
         const ValueEventBox = window.DAW_ValueEventBox;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
-        const paramName = "{parameter_name}";
+        const paramName = "{safe_param}";
         const points = {points};
 
         const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
@@ -8083,12 +8091,13 @@ async def mcp_opendaw_flatten_note_regions(unit_index: int, track_index: int, re
 
     Returns the new flattened region info, or error.
     """
+    safe_indices = region_indices.replace('"', '').replace('\\', '').replace("'", "").replace(';', '').replace('{', '').replace('}', '')
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
             const trackAdapter = h.track({unit_index}, {track_index});
             const regions = trackAdapter.regions.collection.asArray();
-            const indices = "{region_indices}".split(',').map(s => parseInt(s.trim()));
+            const indices = "{safe_indices}".split(',').map(s => parseInt(s.trim()));
             const toFlatten = indices.map(i => regions[i]).filter(r => r);
             if (toFlatten.length < 2) return {{error: "Need at least 2 regions to flatten"}};
             const first = toFlatten[0];
