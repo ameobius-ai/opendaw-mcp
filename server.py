@@ -12,7 +12,6 @@ Architecture:
 import asyncio
 import json
 import logging
-import subprocess
 import os
 import atexit
 
@@ -163,7 +162,7 @@ class HeadlessDawBridge:
 bridge = HeadlessDawBridge()
 def cleanup():
     try: asyncio.run(bridge.stop())
-    except: pass
+    except Exception: pass
 atexit.register(cleanup)
 
 def _ok(data=None) -> str:
@@ -208,27 +207,27 @@ def _safe_path(export_dir: str, filename: str, ext: str = "wav") -> str:
 @mcp.tool()
 async def mcp_opendaw_get_project_state() -> str:
     """Get full project state: BPM, sample rate, playing status, track list, effects chain."""
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const eng = h.engine;
 
         const units = [];
-        try {{
+        try {
             const allAU = h.allAUBoxes();
-            allAU.forEach((au, i) => {{
+            allAU.forEach((au, i) => {
                 const effects = [];
-                try {{
-                    h.effectBoxes(au).forEach((box) => {{
+                try {
+                    h.effectBoxes(au).forEach((box) => {
                         effects.push(box.constructor?.name || 'Unknown');
-                    }});
-                }} catch(e) {{}}
+                    });
+                } catch(e) {}
 
-                const trackBoxes = h.trackBoxes(au).map((box) => ({{
+                const trackBoxes = h.trackBoxes(au).map((box) => ({
                     name: box.name?.getValue?.() || box.constructor?.name || 'Track',
                     type: box.type?.getValue?.() ?? 'unknown',
-                }}));
+                }));
 
-                units.push({{
+                units.push({
                     name: au.name?.getValue?.() || 'Unit ' + i,
                     tracks: trackBoxes,
                     effects: effects,
@@ -236,19 +235,19 @@ async def mcp_opendaw_get_project_state() -> str:
                     panning: au.panning?.getValue?.() ?? 0,
                     mute: au.mute?.getValue?.() ?? false,
                     solo: au.solo?.getValue?.() ?? false,
-                }});
-            }});
-        }} catch(e) {{}}
+                });
+            });
+        } catch(e) {}
 
-        return {{
+        return {
             bpm: h.timelineBox?.bpm?.getValue?.() ?? eng.bpm,
             sampleRate: eng.sampleRate,
             isPlaying: !!eng.isPlaying?.getValue?.(),
             position: eng.position?.getValue?.() ?? eng.position,
             audioUnits: units,
             totalBoxes: [...h.boxGraph.boxes()].length,
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -388,19 +387,19 @@ label: Marker text (e.g. "Verse 1", "Chorus", "Drop").
 @mcp.tool()
 async def mcp_opendaw_list_markers() -> str:
     """List all timeline markers with positions and labels."""
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const markerTrack = h.timelineBox?.markerTrack;
-        if (!markerTrack) return {{error: "No markerTrack"}};
+        if (!markerTrack) return {error: "No markerTrack"};
         const markers = h.markerBoxes(markerTrack);
 
-        return markers.map((m, i) => ({{
+        return markers.map((m, i) => ({
             index: i,
             position_beats: m.position.getValue() / h.ppqn.Quarter,
             label: m.label?.getValue?.() ?? "",
             plays: m.plays?.getValue?.() ?? 0,
-        }}));
-    }}""")
+        }));
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -701,10 +700,10 @@ async def mcp_opendaw_list_tempo_changes() -> str:
 Returns each tempo event with position (beats), BPM, and interpolation type.
 The tempo track uses normalized values mapped to minBpm..maxBpm (default 60..240).
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const tl = h.timelineBox;
-        if (!tl || !tl.tempoTrack) return {{error: "No tempoTrack on timeline"}};
+        if (!tl || !tl.tempoTrack) return {error: "No tempoTrack on timeline"};
 
         const tempoTrack = tl.tempoTrack;
         const enabled = tempoTrack.enabled?.getValue?.() ?? false;
@@ -712,32 +711,32 @@ The tempo track uses normalized values mapped to minBpm..maxBpm (default 60..240
         const maxBpm = tempoTrack.maxBpm?.getValue?.() ?? 240;
 
         const eventsVertex = tempoTrack.events.targetVertex;
-        if (eventsVertex.isEmpty()) return {{
+        if (eventsVertex.isEmpty()) return {
             success: true,
             enabled,
             min_bpm: minBpm,
             max_bpm: maxBpm,
             event_count: 0,
             events: [],
-        }};
+        };
 
         const collection = eventsVertex.unwrap().box;
         const events = h.eventBoxes(collection);
-        const eventList = events.map(e => ({{
+        const eventList = events.map(e => ({
             position_beats: (e.position?.getValue?.() ?? 0) / h.ppqn.Quarter,
             bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
             interpolation: e.interpolation?.getValue?.() === 1 ? "linear" : "hold",
-        }})).sort((a, b) => a.position_beats - b.position_beats);
+        })).sort((a, b) => a.position_beats - b.position_beats);
 
-        return {{
+        return {
             success: true,
             enabled,
             min_bpm: minBpm,
             max_bpm: maxBpm,
             event_count: events.length,
             events: eventList,
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -746,28 +745,28 @@ async def mcp_opendaw_list_signature_changes() -> str:
 
 Returns each signature event with position (beats), numerator, and denominator.
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const tl = h.timelineBox;
-        if (!tl || !tl.signatureTrack) return {{error: "No signatureTrack on timeline"}};
+        if (!tl || !tl.signatureTrack) return {error: "No signatureTrack on timeline"};
 
         const sigTrack = tl.signatureTrack;
         const enabled = sigTrack.enabled?.getValue?.() ?? false;
 
         const events = h.eventBoxes(sigTrack);
-        const eventList = events.map(e => ({{
+        const eventList = events.map(e => ({
             position_beats: (e.relativePosition?.getValue?.() ?? 0) / h.ppqn.Quarter,
             numerator: e.nominator?.getValue?.() ?? 4,
             denominator: e.denominator?.getValue?.() ?? 4,
-        }})).sort((a, b) => a.position_beats - b.position_beats);
+        })).sort((a, b) => a.position_beats - b.position_beats);
 
-        return {{
+        return {
             success: true,
             enabled,
             event_count: events.length,
             events: eventList,
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -831,14 +830,14 @@ Returns updated signature event list.
 @mcp.tool()
 async def mcp_opendaw_create_audio_track() -> str:
     """Create a new audio track on the primary audio unit."""
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         let trackBox;
-        h.modify(() => {{
+        h.modify(() => {
             trackBox = h.api.createAudioTrack(h.primaryAudioUnitBox);
-        }});
-        return {{success: !!trackBox, type: 'audio'}};
-    }}""")
+        });
+        return {success: !!trackBox, type: 'audio'};
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -1345,32 +1344,32 @@ Call this AFTER loading audio, creating tracks, and placing regions —
 but BEFORE playback or effects. The engine serializes the current project
 state into the AudioWorklet processor, so all boxes must exist first.
 """
-    result = await bridge.evaluate(f"""() => {{
-        return new Promise(async (resolve) => {{
-            try {{
-                if (window.DAW_engineStarted && window.DAW_engineStarted()) {{
-                    resolve({{success: true, message: "Engine already started"}});
+    result = await bridge.evaluate("""() => {
+        return new Promise(async (resolve) => {
+            try {
+                if (window.DAW_engineStarted && window.DAW_engineStarted()) {
+                    resolve({success: true, message: "Engine already started"});
                     return;
-                }}
+                }
                 await window.DAW_startEngine();
-                resolve({{success: true, message: "Engine started"}});
-            }} catch(e) {{
-                resolve({{error: e.message, stack: e.stack?.slice(0, 300)}});
-            }}
-        }});
-    }}""")
+                resolve({success: true, message: "Engine started"});
+            } catch(e) {
+                resolve({error: e.message, stack: e.stack?.slice(0, 300)});
+            }
+        });
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
 async def mcp_opendaw_list_effects() -> str:
     """List all available audio and MIDI effect types."""
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const ef = window.DAW_EffectFactories;
-        return {{
+        return {
             audio: ef.AudioNamed ? Object.keys(ef.AudioNamed) : [],
             midi: ef.MidiNamed ? Object.keys(ef.MidiNamed) : [],
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -1585,7 +1584,7 @@ adding effects).
 Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_unit_index)
 """
     routing_val = json.dumps(routing)
-    
+
 
     safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
@@ -1811,33 +1810,33 @@ async def mcp_opendaw_list_audio_buses() -> str:
 
 Returns bus index, name, enabled state, and the associated audio unit index.
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const buses = h.busBoxes();
         const units = h.allAUBoxes();
 
-        const busList = buses.map((box, i) => {{
+        const busList = buses.map((box, i) => {
             let unitIdx = -1;
-            try {{
+            try {
                 const targetBox = box.output.targetVertex?.unwrap?.()?.box;
-                if (targetBox) {{
+                if (targetBox) {
                     unitIdx = units.findIndex(u => u.address.equals(targetBox.address));
-                }}
-            }} catch(e) {{}}
-            return {{
+                }
+            } catch(e) {}
+            return {
                 bus_index: i,
                 name: box.label?.getValue?.() ?? "Bus " + i,
                 enabled: box.enabled?.getValue?.() ?? true,
                 unit_index: unitIdx,
-            }};
-        }});
+            };
+        });
 
-        return {{
+        return {
             success: true,
             bus_count: buses.length,
             buses: busList,
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -2364,12 +2363,12 @@ async def mcp_opendaw_list_midi_effects() -> str:
 MIDI effects process note data before it reaches the instrument.
 They are inserted on the MIDI effect chain (au.midiEffects).
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const ef = window.DAW_EffectFactories;
-        return {{
+        return {
             midi: ef.MidiNamed ? Object.keys(ef.MidiNamed) : [],
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -3247,7 +3246,6 @@ Returns note count and time range.
     import mido
     mid = mido.MidiFile(file_path)
     notes_data = []
-    ppqn_base = mid.ticks_per_beat if mid.ticks_per_beat else 480
     for track in mid.tracks:
         abs_tick = 0
         for msg in track:
@@ -4479,7 +4477,7 @@ async def mcp_opendaw_get_project_info() -> str:
 
 Single-call summary — lighter than get_project_state (no per-track detail).
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const tl = h.timelineBox;
         const units = h.allAUBoxes();
@@ -4487,30 +4485,30 @@ Single-call summary — lighter than get_project_state (no per-track detail).
         let totalTracks = 0, totalRegions = 0, totalEffects = 0, totalNotes = 0;
         let maxPos = 0;
 
-        for (const au of units) {{
+        for (const au of units) {
             const tracks = h.trackBoxes(au);
             totalTracks += tracks.length;
-            for (const track of tracks) {{
+            for (const track of tracks) {
                 const regions = h.regionBoxes(track);
                 totalRegions += regions.length;
-                for (const reg of regions) {{
+                for (const reg of regions) {
                     const endPos = (reg.position?.getValue?.() ?? 0) + (reg.duration?.getValue?.() ?? 0);
                     if (endPos > maxPos) maxPos = endPos;
-                    try {{
+                    try {
                         const col = reg.events?.targetVertex?.unwrap()?.box;
-                        if (col && col.events) {{
+                        if (col && col.events) {
                             totalNotes += h.eventBoxes(col).length;
-                        }}
-                    }} catch(e) {{}}
-                }}
-            }}
+                        }
+                    } catch(e) {}
+                }
+            }
             const effects = h.effectBoxes(au);
             totalEffects += effects.length;
-        }}
+        }
 
-        return {{
+        return {
             bpm: tl?.bpm?.getValue?.() ?? 120,
-            time_signature: `${{tl?.signature?.nominator?.getValue?.() ?? 4}}/${{tl?.signature?.denominator?.getValue?.() ?? 4}}`,
+            time_signature: `${tl?.signature?.nominator?.getValue?.() ?? 4}/${tl?.signature?.denominator?.getValue?.() ?? 4}`,
             audio_units: units.length,
             tracks: totalTracks,
             regions: totalRegions,
@@ -4518,8 +4516,8 @@ Single-call summary — lighter than get_project_state (no per-track detail).
             notes: totalNotes,
             duration_beats: maxPos / h.ppqn.Quarter,
             duration_bars: Math.ceil(maxPos / (h.ppqn.Quarter * (tl?.signature?.nominator?.getValue?.() ?? 4))),
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -4887,16 +4885,16 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
           add_effect(s) → export_stems
 """
     # Build stems config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
-    result_temp = await bridge.evaluate(f"""() => {{
+    result_temp = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const units = h.allAUBoxes();
-        return units.map((au, i) => ({{
+        return units.map((au, i) => ({
             index: i,
             uuid: h.uuid.toString(au.address.uuid),
             name: au.name?.getValue?.() || 'Unit ' + i,
             type: au.type?.getValue?.() ?? 0,
-        }}));
-    }}""")
+        }));
+    }""")
     stems_map = {}
     if isinstance(result_temp, list):
         for u in result_temp:
@@ -5605,30 +5603,30 @@ async def mcp_opendaw_reset_project() -> str:
 Useful for starting a new mix session without reloading the browser.
 The output audio unit is preserved (required for audio routing).
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         let deleted = 0;
-        h.editing.modify(() => {{
+        h.editing.modify(() => {
             const units = h.allAUBoxes();
             // Delete all instrument AUs (keep output AU at index 0)
-            for (let i = units.length - 1; i >= 1; i--) {{
-                try {{ units[i].delete(); deleted++; }} catch(e) {{}}
-            }}
+            for (let i = units.length - 1; i >= 1; i--) {
+                try { units[i].delete(); deleted++; } catch(e) {}
+            }
             // Delete all effects on output AU
             const outputAU = units[0];
-            if (outputAU) {{
+            if (outputAU) {
                 const effects = h.effectBoxes(outputAU);
-                for (const eff of effects) {{
-                    try {{ eff.delete(); deleted++; }} catch(e) {{}}
-                }}
-            }}
-        }});
-        return {{
+                for (const eff of effects) {
+                    try { eff.delete(); deleted++; } catch(e) {}
+                }
+            }
+        });
+        return {
             success: true,
             deleted_boxes: deleted,
             remaining_units: h.allAUBoxes().length,
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -5642,27 +5640,27 @@ Use load_project to restore later.
 filename: Name for the saved project (without extension).
 Returns: file path, size, and box count.
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
-        try {{
+        try {
             const buffer = h.project.toArrayBuffer();
             const bytes = new Uint8Array(buffer);
             let binary = "";
-            for (let i = 0; i < bytes.length; i++) {{
+            for (let i = 0; i < bytes.length; i++) {
                 binary += String.fromCharCode(bytes[i]);
-            }}
+            }
             const b64 = btoa(binary);
             window.__lastProjectB64 = b64;
             window.__lastProjectSize = bytes.length;
-            return {{
+            return {
                 success: true,
                 size_bytes: bytes.length,
                 boxes: h.boxGraph.boxes().length,
-            }};
-        }} catch(e) {{
-            return {{error: String(e)}};
-        }}
-    }}""")
+            };
+        } catch(e) {
+            return {error: String(e)};
+        }
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -5739,22 +5737,22 @@ async def mcp_opendaw_list_tracks() -> str:
 Returns structured info: audio units with their tracks (audio/note/automation),
 effects chain, volume, panning, and region count.
 """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const units = h.allAUBoxes();
-        const result = units.map((au, i) => {{
-            const tracks = h.trackBoxes(au).map((box) => {{
+        const result = units.map((au, i) => {
+            const tracks = h.trackBoxes(au).map((box) => {
                 const typeVal = box.type?.getValue?.() ?? -1;
                 const typeName = typeVal === 0 ? 'undefined' : typeVal === 1 ? 'note' : typeVal === 2 ? 'audio' : typeVal === 3 ? 'automation' : 'unknown:' + typeVal;
                 const regions = box.regions ? h.regionBoxes(box).length : 0;
                 const clips = box.clips ? h.clipBoxes(box).length : 0;
-                return {{type: typeName, regions, clips}};
-            }});
-            const effects = h.effectBoxes(au).map((box) => ({{
+                return {type: typeName, regions, clips};
+            });
+            const effects = h.effectBoxes(au).map((box) => ({
                 type: box.constructor?.name || 'Unknown',
                 enabled: box.enabled?.getValue?.() ?? true,
-            }})).sort((a, b) => 0); // keep insertion order
-            return {{
+            })).sort((a, b) => 0); // keep insertion order
+            return {
                 index: i,
                 name: au.name?.getValue?.() || ('Unit ' + i),
                 type: au.type?.getValue?.() || 'unknown',
@@ -5764,10 +5762,10 @@ effects chain, volume, panning, and region count.
                 solo: au.solo?.getValue?.() ?? false,
                 tracks,
                 effects,
-            }};
-        }});
-        return {{success: true, units: result, total_units: result.length}};
-    }}""")
+            };
+        });
+        return {success: true, units: result, total_units: result.length};
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -6015,7 +6013,7 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
     safe_name = _safe_filename(filename)
 
     # Step 1: Ensure Maximizer on output AU
-    maxi_result = await bridge.evaluate(f"""() => {{
+    maxi_result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const ef = window.DAW_EffectFactories;
         const api = h.api;
@@ -6025,16 +6023,16 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
         const existing = h.effectBoxes(au);
         let maxiBox = existing.find(b => b.constructor.name === "MaximizerDeviceBox");
 
-        if (!maxiBox) {{
-            h.editing.modify(() => {{
+        if (!maxiBox) {
+            h.editing.modify(() => {
                 maxiBox = api.insertEffect(au.audioEffects, ef.AudioNamed["Maximizer"]);
-            }});
-        }}
-        return {{
+            });
+        }
+        return {
             maximizer_added: !existing.some(b => b.constructor.name === "MaximizerDeviceBox"),
             has_lookahead: !!maxiBox?.lookahead
-        }};
-    }}""")
+        };
+    }""")
     if isinstance(maxi_result, dict) and "error" in maxi_result:
         return _wrap_eval(maxi_result)
 
@@ -6143,41 +6141,41 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
 @mcp.tool()
 async def mcp_opendaw_undo() -> str:
     """Undo the last editing operation."""
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
-        if (h.editing.canUndo) {{
+        if (h.editing.canUndo) {
             h.editing.undo();
-            return {{success: true, action: "undo"}};
-        }}
-        return {{success: false, message: "Nothing to undo"}};
-    }}""")
+            return {success: true, action: "undo"};
+        }
+        return {success: false, message: "Nothing to undo"};
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
 async def mcp_opendaw_redo() -> str:
     """Redo the last undone operation."""
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
-        if (h.editing.canRedo) {{
+        if (h.editing.canRedo) {
             h.editing.redo();
-            return {{success: true, action: "redo"}};
-        }}
-        return {{success: false, message: "Nothing to redo"}};
-    }}""")
+            return {success: true, action: "redo"};
+        }
+        return {success: false, message: "Nothing to redo"};
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
 async def mcp_opendaw_serialize() -> str:
     """Serialize the current project state to JSON. Returns the serialized project data."""
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const json = h.boxGraph.toJSON();
-        return {{
+        return {
             success: true,
             data: json,
             box_count: [...h.boxGraph.boxes()].length,
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -6199,11 +6197,9 @@ bpm: Source BPM of the sample (for warp marker calculation).
 Returns position, duration in PPQN, and playback rate.
 """
     mode_val = json.dumps(transient_mode)
-    
+
 
     safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
-    
-    safe_transient_mode = transient_mode.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const UUID = h.uuid;
@@ -6620,7 +6616,7 @@ playback_rate: Playback rate (1.0 = normal, 0.5 = half speed, 2.0 = double).
 transient_mode: "Pingpong", "Monoton", "Cycles", or "Plode".
 """
     safe_mode = transient_mode.replace('"', '').replace("'", '').replace('\\', '')
-    
+
 
     safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
@@ -6762,7 +6758,7 @@ See the openDAW plans/apparat.md, plans/spielwerk.md for the full API.
 device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MIDI effect)
 """
     code_json = json.dumps(code)
-    
+
 
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(rf"""async () => {{
@@ -7433,7 +7429,7 @@ async def mcp_opendaw_move_automation_event(unit_index: int, track_index: int, e
 
     Returns success with old and new positions.
     """
-    new_ppqn = int(new_position_beats * h.ppqn.Quarter)
+    new_ppqn = int(new_position_beats * 960)
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -7968,18 +7964,18 @@ async def mcp_opendaw_get_project_duration() -> str:
 
     Returns the duration in beats and seconds, or error.
     """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const lastPPQN = h.project.lastRegionAction ? h.project.lastRegionAction() : 0;
         const tempoMap = h.tempoMap;
         let secs = 0;
-        try {{ secs = tempoMap ? tempoMap.ppqnToSeconds(lastPPQN) : 0; }} catch(e) {{}}
-        return {{
+        try { secs = tempoMap ? tempoMap.ppqnToSeconds(lastPPQN) : 0; } catch(e) {}
+        return {
             duration_beats: lastPPQN / h.ppqn.Quarter,
             duration_ppqn: lastPPQN,
             duration_seconds: secs,
-        }};
-    }}""")
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -7988,34 +7984,34 @@ async def mcp_opendaw_validate_project() -> str:
 
     Returns valid (bool) and details about any issues found.
     """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         let valid = true;
         let issues = [];
-        try {{
+        try {
             valid = !h.project.invalid();
-        }} catch(e) {{
+        } catch(e) {
             issues.push("validation error: " + e.message);
-        }}
-        if (!valid) {{
+        }
+        if (!valid) {
             const units = h.allAUBoxes();
-            for (const au of units) {{
+            for (const au of units) {
                 const tracks = h.trackBoxes(au);
-                for (const track of tracks) {{
+                for (const track of tracks) {
                     const regions = h.regionBoxes(track)
                         .sort((a, b) => a.position.getValue() - b.position.getValue());
-                    for (let i = 1; i < regions.length; i++) {{
+                    for (let i = 1; i < regions.length; i++) {
                         const prevEnd = regions[i-1].position.getValue() + regions[i-1].duration.getValue();
-                        if (prevEnd > regions[i].position.getValue()) {{
+                        if (prevEnd > regions[i].position.getValue()) {
                             issues.push("overlap on track: " + (track.label?.getValue?.() || 'unnamed') +
                                 " region " + (i-1) + " and " + i);
-                        }}
-                    }}
-                }}
-            }}
-        }}
-        return {{valid: valid, issues: issues}};
-    }}""")
+                        }
+                    }
+                }
+            }
+        }
+        return {valid: valid, issues: issues};
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -8024,15 +8020,15 @@ async def mcp_opendaw_list_samples() -> str:
 
     Returns sample UUIDs and metadata for each audio file referenced in the project.
     """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const uuids = h.project.collectSampleUUIDs ? h.project.collectSampleUUIDs() : [];
-        const samples = uuids.map(uuid => {{
+        const samples = uuids.map(uuid => {
             const hex = Array.from(uuid, b => b.toString(16).padStart(2, '0')).join('');
-            return {{uuid: hex}};
-        }});
-        return {{sample_count: samples.length, samples: samples}};
-    }}""")
+            return {uuid: hex};
+        });
+        return {sample_count: samples.length, samples: samples};
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -8152,12 +8148,12 @@ async def mcp_opendaw_get_mixer_state() -> str:
     Returns a list of channel strips with their current values. Useful for inspecting
     the mix balance and routing at a glance.
     """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const aus = h.allAUs();
-        const strips = aus.map(au => {{
+        const strips = aus.map(au => {
             const np = au.namedParameter;
-            return {{
+            return {
                 index: au.indexField.getValue(),
                 label: au.label,
                 type: au.isOutput ? 'output' : (au.isInstrument ? 'instrument' : 'bus'),
@@ -8168,10 +8164,10 @@ async def mcp_opendaw_get_mixer_state() -> str:
                 is_output: au.isOutput,
                 is_bus: au.isBus,
                 is_instrument: au.isInstrument,
-            }};
-        }});
-        return {{strips: strips, count: strips.length}};
-    }}""")
+            };
+        });
+        return {strips: strips, count: strips.length};
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -8393,7 +8389,7 @@ async def mcp_opendaw_get_automation_value(unit_index: int, track_index: int, po
 
     Returns the normalized value (0.0-1.0), or error.
     """
-    ppqn_val = int(position_beats * h.ppqn.Quarter)
+    ppqn_val = int(position_beats * 960)
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const auAdapters = h.allAUs();
@@ -8484,7 +8480,7 @@ async def mcp_opendaw_move_region_content(unit_index: int, track_index: int, reg
 
     Returns new position, duration, and loopDuration, or error.
     """
-    delta_ppqn = int(delta_beats * h.ppqn.Quarter)
+    delta_ppqn = int(delta_beats * 960)
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const auAdapters = h.allAUs();
@@ -8594,21 +8590,21 @@ async def mcp_opendaw_get_full_project_state() -> str:
     One call to inspect the entire project structure. Useful for agents to understand
     the current state before making changes.
     """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
         const aus = h.allAUs();
         const typeNames = ['undefined', 'notes', 'audio', 'value'];
         const project = h.project;
-        return {{
+        return {
             bpm: project.timelineBox.bpm.getValue(),
             duration_beats: project.lastRegionAction() / h.ppqn.Quarter,
             au_count: aus.length,
-            units: aus.map(au => {{
+            units: aus.map(au => {
                 const np = au.namedParameter;
                 const tracks = au.tracks.collection.adapters();
                 const fxAdapters = au.audioEffects.adapters();
                 const midiFxAdapters = au.midiEffects.adapters();
-                return {{
+                return {
                     index: au.indexField.getValue(),
                     label: au.label,
                     type: au.isOutput ? 'output' : (au.isInstrument ? 'instrument' : 'bus'),
@@ -8621,20 +8617,20 @@ async def mcp_opendaw_get_full_project_state() -> str:
                     midi_effect_count: midiFxAdapters.length,
                     effects: fxAdapters.map(fx => fx.label),
                     midi_effects: midiFxAdapters.map(fx => fx.label),
-                    tracks: tracks.map(t => {{
+                    tracks: tracks.map(t => {
                         const tbox = t.box;
                         const regCount = h.regionBoxes(tbox).length;
                         const clipCount = h.clipBoxes(tbox).length;
-                        return {{
+                        return {
                             type: typeNames[t.type] || String(t.type),
                             region_count: regCount,
                             clip_count: clipCount,
-                        }};
-                    }}),
-                }};
-            }}),
-        }};
-    }}""")
+                        };
+                    }),
+                };
+            }),
+        };
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -8871,7 +8867,7 @@ async def mcp_opendaw_create_automation_event(unit_index: int, track_index: int,
     Returns the created/updated event info, or error.
     """
     ppqn_val = int(position_beats * 960)
-    
+
     safe_interpolation = interpolation.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
@@ -8969,7 +8965,7 @@ async def mcp_opendaw_set_automation_interpolation(unit_index: int, track_index:
 
     Returns success, or error.
     """
-    
+
     safe_interpolation = interpolation.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
@@ -9115,12 +9111,12 @@ async def mcp_opendaw_set_note_advanced(unit_index: int, track_index: int, regio
         js_lines.append(f"noteBox.playCount.setValue({play_count});")
     if play_curve > -999:
         js_lines.append(f"noteBox.playCurve.setValue({play_curve});")
-    
+
     if not js_lines:
         return json.dumps({"error": "No properties to set — pass chance, cent, play_count, or play_curve"})
-    
+
     js_body = " ".join(js_lines)
-    
+
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
@@ -9777,27 +9773,27 @@ async def mcp_opendaw_get_signature_events() -> str:
 
     Returns base_signature, events array with index/position/bars/nominator/denominator.
     """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
-        try {{
+        try {
             const sigTrack = h.rootBoxAdapter.timeline.signatureTrack;
             const events = Array.from(sigTrack.iterateAll());
-            return {{
+            return {
                 enabled: sigTrack.enabled,
                 base_signature: [events[0].nominator, events[0].denominator],
                 event_count: events.length - 1,
-                events: events.map(e => ({{
+                events: events.map(e => ({
                     index: e.index,
                     position_ppqn: e.accumulatedPpqn,
                     bars: e.accumulatedBars,
                     nominator: e.nominator,
                     denominator: e.denominator,
-                }})),
-            }};
-        }} catch(e) {{
-            return {{error: e.message}};
-        }}
-    }}""")
+                })),
+            };
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -9954,26 +9950,26 @@ async def mcp_opendaw_get_project_metadata() -> str:
 
     Returns created (ISO date), bpm, time_signature, audio_unit_count, total_track_count.
     """
-    result = await bridge.evaluate(f"""() => {{
+    result = await bridge.evaluate("""() => {
         const h = window.DAW_HELPERS;
-        try {{
+        try {
             const root = h.rootBoxAdapter;
             const aus = root.audioUnits.adapters();
             let trackCount = 0;
-            aus.forEach(au => {{ trackCount += au.tracks.collection.adapters().length; }});
+            aus.forEach(au => { trackCount += au.tracks.collection.adapters().length; });
             const sigTrack = root.timeline.signatureTrack;
             const sig = sigTrack.storageSignature;
-            return {{
+            return {
                 created: root.created.toISOString(),
                 time_signature: [sig[0], sig[1]],
                 audio_unit_count: aus.length,
                 total_track_count: trackCount,
                 groove_enabled: root.groove.enabled,
-            }};
-        }} catch(e) {{
-            return {{error: e.message}};
-        }}
-    }}""")
+            };
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
     return _wrap_eval(result)
 
 @mcp.tool()
@@ -10213,7 +10209,7 @@ async def mcp_opendaw_add_modular_module(au_index: int, effect_index: int, modul
     box_global = type_map.get(module_type)
     if not box_global:
         return json.dumps({"error": f"Unknown module type: {module_type}. Valid: {list(type_map.keys())}"})
-    
+
 
     safe_module_type = module_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
@@ -11014,7 +11010,6 @@ async def mcp_opendaw_export_dawproject(filename: str = "project") -> str:
     Returns the file path of the exported .dawproject file.
     """
     safe_fn = filename.replace('"', '').replace('\\', '').replace("'", "").replace(';', '').replace('/', '').replace('..', '')
-    fn_json = json.dumps(safe_fn)
     export_dir = os.environ.get("OPENDAW_EXPORT_DIR", "/tmp/opendaw-exports")
     result = await bridge.evaluate("""async () => {
         const daw = window.DAW_DawProject;
@@ -11082,7 +11077,6 @@ async def mcp_opendaw_import_dawproject(filename: str) -> str:
     safe_fn = os.path.abspath(filename)
     if not os.path.exists(safe_fn):
         return json.dumps({"error": f"File not found: {safe_fn}"})
-    fn_json = json.dumps(safe_fn)
     with open(safe_fn, "rb") as f:
         file_bytes = f.read()
     import base64 as b64mod

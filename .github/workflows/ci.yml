@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install mcp playwright pytest
+        run: pip install mcp playwright pytest ruff
       - name: Python syntax check
         run: python -m py_compile server.py
       - name: AST tool count verification
@@ -59,3 +59,7 @@ jobs:
       - name: Run unit tests
         run: |
           python -m pytest tests/ -v
+      - name: Lint with ruff
+        run: |
+          ruff check server.py --select F,E722,W292 --ignore E501
+          echo "Ruff lint passed (F-codes + bare-except + trailing newline)"
