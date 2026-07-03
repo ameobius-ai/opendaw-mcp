@@ -87,6 +87,11 @@ class HeadlessDawBridge:
                 tempoMap: p.tempoMap,
                 audioUnitFreeze: p.audioUnitFreeze,
                 rootBoxAdapter: p.rootBoxAdapter,
+                rootBox: p.rootBox,
+                timelineBox: p.timelineBox,
+                engine: p.engine,
+                uuid: window.DAW_UUID,
+                ppqn: window.DAW_PPQN,
             };
         }""")
         logging.info("DAW engine ready!")
@@ -172,25 +177,25 @@ async def mcp_opendaw_transport(action: str) -> str:
 action: "play", "stop", or "toggle"
 """
     result = await bridge.evaluate(f"""() => {{
-            const eng = window.DAW.engine;
-            if (eng.isPlaying?.getValue?.()) {{
-                eng.stop();
-                return {{status: 'stopped'}};
-            }} else {{
-                eng.play();
-                return {{status: 'playing'}};
-            }}
-        }}""")
+        const h = window.DAW_HELPERS;
+        const eng = h.engine;
+        if (eng.isPlaying?.getValue?.()) {{
+            eng.stop();
+            return {{status: 'stopped'}};
+        }} else {{
+            eng.play();
+            return {{status: 'playing'}};
+        }}
+    }}""")
     return _wrap_eval(result)
 
 @mcp.tool()
 async def mcp_opendaw_set_position(position: int) -> str:
     """Set the playback position in beats."""
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const Quarter = window.DAW_PPQN.Quarter;
-        const pos = {position} * Quarter;
-        p.editing.modify(() => {{ p.api.setPosition(pos); }});
+        const h = window.DAW_HELPERS;
+        const pos = {position} * h.ppqn.Quarter;
+        h.modify(() => {{ h.engine.setPosition(pos); }});
         return {{success: true, position: {position}}};
     }}""")
     return _wrap_eval(result)
@@ -199,8 +204,9 @@ async def mcp_opendaw_set_position(position: int) -> str:
 async def mcp_opendaw_set_bpm(bpm: int) -> str:
     """Set the project tempo in BPM."""
     result = await bridge.evaluate(f"""() => {{
-        window.DAW.editing.modify(() => window.DAW.api.setBpm({bpm}));
-        return {{success: true, bpm: window.DAW.timelineBox?.bpm?.getValue?.()}};
+        const h = window.DAW_HELPERS;
+        h.modify(() => h.api.setBpm({bpm}));
+        return {{success: true, bpm: h.timelineBox?.bpm?.getValue?.()}};
     }}""")
     return _wrap_eval(result)
 
@@ -216,9 +222,9 @@ to_beat: Loop end in beats.
 enabled: Whether loop is active.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const PPQN = window.DAW_PPQN;
-        const loop = p.timelineBox?.loopArea;
+        const h = window.DAW_HELPERS;
+        const PPQN = h.ppqn;
+        const loop = h.timelineBox?.loopArea;
         if (!loop) return {{error: "No loopArea on timeline"}};
 
         const fromTicks = Math.round({from_beat} * PPQN.Quarter);
@@ -227,7 +233,7 @@ enabled: Whether loop is active.
         const oldFrom = loop.from?.getValue?.() ?? 0;
         const oldTo = loop.to?.getValue?.() ?? 0;
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             loop.from.setValue(fromTicks);
             loop.to.setValue(toTicks);
             loop.enabled.setValue({json.dumps(enabled)});
@@ -443,10 +449,10 @@ numerator: Number of beats per bar (top number, e.g. 4, 3, 6, 7).
 denominator: Note value per beat (bottom number: 4=quarter, 8=eighth).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const tl = p.timelineBox;
+        const h = window.DAW_HELPERS;
+        const tl = h.timelineBox;
         if (!tl || !tl.signature) return {{error: "timelineBox.signature not found"}};
-        p.editing.modify(() => {{
+        h.modify(() => {{
             tl.signature.nominator.setValue({numerator});
             tl.signature.denominator.setValue({denominator});
         }});
