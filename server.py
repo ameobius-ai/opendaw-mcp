@@ -8724,6 +8724,116 @@ async def mcp_opendaw_delete_signature_event(event_index: int) -> str:
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_change_base_signature(nominator: int, denominator: int) -> str:
+    """Change the base time signature of the project.
+
+    This changes the initial signature (default 4/4). All existing signature
+    change events are recalculated to preserve their approximate absolute positions.
+
+    nominator: Number of beats per bar (e.g. 4 for 4/4, 3 for 3/4, 6 for 6/8).
+    denominator: Beat unit (1=whole, 2=half, 4=quarter, 8=eighth, 16=sixteenth).
+
+    Returns success or error.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        try {{
+            const sigTrack = p.rootBoxAdapter.timeline.signatureTrack;
+            p.editing.modify(() => {{
+                sigTrack.changeSignature({nominator}, {denominator});
+            }});
+            return {{success: true, new_signature: [{nominator}, {denominator}]}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_reset_playfield_params(unit_index: int, sample_index: int) -> str:
+    """Reset all parameters of a Playfield drum sample to defaults.
+
+    Resets mute, solo, exclude, polyphone, pitch, attack, release,
+    sampleStart, sampleEnd, gate to their default values.
+
+    unit_index: AU index containing the Playfield.
+    sample_index: Sample slot index to reset.
+
+    Returns success or error.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const input = au.input.adapter();
+            if (input.isEmpty()) return {{error: "No instrument on AU " + {unit_index}}};
+            const inst = input.unwrap();
+            if (!inst.box.constructor.name.includes('Playfield')) return {{error: "Instrument is not a Playfield"}};
+            const samples = inst.box.samples ? [...inst.box.samples.pointerHub.incoming()] : [];
+            const sampleAdapter = samples.find(s => s.box.index.getValue() === {sample_index});
+            if (!sampleAdapter) return {{error: "No sample at index " + {sample_index}}};
+            const p = window.DAW;
+            const adapter = p.boxAdapters.adapterFor(sampleAdapter.box, inst.constructor);
+            p.editing.modify(() => {{
+                adapter.resetParameters();
+            }});
+            return {{success: true, sample_index: {sample_index}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_duplicate_automation_event(unit_index: int, track_index: int, region_index: int,
+                                                  event_index: int, position_offset: float = 0.0,
+                                                  value_override: float = None) -> str:
+    """Duplicate an automation event within the same region.
+
+    Copies the event's position, value, and interpolation. Can offset position
+    and override the value.
+
+    unit_index/track_index/region_index: Automation region coordinates.
+    event_index: Event index within the region.
+    position_offset: PPQN offset from original position.
+    value_override: New value (0-1) instead of copying. Omit to copy original.
+
+    Returns the new event's position and value.
+    """
+    value_str = "null" if value_override is None else str(value_override)
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const reg = h.region(h.au({unit_index}), h.track({unit_index}, {track_index}), {region_index});
+            const events = reg.events.targetVertex.unwrap("events").box;
+            const eventAdapters = [...events.events.pointerHub.incoming()]
+                .map(({{box}}) => box)
+                .sort((a, b) => a.position.getValue() - b.position.getValue());
+            if ({event_index} >= eventAdapters.length) return {{error: "No event at index " + {event_index}}};
+            const srcBox = eventAdapters[{event_index}];
+            const p = window.DAW;
+            const adapter = p.boxAdapters.adapterFor(srcBox, p.ValueEventBoxAdapter || class {{}});
+            const origPos = srcBox.position.getValue();
+            const origVal = srcBox.value.getValue();
+            let newAdapter;
+            p.editing.modify(() => {{
+                newAdapter = adapter.copyTo({{
+                    position: origPos + {position_offset},
+                    value: {value_str} !== null ? {value_str} : origVal,
+                }});
+            }});
+            return {{
+                success: true,
+                new_position: newAdapter.position,
+                new_value: newAdapter.value,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')
