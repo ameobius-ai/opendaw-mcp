@@ -57,11 +57,18 @@ async def mcp_opendaw_my_tool(param: str) -> str:
 
 5. **Escape curly braces in f-strings** — JavaScript `{` and `}` must be doubled as `{{` and `}}` inside Python f-strings.
 
-6. **Test your tool** — start Vite + bridge and call the tool with edge cases (empty project, invalid indices, missing content).
+6. **Sanitize string parameters** — any `str` parameter interpolated into JavaScript template literals MUST be sanitized before use:
+   ```python
+   safe_param = param.replace('"', '').replace('\\', '').replace("'", "")
+   # Then use {safe_param} in the f-string instead of {param}
+   ```
+   This prevents JS injection through user-supplied strings. Numeric parameters should use `int`/`float` type annotations for FastMCP type coercion.
 
-7. **Update TOOL_CATALOG.md** — add your tool to the appropriate section.
+7. **Test your tool** — start Vite + bridge and call the tool with edge cases (empty project, invalid indices, missing content).
 
-8. **Update the tool count** in README.md if you add multiple tools.
+8. **Update TOOL_CATALOG.md** — add your tool to the appropriate section.
+
+9. **Update the tool count** in README.md if you add multiple tools.
 
 ### DAW_HELPERS Reference
 
