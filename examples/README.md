@@ -21,6 +21,7 @@ This directory contains example scripts showing how to use the MCP tools to crea
 | `warp_marker_tempo_match.py` | Warp markers for tempo-matching audio regions |
 | `dawproject_export.py` | Export to .dawproject format (Bitwig/Ableton/rePitch interop) |
 | `mastering_pipeline.py` | Full mastering chain: render → measure LUFS → auto-gain → stems → MP3 |
+| `metronome_settings.py` | Configure metronome: enable, gain, subdivision, monophonic mode |
 
 ## Prerequisites
 
