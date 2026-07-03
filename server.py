@@ -5971,20 +5971,23 @@ async def mcp_opendaw_auto_gain(target_lufs: str, filename: str = "auto_gain_mix
 
     iterations = []
     current_threshold = max(-24.0, target - 6.0)  # start slightly below target
+    current_volume_db = 0.0  # output AU volume in dB
 
     for i in range(max_iter):
-        # Set Maximizer threshold
+        # Set Maximizer threshold + output AU volume
         await bridge.evaluate(f"""() => {{
             const p = window.DAW;
             const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
-            const au = units[0];
+            const au = units[0]; // output AU
             const maxi = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).find(b => b.constructor.name === "MaximizerDeviceBox");
             if (!maxi) return {{error: "No Maximizer"}};
             p.editing.modify(() => {{
                 maxi.threshold.setValue({current_threshold});
                 if (maxi.lookahead) maxi.lookahead.setValue(true);
+                // Output AU volume — field stores dB directly (min -96, max +6)
+                au.volume.setValue({current_volume_db});
             }});
-            return {{threshold: {current_threshold}}};
+            return {{threshold: {current_threshold}, volume_db: {current_volume_db}}};
         }}""")
 
         # Render full mix
@@ -6037,6 +6040,7 @@ async def mcp_opendaw_auto_gain(target_lufs: str, filename: str = "auto_gain_mix
         iterations.append({
             "iteration": i + 1,
             "threshold_db": round(current_threshold, 2),
+            "volume_db": round(current_volume_db, 2),
             "lufs": current_lufs,
             "diff": round(diff, 2),
         })
@@ -6045,13 +6049,16 @@ async def mcp_opendaw_auto_gain(target_lufs: str, filename: str = "auto_gain_mix
         if abs(diff) <= 1.0:
             break
 
-        # Adjust: if too loud, lower threshold (more limiting); if too quiet, raise threshold
-        # Maximizer threshold: lower = more gain reduction but louder output up to 0dB peak
-        # Actually: higher threshold = less gain reduction = quieter (peaks pass through)
-        #           lower threshold = more makeup = louder
-        # So if too quiet (diff < 0), decrease threshold; if too loud (diff > 0), increase threshold
-        adjustment = -diff * 0.8  # scale factor for convergence
-        current_threshold = max(-24.0, min(0.0, current_threshold + adjustment))
+        # Bidirectional adjustment:
+        # - Too quiet (diff < 0): lower Maximizer threshold (more makeup gain)
+        # - Too loud (diff > 0): lower output AU volume (attenuation)
+        # LUFS change ≈ threshold change (1:1 for Maximizer) and ≈ volume change (1:1)
+        if diff < 0:
+            # Need louder: decrease threshold
+            current_threshold = max(-24.0, current_threshold + diff * 0.8)
+        else:
+            # Need quieter: decrease volume (negative dB)
+            current_volume_db = max(-24.0, current_volume_db - diff * 0.8)
 
     final = iterations[-1] if iterations else {}
     return json.dumps({
