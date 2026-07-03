@@ -2012,11 +2012,11 @@ effect_index: Effect position in the chain (0-based).
 Returns complete effect state snapshot.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
         const effects = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => a.index.getValue() - b.index.getValue());
@@ -2084,14 +2084,15 @@ Examples:
     """
     safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
         const paramName = "{safe_param}";
         const newValue = {value};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2107,7 +2108,7 @@ Examples:
         }}
 
         const oldValue = field.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             field.setValue(newValue);
         }});
 
@@ -2133,14 +2134,15 @@ string_value: String value (e.g. "hardclip", "tanh", "cubicSoft", "sigmoid", "ar
     safe_value = string_value.replace('"', '').replace("'", '').replace('\\', '')
     safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
         const paramName = "{safe_param}";
         const newValue = "{safe_value}";
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2156,7 +2158,7 @@ string_value: String value (e.g. "hardclip", "tanh", "cubicSoft", "sigmoid", "ar
         }}
 
         const oldValue = field.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             field.setValue(newValue);
         }});
 
@@ -2178,12 +2180,13 @@ unit_index: Audio unit index.
 effect_index: Effect position to remove (0-based).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box);
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2195,7 +2198,7 @@ effect_index: Effect position to remove (0-based).
         const effectBox = effects[effectIdx];
         const effectType = effectBox.constructor.name;
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             effectBox.delete();
         }});
 
@@ -2235,8 +2238,7 @@ Returns effect_index in the MIDI chain.
     """
     safe_effect = effect_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const api = p.api;
+        const h = window.DAW_HELPERS;
         const ef = window.DAW_EffectFactories;
         const effectType = "{safe_effect}";
         const unitIndex = {unit_index};
@@ -2244,13 +2246,13 @@ Returns effect_index in the MIDI chain.
         const factory = ef.MidiNamed[effectType];
         if (!factory) return {{error: "MIDI effect factory not found: " + effectType}};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIndex >= units.length) return {{error: "No audio unit at index " + unitIndex}};
         const au = units[unitIndex];
 
         let effectBox;
-        p.editing.modify(() => {{
-            effectBox = api.insertEffect(au.midiEffects, factory);
+        h.modify(() => {{
+            effectBox = h.api.insertEffect(au.midiEffects, factory);
         }});
 
         const effects = [...au.midiEffects.pointerHub.incoming()]
@@ -2276,11 +2278,11 @@ unit_index: Audio unit index.
 effect_index: MIDI effect position to remove (0-based).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -2292,7 +2294,7 @@ effect_index: MIDI effect position to remove (0-based).
         const effectBox = effects[effectIdx];
         const effectType = effectBox.constructor.name;
 
-        p.editing.modify(() => {{ effectBox.delete(); }});
+        h.modify(() => {{ effectBox.delete(); }});
 
         return {{
             success: true,
@@ -2310,10 +2312,10 @@ unit_index: Audio unit index.
 Returns ordered list of MIDI effects with type, enabled state, and index.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
         const effects = [...au.midiEffects.pointerHub.incoming()]
@@ -2344,11 +2346,11 @@ effect_index: MIDI effect position in the chain (0-based).
 Returns parameter names, values, units, and constraints.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -2401,14 +2403,14 @@ Returns old and new values.
 """
     safe_param = param_name.replace('"', '').replace("'", '').replace('\\', '')
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
         const paramName = "{safe_param}";
         const paramIdx = {param_index};
         const newVal = {value};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -2431,7 +2433,7 @@ Returns old and new values.
         if (!field) return {{error: "Parameter not found: " + (paramIdx >= 0 ? "index " + paramIdx : paramName)}};
 
         const oldValue = field.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             field.setValue(newVal);
         }});
 
