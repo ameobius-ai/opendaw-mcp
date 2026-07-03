@@ -10559,6 +10559,126 @@ async def mcp_opendaw_set_studio_setting(category: str, key: str, value: str) ->
 
 
 @mcp.tool()
+async def mcp_opendaw_engine_panic() -> str:
+    """Send a panic signal to the engine — stops all notes immediately.
+
+    Useful when audio gets stuck (hanging notes, frozen synthesis).
+    Equivalent to a MIDI panic button.
+    """
+    result = await bridge.evaluate("""() => {
+        const h = window.DAW_HELPERS;
+        try {
+            h.engine.panic();
+            return {success: true, action: "panic"};
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_get_engine_status() -> str:
+    """Get real-time engine status: playing state, position, BPM, CPU load, recording state.
+
+    Returns:
+        is_playing: bool
+        position_beats: current playback position in beats
+        bpm: current BPM
+        cpu_load: CPU load percentage (0-1)
+        is_recording: bool
+        is_counting_in: bool
+        marker: current marker [uuid, index] or null
+    """
+    result = await bridge.evaluate("""() => {
+        const h = window.DAW_HELPERS;
+        const eng = h.engine;
+        try {
+            return {
+                is_playing: eng.isPlaying?.getValue?.() ?? false,
+                position_beats: (eng.position?.getValue?.() ?? 0) / h.ppqn.Quarter,
+                bpm: eng.bpm?.getValue?.() ?? 120,
+                cpu_load: eng.cpuLoad?.getValue?.() ?? 0,
+                is_recording: eng.isRecording?.getValue?.() ?? false,
+                is_counting_in: eng.isCountingIn?.getValue?.() ?? false,
+                marker: eng.markerState?.getValue?.() ?? null,
+                engine_started: typeof window.DAW_engineStarted === 'function' && window.DAW_engineStarted(),
+            };
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_schedule_clip_play(clip_ids: str) -> str:
+    """Schedule clips to play in session view (live triggering).
+
+    Args:
+        clip_ids: Comma-separated list of clip UUIDs to trigger
+    """
+    safe_ids = clip_ids.replace('"', '').replace('\\', '').replace("'", "").replace(';', '').replace(' ', '')
+    ids_json = json.dumps(safe_ids)
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const ids = {ids_json}.split(',').filter(Boolean);
+            // Get clip UUIDs from rootBox clips
+            const rootBox = h.rootBox;
+            const allClips = [...rootBox.clips.pointerHub.incoming()].map(({{box}}) => box);
+            const targetUuids = [];
+            for (const clip of allClips) {{
+                const uuidStr = h.uuid.toString(clip.address.uuid);
+                if (ids.includes(uuidStr)) {{
+                    targetUuids.push(clip.address.uuid);
+                }}
+            }}
+            if (targetUuids.length === 0) return {{error: "No matching clips found"}};
+            h.engine.scheduleClipPlay(targetUuids);
+            return {{success: true, triggered: targetUuids.length}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_schedule_clip_stop(track_ids: str) -> str:
+    """Schedule clips to stop on specified tracks (session view).
+
+    Args:
+        track_ids: Comma-separated list of track UUIDs to stop clips on
+    """
+    safe_ids = track_ids.replace('"', '').replace('\\', '').replace("'", "").replace(';', '').replace(' ', '')
+    ids_json = json.dumps(safe_ids)
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const ids = {ids_json}.split(',').filter(Boolean);
+            const allAUs = h.allAUs();
+            const targetUuids = [];
+            for (const au of allAUs) {{
+                const tracks = au.tracks.collection.adapters();
+                for (const track of tracks) {{
+                    const uuidStr = h.uuid.toString(track.uuid);
+                    if (ids.includes(uuidStr)) {{
+                        targetUuids.push(track.uuid);
+                    }}
+                }}
+            }}
+            if (targetUuids.length === 0) return {{error: "No matching tracks found"}};
+            h.engine.scheduleClipStop(targetUuids);
+            return {{success: true, stopped: targetUuids.length}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_export_dawproject(filename: str = "project") -> str:
     """Export the current project as a .dawproject file (Bitwig/Ableton/rePitch compatible format).
 
