@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-247 MCP tools for headless openDAW control via Playwright bridge.
+249 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -108,6 +108,8 @@
 - `set_stereo_tool_panning` — Set the panning mixing mode on a StereoTool effect.
 - `set_waveshaper_equation` — Set the transfer function on a Waveshaper (hardclip/cubicSoft/tanh/sigmoid/arctan/asymmetric).
 - `set_revamp_filter` — Configure a filter section on a Revamp parametric EQ (highpass/lowshelf/lowbell/midbell/highbell/highshelf/lowpass).
+- `set_tidal_rate` — Set Tidal LFO rate using a musical fraction string (1/1, 1/2, 1/4, 1/8, 1/16, etc).
+- `set_delay_sync` — Set Delay synced time using a musical fraction string (off, 1/128, 1/16, 1/8, 1/4, 1/2, 1/1, etc).
 - `set_time_stretch_cents` — Set the pitch shift (in cents) on a time-stretched audio region.
 - `set_vaporisateur_osc_param` — Set a parameter on a Vaporisateur oscillator.
 - `set_vocoder_band_count` — Set the band count on a Vocoder effect (number of filter bands, typically 8-32).
@@ -313,7 +315,7 @@
 - `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
 - `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
-**Total: 247 tools**
+**Total: 249 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)

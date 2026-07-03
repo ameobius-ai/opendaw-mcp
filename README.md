@@ -3,12 +3,12 @@
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-247-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-249-brightgreen)](TOOL_CATALOG.md)
 [![Tests](https://img.shields.io/badge/Tests-31%20passing-brightgreen)](tests/)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
-**247 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**249 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -100,7 +100,7 @@ MCP_TRANSPORT=sse FASTMCP_HOST=0.0.0.0 FASTMCP_PORT=8080 python server.py
 ```bash
 python server.py --help        # show usage and env vars
 python server.py --version     # print version and tool count
-python server.py --list-tools  # list all 247 registered MCP tools
+python server.py --list-tools  # list all 249 registered MCP tools
 ```
 
 ### Docker
@@ -224,7 +224,7 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 247 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 249 tools with parameters and descriptions.
 
 ## Mastering
 
@@ -273,7 +273,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **DRY: K-weighting coefficients** — duplicated if/else branches (48kHz vs else) were identical, merged into single computation
 - **9 new unit tests** — WAV parsing (float32/mono/stereo/PCM16/invalid/no-data) + LUFS computation (silence/full-scale/low-level/stereo)
 - **Social preview banner** — custom OpenGraph image for GitHub link previews
-- **awesome-mcp PR updated** — title and body synced to 247 tools
+- **awesome-mcp PR updated** — title and body synced to 249 tools
 - **GitHub topics** — 18 topics for discoverability
 - **31 total tests, ruff clean, CI green**
 
@@ -289,16 +289,16 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **PEP 561** — `py.typed` marker for type checker support
 - **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
 - **15 examples total** — all documented in examples/README.md
-- **247 total tools** (added `export_dry_stem` for freeze/flatten workflows)
+- **249 total tools** (added `export_dry_stem` for freeze/flatten workflows)
 
 ### v1.9.4 (2026-07-03)
 
 - **Removed 2 duplicate tools** (245 → 243)
   - `delete_signature_event` — superseded by `delete_signature_change` (richer: position match + index, returns updated event list)
   - `list_aux_sends` — superseded by `list_sends` (richer: target_bus_name, send_level_db, routing, send_pan via box-level access)
-- **TOOL_CATALOG.md regenerated from AST** — all 247 tools with descriptions, 32 categories
+- **TOOL_CATALOG.md regenerated from AST** — all 249 tools with descriptions, 32 categories
 - **server.json Docker tag fixed** — was stale `1.0.0`, now matches release version
-- **247 total tools**
+- **249 total tools**
 
 ### v1.9.3 (2026-07-03)
 
@@ -337,7 +337,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
   - `set_stereo_tool_panning(unit_index, effect_index, panning_mixing)` — Set StereoTool panning law (linear, equal-power)
   - `set_fold_oversampling(unit_index, effect_index, oversampling)` — Set Fold wavefolder oversampling (0=off, 1=2x, 2=4x)
   - `set_crusher_bits(unit_index, effect_index, bits)` — Set Crusher bit depth (1-16)
-- **247 total tools**
+- **249 total tools**
 
 ### v1.8.2 (2026-07-03)
 

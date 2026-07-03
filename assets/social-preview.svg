@@ -53,9 +53,9 @@
   
   <!-- Stats badges -->
   <g font-family="monospace" font-size="24" fill="#e2e8f0">
-    <!-- 247 Tools -->
+    <!-- 249 Tools -->
     <rect x="100" y="320" width="180" height="50" rx="10" fill="#1e1e38" stroke="#7c3aed" stroke-width="1.5"/>
-    <text x="115" y="353" fill="#a78bfa" font-weight="bold">247</text>
+    <text x="115" y="353" fill="#a78bfa" font-weight="bold">249</text>
     <text x="175" y="353" fill="#94a3b8" font-size="20">MCP Tools</text>
     
     <!-- 31 Tests -->

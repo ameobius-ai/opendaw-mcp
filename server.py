@@ -9607,6 +9607,86 @@ async def mcp_opendaw_set_stereo_tool_panning(unit_index: int, effect_index: int
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_set_tidal_rate(unit_index: int, effect_index: int, rate: str) -> str:
+    """Set the LFO rate on a Tidal effect using a musical fraction string.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Tidal).
+    rate: Musical fraction — one of:
+        "1/1", "1/2", "1/3", "3/16", "1/6", "1/8", "3/32", "1/12",
+        "1/16", "3/64", "1/24", "1/32", "1/48", "1/64", "1/96", "1/128".
+    """
+    rate_map = {
+        "1/1": 0, "1/2": 1, "1/3": 2, "1/4": 3, "3/16": 4, "1/6": 5, "1/8": 6,
+        "3/32": 7, "1/12": 8, "1/16": 9, "3/64": 10, "1/24": 11, "1/32": 12,
+        "1/48": 13, "1/64": 14, "1/96": 15, "1/128": 16,
+    }
+    if rate not in rate_map:
+        return _err(f"Invalid rate '{rate}'. Valid: {', '.join(sorted(rate_map.keys()))}")
+    idx = rate_map[rate]
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const box = fx[{effect_index}];
+            if (!box.rate) return {{error: "Effect has no rate field (not a Tidal)"}};
+            const oldValue = box.rate.getValue();
+            h.modify(() => {{ box.rate.setValue({idx}); }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                rate: "{rate}",
+                old_index: oldValue,
+                new_index: box.rate.getValue(),
+            }};
+        }} catch(e) {{ return {{error: e.message}}; }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_delay_sync(unit_index: int, effect_index: int, fraction: str) -> str:
+    """Set the synced delay time on a Delay effect using a musical fraction string.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Delay).
+    fraction: Musical fraction — one of:
+        "off", "1/128", "1/96", "1/64", "1/48", "1/32", "1/24", "3/64",
+        "1/16", "1/12", "3/32", "1/8", "1/6", "3/16", "1/4", "5/16",
+        "1/3", "3/8", "7/16", "1/2", "1/1".
+    """
+    fraction_map = {
+        "off": 0, "1/128": 1, "1/96": 2, "1/64": 3, "1/48": 4, "1/32": 5,
+        "1/24": 6, "3/64": 7, "1/16": 8, "1/12": 9, "3/32": 10, "1/8": 11,
+        "1/6": 12, "3/16": 13, "1/4": 14, "5/16": 15, "1/3": 16, "3/8": 17,
+        "7/16": 18, "1/2": 19, "1/1": 20,
+    }
+    if fraction not in fraction_map:
+        return _err(f"Invalid fraction '{fraction}'. Valid: {', '.join(sorted(fraction_map.keys()))}")
+    idx = fraction_map[fraction]
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const box = fx[{effect_index}];
+            if (!box.delayMusical) return {{error: "Effect has no delayMusical field (not a Delay)"}};
+            const oldValue = box.delayMusical.getValue();
+            h.modify(() => {{ box.delayMusical.setValue({idx}); }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                fraction: "{fraction}",
+                old_index: oldValue,
+                new_index: box.delayMusical.getValue(),
+            }};
+        }} catch(e) {{ return {{error: e.message}}; }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_set_fold_oversampling(unit_index: int, effect_index: int, oversampling: int) -> str:
     """Set the oversampling level on a Fold (wavefolding) effect.
 
@@ -11789,7 +11869,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.9.6 — 247 MCP tools")
+            print("opendaw-mcp 1.9.6 — 249 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -11799,7 +11879,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 247 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 249 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
