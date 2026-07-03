@@ -261,6 +261,20 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.9.5 (2026-07-03)
+
+- **CLI commands** — `--version`, `--list-tools`, `--help` with full env var reference
+- **22 unit tests** — pytest covering `_ok`, `_err`, `_wrap_eval`, `_unwrap_eval`, `_safe_filename`, `_safe_path`
+- **3 bug fixes found by tests:**
+  - `_ok()` — `{"success": False}` in data overwrote the `True` flag (security fix)
+  - `_safe_filename()` — case-sensitive extension stripping (`.MP3` not stripped)
+  - `_safe_filename()` — Windows backslash path traversal not handled on Linux
+- **CI enhanced** — now runs pytest (22 tests) alongside syntax/AST/smoke checks
+- **PEP 561** — `py.typed` marker for type checker support
+- **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
+- **15 examples total** — all documented in examples/README.md
+- **243 total tools** (no tool count change)
+
 ### v1.9.4 (2026-07-03)
 
 - **Removed 2 duplicate tools** (245 → 243)
