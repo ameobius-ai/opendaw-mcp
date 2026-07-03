@@ -10453,7 +10453,7 @@ async def mcp_opendaw_capture_realtime(duration_seconds: float, filename: str) -
                 success: true,
                 samples: audioData.frames[0]?.length || 0,
                 sample_rate: audioData.sampleRate,
-                channels: audioData.channels,
+                channels: audioData.numberOfChannels,
                 size_bytes: bytes.length,
             }};
         }} catch(e) {{
