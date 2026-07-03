@@ -9444,6 +9444,230 @@ async def mcp_opendaw_get_neuralamp_model(unit_index: int, effect_index: int) ->
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_set_neuralamp_model(unit_index: int, effect_index: int, model_json: str, label: str = "NAM Model", pack_id: str = "") -> str:
+    """Load a Neural Amp Modeler (NAM/Tone3000) model JSON into a NeuralAmp effect.
+
+    Creates a NeuralAmpModelBox with the provided model JSON and links it to the
+    NeuralAmp device. This bypasses the popup-based Tone3000 Select Flow, enabling
+    headless model loading.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a NeuralAmp).
+    model_json: Full NAM model JSON string (the model architecture + weights).
+    label: Optional label for the model box (default "NAM Model").
+    pack_id: Optional pack identifier.
+
+    Returns success + model_size, or error if the effect is not a NeuralAmp.
+    """
+    escaped_json = json.dumps(model_json)
+    escaped_label = json.dumps(label)
+    escaped_pack = json.dumps(pack_id)
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const fx = au.audioEffects.adapters();
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const fxAdapter = fx[{effect_index}];
+            if (!fxAdapter.getModelJson) return {{error: "Effect is not a NeuralAmp"}};
+
+            const effectBox = fxAdapter.box;
+            const NeuralAmpModelBox = window.DAW_NeuralAmpModelBox;
+            if (!NeuralAmpModelBox) return {{error: "DAW_NeuralAmpModelBox global not available"}};
+
+            const UUID = window.DAW_UUID || h.uuid;
+            h.modify(() => {{
+                const modelBox = NeuralAmpModelBox.create(h.boxGraph, UUID.generate());
+                modelBox.label.setValue({escaped_label});
+                modelBox.model.setValue({escaped_json});
+                if ({escaped_pack}.length > 0) modelBox.packId.setValue({escaped_pack});
+                const modelVertex = h.boxGraph.findVertex(modelBox.address);
+                if (modelVertex.isEmpty()) return {{error: "Failed to create model vertex"}};
+                effectBox.model.refer(modelVertex.unwrap());
+            }});
+
+            return {{
+                success: true,
+                effect: effectBox.constructor.name,
+                model_label: {escaped_label},
+                model_size: {escaped_json}.length,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_vocoder_modulator_source(unit_index: int, effect_index: int, source: str) -> str:
+    """Set the modulator source on a Vocoder effect.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Vocoder).
+    source: One of "noise-white", "noise-pink", "noise-brown", "self", "external".
+    """
+    valid_sources = ["noise-white", "noise-pink", "noise-brown", "self", "external"]
+    if source not in valid_sources:
+        return json.dumps({"error": f"Invalid source '{source}'. Must be one of: {', '.join(valid_sources)}"})
+    safe_source = json.dumps(source)
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const fx = au.audioEffects.adapters();
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const fxAdapter = fx[{effect_index}];
+            const box = fxAdapter.box;
+            if (!box.modulatorSource) return {{error: "Effect has no modulatorSource (not a Vocoder)"}};
+            const oldValue = box.modulatorSource.getValue();
+            h.modify(() => {{
+                box.modulatorSource.setValue({safe_source});
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                old_source: oldValue,
+                new_source: box.modulatorSource.getValue(),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_vocoder_band_count(unit_index: int, effect_index: int, band_count: int) -> str:
+    """Set the band count on a Vocoder effect (number of filter bands, typically 8-32).
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Vocoder).
+    band_count: Number of bands (8, 16, 24, 32 are common values).
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const fx = au.audioEffects.adapters();
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const fxAdapter = fx[{effect_index}];
+            const box = fxAdapter.box;
+            if (!box.bandCount) return {{error: "Effect has no bandCount (not a Vocoder)"}};
+            const oldValue = box.bandCount.getValue();
+            h.modify(() => {{
+                box.bandCount.setValue({band_count});
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                old_value: oldValue,
+                new_value: box.bandCount.getValue(),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_stereo_tool_panning(unit_index: int, effect_index: int, panning_mixing: int) -> str:
+    """Set the panning mixing mode on a StereoTool effect.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a StereoTool).
+    panning_mixing: Panning law (0=linear, 1=equal-power, or other supported values).
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const fx = au.audioEffects.adapters();
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const fxAdapter = fx[{effect_index}];
+            const box = fxAdapter.box;
+            if (!box.panningMixing) return {{error: "Effect has no panningMixing (not a StereoTool)"}};
+            const oldValue = box.panningMixing.getValue();
+            h.modify(() => {{
+                box.panningMixing.setValue({panning_mixing});
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                old_value: oldValue,
+                new_value: box.panningMixing.getValue(),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_fold_oversampling(unit_index: int, effect_index: int, oversampling: int) -> str:
+    """Set the oversampling level on a Fold (wavefolding) effect.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Fold).
+    oversampling: 0=off, 1=2x, 2=4x.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const fx = au.audioEffects.adapters();
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const fxAdapter = fx[{effect_index}];
+            const box = fxAdapter.box;
+            if (!box.overSampling) return {{error: "Effect has no overSampling (not a Fold)"}};
+            const oldValue = box.overSampling.getValue();
+            h.modify(() => {{
+                box.overSampling.setValue({oversampling});
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                old_value: oldValue,
+                new_value: box.overSampling.getValue(),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_crusher_bits(unit_index: int, effect_index: int, bits: int) -> str:
+    """Set the bit depth on a Crusher (bitcrusher) effect.
+
+    unit_index: AU index.
+    effect_index: Effect index in the audio effect chain (must be a Crusher).
+    bits: Bit depth (1-16, where 16=no crushing, 1=extreme).
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const au = h.au({unit_index});
+            const fx = au.audioEffects.adapters();
+            if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
+            const fxAdapter = fx[{effect_index}];
+            const box = fxAdapter.box;
+            if (!box.bits) return {{error: "Effect has no bits (not a Crusher)"}};
+            const oldValue = box.bits.getValue();
+            h.modify(() => {{
+                box.bits.setValue({bits});
+            }});
+            return {{
+                success: true,
+                effect: box.constructor.name,
+                old_value: oldValue,
+                new_value: box.bits.getValue(),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_list_transient_markers(unit_index: int, track_index: int, region_index: int) -> str:
     """List transient markers for an audio region's audio file.
 

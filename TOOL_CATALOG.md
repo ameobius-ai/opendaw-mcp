@@ -330,8 +330,16 @@
 ## MIDI Output Devices (1 tool)
 - **list_midi_output_devices** — List hardware MIDI output devices registered in the project (id, label, delay_ms, send_transport)
 
-## NeuralAmp (1 tool)
+## NeuralAmp (2 tools)
 - **get_neuralamp_model(unit_index, effect_index)** — Get the NeuralAmp (Tone3000) model JSON for a NeuralAmp effect. Returns model metadata and parameters.
+- **set_neuralamp_model(unit_index, effect_index, model_json, label, pack_id)** — Load NAM/Tone3000 model JSON directly into a NeuralAmp effect. Creates NeuralAmpModelBox and links it via pointer, bypassing popup-based Select Flow.
+
+## Device-Specific Parameters (5 tools)
+- **set_vocoder_modulator_source(unit_index, effect_index, source)** — Set Vocoder modulator source: noise-white, noise-pink, noise-brown, self, external.
+- **set_vocoder_band_count(unit_index, effect_index, band_count)** — Set Vocoder filter band count (8-32).
+- **set_stereo_tool_panning(unit_index, effect_index, panning_mixing)** — Set StereoTool panning law (0=linear, 1=equal-power).
+- **set_fold_oversampling(unit_index, effect_index, oversampling)** — Set Fold wavefolder oversampling (0=off, 1=2x, 2=4x).
+- **set_crusher_bits(unit_index, effect_index, bits)** — Set Crusher bitcrusher bit depth (1-16).
 
 ## Transient Markers (1 tool)
 - **list_transient_markers(unit_index, track_index, region_index)** — List transient markers for an audio region's audio file. Returns marker positions and anchor flags.

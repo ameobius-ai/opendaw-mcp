@@ -3,10 +3,10 @@
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-237-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-243-brightgreen)](TOOL_CATALOG.md)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
-**237 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**243 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -209,7 +209,7 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 237 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 243 tools with parameters and descriptions.
 
 ## Mastering
 
@@ -251,6 +251,17 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.9.0 (2026-07-03)
+
+- **6 new tools: Device-Specific Parameters & NeuralAmp Model Loading**
+  - `set_neuralamp_model(unit_index, effect_index, model_json, label, pack_id)` — Load NAM/Tone3000 model JSON directly into a NeuralAmp effect, bypassing the popup-based Select Flow. Creates NeuralAmpModelBox and links it via pointer
+  - `set_vocoder_modulator_source(unit_index, effect_index, source)` — Set Vocoder modulator source: noise-white, noise-pink, noise-brown, self, or external
+  - `set_vocoder_band_count(unit_index, effect_index, band_count)` — Set Vocoder filter band count (8-32)
+  - `set_stereo_tool_panning(unit_index, effect_index, panning_mixing)` — Set StereoTool panning law (linear, equal-power)
+  - `set_fold_oversampling(unit_index, effect_index, oversampling)` — Set Fold wavefolder oversampling (0=off, 1=2x, 2=4x)
+  - `set_crusher_bits(unit_index, effect_index, bits)` — Set Crusher bit depth (1-16)
+- **243 total tools**
 
 ### v1.8.2 (2026-07-03)
 
