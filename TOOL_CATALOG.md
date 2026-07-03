@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-194 MCP tools for headless openDAW control via Playwright bridge.
+197 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -302,3 +302,8 @@
 ## PianoMode (2 tools)
 - **set_transpose** — Set global piano roll transpose (-48 to +48 semitones)
 - **get_piano_mode** — Get keyboard type, time range, note scale, labels, transpose
+
+## Debugging & Control (3 tools)
+- **screenshot_daw** — Take a screenshot of the openDAW UI. Returns base64-encoded PNG. Useful for visual debugging and verifying project state.
+- **wait_for_condition(condition_js, timeout_ms, poll_interval_ms)** — Poll a JavaScript condition in the DAW context until truthy or timeout. Useful for waiting on async operations (render completion, file loading).
+- **evaluate_raw(script)** — Execute arbitrary JavaScript in the DAW V8 context. For power users and debugging — explore openDAW internals directly. Script is wrapped in an async arrow function with access to window.DAW and all DAW_ globals.

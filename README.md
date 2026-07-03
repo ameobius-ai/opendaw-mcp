@@ -3,10 +3,10 @@
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-194-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-197-brightgreen)](TOOL_CATALOG.md)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
-**194 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**197 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -38,6 +38,7 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 - **Modular System** — voltage modules (Gain, Delay, Multiplier, AudioInput, AudioOutput), patch cable connections
 - **Piano Mode** — global transpose, keyboard type, note scale, time range
 - **Project & Bus Metadata** — creation date, signature, AU/track count, bus labels and colors
+- **Debugging & Control** — screenshots, condition polling, raw JS evaluation
 
 ## Quick Start
 

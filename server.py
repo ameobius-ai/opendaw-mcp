@@ -9374,6 +9374,60 @@ async def mcp_opendaw_get_piano_mode() -> str:
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_screenshot_daw() -> str:
+    """Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
+    Useful for visual debugging and verifying project state.
+    """
+    import base64
+    if bridge.page is None:
+        await bridge.start()
+    screenshot_bytes = await bridge.page.screenshot(type="png")
+    b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
+    return json.dumps({"success": True, "image": b64, "format": "png", "size_bytes": len(screenshot_bytes)})
+
+
+@mcp.tool()
+async def mcp_opendaw_wait_for_condition(condition_js: str, timeout_ms: int = 10000, poll_interval_ms: int = 500) -> str:
+    """Wait for a JavaScript condition to evaluate to true in the DAW context.
+
+    Polls the condition at regular intervals until it returns true or timeout is reached.
+
+    condition_js: JavaScript expression that returns a truthy value when the condition is met.
+    timeout_ms: Maximum wait time in milliseconds (default 10000).
+    poll_interval_ms: Polling interval in milliseconds (default 500).
+    """
+    import asyncio
+    if bridge.page is None:
+        await bridge.start()
+    elapsed = 0
+    while elapsed < timeout_ms:
+        result = await bridge.page.evaluate(f"""() => {{
+            try {{ return Boolean({condition_js}); }}
+            catch(e) {{ return false; }}
+        }}""")
+        if result:
+            return _ok({"elapsed_ms": elapsed, "condition_met": True})
+        await asyncio.sleep(poll_interval_ms / 1000)
+        elapsed += poll_interval_ms
+    return json.dumps({"success": False, "condition_met": False, "elapsed_ms": elapsed, "timeout_ms": timeout_ms})
+
+
+@mcp.tool()
+async def mcp_opendaw_evaluate_raw(script: str) -> str:
+    """Execute arbitrary JavaScript in the DAW V8 context and return the result.
+    For power users and debugging — explore openDAW internals directly.
+    The script must be a function body (will be wrapped in an async arrow).
+
+    script: JavaScript code to execute. Has access to window.DAW and all DAW_ globals.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        try {{ return await (async () => {{ {script} }})(); }}
+        catch(e) {{ return {{ __error: e.message, __stack: e.stack }}; }}
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
