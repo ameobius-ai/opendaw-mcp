@@ -6189,7 +6189,7 @@ device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MI
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}";
+        const dt = "{device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6197,13 +6197,13 @@ device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MI
             const me = au.midiEffects ? [...au.midiEffects.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = me[{device_index}] || null;
         }} else if (dt === "apparat") {{
-            const inp = au.input ? au.input.targetVertex.unwrapOrNull() : null;
-            device = inp;
+            const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
+            device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
         if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
         const boxGraph = device.graph;
         const UUID = window.DAW_UUID;
-        const headerTag = "{device_type}";
+        const headerTag = "{device_type}".toLowerCase();
         const headerPattern = new RegExp('^// @' + headerTag + ' \w+ \d+ \d+\\n');
         const source = {code_json};
         const headerMatch = source.match(headerPattern);
@@ -6367,7 +6367,7 @@ Returns the full code string, header line, and code length.
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}";
+        const dt = "{device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6375,8 +6375,8 @@ Returns the full code string, header line, and code length.
             const me = au.midiEffects ? [...au.midiEffects.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = me[{device_index}] || null;
         }} else if (dt === "apparat") {{
-            const inp = au.input ? au.input.targetVertex.unwrapOrNull() : null;
-            device = inp;
+            const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
+            device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
         if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
         const code = device.code.getValue();
@@ -6405,7 +6405,7 @@ declarations in the code. They appear after the code is compiled and loaded.
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}";
+        const dt = "{device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6413,8 +6413,8 @@ declarations in the code. They appear after the code is compiled and loaded.
             const me = au.midiEffects ? [...au.midiEffects.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = me[{device_index}] || null;
         }} else if (dt === "apparat") {{
-            const inp = au.input ? au.input.targetVertex.unwrapOrNull() : null;
-            device = inp;
+            const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
+            device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
         if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
         if (!device.parameters) return {{error: "Device has no parameters field"}};
@@ -6446,7 +6446,7 @@ The value is set directly on the WerkstattParameterBox.value field.
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}";
+        const dt = "{device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6454,8 +6454,8 @@ The value is set directly on the WerkstattParameterBox.value field.
             const me = au.midiEffects ? [...au.midiEffects.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = me[{device_index}] || null;
         }} else if (dt === "apparat") {{
-            const inp = au.input ? au.input.targetVertex.unwrapOrNull() : null;
-            device = inp;
+            const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
+            device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
         if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
         if (!device.parameters) return {{error: "Device has no parameters field"}};
@@ -6490,7 +6490,7 @@ The file pointer is null until a sample is loaded.
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
-        const dt = "{device_type}";
+        const dt = "{device_type}".toLowerCase();
         if (dt === "werkstatt") {{
             const fx = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
             device = fx[{device_index}] || null;
@@ -6498,8 +6498,8 @@ The file pointer is null until a sample is loaded.
             const me = au.midiEffects ? [...au.midiEffects.pointerHub.incoming()].map(({{box}}) => box) : [];
             device = me[{device_index}] || null;
         }} else if (dt === "apparat") {{
-            const inp = au.input ? au.input.targetVertex.unwrapOrNull() : null;
-            device = inp;
+            const incoming = au.input ? [...au.input.pointerHub.incoming()].map(({{box}}) => box) : [];
+            device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
         if (!device) return {{error: "Scriptable device '{device_type}' not found on unit {unit_index}"}};
         if (!device.samples) return {{error: "Device has no samples field"}};
