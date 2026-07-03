@@ -897,13 +897,13 @@ Returns old and new instrument type.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_track_volume(unit_index: int, volume_db: str) -> str:
+async def mcp_opendaw_set_track_volume(unit_index: int, volume_db: float) -> str:
     """Set volume of an audio unit in dB.
 
 Uses VolumeMapper.decibel(-96, -9, +6) powerByCenter mapping.
 Range: -96 dB (mute) to +6 dB. 0 dB = raw 0.768.
 """
-    vol_db = float(volume_db)
+    vol_db = volume_db
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
         const idx = {unit_index};
@@ -1604,7 +1604,7 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_send_level(src_unit: str, send_index: str, level_db: str) -> str:
+async def mcp_opendaw_set_send_level(src_unit: int, send_index: int, level_db: float) -> str:
     """Set the send level for an existing aux send.
 
 src_unit: Source audio unit index.
@@ -1717,7 +1717,7 @@ send_index: Send index to remove (from list_sends).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_send_routing(unit_index: int, send_index: str, routing: str) -> str:
+async def mcp_opendaw_set_send_routing(unit_index: int, send_index: int, routing: str) -> str:
     """Set the routing mode for an aux send (pre-fader or post-fader).
 
 unit_index: Source audio unit index.
@@ -1788,7 +1788,7 @@ Returns bus index, name, enabled state, and the associated audio unit index.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_send_pan(unit_index: int, send_index: str, pan: float) -> str:
+async def mcp_opendaw_set_send_pan(unit_index: int, send_index: int, pan: float) -> str:
     """Set the stereo pan for an aux send (-1.0 = full left, 0.0 = center, 1.0 = full right).
 
 unit_index: Source audio unit index.
@@ -1824,7 +1824,7 @@ pan: Pan value from -1.0 (left) to 1.0 (right).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_bus_enabled(bus_index: str, enabled: bool) -> str:
+async def mcp_opendaw_set_bus_enabled(bus_index: int, enabled: bool) -> str:
     """Enable or mute an audio bus (FX bus A/B comparison).
 
 bus_index: Bus index from list_audio_buses (0 = primary output).
