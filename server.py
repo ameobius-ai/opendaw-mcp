@@ -4155,6 +4155,7 @@ unit_index: Audio unit index (-1 = search all AUs).
 track_index: Track index within the AU.
 region_index: Region to move (0-based).
 """
+    safe_region_type = region_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
@@ -5064,6 +5065,7 @@ clip_index: Clip slot index (0-based).
 Returns clip creation details.
 """
     clip_idx = clip_index
+    safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
