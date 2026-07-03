@@ -8460,6 +8460,7 @@ async def mcp_opendaw_get_track_info(unit_index: int, track_index: int) -> str:
                 index: track.indexField.getValue(),
                 type: typeNames[track.type] || String(track.type),
                 enabled: track.enabled.getValue(),
+                exclude_piano_mode: track.excludePianoMode?.getValue?.() ?? false,
                 region_count: regions.length,
                 clip_count: clips.length,
                 regions: regions.map(r => ({{
