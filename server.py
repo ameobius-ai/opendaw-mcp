@@ -130,8 +130,26 @@ def _unwrap_eval(s) -> any:
     """Parse a JSON string from _wrap_eval back to dict/list."""
     if isinstance(s, str):
         try: return json.loads(s)
-        except: return s
+        except (json.JSONDecodeError, ValueError): return s
     return s
+
+def _safe_filename(name: str) -> str:
+    """Sanitize a filename: strip quotes/backslashes, remove extension, prevent path traversal."""
+    safe = name.replace('"', '').replace("'", '').replace('\\', '').replace('.wav', '').replace('.WAV', '').replace('.mp3', '').replace('.flac', '').replace('.dawproject', '')
+    # Prevent path traversal: only allow basename
+    safe = os.path.basename(safe)
+    # Remove any remaining path separators
+    safe = safe.replace('/', '').replace('\\', '')
+    return safe or "output"
+
+def _safe_path(export_dir: str, filename: str, ext: str = "wav") -> str:
+    """Build a safe file path inside export_dir, preventing path traversal."""
+    safe = _safe_filename(filename)
+    path = os.path.join(export_dir, f"{safe}.{ext}")
+    # Verify the resolved path is inside export_dir
+    if not os.path.abspath(path).startswith(os.path.abspath(export_dir)):
+        path = os.path.join(export_dir, f"output.{ext}")
+    return path
 
 @mcp.tool()
 async def mcp_opendaw_get_project_state() -> str:
@@ -185,7 +203,10 @@ async def mcp_opendaw_transport(action: str) -> str:
 
 action: "play", "stop", or "toggle"
 """
+    valid_actions = {"play", "stop", "toggle"}
     act = (action or "toggle").lower().strip()
+    if act not in valid_actions:
+        return json.dumps({"error": f"Invalid action '{act}'. Must be one of: {', '.join(sorted(valid_actions))}"})
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const eng = h.engine;
@@ -4766,7 +4787,7 @@ checking specific sections during mixing.
 
 Returns the path to the exported WAV and audio metadata.
 """
-    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
+    safe_name = _safe_filename(filename)
     result = await bridge.evaluate(f"""async () => {{
         const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
@@ -4845,7 +4866,7 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
 
     Returns the path to the exported WAV and audio metadata.
     """
-    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
+    safe_name = _safe_filename(filename)
     result = await bridge.evaluate(f"""async () => {{
         const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
@@ -4990,7 +5011,7 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
         b64 = await bridge.evaluate("() => window.__lastExportB64")
         if isinstance(b64, str) and b64:
             wav_bytes = b64mod.b64decode(b64)
-            safe_prefix = filename_prefix.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '')
+            safe_prefix = _safe_filename(filename_prefix)
             filepath = os.path.join(export_dir, f"{safe_prefix}_stems.wav")
             with open(filepath, "wb") as f:
                 f.write(wav_bytes)
@@ -5011,7 +5032,7 @@ sample_rate: Export sample rate.
 
 The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
 """
-    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
+    safe_name = _safe_filename(filename)
     # Build per-AU stem config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
     result_temp = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
@@ -6047,7 +6068,7 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
     """
     target = target_lufs
     max_iter = max_iterations if max_iterations else 3
-    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '')
+    safe_name = _safe_filename(filename)
 
     # Step 1: Ensure Maximizer on output AU
     maxi_result = await bridge.evaluate(f"""() => {{
@@ -10779,7 +10800,7 @@ async def mcp_opendaw_capture_realtime(duration_seconds: float, filename: str) -
 
     Returns file path and size, or error if engine not running.
     """
-    safe_name = filename.replace('"', '').replace('\\', '').replace("'", "").replace('/', '').replace(';', '')
+    safe_name = _safe_filename(filename)
     result = await bridge.evaluate(f"""async () => {{
         const captureFn = window.DAW_captureRealtime;
         if (!captureFn) return {{error: "captureRealtime not available"}};
@@ -11188,7 +11209,7 @@ async def mcp_opendaw_import_dawproject(filename: str) -> str:
 
     Returns the import result with track and sample counts.
     """
-    safe_fn = filename.replace('"', '').replace('\\', '').replace("'", "").replace(';', '')
+    safe_fn = os.path.abspath(filename)
     if not os.path.exists(safe_fn):
         return json.dumps({"error": f"File not found: {safe_fn}"})
     fn_json = json.dumps(safe_fn)
@@ -11238,7 +11259,10 @@ async def mcp_opendaw_duplicate_effect(unit_index: int, effect_index: int, chain
 
     Returns the new effect's index and type.
     """
-    safe_chain = (chain_type or "audio").lower().strip().replace('"', '').replace("'", '').replace('\\', '')
+    valid_chains = {"audio", "midi"}
+    safe_chain = (chain_type or "audio").lower().strip()
+    if safe_chain not in valid_chains:
+        return json.dumps({"error": f"Invalid chain_type '{safe_chain}'. Must be 'audio' or 'midi'"})
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const ef = window.DAW_EffectFactories;
@@ -11477,7 +11501,7 @@ async def mcp_opendaw_convert_audio(filename: str, format: str = "mp3", bitrate:
     fmt = format.lower().strip().replace('"', '').replace("'", "")
     if fmt not in ("mp3", "flac"):
         return _wrap_eval({"error": f"Unsupported format '{fmt}' — use 'mp3' or 'flac'"})
-    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
+    safe_name = _safe_filename(filename)
     export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
     wav_path = os.path.join(export_dir, f"{safe_name}.wav")
     if not os.path.exists(wav_path):
