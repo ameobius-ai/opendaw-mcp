@@ -335,3 +335,7 @@
 - **screenshot_daw** — Take a screenshot of the openDAW UI. Returns base64-encoded PNG. Useful for visual debugging and verifying project state.
 - **wait_for_condition(condition_js, timeout_ms, poll_interval_ms)** — Poll a JavaScript condition in the DAW context until truthy or timeout. Useful for waiting on async operations (render completion, file loading).
 - **evaluate_raw(script)** — Execute arbitrary JavaScript in the DAW V8 context. For power users and debugging — explore openDAW internals directly. Script is wrapped in an async arrow function with access to window.DAW and all DAW_ globals.
+
+## Studio Settings (2 tools)
+- **get_studio_settings()** — Get all studio preferences/settings (engine, visibility, editing, debug, storage, time-display, pointer categories)
+- **set_studio_setting(category, key, value)** — Set a studio preference. Categories: engine, visibility, editing, debug, storage, time-display, pointer. Common keys: auto-create-output-maximizer, overlapping-regions-behaviour, enable-beta-features, auto-delete-orphaned-samples, note-audition-while-editing
