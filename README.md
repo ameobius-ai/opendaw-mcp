@@ -262,6 +262,16 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.9.6 (2026-07-03)
+
+- **`measure_lufs` refactored** — 223 lines → 20 lines. Extracted `_parse_wav()` and `_compute_lufs()` helpers
+- **DRY: K-weighting coefficients** — duplicated if/else branches (48kHz vs else) were identical, merged into single computation
+- **9 new unit tests** — WAV parsing (float32/mono/stereo/PCM16/invalid/no-data) + LUFS computation (silence/full-scale/low-level/stereo)
+- **Social preview banner** — custom OpenGraph image for GitHub link previews
+- **awesome-mcp PR updated** — title and body synced to 243 tools
+- **GitHub topics** — 18 topics for discoverability
+- **31 total tests, ruff clean, CI green**
+
 ### v1.9.5 (2026-07-03)
 
 - **CLI commands** — `--version`, `--list-tools`, `--help` with full env var reference
