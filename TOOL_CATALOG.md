@@ -319,6 +319,12 @@
 ## MIDI Output Devices (1 tool)
 - **list_midi_output_devices** — List hardware MIDI output devices registered in the project (id, label, delay_ms, send_transport)
 
+## NeuralAmp (1 tool)
+- **get_neuralamp_model(unit_index, effect_index)** — Get the NeuralAmp (Tone3000) model JSON for a NeuralAmp effect. Returns model metadata and parameters.
+
+## Transient Markers (1 tool)
+- **list_transient_markers(unit_index, track_index, region_index)** — List transient markers for an audio region's audio file. Returns marker positions and anchor flags.
+
 ## Debugging & Control (3 tools)
 - **screenshot_daw** — Take a screenshot of the openDAW UI. Returns base64-encoded PNG. Useful for visual debugging and verifying project state.
 - **wait_for_condition(condition_js, timeout_ms, poll_interval_ms)** — Poll a JavaScript condition in the DAW context until truthy or timeout. Useful for waiting on async operations (render completion, file loading).
