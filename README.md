@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.ameobius/opendaw-mcp -->
 # openDAW MCP
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)

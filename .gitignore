@@ -17,3 +17,6 @@ test_*.py
 *.backup
 *.final
 *_recovered.py
+
+# mcp-publisher binary
+mcp-publisher

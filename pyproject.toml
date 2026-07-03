@@ -17,3 +17,6 @@ Repository = "https://github.com/AMEOBIUS/opendaw-mcp"
 
 [project.scripts]
 opendaw-mcp = "server:main"
+
+[tool.setuptools]
+py-modules = ["server"]

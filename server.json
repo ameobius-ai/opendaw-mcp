@@ -1,0 +1,51 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ameobius/opendaw-mcp",
+  "title": "openDAW MCP",
+  "description": "194 MCP tools for agent-native control of openDAW, a browser-based DAW",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/AMEOBIUS/opendaw-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/ameobius/opendaw-mcp:1.0.0",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Path to the headless openDAW host directory",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "OPENDAW_HOST_DIR"
+        },
+        {
+          "description": "URL of the running openDAW Vite dev server",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "OPENDAW_URL"
+        },
+        {
+          "description": "Directory for rendered audio exports",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "OPENDAW_EXPORT_DIR"
+        },
+        {
+          "description": "Path to Node.js binary directory (if not on PATH)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "NODE_BIN_DIR"
+        }
+      ]
+    }
+  ]
+}

@@ -42,6 +42,8 @@ ENV PORT=8080
 
 RUN mkdir -p /app/exports
 
+LABEL io.modelcontextprotocol.server.name="io.github.ameobius/opendaw-mcp"
+
 EXPOSE 8080
 
 # Start Vite dev server for openDAW, then the MCP server
