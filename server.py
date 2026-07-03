@@ -78,6 +78,12 @@ class HeadlessDawBridge:
                 // Get all AU boxes sorted
                 allAUBoxes: () => [...p.rootBox.audioUnits.pointerHub.incoming()].map(({box}) => box)
                     .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0)),
+                // Get effect boxes for an AU (sorted by index)
+                effectBoxes: (au) => [...au.audioEffects.pointerHub.incoming()].map(({box}) => box)
+                    .sort((a, b) => a.index.getValue() - b.index.getValue()),
+                // Get MIDI effect boxes for an AU (sorted by index)
+                midiEffectBoxes: (au) => [...au.midiEffects.pointerHub.incoming()].map(({box}) => box)
+                    .sort((a, b) => a.index.getValue() - b.index.getValue()),
                 // Get all AU adapters sorted
                 allAUs: () => p.rootBoxAdapter.audioUnits.adapters(),
                 // Find instrument AU (first non-output, non-bus)
@@ -1360,9 +1366,7 @@ Returns effect_index — use it with mcp_opendaw_set_effect_parameter.
         }});
 
         // Get effect index in the chain
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         const effectIndex = effects.findIndex(b => b.address.equals(effectBox.address));
 
         return {{
@@ -1489,9 +1493,7 @@ Effects between from and to shift accordingly.
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (fromIdx >= effects.length) return {{error: "from_index " + fromIdx + " out of range (" + effects.length + " effects)"}};
         if (toIdx >= effects.length) return {{error: "to_index " + toIdx + " out of range (" + effects.length + " effects)"}};
         if (fromIdx === toIdx) return {{success: true, message: "No change needed"}};
@@ -1969,9 +1971,7 @@ Returns parameter names, current values, units, and ranges.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx + ". Total: " + effects.length}};
 
         const effectBox = effects[effectIdx];
@@ -2050,7 +2050,7 @@ Returns complete effect state snapshot.
         const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -2125,9 +2125,7 @@ Examples:
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -2181,9 +2179,7 @@ async def mcp_opendaw_set_effect_parameter_bool(unit_index: int, effect_index: i
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -2238,9 +2234,7 @@ async def mcp_opendaw_set_effect_parameter_int(unit_index: int, effect_index: in
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -2286,9 +2280,7 @@ string_value: String value (e.g. "hardclip", "tanh", "cubicSoft", "sigmoid", "ar
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -2328,9 +2320,7 @@ effect_index: Effect position to remove (0-based).
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
 
         const effectBox = effects[effectIdx];
@@ -3092,9 +3082,7 @@ Returns ordered list of effects with their type, enabled state, and index.
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
 
         const chain = effects.map((box, i) => {{
             const className = box.constructor.name;
@@ -5133,7 +5121,7 @@ The parameter must be automatable (Field<Pointers.Automation>).
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
         const au = units[unitIdx];
 
-        const effects = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at " + effectIdx}};
         const effectBox = effects[effectIdx];
 
@@ -5754,7 +5742,7 @@ enabled: true to enable, false to bypass.
         const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
         const au = units[unitIdx];
-        const effects = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => a.index.getValue() - b.index.getValue());
+        const effects = h.effectBoxes(au);
         if (effectIdx >= effects.length) return {{error: "No effect at " + effectIdx}};
         const effectBox = effects[effectIdx];
 
