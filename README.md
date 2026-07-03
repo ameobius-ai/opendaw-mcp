@@ -9,6 +9,7 @@
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
+[![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 
 **250 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
