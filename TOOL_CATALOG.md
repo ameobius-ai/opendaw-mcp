@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-207 MCP tools for headless openDAW control via Playwright bridge.
+208 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -36,13 +36,14 @@
 - `set_marker_position` — move marker to new position
 - `set_marker_label` — rename marker
 
-## Tracks (6)
+## Tracks (7)
 - `create_audio_track` — audio track on primary AU
 - `create_note_track` — note track on an AU
 - `create_instrument_track` — Tape device (audio playback)
 - `create_synth_track` — synth instrument (Vaporisateur/Nano/Soundfont/Apparat)
 - `delete_audio_unit` — remove AU + all tracks/effects/sends (index >= 1)
 - `rename_unit` — set InstrumentBox.label + icon via au.input.pointerHub.incoming()
+- `set_track_enabled` — enable/disable (mute) individual track via track.enabled field
 
 ## Instrument (1)
 - `replace_instrument` — replace MIDI instrument (Vaporisateur↔Nano↔Soundfont↔Apparat) via api.replaceMIDIInstrument

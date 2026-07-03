@@ -7909,6 +7909,32 @@ async def mcp_opendaw_get_track_info(unit_index: int, track_index: int) -> str:
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_set_track_enabled(unit_index: int, track_index: int, enabled: bool) -> str:
+    """Enable or disable a track (equivalent to track mute in the UI).
+
+    unit_index: AU index.
+    track_index: Track index within the AU.
+    enabled: True to enable, false to mute/disable.
+
+    Returns success with old and new enabled state.
+    """
+    val = "true" if enabled else "false"
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const track = h.track({unit_index}, {track_index});
+            const oldVal = track.enabled.getValue();
+            h.modify(() => {{
+                track.enabled.field.setValue({val});
+            }});
+            return {{success: true, old_enabled: oldVal, new_enabled: {val}}};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_get_full_project_state() -> str:
     """Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
 
