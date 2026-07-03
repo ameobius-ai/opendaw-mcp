@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-245 MCP tools for headless openDAW control via Playwright bridge.
+243 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -23,12 +23,11 @@
 - `set_time_signature` — Set the project time signature (e.g. 4/4, 3/4, 6/8, 7/8).
 - `transport` — Control transport: play, stop, or toggle.
 
-## Tempo & Signature (14)
+## Tempo & Signature (13)
 - `add_signature_change` — Add a time signature change at a specific position in the track.
 - `add_tempo_change` — Add a tempo (BPM) change at a specific position in the track.
 - `change_base_signature` — Change the base time signature of the project.
 - `delete_signature_change` — Delete a time signature change from the timeline.
-- `delete_signature_event` — Delete a time signature change event by index.
 - `get_bar_interval` — Get the start and end PPQN of the bar containing the given position.
 - `get_signature_events` — List all time signature change events in the project.
 - `get_tempo_at` — Get the BPM at a specific position, accounting for tempo automation.
@@ -194,11 +193,10 @@
 - `set_marker_label` — Rename a timeline marker.
 - `set_marker_position` — Move a timeline marker to a new position.
 
-## Sends & Buses (13)
+## Sends & Buses (12)
 - `create_audio_bus` — Create a new audio bus (aux bus) with its own audio unit and track.
 - `create_send` — Create a parallel FX send bus from an audio unit.
 - `list_audio_buses` — List all audio buses in the project (primary output + FX buses).
-- `list_aux_sends` — List all aux sends on an audio unit.
 - `list_sends` — List all aux sends on an audio unit.
 - `remove_audio_bus` — Remove an FX audio bus and its associated audio unit.
 - `remove_send` — Remove an aux send from an audio unit.
@@ -311,7 +309,7 @@
 - `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
 - `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
-**Total: 245 tools**
+**Total: 243 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)

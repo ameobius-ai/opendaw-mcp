@@ -9795,32 +9795,6 @@ async def mcp_opendaw_get_signature_events() -> str:
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_delete_signature_event(event_index: int) -> str:
-    """Delete a time signature change event by index.
-
-    Automatically recalculates relative positions of subsequent events.
-
-    event_index: Index of the signature event (from get_signature_events).
-
-    Returns success or error.
-    """
-    result = await bridge.evaluate(f"""() => {{
-        const h = window.DAW_HELPERS;
-        try {{
-            const sigTrack = h.rootBoxAdapter.timeline.signatureTrack;
-            const adapter = sigTrack.adapterAt({event_index});
-            if (adapter.isEmpty()) return {{error: "No signature event at index " + {event_index}}};
-            h.editing.modify(() => {{
-                sigTrack.deleteAdapter(adapter.unwrap());
-            }});
-            return {{success: true, deleted_index: {event_index}}};
-        }} catch(e) {{
-            return {{error: e.message}};
-        }}
-    }}""")
-    return _wrap_eval(result)
-
-@mcp.tool()
 async def mcp_opendaw_change_base_signature(nominator: int, denominator: int) -> str:
     """Change the base time signature of the project.
 
@@ -10671,38 +10645,6 @@ async def mcp_opendaw_set_unit_minimized(unit_index: int, minimized: bool) -> st
                 au.minimizedField.setValue({val});
             }});
             return {{success: true, old_minimized: oldVal, new_minimized: {val}}};
-        }} catch(e) {{
-            return {{error: e.message}};
-        }}
-    }}""")
-    return _wrap_eval(result)
-
-@mcp.tool()
-async def mcp_opendaw_list_aux_sends(unit_index: int) -> str:
-    """List all aux sends on an audio unit.
-
-    Aux sends route audio from this AU to an audio bus (reverb, delay, etc).
-    Each send has a level (dB), routing (pre/post-fader), and target bus.
-
-    unit_index: AU index.
-
-    Returns list of sends with level, routing, and target info.
-    """
-    result = await bridge.evaluate(f"""() => {{
-        const h = window.DAW_HELPERS;
-        try {{
-            const au = h.au({unit_index});
-            const sends = au.auxSends ? au.auxSends.adapters() : [];
-            return {{
-                unit_index: {unit_index},
-                send_count: sends.length,
-                sends: sends.map((s, i) => ({{
-                    index: i,
-                    level: s.level?.getValue?.() ?? 0,
-                    enabled: s.enabledField?.getValue?.() ?? true,
-                    label: s.labelField?.getValue?.() ?? '',
-                }})),
-            }};
         }} catch(e) {{
             return {{error: e.message}};
         }}

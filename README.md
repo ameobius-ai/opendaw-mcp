@@ -3,10 +3,10 @@
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-245-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-243-brightgreen)](TOOL_CATALOG.md)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
-**245 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**243 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -209,7 +209,7 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 245 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 243 tools with parameters and descriptions.
 
 ## Mastering
 
@@ -251,6 +251,15 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.9.4 (2026-07-03)
+
+- **Removed 2 duplicate tools** (245 → 243)
+  - `delete_signature_event` — superseded by `delete_signature_change` (richer: position match + index, returns updated event list)
+  - `list_aux_sends` — superseded by `list_sends` (richer: target_bus_name, send_level_db, routing, send_pan via box-level access)
+- **TOOL_CATALOG.md regenerated from AST** — all 243 tools with descriptions, 32 categories
+- **server.json Docker tag fixed** — was stale `1.0.0`, now matches release version
+- **243 total tools**
 
 ### v1.9.3 (2026-07-03)
 
