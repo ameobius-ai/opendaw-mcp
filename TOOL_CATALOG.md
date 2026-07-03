@@ -347,8 +347,11 @@
 - **export_dawproject(filename)** — Export the current project as a .dawproject file (Bitwig/Ableton/rePitch compatible). ZIP with project.xml, metadata.xml, and audio samples.
 - **import_dawproject(filename)** — Import a .dawproject file into the current session. Loads project structure, tracks, and audio samples from other DAWs.
 
-## Engine Control (4 tools)
+## Engine Control (7 tools)
 - **engine_panic()** — Send a panic signal to stop all notes immediately (hanging notes, frozen synthesis)
+- **engine_sleep()** — Suspend audio processing to save CPU (use wake() to resume)
+- **engine_wake()** — Resume audio processing after sleep()
 - **get_engine_status()** — Get real-time engine status: playing state, position, BPM, CPU load, recording state, marker
+- **query_loading_complete()** — Check if all audio samples are loaded and ready
 - **schedule_clip_play(clip_ids)** — Schedule clips to play in session view (live triggering). Comma-separated clip UUIDs.
 - **schedule_clip_stop(track_ids)** — Schedule clips to stop on specified tracks (session view). Comma-separated track UUIDs.

@@ -2327,12 +2327,18 @@ Returns ordered list of MIDI effects with type, enabled state, and index.
             .map(({{box}}) => box)
             .sort((a, b) => a.index.getValue() - b.index.getValue());
 
-        const chain = effects.map((box, i) => ({{
-            index: i,
-            type: box.constructor.name,
-            enabled: box.enabled?.getValue?.() ?? true,
-            label: box.label?.getValue?.() || "",
-        }}));
+        const chain = effects.map((box, i) => {{
+            const className = box.constructor.name;
+            const shortName = className.replace(/DeviceBox$/, "").replace(/Box$/, "");
+            return {{
+                index: i,
+                type: shortName,
+                class: className,
+                enabled: box.enabled?.getValue?.() ?? true,
+                minimized: box.minimized?.getValue?.() ?? false,
+                label: box.label?.getValue?.() || "",
+            }};
+        }});
 
         return {{
             unit: au.name?.getValue?.() || "Unit " + unitIdx,
@@ -2959,12 +2965,18 @@ Returns ordered list of effects with their type, enabled state, and index.
             .map(({{box}}) => box)
             .sort((a, b) => a.index.getValue() - b.index.getValue());
 
-        const chain = effects.map((box, i) => ({{
-            index: i,
-            type: box.constructor.name,
-            enabled: box.enabled?.getValue?.() ?? true,
-            label: box.label?.getValue?.() || "",
-        }}));
+        const chain = effects.map((box, i) => {{
+            const className = box.constructor.name;
+            const shortName = className.replace(/DeviceBox$/, "").replace(/Box$/, "");
+            return {{
+                index: i,
+                type: shortName,
+                class: className,
+                enabled: box.enabled?.getValue?.() ?? true,
+                minimized: box.minimized?.getValue?.() ?? false,
+                label: box.label?.getValue?.() || "",
+            }};
+        }});
 
         return {{
             unit: au.name?.getValue?.() || "Unit " + unitIdx,
@@ -10609,6 +10621,65 @@ async def mcp_opendaw_get_engine_status() -> str:
                 marker: eng.markerState?.getValue?.() ?? null,
                 engine_started: typeof window.DAW_engineStarted === 'function' && window.DAW_engineStarted(),
             };
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_engine_sleep() -> str:
+    """Put the audio engine to sleep — suspends audio processing to save CPU.
+
+    Use wake() to resume. Useful when doing non-audio operations (project editing,
+    box manipulation) and the engine isn't needed.
+    """
+    result = await bridge.evaluate("""() => {
+        const h = window.DAW_HELPERS;
+        try {
+            h.engine.sleep();
+            return {success: true, action: "sleep"};
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_engine_wake() -> str:
+    """Wake the audio engine from sleep — resumes audio processing.
+
+    Use after sleep() when audio playback is needed again.
+    """
+    result = await bridge.evaluate("""() => {
+        const h = window.DAW_HELPERS;
+        try {
+            h.engine.wake();
+            return {success: true, action: "wake"};
+        } catch(e) {
+            return {error: e.message};
+        }
+    }""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_query_loading_complete() -> str:
+    """Check if all audio samples are loaded and ready for playback.
+
+    Returns:
+        loaded: true if all samples have finished loading
+        is_ready: true if engine is fully initialized
+    """
+    result = await bridge.evaluate("""async () => {
+        const h = window.DAW_HELPERS;
+        try {
+            const eng = h.engine;
+            const loaded = eng.queryLoadingComplete ? await eng.queryLoadingComplete() : true;
+            const ready = eng.isReady ? true : false;
+            return {loaded: loaded, is_ready: ready};
         } catch(e) {
             return {error: e.message};
         }
