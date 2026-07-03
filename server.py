@@ -3025,33 +3025,59 @@ Notes are added to the first clip on the track.
         const trackBox = noteTracks[trackIndex];
 
         p.editing.modify(() => {{
-            // Create NoteEventCollectionBox (holds the note events)
-            const collection = NoteEventCollectionBox.create(bg, UUID.generate());
+            // Find existing region on this track, or create one
+            const existingRegions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+            let regionBox = null;
+            let collection = null;
 
-            // Create NoteRegionBox — places notes on the timeline (like AudioRegionBox for audio)
-            // Order matters: events.refer first, then regions.refer (matches openDAW ProjectApi)
-            const regionBox = NoteRegionBox.create(bg, UUID.generate(), (box) => {{
-                box.position.setValue(startPosition);
-                box.label.setValue("Note " + pitch);
-                box.mute.setValue(false);
-                box.duration.setValue(noteDuration);
-                box.loopDuration.setValue(0);
-                box.loopDuration.setValue(noteDuration);
-                box.eventOffset.setValue(0);
-                box.events.refer(collection.owners);
-                box.regions.refer(trackBox.regions);
-            }});
+            if (existingRegions.length > 0) {{
+                // Use the first existing region — add note to its events collection
+                regionBox = existingRegions[0];
+            }}
 
-            // Create the note event
+            if (!regionBox) {{
+                // Create new NoteEventCollectionBox + NoteRegionBox
+                collection = NoteEventCollectionBox.create(bg, UUID.generate());
+                regionBox = NoteRegionBox.create(bg, UUID.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Notes");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(noteDuration, 4 * Quarter));  // at least 1 bar
+                    box.loopDuration.setValue(0);
+                    box.loopDuration.setValue(Math.max(noteDuration, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            // Create the note event — position relative to region start
+            const regionStart = regionBox.position.getValue();
+            const notePos = Math.max(0, startPosition - regionStart);
+            
+            // Get the events collection box from the region
+            // regionBox.events is a PointerField → targetVertex.unwrap() returns a Field
+            // whose .box is the NoteEventCollectionBox
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+            
             NoteEventBox.create(bg, UUID.generate(), (box) => {{
-                box.position.setValue(0);  // relative to region start
+                box.position.setValue(notePos);
                 box.duration.setValue(noteDuration);
                 box.velocity.setValue(velocity);
                 box.pitch.setValue(pitch);
                 box.chance.setValue(100);
                 box.cent.setValue(0);
-                box.events.refer(collection.events);
+                box.events.refer(collBox.events);
             }});
+
+            // Extend region duration if note extends beyond current
+            const noteEnd = notePos + noteDuration;
+            const currentDur = regionBox.duration.getValue();
+            if (noteEnd > currentDur) {{
+                regionBox.duration.setValue(noteEnd);
+                regionBox.loopDuration.setValue(noteEnd);
+            }}
         }});
 
         return {{
