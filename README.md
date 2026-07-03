@@ -3,10 +3,10 @@
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-224-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-226-brightgreen)](TOOL_CATALOG.md)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
-**224 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**226 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -209,7 +209,7 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 224 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 226 tools with parameters and descriptions.
 
 ## Mastering
 
@@ -252,13 +252,23 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.7.3 (2026-07-03)
+
+- **2 new tools: Instrument Automation** — `add_instrument_automation`, `list_automatable_fields`
+  - Automate any instrument parameter: Vaporisateur cutoff/volume/ADSR, Tape flutter/wow, Playfield sample mute
+  - Per-sample targeting via `sample_index` for Playfield
+  - `list_automatable_fields` introspects Pointers.Automation support (18/23 on Vaporisateur)
+  - Addresses upstream #269 (playfield mute automation) via MCP
+  - E2E: Vaporisateur cutoff automated (3 events) ✅, 18 automatable fields ✅
+
 ### v1.7.2 (2026-07-03)
 
-- **1 new tool: Effect Duplication** — `duplicate_effect(unit_index, effect_index, chain_type)`
-  - Duplicates a single effect in-place with all parameter values copied
-  - Works for both audio and MIDI effect chains
-  - Addresses upstream issue #273 (Ctrl+D for audio effects) via MCP
-  - E2E tested: Delay duplicated, delayMusical + feedback params verified ✅
+- **3 new tools: Effect Duplication + Instrument Automation** — `duplicate_effect`, `add_instrument_automation`, `list_automatable_fields`
+  - `duplicate_effect` — duplicate single effect in-place with all params copied (audio or MIDI chain)
+  - `add_instrument_automation` — automate any instrument parameter (Vaporisateur cutoff/volume, Tape flutter, Playfield sample mute, etc). Supports per-sample targeting via sample_index
+  - `list_automatable_fields` — introspect which fields support Pointers.Automation (18/23 on Vaporisateur)
+  - Addresses upstream issue #273 (Ctrl+D for audio effects) and #269 (playfield mute automation) via MCP
+  - E2E tested: Delay duplicated with params ✅, Vaporisateur cutoff automated (3 events) ✅, 18 automatable fields detected ✅
 - **Bugfix: `transport(action)` now respects action parameter** — was always toggling, now correctly handles "play", "stop", "toggle"
 - **Cleanup: removed unused `region_type` param** from `set_region_duration` and `set_region_mute`
 

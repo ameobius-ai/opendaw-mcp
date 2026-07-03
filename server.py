@@ -10881,6 +10881,157 @@ async def mcp_opendaw_duplicate_effect(unit_index: int, effect_index: int, chain
     return _wrap_eval(result)
 
 
+# ─── Instrument Automation ───────────────────────────────────────────
+
+@mcp.tool()
+async def mcp_opendaw_add_instrument_automation(unit_index: int, parameter_name: str, points: str, sample_index: int = -1) -> str:
+    """Automate a parameter on the instrument connected to an audio unit.
+
+    Works with any automatable instrument field: Vaporisateur (cutoff, resonance, volume, etc),
+    Playfield sample mute, Tape flutter/wow, Nano volume/release, and more.
+
+    For Playfield sample-level params (mute, volume, pan, etc), set sample_index to the
+    sample slot index (0-based). For top-level instrument params, leave sample_index as -1.
+
+    unit_index: Audio unit index containing the instrument.
+    parameter_name: Field name to automate (e.g. "cutoff", "mute", "flutter").
+    points: JSON array of [position_beats, value] pairs. Example: "[[0, 0.5], [4, 1.0]]"
+    sample_index: For Playfield, which sample slot to target (-1 = top-level instrument field).
+
+    Returns automation track info and number of events created.
+    """
+    safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
+        const unitIdx = {unit_index};
+        const paramName = "{safe_param}";
+        const sampleIdx = {sample_index};
+        const points = {points};
+
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
+        const au = units[unitIdx];
+
+        // Find instrument box
+        const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+        const instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
+        if (!instBox) return {{error: "No instrument on AU " + unitIdx}};
+
+        // Determine target box: instrument or specific Playfield sample
+        let targetBox = instBox;
+        if (sampleIdx >= 0) {{
+            const samples = [...instBox.samples.pointerHub.incoming()].map(({{box}}) => box)
+                .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            if (sampleIdx >= samples.length) return {{error: "No sample at index " + sampleIdx}};
+            targetBox = samples[sampleIdx];
+        }}
+
+        const field = targetBox[paramName];
+        if (!field) return {{error: "No field '" + paramName + "' on " + targetBox.constructor.name}};
+
+        // Create automation track
+        let autoTrack, valueClip, collection;
+        h.editing.modify(() => {{
+            autoTrack = h.api.createAutomationTrack(au, field);
+            valueClip = h.api.createValueClip(autoTrack, 0, {{name: paramName}});
+            collection = valueClip.events?.targetVertex?.unwrap?.()?.box;
+            if (!collection) throw new Error("No event collection on value clip");
+
+            points.forEach(([beatPos, value], i) => {{
+                ValueEventBox.create(h.boxGraph, UUID.generate(), (box) => {{
+                    box.events.refer(collection.events);
+                    box.position.setValue(Math.round(beatPos * Quarter));
+                    box.index.setValue(i);
+                    box.value.setValue(value);
+                    box.interpolation.setValue(1);
+                }});
+            }});
+        }});
+
+        return {{
+            success: true,
+            unit_index: unitIdx,
+            instrument: instBox.constructor.name,
+            target: sampleIdx >= 0 ? "sample[" + sampleIdx + "]" : "instrument",
+            parameter: paramName,
+            events_created: points.length,
+            track_index: autoTrack?.index?.getValue?.() ?? 0,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_list_automatable_fields(unit_index: int, sample_index: int = -1) -> str:
+    """List all automatable parameter fields on an instrument (or specific Playfield sample).
+
+    Shows which fields support Pointers.Automation — only these can be automated.
+
+    unit_index: Audio unit index containing the instrument.
+    sample_index: For Playfield, which sample slot (-1 = top-level instrument).
+
+    Returns field names with current values and whether they're automatable.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const sampleIdx = {sample_index};
+
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
+        const au = units[unitIdx];
+
+        const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
+        const instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
+        if (!instBox) return {{error: "No instrument on AU " + unitIdx}};
+
+        let targetBox = instBox;
+        if (sampleIdx >= 0) {{
+            const samples = [...instBox.samples.pointerHub.incoming()].map(({{box}}) => box)
+                .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            if (sampleIdx >= samples.length) return {{error: "No sample at index " + sampleIdx}};
+            targetBox = samples[sampleIdx];
+        }}
+
+        const skipFields = new Set(['host', 'index', 'collection', 'editing', 'output', 'input',
+            'sideChain', 'capture', 'tracks', 'audioEffects', 'midiEffects', 'auxSends',
+            'oscillators', 'lfo', 'noise', 'samples', 'parameters', 'device', 'file']);
+
+        const Pointers = window.DAW_Pointers;
+        const autoVal = Pointers?.Automation;
+        const fields = [];
+        const record = targetBox.record();
+        for (const [key, field] of Object.entries(record)) {{
+            if (skipFields.has(key)) continue;
+            if (typeof field?.getValue !== 'function') continue;
+            try {{
+                const value = field.getValue();
+                const accepts = field.pointerRules?.accepts;
+                const automatable = !!(accepts && autoVal != null && accepts.includes(autoVal));
+                fields.push({{
+                    name: field._fieldName || field.fieldName || key,
+                    value: value,
+                    type: typeof value,
+                    automatable: automatable,
+                }});
+            }} catch(e) {{}}
+        }}
+
+        return {{
+            instrument: instBox.constructor.name,
+            target: sampleIdx >= 0 ? "sample[" + sampleIdx + "]" : "instrument",
+            target_type: targetBox.constructor.name,
+            fields: fields,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     transport = os.environ.get("MCP_TRANSPORT", "stdio")

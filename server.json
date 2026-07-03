@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.AMEOBIUS/opendaw-mcp",
   "title": "openDAW MCP",
-  "description": "224 MCP tools for agent-native control of openDAW, a browser-based DAW",
-  "version": "1.7.2",
+  "description": "226 MCP tools for agent-native control of openDAW, a browser-based DAW",
+  "version": "1.7.3",
   "repository": {
     "url": "https://github.com/AMEOBIUS/opendaw-mcp",
     "source": "github"

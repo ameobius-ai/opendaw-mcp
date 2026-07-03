@@ -145,6 +145,8 @@
 
 ## Automation (5)
 - `add_automation` — create automation track + value events
+- `add_instrument_automation` — automate instrument params (Vaporisateur cutoff, Playfield mute, Tape flutter, etc) with optional sample_index for Playfield samples
+- `list_automatable_fields` — list which instrument/sample fields support Pointers.Automation (true/false per field)
 - `create_value_clip` — create automation clip in session view (api.createValueClip)
 - `list_automation_events` — list ValueEventBox points on automation tracks
 - `list_value_regions` — list ValueRegionBox on automation tracks
