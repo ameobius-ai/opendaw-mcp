@@ -29,12 +29,13 @@ jobs:
           assert count >= 243, f'Expected at least 243 tools, got {count}'
           print('Tool count verification passed!')
           "
-      - name: Validate DSP scripts exist
+      - name: Validate DSP scripts exist and syntax
         run: |
-          for f in scripts/werkstatt_darksat.js scripts/werkstatt_coldfold.js scripts/apparat_darkbass.js scripts/apparat_coldlead.js scripts/spielwerk_arpeggiator.js scripts/spielwerk_powerchord.js; do
+          for f in scripts/werkstatt_darksat.js scripts/werkstatt_coldfold.js scripts/apparat_darkbass.js scripts/apparat_coldlead.js scripts/apparat_subcrusher.js scripts/spielwerk_arpeggiator.js scripts/spielwerk_powerchord.js; do
             test -f "$f" || { echo "Missing: $f"; exit 1; }
+            node -c "$f" || { echo "Syntax error in $f"; exit 1; }
           done
-          echo "All DSP scripts present"
+          echo "All DSP scripts present and valid"
       - name: Check for hardcoded paths
         run: |
           if grep -r "/home/" server.py --include="*.py"; then
