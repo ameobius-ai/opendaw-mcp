@@ -249,3 +249,27 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE)
+
+## Changelog
+
+### v1.6.0 (2026-07-03)
+
+- **DAW_HELPERS refactoring** — all 180 tools with `const p = window.DAW` migrated to `const h = window.DAW_HELPERS` pattern
+  - Eliminated boilerplate: AU list enumeration, sort, editing.modify wrapping
+  - Fixed 19+ pre-existing bugs: `setPosition` (api→engine), 8x missing `.sort()` on AU lists, 9x `Quarter=960` hardcode → `h.ppqn.Quarter`, 2x Python/JS scope leaks
+  - DAW_HELPERS provides: `h.au(i)`, `h.track()`, `h.region()`, `h.modify()`, `h.allAUs()`, `h.ppqn`, `h.uuid`, `h.rootBox`, `h.api`, `h.editing`, `h.boxGraph`, `h.tempoMap`, `h.rootBoxAdapter`, `h.project`
+- E2E verified: 23/23 tests passing
+
+### v1.5.2 (2026-07-02)
+
+- Sanitization: all string parameters sanitized against JS injection
+- Documentation: README badges, Docker, SSE, examples, mastering
+- CI: GitHub Actions with AST tool count verification
+
+### v1.5.0 (2026-07-01)
+
+- Modular system: 6 MCP tools for patchable modular synthesizer
+- PianoMode: 6 MCP tools for piano roll view control
+- Freeze/unfreeze: pre-render AU to save CPU
+- Preset save/load: export/import AU as base64 preset
+- Transfer regions/AUs: deep-copy with dependency tracking
