@@ -7845,7 +7845,7 @@ async def mcp_opendaw_seconds_to_beats(seconds: float) -> str:
         const tempoMap = h.tempoMap;
         if (!tempoMap) return {{error: "tempoMap not available"}};
         const ppqn = tempoMap.secondsToPPQN({seconds});
-        const beats = ppqn / h.ppqn.Quarter.0;
+        const beats = ppqn / h.ppqn.Quarter;
         return {{beats: beats, ppqn: ppqn, seconds: {seconds}}};
     }}""")
     return _wrap_eval(result)
@@ -7881,7 +7881,7 @@ async def mcp_opendaw_get_project_duration() -> str:
         let secs = 0;
         try {{ secs = tempoMap ? tempoMap.ppqnToSeconds(lastPPQN) : 0; }} catch(e) {{}}
         return {{
-            duration_beats: lastPPQN / h.ppqn.Quarter.0,
+            duration_beats: lastPPQN / h.ppqn.Quarter,
             duration_ppqn: lastPPQN,
             duration_seconds: secs,
         }};
@@ -9327,8 +9327,8 @@ async def mcp_opendaw_copy_playfield_sample(unit_index: int, sample_index: int, 
             const samples = inst.box.samples ? [...inst.box.samples.pointerHub.incoming()] : [];
             const sampleAdapter = samples.find(s => s.box.index.getValue() === {sample_index});
             if (!sampleAdapter) return {{error: "No sample at index " + {sample_index}}};
-                        const adapter = h.project.boxAdapters.adapterFor(sampleAdapter.box, inst.constructor);
-            h.editing.modify(() => {{
+            const adapter = h.project.boxAdapters.adapterFor(sampleAdapter.box, inst.constructor);
+            h.modify(() => {{
                 adapter.copyToIndex({target_index});
             }});
             return {{success: true, source: {sample_index}, target: {target_index}}};
@@ -9363,9 +9363,9 @@ async def mcp_opendaw_duplicate_note_event(unit_index: int, track_index: int, re
                 .sort((a, b) => a.position.getValue() - b.position.getValue());
             if ({note_index} >= noteAdapters.length) return {{error: "No note at index " + {note_index}}};
             const srcBox = noteAdapters[{note_index}];
-                        const adapter = h.project.boxAdapters.adapterFor(srcBox, h.project.NoteEventBoxAdapter || class {{}});
+            const adapter = h.project.boxAdapters.adapterFor(srcBox, h.project.NoteEventBoxAdapter || class {{}});
             let newAdapter;
-            h.editing.modify(() => {{
+            h.modify(() => {{
                 newAdapter = adapter.copyTo({{
                     position: srcBox.position.getValue() + {position_offset},
                     pitch: srcBox.pitch.getValue() + {pitch_offset},
@@ -9557,8 +9557,8 @@ async def mcp_opendaw_reset_playfield_params(unit_index: int, sample_index: int)
             const samples = inst.box.samples ? [...inst.box.samples.pointerHub.incoming()] : [];
             const sampleAdapter = samples.find(s => s.box.index.getValue() === {sample_index});
             if (!sampleAdapter) return {{error: "No sample at index " + {sample_index}}};
-                        const adapter = h.project.boxAdapters.adapterFor(sampleAdapter.box, inst.constructor);
-            h.editing.modify(() => {{
+            const adapter = h.project.boxAdapters.adapterFor(sampleAdapter.box, inst.constructor);
+            h.modify(() => {{
                 adapter.resetParameters();
             }});
             return {{success: true, sample_index: {sample_index}}};
@@ -9595,11 +9595,11 @@ async def mcp_opendaw_duplicate_automation_event(unit_index: int, track_index: i
                 .sort((a, b) => a.position.getValue() - b.position.getValue());
             if ({event_index} >= eventAdapters.length) return {{error: "No event at index " + {event_index}}};
             const srcBox = eventAdapters[{event_index}];
-                        const adapter = h.project.boxAdapters.adapterFor(srcBox, h.project.ValueEventBoxAdapter || class {{}});
+            const adapter = h.project.boxAdapters.adapterFor(srcBox, h.project.ValueEventBoxAdapter || class {{}});
             const origPos = srcBox.position.getValue();
             const origVal = srcBox.value.getValue();
             let newAdapter;
-            h.editing.modify(() => {{
+            h.modify(() => {{
                 newAdapter = adapter.copyTo({{
                     position: origPos + {position_offset},
                     value: {value_str} !== null ? {value_str} : origVal,
