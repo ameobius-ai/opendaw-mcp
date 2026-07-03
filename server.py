@@ -3124,7 +3124,7 @@ Returns note count and time range.
                 }
                 notes_data.append(note)
     notes_json = json.dumps(notes_data)
-    offset_ticks = int(float(offset_beats) * 960)
+    offset_ticks = int(offset_beats * 960)
     ppqn = 960
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
@@ -4451,7 +4451,7 @@ unit_index: Audio unit index (-1 = all AUs).
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_set_region_loop(track_index: int, region_index: int, loop_beats: str, loop_offset_beats: float, event_offset_beats: float, unit_index: int) -> str:
+async def mcp_opendaw_set_region_loop(track_index: int, region_index: int, loop_beats: float, loop_offset_beats: float, event_offset_beats: float, unit_index: int) -> str:
     """Set loop parameters for a note region.
 
 Looping repeats the note pattern within the region. The region duration
@@ -5901,7 +5901,7 @@ async def mcp_opendaw_measure_lufs(filename: str) -> str:
         return _err(f"LUFS measurement error: {e}")
 
 @mcp.tool()
-async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: str = "3") -> str:
+async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: int = 3) -> str:
     """Auto-adjust output volume to hit a target LUFS.
 
     Iterative loop: render → measure LUFS → adjust Maximizer threshold → re-render.
@@ -5914,8 +5914,8 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
 
     Returns final LUFS, threshold applied, iterations, and WAV path.
     """
-    target = float(target_lufs)
-    max_iter = int(max_iterations) if max_iterations else 3
+    target = target_lufs
+    max_iter = max_iterations if max_iterations else 3
     safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '')
 
     # Step 1: Ensure Maximizer on output AU
