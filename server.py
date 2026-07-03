@@ -9205,8 +9205,8 @@ async def mcp_opendaw_get_device_chain_detail(unit_index: int) -> str:
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const audioFx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const audioFx = h.effectBoxes(au);
             const midiFx = au.midiEffects.adapters();
             const input = au.input.adapter();
             const instrument = input.isEmpty() ? null : {{
@@ -9457,8 +9457,8 @@ async def mcp_opendaw_get_neuralamp_model(unit_index: int, effect_index: int) ->
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const fx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
             if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
             const fxAdapter = fx[{effect_index}];
             if (!fxAdapter.getModelJson) return {{error: "Effect is not a NeuralAmp"}};
@@ -9497,8 +9497,8 @@ async def mcp_opendaw_set_neuralamp_model(unit_index: int, effect_index: int, mo
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const fx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
             if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
             const fxAdapter = fx[{effect_index}];
             if (!fxAdapter.getModelJson) return {{error: "Effect is not a NeuralAmp"}};
@@ -9545,8 +9545,8 @@ async def mcp_opendaw_set_vocoder_modulator_source(unit_index: int, effect_index
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const fx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
             if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
             const fxAdapter = fx[{effect_index}];
             const box = fxAdapter.box;
@@ -9578,8 +9578,8 @@ async def mcp_opendaw_set_vocoder_band_count(unit_index: int, effect_index: int,
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const fx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
             if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
             const fxAdapter = fx[{effect_index}];
             const box = fxAdapter.box;
@@ -9611,8 +9611,8 @@ async def mcp_opendaw_set_stereo_tool_panning(unit_index: int, effect_index: int
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const fx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
             if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
             const fxAdapter = fx[{effect_index}];
             const box = fxAdapter.box;
@@ -9713,8 +9713,8 @@ async def mcp_opendaw_set_fold_oversampling(unit_index: int, effect_index: int, 
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const fx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
             if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
             const fxAdapter = fx[{effect_index}];
             const box = fxAdapter.box;
@@ -9746,8 +9746,8 @@ async def mcp_opendaw_set_crusher_bits(unit_index: int, effect_index: int, bits:
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         try {{
-            const au = h.au({unit_index});
-            const fx = au.audioEffects.adapters();
+            const au = h.auBox({unit_index});
+            const fx = h.effectBoxes(au);
             if ({effect_index} >= fx.length) return {{error: "No effect at index " + {effect_index}}};
             const fxAdapter = fx[{effect_index}];
             const box = fxAdapter.box;
