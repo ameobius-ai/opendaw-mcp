@@ -271,8 +271,17 @@
 - **spielwerk_arpeggiator.js** — MIDI arpeggiator. Params: rate (60-1920 ppqn), mode (0=up/1=down/2=up-down/3=random), octaves (1-4), gate (0.1-1), velDecay (0.3-1). Tracks `nextStepPos` across blocks — critical because block size (~5ppqn) is much smaller than rate (240ppqn). API: `process(block, events)` returns array of `{position, duration, pitch, velocity, cent}`. Must use `return array` NOT `* process()` generator — `new Function()` rejects generator methods.
 - **spielwerk_powerchord.js** — MIDI effect that generates power chord harmonies.
 
-## Musical Grid & Signature (4 tools)
+## Musical Grid & Signature (7 tools)
 - **ppqn_to_parts** — Convert PPQN to bars/beats/semiquavers/ticks with time signature awareness
 - **get_bar_interval** — Get bar boundaries (start/end/length) for a PPQN position
 - **move_signature_event** — Move time signature change to new PPQN, auto-recalculates subsequent events
 - **copy_region_fades** — Copy fade in/out + slopes between audio regions
+- **get_signature_events** — List all time signature changes with accumulated positions
+- **delete_signature_event** — Delete signature change, auto-recalculate
+- **change_base_signature** — Change project base time signature (4/4 → 3/4 etc), recalculates events
+
+## Advanced Operations (4 tools)
+- **copy_playfield_sample** — Duplicate drum sample slot with all params (mute/solo/pitch/ADSR/gate)
+- **reset_playfield_params** — Reset drum sample params to defaults
+- **duplicate_note_event** — Copy note with position/pitch offset
+- **duplicate_automation_event** — Copy automation event with position/value override
