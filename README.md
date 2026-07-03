@@ -3,10 +3,10 @@
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-229-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-232-brightgreen)](TOOL_CATALOG.md)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
-**229 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**232 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -209,7 +209,7 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 229 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 232 tools with parameters and descriptions.
 
 ## Mastering
 
@@ -251,6 +251,19 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.8.0 (2026-07-03)
+
+- **3 new tools: MP3/FLAC Audio Conversion** — `convert_audio`, `render_full_format`, `export_stems_format`
+  - `convert_audio(filename, format, bitrate, quality)` — WAV→MP3/FLAC via system ffmpeg
+  - `render_full_format(filename, format, bitrate)` — render + convert in one step
+  - `export_stems_format(filename_prefix, format, bitrate)` — stems + convert each
+  - Uses system ffmpeg (4.4.2), not browser WASM — more reliable in headless mode
+  - E2E: WAV 1.01MB → MP3 0.11MB (ratio 0.106) → FLAC 0.19MB (ratio 0.194) ✅
+- **Bugfix: operator precedence in 14 division+nullish coalescing expressions**
+  - `X / Quarter ?? 0` → `(X ?? 0) / Quarter` — prevents NaN→null for position/duration fields
+- **Improvement: `get_track_info` now includes `exclude_piano_mode` field**
+- **232 total tools**
 
 ### v1.7.4 (2026-07-03)
 

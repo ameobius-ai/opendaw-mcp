@@ -126,6 +126,13 @@ def _wrap_eval(result) -> str:
     if isinstance(result, dict) and "error" in result: return json.dumps(result)
     return json.dumps(result)
 
+def _unwrap_eval(s) -> any:
+    """Parse a JSON string from _wrap_eval back to dict/list."""
+    if isinstance(s, str):
+        try: return json.loads(s)
+        except: return s
+    return s
+
 @mcp.tool()
 async def mcp_opendaw_get_project_state() -> str:
     """Get full project state: BPM, sample rate, playing status, track list, effects chain."""
@@ -11102,6 +11109,136 @@ async def mcp_opendaw_list_automatable_fields(unit_index: int, sample_index: int
         }};
     }}""")
     return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_convert_audio(filename: str, format: str = "mp3", bitrate: str = "320k", quality: int = -1) -> str:
+    """Convert an exported WAV file to MP3 or FLAC using system ffmpeg.
+
+    filename: Source WAV filename (without .wav extension, in the export dir).
+    format: 'mp3' or 'flac' (default 'mp3').
+    bitrate: MP3 bitrate for CBR mode (default '320k'). Ignored for FLAC.
+    quality: MP3 VBR quality 0-9 (0=best, 9=worst). Use -1 for CBR (default).
+
+    Requires system ffmpeg (not browser WASM). Falls back gracefully if missing.
+    Returns path to the converted file and size info.
+    """
+    import shutil as _shutil
+    if not _shutil.which("ffmpeg"):
+        return _wrap_eval({"error": "System ffmpeg not found — install ffmpeg to enable conversion"})
+    fmt = format.lower().strip().replace('"', '').replace("'", "")
+    if fmt not in ("mp3", "flac"):
+        return _wrap_eval({"error": f"Unsupported format '{fmt}' — use 'mp3' or 'flac'"})
+    safe_name = filename.replace('"', '').replace("'", "").replace('\\', '').replace('.wav', '').replace('.WAV', '')
+    export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
+    wav_path = os.path.join(export_dir, f"{safe_name}.wav")
+    if not os.path.exists(wav_path):
+        return _wrap_eval({"error": f"Source WAV not found: {wav_path}", "hint": "Render the project first with render_full or export_mix"})
+    out_ext = fmt
+    out_path = os.path.join(export_dir, f"{safe_name}.{out_ext}")
+    # Build ffmpeg command
+    cmd = ["ffmpeg", "-y", "-i", wav_path]
+    if fmt == "mp3":
+        if quality >= 0 and quality <= 9:
+            cmd += ["-q:a", str(quality)]
+        else:
+            cmd += ["-b:a", bitrate.replace('"', '').replace("'", "")]
+    elif fmt == "flac":
+        cmd += ["-compression_level", "8"]
+    cmd.append(out_path)
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        await proc.communicate()
+        if proc.returncode != 0:
+            return _wrap_eval({"error": f"ffmpeg exited with code {proc.returncode}"})
+    except Exception as e:
+        return _wrap_eval({"error": f"ffmpeg execution error: {e}"})
+    if not os.path.exists(out_path):
+        return _wrap_eval({"error": "ffmpeg completed but output file not created"})
+    wav_size = os.path.getsize(wav_path)
+    out_size = os.path.getsize(out_path)
+    return _wrap_eval({
+        "success": True,
+        "source": wav_path,
+        "output": out_path,
+        "format": fmt,
+        "source_size_bytes": wav_size,
+        "output_size_bytes": out_size,
+        "compression_ratio": round(out_size / wav_size, 3) if wav_size > 0 else 0,
+        "source_size_mb": round(wav_size / (1024*1024), 2),
+        "output_size_mb": round(out_size / (1024*1024), 2),
+    })
+
+
+@mcp.tool()
+async def mcp_opendaw_render_full_format(filename: str = "full_mix", sample_rate: int = 48000, format: str = "wav", bitrate: str = "320k") -> str:
+    """Render the entire project and convert to MP3 or FLAC in one step.
+
+    filename: Output filename (without extension).
+    sample_rate: Export sample rate (default 48000).
+    format: 'wav' (default), 'mp3', or 'flac'. MP3/FLAC uses system ffmpeg.
+    bitrate: MP3 bitrate for CBR (default '320k'). Ignored for WAV/FLAC.
+
+    Combines render_full + convert_audio. Returns both WAV and converted file paths.
+    """
+    # First render to WAV
+    wav_result = await mcp_opendaw_render_full(filename, sample_rate)
+    if "error" in str(wav_result).lower() and "success" not in str(wav_result).lower():
+        return wav_result
+    fmt = format.lower().strip().replace('"', '').replace("'", "")
+    if fmt == "wav":
+        return wav_result
+    # Then convert
+    conv_result = await mcp_opendaw_convert_audio(filename, fmt, bitrate, -1)
+    return _wrap_eval({
+        "render": _unwrap_eval(wav_result),
+        "conversion": _unwrap_eval(conv_result),
+        "format": fmt,
+        "filename": f"{filename}.{fmt if fmt != 'wav' else 'wav'}",
+    })
+
+
+@mcp.tool()
+async def mcp_opendaw_export_stems_format(filename_prefix: str, sample_rate: int, format: str = "wav", bitrate: str = "320k") -> str:
+    """Export stems as separate files and convert each to MP3 or FLAC.
+
+    filename_prefix: Prefix for stem filenames.
+    sample_rate: Export sample rate.
+    format: 'wav' (default), 'mp3', or 'flac'.
+    bitrate: MP3 bitrate (default '320k').
+
+    Runs export_stems, then converts each stem WAV to the requested format via ffmpeg.
+    """
+    # First export stems as WAV
+    wav_result = await mcp_opendaw_export_stems(filename_prefix, sample_rate)
+    wav_data = _unwrap_eval(wav_result)
+    if isinstance(wav_data, dict) and wav_data.get("error"):
+        return wav_result
+    fmt = format.lower().strip().replace('"', '').replace("'", "")
+    if fmt == "wav":
+        return wav_result
+    # Convert each stem
+    stems = wav_data.get("stems", []) if isinstance(wav_data, dict) else []
+    converted = []
+    for stem in stems:
+        if isinstance(stem, dict) and stem.get("filename"):
+            stem_name = stem["filename"].replace(".wav", "")
+            conv = await mcp_opendaw_convert_audio(stem_name, fmt, bitrate, -1)
+            conv_data = _unwrap_eval(conv)
+            if isinstance(conv_data, dict) and conv_data.get("success"):
+                converted.append({
+                    "stem": stem_name,
+                    "output": conv_data.get("output"),
+                    "size_mb": conv_data.get("output_size_mb"),
+                })
+    return _wrap_eval({
+        "format": fmt,
+        "stems_wav": stems,
+        "stems_converted": converted,
+        "total_converted": len(converted),
+    })
 
 
 def main():
