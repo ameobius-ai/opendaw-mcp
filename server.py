@@ -170,7 +170,7 @@ async def mcp_opendaw_get_project_state() -> str:
 
         const units = [];
         try {{
-            const allAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allAU = h.allAUBoxes();
             allAU.forEach((au, i) => {{
                 const effects = [];
                 try {{
@@ -806,7 +806,7 @@ or specify an instrument AU index that contains a synth device (Vaporisateur, Na
         if (idx < 0) {{
             au = h.primaryAudioUnitBox;
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
             au = units[idx];
         }}
@@ -840,7 +840,7 @@ Returns old and new name/icon.
         const nameVal = {name_val};
         const iconVal = {icon_val};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -899,7 +899,7 @@ Returns old and new instrument type.
         const factory = ef[factoryKey];
         if (!factory) return {{error: "Unknown factory: " + factoryKey}};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -945,9 +945,7 @@ Range: -96 dB (mute) to +6 dB. 0 dB = raw 0.768.
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (idx >= units.length) return {{error: "No audio unit at index " + idx + ". Total: " + units.length}};
         const au = units[idx];
 
@@ -977,9 +975,7 @@ async def mcp_opendaw_set_track_panning(unit_index: int, panning: float) -> str:
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
         const au = units[idx];
 
@@ -1001,9 +997,7 @@ async def mcp_opendaw_set_track_mute(unit_index: int, mute: bool) -> str:
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
         const au = units[idx];
 
@@ -1025,9 +1019,7 @@ async def mcp_opendaw_set_track_solo(unit_index: int, solo: bool) -> str:
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const idx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (idx >= units.length) return {{error: "No audio unit at index " + idx}};
         const au = units[idx];
 
@@ -1136,7 +1128,7 @@ Returns the unit_index and track_index for use with place_audio_region.
         }});
 
         // Find unit_index and track_index
-        const allUnits = [...rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box);
+        const allUnits = h.allAUBoxes();
         const unitIndex = allUnits.findIndex(au => String(au.address) === String(instrumentAU.address));
         const audioTracks = [...instrumentAU.tracks.pointerHub.incoming()]
             .map(({{box}}) => box)
@@ -1211,7 +1203,7 @@ Returns unit_index and track_index for use with create_note.
         }});
 
         // Find unit_index and track_index
-        const allUnits = [...rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box);
+        const allUnits = h.allAUBoxes();
         const unitIndex = allUnits.findIndex(au => String(au.address) === String(instrumentAU.address));
         const noteTracks = [...instrumentAU.tracks.pointerHub.incoming()]
             .map(({{box}}) => box)
@@ -1253,7 +1245,7 @@ Use mcp_opendaw_create_instrument_track first if no instrument AU exists.
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -1358,9 +1350,7 @@ Returns effect_index — use it with mcp_opendaw_set_effect_parameter.
         const factory = ef.AudioNamed[effectType];
         if (!factory) return {{error: "Effect factory not found: " + effectType}};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIndex >= units.length) return {{error: "No audio unit at index " + unitIndex + ". Total: " + units.length}};
         const au = units[unitIndex];
 
@@ -1401,7 +1391,7 @@ Returns list of cloned effects with their new indices.
         const srcIdx = {src_unit};
         const dstIdx = {dst_unit};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No source AU at index " + srcIdx}};
         if (dstIdx >= units.length) return {{error: "No dest AU at index " + dstIdx}};
 
@@ -1495,7 +1485,7 @@ Effects between from and to shift accordingly.
         const fromIdx = {from_index};
         const toIdx = {to_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -1579,7 +1569,7 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
         const routingVal = {routing_val};
         const fxName = "{safe_name}";
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No src AU at index " + srcIdx}};
 
         const srcAU = units[srcIdx];
@@ -1594,7 +1584,7 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
 
         h.modify(() => {{
             // 1. Create FX AudioUnitBox (Aux type) — owns the effect chain, output → primary bus
-            const existingCount = [...h.rootBox.audioUnits.pointerHub.incoming()].length;
+            const existingCount = h.allAUBoxes().length;
             fxUnit = AudioUnitBox.create(boxGraph, h.uuid.generate(), (box) => {{
                 box.collection.refer(h.rootBox.audioUnits);
                 box.output.refer(primaryBus.input);
@@ -1622,7 +1612,7 @@ Workflow: create_instrument_track → create_send → add_effect(Reverb on fx_un
         }});
 
         // Get updated unit list to find FX unit index
-        const updatedUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const updatedUnits = h.allAUBoxes();
         const fxUnitIdx = updatedUnits.findIndex(b => b.address.equals(fxUnit.address));
 
         const sendIndex = [...srcAU.auxSends.pointerHub.incoming()]
@@ -1656,7 +1646,7 @@ level_db: Send level in dB.
         const sendIdx = {send_index};
         const levelDb = {level_db};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1689,7 +1679,7 @@ Returns list of sends with: send_index, target_bus_name, send_level_db, routing.
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const srcIdx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1732,7 +1722,7 @@ send_index: Send index to remove (from list_sends).
         const h = window.DAW_HELPERS;
         const srcIdx = {unit_index};
         const sendIdx = {send_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1769,7 +1759,7 @@ routing: 'pre' (pre-fader, before volume/pan) or 'post' (post-fader, default).
         const srcIdx = {unit_index};
         const sendIdx = {send_index};
         const routingVal = {routing_val};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1800,7 +1790,7 @@ Returns bus index, name, enabled state, and the associated audio unit index.
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const buses = [...h.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
 
         const busList = buses.map((box, i) => {{
             let unitIdx = -1;
@@ -1840,7 +1830,7 @@ pan: Pan value from -1.0 (left) to 1.0 (right).
         const srcIdx = {unit_index};
         const sendIdx = {send_index};
         const panVal = {pan_val};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No AU at index " + srcIdx}};
         const au = units[srcIdx];
 
@@ -1904,7 +1894,7 @@ fx_unit_index: Alternative — the FX AU index returned by create_send.
         const busIdx = {bus_index};
         const fxUnitIdx = {fx_unit_index};
         const buses = [...h.rootBox.audioBusses.pointerHub.incoming()].map(({{box}}) => box);
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
 
         let targetBus = null;
         let targetUnit = null;
@@ -1975,9 +1965,7 @@ Returns parameter names, current values, units, and ranges.
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2059,7 +2047,7 @@ Returns complete effect state snapshot.
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
         const effects = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => a.index.getValue() - b.index.getValue());
@@ -2133,9 +2121,7 @@ Examples:
         const paramName = "{safe_param}";
         const newValue = {value};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2191,9 +2177,7 @@ async def mcp_opendaw_set_effect_parameter_bool(unit_index: int, effect_index: i
         const paramName = "{safe_param}";
         const newValue = {js_bool};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2250,9 +2234,7 @@ async def mcp_opendaw_set_effect_parameter_int(unit_index: int, effect_index: in
         const paramName = "{safe_param}";
         const newValue = {value};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2300,9 +2282,7 @@ string_value: String value (e.g. "hardclip", "tanh", "cubicSoft", "sigmoid", "ar
         const paramName = "{safe_param}";
         const newValue = "{safe_value}";
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2344,9 +2324,7 @@ effect_index: Effect position to remove (0-based).
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -2406,7 +2384,7 @@ Returns effect_index in the MIDI chain.
         const factory = ef.MidiNamed[effectType];
         if (!factory) return {{error: "MIDI effect factory not found: " + effectType}};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIndex >= units.length) return {{error: "No audio unit at index " + unitIndex}};
         const au = units[unitIndex];
 
@@ -2442,7 +2420,7 @@ effect_index: MIDI effect position to remove (0-based).
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -2475,7 +2453,7 @@ Returns ordered list of MIDI effects with type, enabled state, and index.
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
         const effects = [...au.midiEffects.pointerHub.incoming()]
@@ -2516,7 +2494,7 @@ Returns parameter names, values, units, and constraints.
         const unitIdx = {unit_index};
         const effectIdx = {effect_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -2576,7 +2554,7 @@ Returns old and new values.
         const paramIdx = {param_index};
         const newVal = {value};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -2631,13 +2609,13 @@ Returns:
         let vap = null;
 
         if (unitIdx >= 0) {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
             const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
             vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             for (const au of units) {{
                 const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
                 vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
@@ -2732,13 +2710,13 @@ Returns old and new values.
 
         let vap = null;
         if (unitIdx >= 0) {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             const au = units[unitIdx];
             const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
             vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             for (const au of units) {{
                 const incoming = [...au.input.pointerHub.incoming()].map(({{box}}) => box);
                 vap = incoming.find(b => b.constructor.name === "VaporisateurDeviceBox");
@@ -2791,7 +2769,7 @@ Nano (volume/release), Soundfont (presetIndex), MIDIOutput (channel), Playfield,
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         let instBox = null;
         let auName = "";
 
@@ -2858,7 +2836,7 @@ Works with any instrument type. Returns old and new values.
         const paramIdx = {param_index};
         const newVal = {value};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         let instBox = null;
 
         if (unitIdx >= 0) {{
@@ -2915,7 +2893,7 @@ Returns list of pads with MIDI note, enabled state, and effects.
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         let pf = null;
 
         if (unitIdx >= 0) {{
@@ -2964,7 +2942,7 @@ unit_index: Audio unit index (-1 = auto-detect Playfield).
         const sampleIdx = {sample_index};
         const enabledVal = {json.dumps(enabled)};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         let pf = null;
 
         if (unitIdx >= 0) {{
@@ -3019,7 +2997,7 @@ Returns the new pad index and MIDI note.
         const name = "{safe_name}";
         const dur = {duration_seconds};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         let pf = null;
 
         if (unitIdx >= 0) {{
@@ -3076,7 +3054,7 @@ unit_index: Audio unit to delete (must be >= 1, as index 0 is the master output)
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -3086,7 +3064,7 @@ unit_index: Audio unit to delete (must be >= 1, as index 0 is the master output)
 
         h.modify(() => h.api.deleteAudioUnit(au));
 
-        const remaining = [...h.rootBox.audioUnits.pointerHub.incoming()].length;
+        const remaining = h.allAUBoxes().length;
         return {{
             success: true,
             deleted_au_index: unitIdx,
@@ -3110,9 +3088,7 @@ Returns ordered list of effects with their type, enabled state, and index.
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
-            .map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
 
         const au = units[unitIdx];
@@ -3175,7 +3151,7 @@ Notes are added to the first clip on the track.
         // Find note tracks — either on specified AU or across all AUs
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3183,8 +3159,7 @@ Notes are added to the first clip on the track.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-                .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3307,7 +3282,7 @@ Returns note count and time range.
         // Find note tracks
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3315,7 +3290,7 @@ Returns note count and time range.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3390,7 +3365,7 @@ Returns count of notes transposed.
         const trackIdx = {track_index};
 
         let count = 0;
-        const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allUnits = h.allAUBoxes();
         const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
 
         h.modify(() => {{
@@ -3444,7 +3419,7 @@ region_index: Region index to delete (0-based).
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3452,7 +3427,7 @@ region_index: Region index to delete (0-based).
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3490,7 +3465,7 @@ region_index: Region index to delete (0-based).
         const trackIdx = {track_index};
         const regionIdx = {region_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -3528,7 +3503,7 @@ duration_beats, label, note_count.
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
-        const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allUnits = h.allAUBoxes();
         const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
         const Quarter = h.ppqn.Quarter;
 
@@ -3589,7 +3564,7 @@ duration_seconds, file_name.
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
         const Quarter = h.ppqn.Quarter;
@@ -3662,7 +3637,7 @@ Returns updated fade values.
         const inSlope = {in_slope};
         const outSlope = {out_slope};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -3717,7 +3692,7 @@ Returns updated gain value.
         const regionIdx = {region_index};
         const gainDb = {gain_db};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -3774,7 +3749,7 @@ Returns count of notes quantized.
         const strength = {strength};
 
         let count = 0;
-        const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allUnits = h.allAUBoxes();
         const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
 
         h.modify(() => {{
@@ -3846,7 +3821,7 @@ Returns new region index.
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3854,7 +3829,7 @@ Returns new region index.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -3948,7 +3923,7 @@ Returns count of duplicated notes and shift in beats.
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -3956,7 +3931,7 @@ Returns count of duplicated notes and shift in beats.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4037,7 +4012,7 @@ Returns list of notes sorted by position.
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -4045,7 +4020,7 @@ Returns list of notes sorted by position.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4120,7 +4095,7 @@ Returns updated note properties.
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -4128,7 +4103,7 @@ Returns updated note properties.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4194,7 +4169,7 @@ Returns remaining note count.
 
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -4202,7 +4177,7 @@ Returns remaining note count.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4261,7 +4236,7 @@ Returns remaining region count on the track.
         const typeVal = {type_val};
 
         let tracks = [];
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4313,7 +4288,7 @@ region_index: Region to move (0-based).
         const newPos = Math.round({position_beats} * h.ppqn.Quarter);
 
         let tracks = [];
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4356,7 +4331,7 @@ duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
         const newDur = Math.round({duration_beats} * h.ppqn.Quarter);
 
         let tracks = [];
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4402,7 +4377,7 @@ mute: true to mute, false to unmute.
         const muteVal = {json.dumps(mute)};
 
         let tracks = [];
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4448,7 +4423,7 @@ region_index: Region to rename (0-based).
         const regionIdx = {region_index};
 
         let tracks = [];
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4500,7 +4475,7 @@ Returns old and new hue values.
         const hueVal = {hue};
 
         let tracks = [];
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4540,7 +4515,7 @@ Single-call summary — lighter than get_project_state (no per-track detail).
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const tl = h.timelineBox;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
 
         let totalTracks = 0, totalRegions = 0, totalEffects = 0, totalNotes = 0;
         let maxPos = 0;
@@ -4592,7 +4567,7 @@ unit_index: Audio unit index (-1 = all AUs).
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
 
         const results = [];
         if (unitIdx < 0) {{
@@ -4637,7 +4612,7 @@ region_index: Region to modify (0-based).
         const eventOffsetTicks = Math.round({event_offset_beats} * h.ppqn.Quarter);
 
         let tracks = [];
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4702,7 +4677,7 @@ Returns the saved file path.
         // Find note tracks
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 const tracks = [...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
@@ -4710,7 +4685,7 @@ Returns the saved file path.
                 noteTracks.push(...tracks);
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -4950,7 +4925,7 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
     # Build stems config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
     result_temp = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         return units.map((au, i) => ({{
             index: i,
             uuid: h.uuid.toString(au.address.uuid),
@@ -5046,8 +5021,7 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
     # Build per-AU stem config — ExportConfiguration.stems is Record<uuid, ExportStemConfiguration>
     result_temp = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at index {unit_index}"}};
         const au = units[{unit_index}];
         return {{
@@ -5155,7 +5129,7 @@ The parameter must be automatable (Field<Pointers.Automation>).
         const paramName = "{safe_param}";
         const points = {points};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
         const au = units[unitIdx];
 
@@ -5220,7 +5194,7 @@ Returns clip creation details.
         const trackIdx = {track_index};
         const clipIdx = {clip_idx};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -5268,7 +5242,7 @@ Returns list of tracks with their automation events.
         const trackIdx = {track_index};
         const Quarter = h.ppqn.Quarter;
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -5348,9 +5322,9 @@ Returns list of automation regions.
 
         let targetAUs;
         if (unitIdx < 0) {{
-            targetAUs = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            targetAUs = h.allAUBoxes();
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             targetAUs = [units[unitIdx]];
         }}
@@ -5425,7 +5399,7 @@ Returns updated playback values.
         const reverseVal = {reverse_val};
         const speedVal = {speed_val};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -5486,7 +5460,7 @@ Returns updated clip properties.
         const durVal = {duration_beats};
         const labelVal = {label_val};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -5532,7 +5506,7 @@ Returns remaining clip count.
         const trackIdx = {track_index};
         const clipIdx = {clip_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -5576,7 +5550,7 @@ Returns list of clips with type, index, duration, mute, label, loop.
         const trackIdx = {track_index};
         const Quarter = h.ppqn.Quarter;
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -5637,7 +5611,7 @@ The target effect must be Compressor, Gate, Vocoder, or any effect with Pointers
         const tgtIdx = {target_unit_index};
         const effIdx = {effect_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (srcIdx >= units.length) return {{error: "No source AU at " + srcIdx}};
         if (tgtIdx >= units.length) return {{error: "No target AU at " + tgtIdx}};
         const sourceAU = units[srcIdx];
@@ -5675,7 +5649,7 @@ The output audio unit is preserved (required for audio routing).
         const h = window.DAW_HELPERS;
         let deleted = 0;
         h.editing.modify(() => {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             // Delete all instrument AUs (keep output AU at index 0)
             for (let i = units.length - 1; i >= 1; i--) {{
                 try {{ units[i].delete(); deleted++; }} catch(e) {{}}
@@ -5692,7 +5666,7 @@ The output audio unit is preserved (required for audio routing).
         return {{
             success: true,
             deleted_boxes: deleted,
-            remaining_units: [...h.rootBox.audioUnits.pointerHub.incoming()].length,
+            remaining_units: h.allAUBoxes().length,
         }};
     }}""")
     return _wrap_eval(result)
@@ -5777,7 +5751,7 @@ enabled: true to enable, false to bypass.
         const effectIdx = {effect_index};
         const enabled = {json.dumps(enabled)};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
         const au = units[unitIdx];
         const effects = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => a.index.getValue() - b.index.getValue());
@@ -5807,7 +5781,7 @@ effects chain, volume, panning, and region count.
 """
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         const result = units.map((au, i) => {{
             const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => {{
                 const typeVal = box.type?.getValue?.() ?? -1;
@@ -6085,7 +6059,7 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
         const h = window.DAW_HELPERS;
         const ef = window.DAW_EffectFactories;
         const api = h.api;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         const au = units[0]; // output AU
 
         const existing = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box);
@@ -6112,7 +6086,7 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
         # Set Maximizer threshold + output AU volume
         await bridge.evaluate(f"""() => {{
             const h = window.DAW_HELPERS;
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             const au = units[0]; // output AU
             const maxi = [...au.audioEffects.pointerHub.incoming()].map(({{box}}) => box).find(b => b.constructor.name === "MaximizerDeviceBox");
             if (!maxi) return {{error: "No Maximizer"}};
@@ -6284,7 +6258,7 @@ Returns position, duration in PPQN, and playback rate.
         const transientMode = {mode_val};
         const sampleBpm = {bpm};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -6363,7 +6337,7 @@ Returns position and duration in PPQN.
         const startBeat = {start_beat};
         const sampleBpm = {bpm};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -6435,12 +6409,12 @@ Returns the new region's position and index.
         // Find the track
         let tracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 tracks.push(...[...au.tracks.pointerHub.incoming()].map(({{box}}) => box));
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             tracks = [...units[unitIdx].tracks.pointerHub.incoming()].map(({{box}}) => box);
         }}
@@ -6504,14 +6478,14 @@ Returns clip UUID and index.
         // Find note track
         let noteTracks = [];
         if (unitIdx < 0) {{
-            const allUnits = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allUnits = h.allAUBoxes();
             for (const au of allUnits) {{
                 noteTracks.push(...[...au.tracks.pointerHub.incoming()]
                     .map(({{box}}) => box)
                     .filter(box => box.type?.getValue?.() === 1));
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             noteTracks = [...units[unitIdx].tracks.pointerHub.incoming()]
                 .map(({{box}}) => box)
@@ -6571,11 +6545,11 @@ Returns region UUID, type, and position.
 
         let tracks = [];
         if (unitIdx < 0) {{
-            for (const au of [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)) {{
+            for (const au of h.allAUBoxes()) {{
                 tracks.push(...[...au.tracks.pointerHub.incoming()].map(({{box}}) => box));
             }}
         }} else {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
             tracks = [...units[unitIdx].tracks.pointerHub.incoming()].map(({{box}}) => box);
         }}
@@ -6633,7 +6607,7 @@ Returns clip UUID and index.
         const sampleId = "{safe_sample_id}";
         const sampleBpm = {bpm};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -6708,7 +6682,7 @@ transient_mode: "Pingpong", "Monoton", "Cycles", or "Plode".
         const rate = {playback_rate};
         const modeName = "{safe_mode}";
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -6778,7 +6752,7 @@ bpm: Source BPM of the sample.
         const sampleId = "{safe_sample_id}";
         const sampleBpm = {bpm};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -6840,7 +6814,7 @@ device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MI
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(rf"""async () => {{
         const h = window.DAW_HELPERS;
-        const allAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allAU = h.allAUBoxes();
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
@@ -7019,7 +6993,7 @@ Returns the full code string, header line, and code length.
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(rf"""() => {{
         const h = window.DAW_HELPERS;
-        const allAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allAU = h.allAUBoxes();
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
@@ -7058,7 +7032,7 @@ declarations in the code. They appear after the code is compiled and loaded.
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const allAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allAU = h.allAUBoxes();
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
@@ -7100,7 +7074,7 @@ The value is set directly on the WerkstattParameterBox.value field.
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const allAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allAU = h.allAUBoxes();
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
@@ -7145,7 +7119,7 @@ The file pointer is null until a sample is loaded.
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const allAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const allAU = h.allAUBoxes();
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
         let device = null;
@@ -7195,7 +7169,7 @@ Returns the new unit index and details of what was copied.
 """
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No audio unit at index {unit_index}"}};
         const srcAU = units[{unit_index}];
 
@@ -7294,7 +7268,7 @@ Returns success or error.
         const h = window.DAW_HELPERS;
         const AudioUnitBoxAdapter = window.DAW_AudioUnitBoxAdapter;
         if (!AudioUnitBoxAdapter) throw new Error("AudioUnitBoxAdapter not loaded");
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No unit at index {unit_index}"}};
         const au = units[{unit_index}];
         const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box).sort((a,b) => a.index.getValue() - b.index.getValue());
@@ -7331,7 +7305,7 @@ Returns success or error.
         const dstUnitIdx = {dst_unit_index};
         const dstTrackIdx = {dst_track_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         const srcAU = units[srcUnitIdx];
         const dstAU = units[dstUnitIdx];
         if (!srcAU) return {{error: "Source unit not found"}};
@@ -7389,7 +7363,7 @@ Returns the new bus index.
 
         // Block 1: Create AudioUnitBox (Aux)
         h.editing.modify(() => {{
-            const unitIdx = [...h.rootBox.audioUnits.pointerHub.incoming()].length;
+            const unitIdx = h.allAUBoxes().length;
             newUnit = AudioUnitBox.create(h.boxGraph, UUID.generate(), (box) => {{
                 box.type.setValue(AudioUnitType.Aux);
                 box.collection.refer(h.rootBox.audioUnits);
@@ -7435,7 +7409,7 @@ Returns success or error.
 """
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No unit at {unit_index}"}};
         const au = units[{unit_index}];
         const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box).sort((a,b) => a.index.getValue() - b.index.getValue());
@@ -7610,8 +7584,7 @@ Returns new index or error.
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const AudioUnitBoxAdapter = window.DAW_AudioUnitBoxAdapter;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at {unit_index}"}};
         const auBox = units[{unit_index}];
         const adapter = h.project.boxAdapters.adapterFor(auBox, AudioUnitBoxAdapter);
@@ -7640,8 +7613,7 @@ Returns new index or error.
         const h = window.DAW_HELPERS;
         const AudioUnitBoxAdapter = window.DAW_AudioUnitBoxAdapter;
         const TrackBoxAdapter = window.DAW_TrackBoxAdapter;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at {unit_index}"}};
         const auBox = units[{unit_index}];
         const auAdapter = h.project.boxAdapters.adapterFor(auBox, AudioUnitBoxAdapter);
@@ -7682,8 +7654,7 @@ Returns the new region's type, position, and duration, or error.
         const h = window.DAW_HELPERS;
         const TransferRegions = window.DAW_TransferRegions;
         if (!TransferRegions) return {{error: "TransferRegions not loaded"}};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const units = h.allAUBoxes();
 
         if ({src_unit_index} >= units.length) return {{error: "No source AU at {src_unit_index}"}};
         if ({dst_unit_index} >= units.length) return {{error: "No dest AU at {dst_unit_index}"}};
@@ -7746,8 +7717,7 @@ Returns the new AU's index, type, and label, or error.
         const h = window.DAW_HELPERS;
         const TransferAudioUnits = window.DAW_TransferAudioUnits;
         if (!TransferAudioUnits) return {{error: "TransferAudioUnits not loaded"}};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at {unit_index}"}};
 
         const srcAU = units[{unit_index}];
@@ -7801,8 +7771,7 @@ Returns base64-encoded preset bytes and metadata, or error.
         const h = window.DAW_HELPERS;
         const PresetEncoder = window.DAW_PresetEncoder;
         if (!PresetEncoder) return {{error: "PresetEncoder not loaded"}};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at {unit_index}"}};
         const srcAU = units[{unit_index}];
         if (srcAU.type.getValue() === "output") return {{error: "Cannot export Output unit"}};
@@ -7844,7 +7813,7 @@ Returns the new AU's index, type, and label, or error.
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-        const outputAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
+        const outputAU = h.allAUBoxes()
             .find(u => u.type.getValue() === "output");
         if (!outputAU) return {{error: "No Output unit"}};
         const primaryBus = [...outputAU.input.pointerHub.incoming()].map(({{box}}) => box)[0];
@@ -7905,8 +7874,7 @@ Returns success or error with reason.
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at {unit_index}"}};
         const targetAU = units[{unit_index}];
 
@@ -7951,8 +7919,7 @@ Returns base64 preset bytes, or error.
         const PresetEncoder = window.DAW_PresetEncoder;
         const PresetHeader = window.DAW_PresetHeader || {{ChainKind: {{Audio: 1, Midi: 0}}}};
         if (!PresetEncoder) return {{error: "PresetEncoder not loaded"}};
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at {unit_index}"}};
         const au = units[{unit_index}];
 
@@ -8078,7 +8045,7 @@ async def mcp_opendaw_validate_project() -> str:
             issues.push("validation error: " + e.message);
         }}
         if (!valid) {{
-            const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const units = h.allAUBoxes();
             for (const au of units) {{
                 const tracks = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
                 for (const track of tracks) {{
@@ -11276,8 +11243,7 @@ async def mcp_opendaw_duplicate_effect(unit_index: int, effect_index: int, chain
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const ef = window.DAW_EffectFactories;
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if ({unit_index} >= units.length) return {{error: "No AU at index {unit_index}"}};
         const au = units[{unit_index}];
         const isMidi = "{safe_chain}" === "midi";
@@ -11372,8 +11338,7 @@ async def mcp_opendaw_add_instrument_automation(unit_index: int, parameter_name:
         const sampleIdx = {sample_index};
         const points = {points};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
         const au = units[unitIdx];
 
@@ -11442,8 +11407,7 @@ async def mcp_opendaw_list_automatable_fields(unit_index: int, sample_index: int
         const unitIdx = {unit_index};
         const sampleIdx = {sample_index};
 
-        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box)
-            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = h.allAUBoxes();
         if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
         const au = units[unitIdx];
 
