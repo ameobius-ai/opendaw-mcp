@@ -130,12 +130,12 @@ def _wrap_eval(result) -> str:
 async def mcp_opendaw_get_project_state() -> str:
     """Get full project state: BPM, sample rate, playing status, track list, effects chain."""
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const eng = p.engine;
+        const h = window.DAW_HELPERS;
+        const eng = h.engine;
 
         const units = [];
         try {{
-            const allAU = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+            const allAU = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
             allAU.forEach((au, i) => {{
                 const effects = [];
                 try {{
@@ -162,12 +162,12 @@ async def mcp_opendaw_get_project_state() -> str:
         }} catch(e) {{}}
 
         return {{
-            bpm: p.timelineBox?.bpm?.getValue?.() ?? eng.bpm,
+            bpm: h.timelineBox?.bpm?.getValue?.() ?? eng.bpm,
             sampleRate: eng.sampleRate,
             isPlaying: !!eng.isPlaying?.getValue?.(),
             position: eng.position?.getValue?.() ?? eng.position,
             audioUnits: units,
-            totalBoxes: [...p.boxGraph.boxes()].length,
+            totalBoxes: [...h.boxGraph.boxes()].length,
         }};
     }}""")
     return _wrap_eval(result)
@@ -1058,23 +1058,22 @@ Returns the unit_index and track_index for use with place_audio_region.
 """
     safe_name = name.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
+        const h = window.DAW_HELPERS;
         const AudioUnitBox = window.DAW_AudioUnitBox;
         const TapeDeviceBox = window.DAW_TapeDeviceBox;
         const CaptureAudioBox = window.DAW_CaptureAudioBox;
         const AudioUnitType = window.DAW_AudioUnitType;
 
-        const rootBox = p.rootBox;
-        const primaryAudioBusBox = p.primaryAudioBusBox;
+        const rootBox = h.rootBox;
+        const primaryAudioBusBox = h.primaryAudioBusBox;
 
         let instrumentAU, tapeDevice, captureBox, trackBox;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             // Create CaptureAudioBox
-            captureBox = CaptureAudioBox.create(p.boxGraph, UUID.generate());
+            captureBox = CaptureAudioBox.create(h.boxGraph, h.uuid.generate());
 
             // Create instrument AudioUnitBox connected to output bus
-            instrumentAU = AudioUnitBox.create(p.boxGraph, UUID.generate(), (box) => {{
+            instrumentAU = AudioUnitBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                 box.type.setValue(AudioUnitType.Instrument);
                 box.collection.refer(rootBox.audioUnits);
                 box.output.refer(primaryAudioBusBox.input);
@@ -1084,13 +1083,13 @@ Returns the unit_index and track_index for use with place_audio_region.
             }});
 
             // Create TapeDeviceBox (audio player instrument)
-            tapeDevice = TapeDeviceBox.create(p.boxGraph, UUID.generate(), (box) => {{
+            tapeDevice = TapeDeviceBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                 box.label.setValue("{safe_name}");
                 box.host.refer(instrumentAU.input);
             }});
 
             // Create audio track on the instrument AU
-            trackBox = p.api.createAudioTrack(instrumentAU);
+            trackBox = h.api.createAudioTrack(instrumentAU);
         }});
 
         // Find unit_index and track_index
@@ -1203,10 +1202,7 @@ Use mcp_opendaw_create_instrument_track first if no instrument AU exists.
     """
     safe_sample_id = sample_id.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const UUID = window.DAW_UUID;
-        const PPQN = window.DAW_PPQN;
-        const Quarter = PPQN.Quarter;
+        const h = window.DAW_HELPERS;
         const AudioFileBox = window.DAW_AudioFileBox;
         const AudioRegionBox = window.DAW_AudioRegionBox;
         const sampleId = "{safe_sample_id}";
@@ -1214,7 +1210,7 @@ Use mcp_opendaw_create_instrument_track first if no instrument AU exists.
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
 
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
         const au = units[unitIdx];
 
@@ -1237,17 +1233,17 @@ Use mcp_opendaw_create_instrument_track first if no instrument AU exists.
         }};
 
         let regionBox, audioFileBox;
-        p.editing.modify(() => {{
-            audioFileBox = AudioFileBox.create(p.boxGraph, UUID.generate(), (box) => {{
+        h.modify(() => {{
+            audioFileBox = AudioFileBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
                 box.fileName.setValue("{sample_id}");
                 box.startInSeconds.setValue(0.0);
                 box.endInSeconds.setValue(audioBuffer.duration);
             }});
 
-            regionBox = p.api.createNotStretchedRegion({{
-                boxGraph: p.boxGraph,
+            regionBox = h.api.createNotStretchedRegion({{
+                boxGraph: h.boxGraph,
                 targetTrack: trackBox,
-                position: Math.round(startBeat * Quarter),
+                position: Math.round(startBeat * h.ppqn.Quarter),
                 audioFileBox: audioFileBox,
                 sample: sample,
             }});
