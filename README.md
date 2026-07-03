@@ -107,7 +107,7 @@ python server.py --list-tools  # list all 249 registered MCP tools
 
 ```bash
 # Pull pre-built image from GitHub Container Registry
-docker pull ghcr.io/ameobius/opendaw-mcp:1.9.6
+docker pull ghcr.io/ameobius/opendaw-mcp:1.9.7
 docker run -p 8080:8080 ghcr.io/ameobius/opendaw-mcp:1.9.6
 # MCP server available at http://localhost:8080/sse
 
@@ -266,6 +266,21 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.9.7 (2026-07-04)
+
+- **249 total tools** (+6 since v1.9.6)
+- **Official ScriptCompiler migration** — `set_script_device_code` now uses the real `ScriptCompiler` from `@opendaw/studio-adapters` instead of custom @param/@sample parser. Benefits: declaration caching (WeakMap), proper sample file cleanup, label parsing, correct worklet wrapping
+- **Stems export fix** — `useInstrumentOutput` changed from True→False. Stems now route through channel strip (effects, sends, volume/pan) as documented by naomiaro/opendaw-test
+- **`export_dry_stem`** — new tool for freeze/flatten/re-amp workflows: captures raw instrument output before effects
+- **`set_waveshaper_equation`** — 6 transfer functions (hardclip/cubicSoft/tanh/sigmoid/arctan/asymmetric)
+- **`set_crusher_crush`** — sample-rate reduction with documented crush inversion semantics
+- **`set_revamp_filter`** — 7 EQ sections (highpass/lowshelf/lowbell/midbell/highbell/highshelf/lowpass) with enabled/freq/gain/q/order
+- **`set_tidal_rate`** — musical fraction string → Tidal LFO rate index (17 entries)
+- **`set_delay_sync`** — musical fraction string → Delay synced time index (21 entries, includes "off")
+- **Effect lookup case-insensitive** — `add_effect("werkstatt")` now works alongside `Werkstatt`
+- **naomiaro/opendaw-test research** — 543 commits, 17 SDK doc chapters used as authoritative reference for effect parameters and box field names
+- **31 tests, ruff clean, CI green**
 
 ### v1.9.6 (2026-07-03)
 
