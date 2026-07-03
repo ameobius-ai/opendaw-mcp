@@ -3124,7 +3124,7 @@ Returns note count and time range.
                 }
                 notes_data.append(note)
     notes_json = json.dumps(notes_data)
-    offset_ticks = int(offset_beats * 960)
+    offset_ticks = int(float(offset_beats) * 960)
     ppqn = 960
     result = await bridge.evaluate(f"""() => {{
         const p = window.DAW;
@@ -4575,7 +4575,7 @@ Returns the saved file path.
             const pos = note.position.getValue();
             const dur = note.duration.getValue();
             const pitch = note.pitch.getValue();
-            const vel = Math.round(note.velocity.getValue() * 127 / 100);
+            const vel = Math.round(note.velocity.getValue() * 127);
             events.push(new ControlEvent(toTicks(pos), ControlType.NOTE_ON, pitch, vel));
             events.push(new ControlEvent(toTicks(pos + dur), ControlType.NOTE_OFF, pitch, 0));
         }}
