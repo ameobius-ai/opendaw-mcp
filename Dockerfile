@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY --from=opendaw-builder /build /opendaw
 
-# Clone and install opendaw-mcp
-RUN git clone --depth 1 https://github.com/AMEOBIUS/opendaw-mcp.git /app/opendaw-mcp
+# Copy opendaw-mcp from build context (no git needed in runtime)
+COPY . /app/opendaw-mcp
 WORKDIR /app/opendaw-mcp
 
 RUN python3 -m venv venv && \
