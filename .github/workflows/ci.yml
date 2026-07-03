@@ -61,5 +61,5 @@ jobs:
           python -m pytest tests/ -v
       - name: Lint with ruff
         run: |
-          ruff check server.py --select F,E722,W292 --ignore E501
-          echo "Ruff lint passed (F-codes + bare-except + trailing newline)"
+          ruff check server.py
+          echo "Ruff lint passed"
