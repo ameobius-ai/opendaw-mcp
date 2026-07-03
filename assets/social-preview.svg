@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0f"/>
+      <stop offset="50%" stop-color="#131320"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  
+  <!-- Waveform decoration -->
+  <g opacity="0.15" fill="url(#accent)">
+    <rect x="60" y="580" width="8" height="20" rx="2"/>
+    <rect x="78" y="570" width="8" height="40" rx="2"/>
+    <rect x="96" y="560" width="8" height="60" rx="2"/>
+    <rect x="114" y="565" width="8" height="50" rx="2"/>
+    <rect x="132" y="575" width="8" height="30" rx="2"/>
+    <rect x="150" y="568" width="8" height="44" rx="2"/>
+    <rect x="168" y="555" width="8" height="70" rx="2"/>
+    <rect x="186" y="560" width="8" height="60" rx="2"/>
+    <rect x="204" y="575" width="8" height="30" rx="2"/>
+    <rect x="222" y="580" width="8" height="20" rx="2"/>
+    <rect x="240" y="570" width="8" height="40" rx="2"/>
+    <rect x="258" y="560" width="8" height="60" rx="2"/>
+    <rect x="276" y="565" width="8" height="50" rx="2"/>
+    <rect x="294" y="575" width="8" height="30" rx="2"/>
+  </g>
+  
+  <!-- Title -->
+  <text x="100" y="200" font-family="monospace" font-size="64" font-weight="bold" fill="#e2e8f0" letter-spacing="-1">
+    openDAW MCP
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="100" y="250" font-family="monospace" font-size="28" fill="#94a3b8">
+    Agent-native control of a browser-based DAW
+  </text>
+  
+  <!-- Accent line -->
+  <rect x="100" y="280" width="300" height="4" rx="2" fill="url(#accent)" filter="url(#glow)"/>
+  
+  <!-- Stats badges -->
+  <g font-family="monospace" font-size="24" fill="#e2e8f0">
+    <!-- 243 Tools -->
+    <rect x="100" y="320" width="180" height="50" rx="10" fill="#1e1e38" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="115" y="353" fill="#a78bfa" font-weight="bold">243</text>
+    <text x="175" y="353" fill="#94a3b8" font-size="20">MCP Tools</text>
+    
+    <!-- 31 Tests -->
+    <rect x="300" y="320" width="150" height="50" rx="10" fill="#1e1e38" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="315" y="353" fill="#4ade80" font-weight="bold">31</text>
+    <text x="350" y="353" fill="#94a3b8" font-size="20">Tests</text>
+    
+    <!-- CI -->
+    <rect x="470" y="320" width="80" height="50" rx="10" fill="#1e1e38" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="485" y="353" fill="#4ade80" font-weight="bold" font-size="20">CI ✓</text>
+    
+    <!-- Apache -->
+    <rect x="570" y="320" width="140" height="50" rx="10" fill="#1e1e38" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="585" y="353" fill="#60a5fa" font-weight="bold" font-size="18">Apache-2.0</text>
+  </g>
+  
+  <!-- Feature highlights -->
+  <g font-family="monospace" font-size="22" fill="#cbd5e1">
+    <text x="100" y="430">🎹 Tracks · Instruments · Effects · MIDI · Automation</text>
+    <text x="100" y="465">🎚️ Mixing · Sends · Buses · Sidechain · Freeze</text>
+    <text x="100" y="500">🔧 Werkstatt · Apparat · Spielwerk · Modular</text>
+    <text x="100" y="535">📤 Render · LUFS · Auto-gain · Stems · MP3/FLAC</text>
+  </g>
+  
+  <!-- Architecture chain -->
+  <text x="100" y="600" font-family="monospace" font-size="18" fill="#64748b">
+    Python → Playwright → Chromium → Vite → @opendaw/studio-sdk
+  </text>
+</svg>
