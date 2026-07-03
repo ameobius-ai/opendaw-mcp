@@ -80,11 +80,22 @@ async def mcp_opendaw_my_tool(param: str) -> str:
 | `h.allAUs()` | All audio unit adapters |
 | `h.track(auIdx, trackIdx)` | Get track adapter |
 | `h.trackBoxes(au)` | Track boxes for an AU, sorted by index |
+| `h.noteTrackBoxes(au)` | Note track boxes (type===1), sorted by index |
 | `h.region(au, track, reg)` | Get region adapter |
 | `h.regionBoxes(track)` | Region boxes for a track (insertion order) |
+| `h.clipBoxes(track)` | Clip boxes from a track |
+| `h.rootClipBoxes()` | All clip boxes from rootBox |
 | `h.effectBoxes(au)` | Audio effect boxes for an AU, sorted by index |
 | `h.midiEffectBoxes(au)` | MIDI effect boxes for an AU, sorted by index |
 | `h.eventBoxes(collection)` | Event boxes from a collection (note/signature events) |
+| `h.inputBoxes(au)` | Input device boxes for an AU (instruments, effects) |
+| `h.markerBoxes(markerTrack)` | Marker boxes from a marker track |
+| `h.sendBoxes(au)` | Aux send boxes for an AU, sorted by index |
+| `h.busBoxes()` | All audio bus boxes from rootBox |
+| `h.sampleBoxes(pf)` | Sample boxes from a Playfield instrument |
+| `h.scriptParams(device)` | Scriptable device parameter boxes |
+| `h.scriptSamples(device)` | Scriptable device sample boxes |
+| `h.chainBoxes(field)` | Effect boxes from a dynamic chain field (audio or midi) |
 | `h.instrumentAU()` | First instrument AU adapter |
 | `h.modify(fn)` | Wrapper for `editing.modify()` |
 
