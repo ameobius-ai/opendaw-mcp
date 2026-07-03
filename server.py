@@ -87,6 +87,8 @@ class HeadlessDawBridge:
                 // Get track boxes for an AU (sorted by index)
                 trackBoxes: (au) => [...au.tracks.pointerHub.incoming()].map(({box}) => box)
                     .sort((a, b) => a.index.getValue() - b.index.getValue()),
+                // Get region boxes for a track (unsorted, insertion order)
+                regionBoxes: (track) => [...track.regions.pointerHub.incoming()].map(({box}) => box),
                 // Get all AU adapters sorted
                 allAUs: () => p.rootBoxAdapter.audioUnits.adapters(),
                 // Find instrument AU (first non-output, non-bus)
@@ -3152,7 +3154,7 @@ Notes are added to the first clip on the track.
 
         h.modify(() => {{
             // Find existing region on this track, or create one
-            const existingRegions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+            const existingRegions = h.regionBoxes(trackBox);
             let regionBox = null;
             let collection = null;
 
@@ -3352,7 +3354,7 @@ Returns count of notes transposed.
                     .filter(box => box.type?.getValue?.() === 1);
                 const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
                 for (const track of targetTracks) {{
-                    const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+                    const regions = h.regionBoxes(track);
                     for (const region of regions) {{
                         try {{
                             const vertex = region.events.targetVertex.unwrap();
@@ -3413,7 +3415,7 @@ region_index: Region index to delete (0-based).
         if (trackIdx >= noteTracks.length) return {{error: "No note track at index " + trackIdx}};
         const trackBox = noteTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx + " (total: " + regions.length + ")"}};
 
         h.modify(() => {{
@@ -3450,7 +3452,7 @@ region_index: Region index to delete (0-based).
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx + " (total: " + audioTracks.length + ")"}};
 
         const trackBox = audioTracks[trackIdx];
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx + " (total: " + regions.length + ")"}};
 
         h.modify(() => {{
@@ -3492,7 +3494,7 @@ duration_beats, label, note_count.
             for (let ti = 0; ti < targetTracks.length; ti++) {{
                 const track = targetTracks[ti];
                 const trackIdxActual = noteTracks.indexOf(track);
-                const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+                const regions = h.regionBoxes(track);
                 for (let ri = 0; ri < regions.length; ri++) {{
                     const region = regions[ri];
                     let noteCount = 0;
@@ -3551,7 +3553,7 @@ duration_seconds, file_name.
         for (let ti = 0; ti < targetTracks.length; ti++) {{
             const track = targetTracks[ti];
             const trackIdxActual = audioTracks.indexOf(track);
-            const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+            const regions = h.regionBoxes(track);
             for (let ri = 0; ri < regions.length; ri++) {{
                 const region = regions[ri];
                 let fileName = "";
@@ -3619,7 +3621,7 @@ Returns updated fade values.
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const track = audioTracks[trackIdx];
 
-        const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(track);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
         const region = regions[regionIdx];
 
@@ -3673,7 +3675,7 @@ Returns updated gain value.
         if (trackIdx >= audioTracks.length) return {{error: "No audio track at index " + trackIdx}};
         const track = audioTracks[trackIdx];
 
-        const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(track);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
         const region = regions[regionIdx];
 
@@ -3729,7 +3731,7 @@ Returns count of notes quantized.
                     .filter(box => box.type?.getValue?.() === 1);
                 const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
                 for (const track of targetTracks) {{
-                    const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+                    const regions = h.regionBoxes(track);
                     for (const region of regions) {{
                         const regPos = region.position.getValue();
                         const nearestReg = Math.round(regPos / gridTicks) * gridTicks;
@@ -3808,7 +3810,7 @@ Returns new region index.
         if (trackIdx >= noteTracks.length) return {{error: "No note track at index " + trackIdx}};
         const trackBox = noteTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const srcRegion = regions[regionIdx];
@@ -3856,7 +3858,7 @@ Returns new region index.
             }}
 
             // Find new region index
-            const updatedRegions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+            const updatedRegions = h.regionBoxes(trackBox);
             newRegionIdx = updatedRegions.length - 1;
         }});
 
@@ -3909,7 +3911,7 @@ Returns count of duplicated notes and shift in beats.
         if (trackIdx >= noteTracks.length) return {{error: "No note track at index " + trackIdx}};
         const trackBox = noteTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const srcRegion = regions[regionIdx];
@@ -3997,7 +3999,7 @@ Returns list of notes sorted by position.
         if (trackIdx >= noteTracks.length) return {{error: "No note track at index " + trackIdx}};
         const trackBox = noteTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         let collection = null;
@@ -4079,7 +4081,7 @@ Returns updated note properties.
         if (trackIdx >= noteTracks.length) return {{error: "No note track at index " + trackIdx}};
         const trackBox = noteTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         let collection = null;
@@ -4152,7 +4154,7 @@ Returns remaining note count.
         if (trackIdx >= noteTracks.length) return {{error: "No note track at index " + trackIdx}};
         const trackBox = noteTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         let collection = null;
@@ -4217,7 +4219,7 @@ Returns remaining region count on the track.
         if (trackIdx >= targetTracks.length) return {{error: "No matching track at index " + trackIdx}};
         const trackBox = targetTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         h.modify(() => {{
@@ -4266,7 +4268,7 @@ region_index: Region to move (0-based).
         if (trackIdx >= tracks.length) return {{error: "No track at index " + trackIdx}};
         const trackBox = tracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldPos = regions[regionIdx].position.getValue();
@@ -4309,7 +4311,7 @@ duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
         if (trackIdx >= tracks.length) return {{error: "No track at index " + trackIdx}};
         const trackBox = tracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldDur = regions[regionIdx].duration.getValue();
@@ -4355,7 +4357,7 @@ mute: true to mute, false to unmute.
         if (trackIdx >= tracks.length) return {{error: "No track at index " + trackIdx}};
         const trackBox = tracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldMute = regions[regionIdx].mute?.getValue?.() ?? false;
@@ -4401,7 +4403,7 @@ region_index: Region to rename (0-based).
         if (trackIdx >= tracks.length) return {{error: "No track at index " + trackIdx}};
         const trackBox = tracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldLabel = regions[regionIdx].label?.getValue?.() ?? "";
@@ -4453,7 +4455,7 @@ Returns old and new hue values.
         if (trackIdx >= tracks.length) return {{error: "No track at index " + trackIdx}};
         const trackBox = tracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
         const region = regions[regionIdx];
 
@@ -4489,7 +4491,7 @@ Single-call summary — lighter than get_project_state (no per-track detail).
             const tracks = h.trackBoxes(au);
             totalTracks += tracks.length;
             for (const track of tracks) {{
-                const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+                const regions = h.regionBoxes(track);
                 totalRegions += regions.length;
                 for (const reg of regions) {{
                     const endPos = (reg.position?.getValue?.() ?? 0) + (reg.duration?.getValue?.() ?? 0);
@@ -4590,7 +4592,7 @@ region_index: Region to modify (0-based).
         if (trackIdx >= tracks.length) return {{error: "No track at index " + trackIdx}};
         const trackBox = tracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldLoop = regions[regionIdx].loopDuration?.getValue?.() ?? 0;
@@ -4659,7 +4661,7 @@ Returns the saved file path.
         if (trackIdx >= noteTracks.length) return {{error: "No note track at index " + trackIdx}};
         const trackBox = noteTracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const region = regions[regionIdx];
@@ -5303,7 +5305,7 @@ Returns list of automation regions.
             for (let ti = 0; ti < targetTracks.length; ti++) {{
                 const track = targetTracks[ti];
                 const actualTrackIdx = valueTracks.indexOf(track);
-                const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+                const regions = h.regionBoxes(track);
                 for (let ri = 0; ri < regions.length; ri++) {{
                     const region = regions[ri];
                     regionList.push({{
@@ -6384,7 +6386,7 @@ Returns the new region's position and index.
         if (trackIdx >= tracks.length) return {{error: "No track at index " + trackIdx}};
         const trackBox = tracks[trackIdx];
 
-        const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(trackBox);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
         const srcRegion = regions[regionIdx];
 
@@ -7176,7 +7178,7 @@ Returns the new unit index and details of what was copied.
             const trackMute = track.mute?.getValue();
             const trackHue = track.hue?.getValue();
 
-            const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+            const regions = h.regionBoxes(track);
             const trackNotes = [];
             for (const region of regions) {{
                 if (region.constructor.name === 'NoteRegionBox') {{
@@ -7279,7 +7281,7 @@ Returns success or error.
         if (!srcTrack) return {{error: "Source track not found"}};
         if (!dstTrack) return {{error: "Destination track not found"}};
 
-        const srcRegions = [...srcTrack.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const srcRegions = h.regionBoxes(srcTrack);
         const region = srcRegions[regionIdx];
         if (!region) return {{error: "Region not found"}};
 
@@ -7397,7 +7399,7 @@ Returns success or error.
         }}
 
         // Also check regions (in case events are region-based)
-        const regions = [...track.regions.pointerHub.incoming()].map(({{box}}) => box);
+        const regions = h.regionBoxes(track);
         for (const region of regions) {{
             if (region.constructor.name === 'ValueRegionBox') {{
                 try {{
