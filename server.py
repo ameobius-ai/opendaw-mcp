@@ -167,7 +167,9 @@ def cleanup():
 atexit.register(cleanup)
 
 def _ok(data=None) -> str:
-    return json.dumps({"success": True, **(data or {})})
+    d = {"success": True, **(data or {})}
+    d["success"] = True  # ensure success is always True
+    return json.dumps(d)
 def _err(msg: str) -> str:
     return json.dumps({"error": msg})
 def _wrap_eval(result) -> str:
@@ -183,7 +185,11 @@ def _unwrap_eval(s) -> any:
 
 def _safe_filename(name: str) -> str:
     """Sanitize a filename: strip quotes/backslashes, remove extension, prevent path traversal."""
-    safe = name.replace('"', '').replace("'", '').replace('\\', '').replace('.wav', '').replace('.WAV', '').replace('.mp3', '').replace('.flac', '').replace('.dawproject', '')
+    safe = name.replace('"', '').replace("'", '').replace('\\', '/')
+    # Strip common audio extensions (case-insensitive)
+    for ext in ('.wav', '.mp3', '.flac', '.dawproject'):
+        if safe.lower().endswith(ext):
+            safe = safe[:-len(ext)]
     # Prevent path traversal: only allow basename
     safe = os.path.basename(safe)
     # Remove any remaining path separators

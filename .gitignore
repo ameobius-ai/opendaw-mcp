@@ -10,8 +10,8 @@ exports/
 *.mp3
 *.flac
 
-# Test files contain local paths — keep them private for now
-test_*.py
+# Local test scripts (not unit tests in tests/)
+/test_*.py
 
 # Backups
 *.backup

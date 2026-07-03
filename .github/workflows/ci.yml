@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install mcp playwright
+        run: pip install mcp playwright pytest
       - name: Python syntax check
         run: python -m py_compile server.py
       - name: AST tool count verification
@@ -56,3 +56,6 @@ jobs:
               assert required in tool_names, f'Missing required tool: {required}'
           print('Smoke test passed — all tools registered correctly')
           "
+      - name: Run unit tests
+        run: |
+          python -m pytest tests/ -v
