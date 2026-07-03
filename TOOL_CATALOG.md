@@ -64,8 +64,10 @@
 - `add_effect` — add effect to AU chain
 - `list_effect_parameters` — params with value/unit/min/max/scaling
 - `get_effect_state` — full snapshot: enabled/minimized/sidechain + all params
-- `set_effect_parameter` — set numeric parameter
+- `set_effect_parameter` — set numeric (float) parameter
 - `set_effect_parameter_string` — set string parameter
+- `set_effect_parameter_bool` — set boolean parameter (Compressor lookahead/automakeup/autoattack/autorelease, Gate inverse, Maximizer lookahead, StereoTool invertL/invertR/swap, NeuralAmp mono)
+- `set_effect_parameter_int` — set integer parameter (Vocoder bandCount, StereoTool panningMixing, Fold overSampling, Crusher bits). Device-specific tools preferred when available.
 - `remove_effect` — remove effect from chain
 - `get_effect_chain` — full chain listing
 - `set_effect_enabled` — bypass/enable effect

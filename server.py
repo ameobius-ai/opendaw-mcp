@@ -2135,6 +2135,123 @@ Examples:
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_set_effect_parameter_bool(unit_index: int, effect_index: int, parameter_name: str, value: bool) -> str:
+    """Set a boolean parameter on an audio effect.
+
+    Covers device-specific boolean fields not exposed through the generic float setter:
+    - Compressor: lookahead, automakeup, autoattack, autorelease
+    - Gate: inverse
+    - Maximizer: lookahead
+    - StereoTool: invertL, invertR, swap
+    - NeuralAmp: mono
+    - Delay: freeTimeSync (if available)
+
+    unit_index: Audio unit index.
+    effect_index: Effect position in the chain (0-based).
+    parameter_name: Boolean field name (e.g. "lookahead", "automakeup", "inverse", "mono").
+    value: true or false.
+    """
+    safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
+    js_bool = "true" if value else "false"
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const effectIdx = {effect_index};
+        const paramName = "{safe_param}";
+        const newValue = {js_bool};
+
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
+
+        const au = units[unitIdx];
+        const effects = [...au.audioEffects.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
+
+        const effectBox = effects[effectIdx];
+        const field = effectBox[paramName];
+        if (!field || typeof field.setValue !== 'function') {{
+            return {{error: "No parameter '" + paramName + "' on " + effectBox.constructor.name}};
+        }}
+
+        const oldValue = field.getValue();
+        h.modify(() => {{
+            field.setValue(newValue);
+        }});
+
+        return {{
+            success: true,
+            parameter: paramName,
+            old_value: oldValue,
+            new_value: field.getValue(),
+            effect: effectBox.constructor.name,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_set_effect_parameter_int(unit_index: int, effect_index: int, parameter_name: str, value: int) -> str:
+    """Set an integer parameter on an audio effect.
+
+    Covers device-specific integer fields not exposed through the generic float setter:
+    - Vocoder: bandCount
+    - StereoTool: panningMixing
+    - Fold: overSampling
+    - Crusher: bits
+    - Delay: version (internal)
+
+    Note: device-specific tools (set_vocoder_band_count, set_fold_oversampling, etc.)
+    are preferred when available. This is a generic fallback for any Int32Field.
+
+    unit_index: Audio unit index.
+    effect_index: Effect position in the chain (0-based).
+    parameter_name: Integer field name (e.g. "bandCount", "bits", "overSampling").
+    value: Integer value.
+    """
+    safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const effectIdx = {effect_index};
+        const paramName = "{safe_param}";
+        const newValue = {value};
+
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        if (unitIdx >= units.length) return {{error: "No audio unit at index " + unitIdx}};
+
+        const au = units[unitIdx];
+        const effects = [...au.audioEffects.pointerHub.incoming()]
+            .map(({{box}}) => box)
+            .sort((a, b) => a.index.getValue() - b.index.getValue());
+        if (effectIdx >= effects.length) return {{error: "No effect at index " + effectIdx}};
+
+        const effectBox = effects[effectIdx];
+        const field = effectBox[paramName];
+        if (!field || typeof field.setValue !== 'function') {{
+            return {{error: "No parameter '" + paramName + "' on " + effectBox.constructor.name}};
+        }}
+
+        const oldValue = field.getValue();
+        h.modify(() => {{
+            field.setValue(newValue);
+        }});
+
+        return {{
+            success: true,
+            parameter: paramName,
+            old_value: oldValue,
+            new_value: field.getValue(),
+            effect: effectBox.constructor.name,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_set_effect_parameter_string(unit_index: int, effect_index: int, parameter_name: str, string_value: str) -> str:
     """Set a string parameter on an audio effect (e.g. Waveshaper equation).
 
