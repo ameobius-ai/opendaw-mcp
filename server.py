@@ -1513,8 +1513,8 @@ Returns effect_index — use it with mcp_opendaw_set_effect_parameter.
         const effectType = "{safe_effect}";
         const unitIndex = {unit_index};
 
-        const factory = ef.AudioNamed[effectType];
-        if (!factory) return {{error: "Effect factory not found: " + effectType}};
+        const factory = ef.AudioNamed[effectType] || ef.AudioNamed[effectType.charAt(0).toUpperCase() + effectType.slice(1)];
+        if (!factory) return {{error: "Effect factory not found: " + effectType + ". Available: " + Object.keys(ef.AudioNamed).join(", ")}};
 
         const units = h.allAUBoxes();
         if (unitIndex >= units.length) return {{error: "No audio unit at index " + unitIndex + ". Total: " + units.length}};
@@ -5025,7 +5025,7 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
                 stems_map[u['uuid']] = {
                     "includeAudioEffects": True,
                     "includeSends": True,
-                    "useInstrumentOutput": True,
+                    "useInstrumentOutput": False,
                     "fileName": u.get('name', f"stem_{u['index']}")
                 }
     stems_js = json.dumps(stems_map)
@@ -5123,7 +5123,7 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
         result_temp['uuid']: {
             "includeAudioEffects": True,
             "includeSends": True,
-            "useInstrumentOutput": True,
+            "useInstrumentOutput": False,
             "fileName": safe_name
         }
     }
@@ -5173,6 +5173,105 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
         }});
     }}""")
     # Save WAV file if export succeeded
+    if isinstance(result, dict) and result.get("success"):
+        import base64 as b64mod
+        export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
+        os.makedirs(export_dir, exist_ok=True)
+        b64 = await bridge.evaluate("() => window.__lastExportB64")
+        if isinstance(b64, str) and b64:
+            wav_bytes = b64mod.b64decode(b64)
+            filepath = os.path.join(export_dir, f"{safe_name}.wav")
+            with open(filepath, "wb") as f:
+                f.write(wav_bytes)
+            result["filepath"] = filepath
+            result["file_size_mb"] = round(os.path.getsize(filepath) / (1024*1024), 2)
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_export_dry_stem(unit_index: int, filename: str, sample_rate: int = 48000) -> str:
+    """Export a single audio unit as a DRY stem (instrument output, no effects/channel strip).
+
+    Unlike export_single_stem (which routes through the channel strip with effects),
+    this captures the raw instrument output before any audio effects, sends, or
+    volume/pan processing. Useful for freezing, flattening, or re-amping workflows
+    where you want the clean instrument signal to process externally.
+
+    unit_index: Audio unit index to export (must be > 0, not the output AU).
+    filename: Output filename (without .wav extension).
+    sample_rate: Export sample rate (default 48000).
+
+    Returns the path to the exported WAV and audio metadata.
+    """
+    safe_name = _safe_filename(filename)
+    result_temp = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const units = h.allAUBoxes();
+        if ({unit_index} >= units.length) return {{error: "No AU at index {unit_index}"}};
+        const au = units[{unit_index}];
+        return {{
+            uuid: h.uuid.toString(au.address.uuid),
+            name: au.name?.getValue?.() || 'Unit {unit_index}',
+            type: au.type?.getValue?.() ?? 0,
+        }};
+    }}""")
+    if isinstance(result_temp, dict) and "error" in result_temp:
+        return _wrap_eval(result_temp)
+    if not isinstance(result_temp, dict):
+        return _err(f"Failed to get AU info for unit_index {unit_index}")
+    stems_map = {
+        result_temp['uuid']: {
+            "includeAudioEffects": False,
+            "includeSends": False,
+            "useInstrumentOutput": True,
+            "fileName": safe_name
+        }
+    }
+    stems_js = json.dumps(stems_map)
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
+        const Option = window.DAW_Option;
+        const WavFile = window.DAW_WavFile;
+        const stemsConfig = {stems_js};
+
+        return new Promise(async (resolve) => {{
+            try {{
+                const exportConfig = {{stems: stemsConfig}};
+                const progress = {{setValue: (v) => {{}}}};
+                const copiedProject = h.project.copy();
+                const audioData = await OfflineEngineRenderer.start(
+                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                );
+
+                const wav = WavFile.encodeFloats(audioData);
+                const bytes = new Uint8Array(wav);
+                let binary = "";
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                window.__lastExportB64 = btoa(binary);
+
+                let maxSample = 0;
+                for (let ch = 0; ch < audioData.frames.length; ch++) {{
+                    const frame = audioData.frames[ch];
+                    for (let i = 0; i < Math.min(frame.length, 50000); i++) {{
+                        maxSample = Math.max(maxSample, Math.abs(frame[i]));
+                    }}
+                }}
+
+                resolve({{
+                    success: true,
+                    filename: "{safe_name}.wav",
+                    max_sample: maxSample,
+                    sample_rate: audioData.sampleRate,
+                    channels: audioData.frames.length,
+                    duration_seconds: audioData.frames[0].length / audioData.sampleRate,
+                    size_bytes: wav.byteLength,
+                    dry: true,
+                }});
+            }} catch(e) {{
+                resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
+            }}
+        }});
+    }}""")
     if isinstance(result, dict) and result.get("success"):
         import base64 as b64mod
         export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
@@ -6679,21 +6778,21 @@ bpm: Source BPM of the sample.
 async def mcp_opendaw_set_script_device_code(device_type: str, unit_index: int, device_index: int, code: str) -> str:
     """Set the user JavaScript code on a scriptable device (Apparat/Werkstatt/Spielwerk).
 
-The code must start with a header line:
-  // @apparat <name> <version> <update>
-  // @werkstatt <name> <version> <update>
-  // @spielwerk <name> <version> <update>
+    Compiles the code using the official OpenDAW ScriptCompiler, which:
+    - Parses @param declarations and creates WerkstattParameterBox children
+    - Parses @sample declarations and creates WerkstattSampleBox children
+    - Validates the JavaScript (new Function check)
+    - Registers the worklet module on the AudioContext
+    - Writes the code with proper // @<tag> header back to the device
 
-The code defines a `Processor` class that the host instantiates in the audio worklet.
-@param declarations create parameters: // @param <name> <default> <min> <max> [type] [unit]
-@sample declarations create sample slots: // @sample <name>
-See the openDAW plans/apparat.md, plans/spielwerk.md for the full API.
+    The code defines a `Processor` class that the host instantiates in the audio worklet.
+    @param declarations: // @param <name> <default> <min> <max> [type] [unit]
+    @sample declarations: // @sample <name>
+    See the openDAW plans/apparat.md, plans/spielwerk.md for the full API.
 
-device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MIDI effect)
-"""
+    device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MIDI effect)
+    """
     code_json = json.dumps(code)
-
-
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(rf"""async () => {{
         const h = window.DAW_HELPERS;
@@ -6713,156 +6812,65 @@ device_type: "apparat" (instrument), "werkstatt" (audio effect), "spielwerk" (MI
             device = incoming.find(b => b.constructor.name === "ApparatDeviceBox") || incoming[0] || null;
         }}
         if (!device) return {{error: "Scriptable device '" + dt + "' not found on unit {unit_index}"}};
-        const boxGraph = device.graph;
-        const UUID = h.uuid;
-        const headerTag = "{safe_device_type}".toLowerCase();
-        const headerPattern = new RegExp('^// @' + headerTag + ' \w+ \d+ \d+\\n');
+
+        // Use the official ScriptCompiler from studio-adapters
+        const ScriptCompiler = window.DAW_ScriptCompiler;
+        if (!ScriptCompiler) return {{error: "ScriptCompiler not available (DAW_ScriptCompiler undefined)"}};
+
+        const configs = {{
+            werkstatt: {{headerTag: "werkstatt", registryName: "werkstattProcessors", functionName: "werkstatt"}},
+            apparat: {{headerTag: "apparat", registryName: "apparatProcessors", functionName: "apparat"}},
+            spielwerk: {{headerTag: "spielwerk", registryName: "spielwerkProcessors", functionName: "spielwerk"}},
+        }};
+        const config = configs[dt];
+        if (!config) return {{error: "Unknown device type: " + dt}};
+
+        const compiler = ScriptCompiler.create(config);
+        const ctx = window.DAW_audioContext || (window.AudioContext ? new AudioContext() : null);
+        if (!ctx) return {{error: "No AudioContext available"}};
+
         const source = {code_json};
-        const headerMatch = source.match(headerPattern);
-        const userCode = headerMatch ? source.slice(headerMatch[0].length) : source;
 
-        // Parse @param declarations
-        const paramRegex = /^\/\/ @param .+$/gm;
-        const params = [];
-        let m;
-        while ((m = paramRegex.exec(userCode)) !== null) {{
-            const tokens = m[0].replace(/^\/\/ @param\s+/, '').replace(/\s+\/\/.*$/, '').trim().split(/\s+/);
-            if (tokens.length === 0) continue;
-            const label = tokens[0];
-            let defaultValue = 0, min = 0, max = 1, mapping = 'unipolar', unit = '';
-            if (tokens.length >= 2) {{
-                const second = tokens[1];
-                if (second === 'true' || second === 'false') {{
-                    defaultValue = second === 'true' ? 1 : 0; mapping = 'bool';
-                }} else if (second === 'bool') {{
-                    mapping = 'bool';
-                }} else {{
-                    defaultValue = parseFloat(second);
-                    if (tokens.length >= 4) {{
-                        min = parseFloat(tokens[2]); max = parseFloat(tokens[3]);
-                        mapping = tokens.length >= 5 ? tokens[4] : 'linear';
-                        unit = tokens.length >= 6 ? tokens[5] : '';
-                    }}
-                }}
-            }}
-            params.push({{label, defaultValue, min, max, mapping, unit}});
-        }}
-
-        // Parse @sample declarations
-        const sampleRegex = /^\/\/ @sample .+$/gm;
-        const samples = [];
-        while ((m = sampleRegex.exec(userCode)) !== null) {{
-            const tokens = m[0].replace(/^\/\/ @sample\s+/, '').replace(/\s+\/\/.*$/, '').trim().split(/\s+/);
-            if (tokens.length > 0) samples.push({{label: tokens[0]}});
-        }}
-
-        // Parse declaration order
-        const declRegex = /^\/\/ @(?:param|sample) \S+/gm;
-        const order = new Map();
-        let idx = 0;
-        while ((m = declRegex.exec(userCode)) !== null) {{
-            const label = m[0].replace(/^\/\/ @(?:param|sample)\s+/, '').split(/\s+/)[0];
-            if (!order.has(label)) order.set(label, idx++);
-        }}
-
-        // Compute new update number BEFORE editing.modify (needed for worklet registration outside)
-        const currentCode0 = device.code.getValue();
-        const currentUpdateMatch0 = currentCode0.match(headerPattern);
-        const currentUpdate0 = currentUpdateMatch0 ? parseInt(currentUpdateMatch0[3]) : 0;
-        const newUpdate = currentUpdate0 + 1;
-
-        // ALL mutations inside ONE editing.modify() block
-        const createdParams = [];
-        const createdSamples = [];
-
-        h.editing.modify(() => {{
-            // Reconcile parameters
-            const existingParamMap = new Map();
-            for (const pointer of device.parameters.pointerHub.filter()) {{
-                existingParamMap.set(pointer.box.label.getValue(), pointer.box);
-            }}
-            const seenParamLabels = new Set(params.map(p => p.label));
-            for (const [label, pb] of existingParamMap) {{
-                if (!seenParamLabels.has(label)) pb.delete();
-            }}
-            for (const decl of params) {{
-                const existing = existingParamMap.get(decl.label);
-                if (existing) {{
-                    const expectedIdx = order.get(decl.label) ?? 0;
-                    if (existing.index.getValue() !== expectedIdx) existing.index.setValue(expectedIdx);
-                    createdParams.push({{label: decl.label, index: existing.index.getValue(), value: existing.value.getValue(), defaultValue: existing.defaultValue.getValue()}});
-                }} else if (window.DAW_WerkstattParameterBox) {{
-                    const pb = window.DAW_WerkstattParameterBox.create(boxGraph, UUID.generate());
-                    pb.owner.refer(device.parameters);
-                    pb.label.setValue(decl.label);
-                    pb.index.setValue(order.get(decl.label) ?? 0);
-                    pb.value.setValue(decl.defaultValue);
-                    pb.defaultValue.setValue(decl.defaultValue);
-                    createdParams.push({{label: decl.label, index: pb.index.getValue(), value: pb.value.getValue(), defaultValue: pb.defaultValue.getValue()}});
-                }}
-            }}
-
-            // Reconcile samples
-            if (device.samples) {{
-                const existingSampleMap = new Map();
-                for (const pointer of device.samples.pointerHub.filter()) {{
-                    existingSampleMap.set(pointer.box.label.getValue(), pointer.box);
-                }}
-                const seenSampleLabels = new Set(samples.map(s => s.label));
-                for (const [label, sb] of existingSampleMap) {{
-                    if (!seenSampleLabels.has(label)) sb.delete();
-                }}
-                for (const decl of samples) {{
-                    const existing = existingSampleMap.get(decl.label);
-                    if (existing) {{
-                        createdSamples.push({{label: decl.label, index: existing.index.getValue()}});
-                    }} else if (window.DAW_WerkstattSampleBox) {{
-                        const sb = window.DAW_WerkstattSampleBox.create(boxGraph, UUID.generate());
-                        sb.owner.refer(device.samples);
-                        sb.label.setValue(decl.label);
-                        sb.index.setValue(order.get(decl.label) ?? 0);
-                        createdSamples.push({{label: decl.label, index: sb.index.getValue()}});
-                    }}
-                }}
-            }}
-
-            // Set code with proper header
-            const header = '// @' + headerTag + ' js 1 ' + newUpdate + '\\\\n';
-            const fullCode = headerMatch ? source : (header + source);
-            device.code.setValue(fullCode);
-        }});
-
-        // Try worklet registration (optional, non-fatal)
-        let workletRegistered = false;
-        let workletError = null;
+        // compile() calls editing.modify() internally + registers worklet
+        let compileError = null;
         try {{
-            const ctx = window.DAW_audioContext || (window.AudioContext ? new AudioContext() : null);
-            if (ctx) {{
-                const uuid = UUID.toString(device.address.uuid);
-                const registryName = headerTag + 'Processors';
-                const fnName = headerTag;
-                const wrappedCode = 'if (typeof globalThis.openDAW === "undefined") {{ globalThis.openDAW = {{}} }} if (typeof globalThis.openDAW.' + registryName + ' === "undefined") {{ globalThis.openDAW.' + registryName + ' = {{}} }} globalThis.openDAW.' + registryName + '["' + uuid + '"] = {{ update: ' + newUpdate + ', create: (function ' + fnName + '() {{ ' + userCode + ' return Processor; }})() }}';
-                new Function(wrappedCode);
-                const blob = new Blob([wrappedCode], {{type: 'application/javascript'}});
-                const blobUrl = URL.createObjectURL(blob);
-                await ctx.audioWorklet.addModule(blobUrl);
-                URL.revokeObjectURL(blobUrl);
-                workletRegistered = true;
-            }}
+            await compiler.compile(ctx, h.editing, device, source);
         }} catch(e) {{
-            workletError = e.message.substring(0, 200);
+            compileError = e.message?.substring(0, 300) || String(e).substring(0, 300);
+        }}
+
+        // Read back results
+        const params = [];
+        for (const pointer of device.parameters.pointerHub.filter()) {{
+            const pb = pointer.box;
+            params.push({{
+                label: pb.label.getValue(),
+                index: pb.index.getValue(),
+                value: pb.value.getValue(),
+                defaultValue: pb.defaultValue.getValue(),
+            }});
+        }}
+
+        const samples = [];
+        if (device.samples) {{
+            for (const pointer of device.samples.pointerHub.filter()) {{
+                const sb = pointer.box;
+                samples.push({{
+                    label: sb.label.getValue(),
+                    index: sb.index.getValue(),
+                }});
+            }}
         }}
 
         return {{
-            success: true,
+            success: compileError === null,
             device: device.constructor.name,
             code_length: device.code.getValue().length,
-            params_created: createdParams.length,
-            params: createdParams,
-            samples_created: createdSamples.length,
-            samples: createdSamples,
-            worklet_registered: workletRegistered,
-            worklet_error: workletError,
+            params_created: params.length,
+            params: params,
+            samples_created: samples.length,
+            samples: samples,
+            compile_error: compileError,
         }};
     }}""")
     return _wrap_eval(result)
@@ -11646,7 +11654,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.9.5 — 243 MCP tools")
+            print("opendaw-mcp 1.9.6 — 244 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -11656,7 +11664,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 243 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 244 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")

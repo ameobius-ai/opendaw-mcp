@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-243 MCP tools for headless openDAW control via Playwright bridge.
+244 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -234,6 +234,7 @@
 - `export_midi` — Export a note region's notes as a standard MIDI file (.mid).
 - `export_mix` — Render the full project mix to a WAV file.
 - `export_single_stem` — Export a single audio unit as a stem WAV with its effect chain applied.
+- `export_dry_stem` — Export a single audio unit as a DRY stem (instrument output, no effects/channel strip). Useful for freeze/flatten/re-amp workflows.
 - `export_stems` — Export each audio unit as a separate stem WAV file.
 - `export_stems_format` — Export stems as separate files and convert each to MP3 or FLAC.
 - `import_midi` — Import a MIDI file and create note events on a note track.
@@ -309,7 +310,7 @@
 - `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
 - `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
-**Total: 243 tools**
+**Total: 244 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)
