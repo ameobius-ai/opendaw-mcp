@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-209 MCP tools for headless openDAW control via Playwright bridge.
+211 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project (7)
 - `get_project_state` — full state: BPM, sample rate, tracks, effects
@@ -210,6 +210,8 @@
 - `validate_project()` — Check for overlapping regions and validity issues. Returns valid (bool) + issue details.
 - `list_samples()` — List all audio file sample UUIDs referenced in the project.
 - `get_unit_freeze_status(unit_index)` — Check if an AU is frozen (pre-rendered) and whether it can be frozen (no sidechain dependents).
+- `freeze_audiounit(unit_index)` — Freeze an AU — pre-render its output offline to save CPU. Cannot freeze AUs with sidechain dependents.
+- `unfreeze_audiounit(unit_index)` — Unfreeze a frozen AU — resume real-time processing.
 
 ## Mixer & Region Advanced (3)
 - `get_mixer_state()` — All AU channel strips: index, label, type, volume_db, panning, mute, solo, is_output/bus/instrument.

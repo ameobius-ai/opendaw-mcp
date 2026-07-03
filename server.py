@@ -7966,9 +7966,79 @@ async def mcp_opendaw_get_unit_freeze_status(unit_index: int) -> str:
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_freeze_audiounit(unit_index: int) -> str:
+    """Freeze an audio unit — pre-render its output offline to save CPU.
+
+    Uses audioUnitFreeze.freeze() which renders the AU's complete output via
+    OfflineEngineRenderer and caches it. While frozen, the AU plays from cache
+    instead of processing instruments/effects in real-time.
+
+    Cannot freeze AUs with sidechain dependents or the Output unit.
+
+    unit_index: AU index to freeze.
+
+    Returns success or error (e.g. sidechain dependents block freeze).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const p = window.DAW;
+        const freeze = p.audioUnitFreeze;
+        if (!freeze) return {{error: "audioUnitFreeze not available"}};
+        const auAdapters = p.rootBoxAdapter.audioUnits.adapters();
+        if ({unit_index} >= auAdapters.length) return {{error: "No AU at {unit_index}"}};
+        const auAdapter = auAdapters[{unit_index}];
+        try {{
+            if (freeze.hasSidechainDependents(auAdapter))
+                return {{error: "AU has sidechain dependents — cannot freeze"}};
+            await freeze.freeze(auAdapter);
+            return {{
+                success: true,
+                frozen: freeze.isFrozen(auAdapter),
+                unit_index: {unit_index},
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_unfreeze_audiounit(unit_index: int) -> str:
+    """Unfreeze a frozen audio unit — resume real-time processing.
+
+    Removes the cached audio and resumes live processing of instruments,
+    effects, and sends for the specified audio unit.
+
+    unit_index: AU index to unfreeze.
+
+    Returns success or error.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const p = window.DAW;
+        const freeze = p.audioUnitFreeze;
+        if (!freeze) return {{error: "audioUnitFreeze not available"}};
+        const auAdapters = p.rootBoxAdapter.audioUnits.adapters();
+        if ({unit_index} >= auAdapters.length) return {{error: "No AU at {unit_index}"}};
+        const auAdapter = auAdapters[{unit_index}];
+        try {{
+            const wasFrozen = freeze.isFrozen(auAdapter);
+            if (!wasFrozen) return {{error: "AU is not frozen"}};
+            freeze.unfreeze(auAdapter);
+            return {{
+                success: true,
+                was_frozen: wasFrozen,
+                frozen: freeze.isFrozen(auAdapter),
+                unit_index: {unit_index},
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
 
 # ─────────────────────────────────────────────────────────────────────
-# Mixer & Region Advanced (146-148)
+# Mixer & Region Advanced (148-150)
 # ─────────────────────────────────────────────────────────────────────
 
 @mcp.tool()
