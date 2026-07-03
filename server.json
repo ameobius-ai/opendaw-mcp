@@ -3,7 +3,7 @@
   "name": "io.github.AMEOBIUS/opendaw-mcp",
   "title": "openDAW MCP",
   "description": "245 MCP tools for agent-native control of openDAW, a browser-based DAW",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "repository": {
     "url": "https://github.com/AMEOBIUS/opendaw-mcp",
     "source": "github"

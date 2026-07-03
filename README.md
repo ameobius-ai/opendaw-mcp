@@ -252,6 +252,14 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.9.3 (2026-07-03)
+
+- **DRY refactoring complete: 17 DAW_HELPERS, ~295 replacements, 0 raw enumeration patterns**
+  - New helpers: `markerBoxes`, `sendBoxes`, `busBoxes`, `sampleBoxes`, `noteTrackBoxes`, `clipBoxes`, `rootClipBoxes`, `scriptParams`, `scriptSamples`, `chainBoxes`
+  - All `pointerHub.incoming()` enumeration patterns replaced across 245 tools
+  - CONTRIBUTING.md updated with full 17-helper reference table
+  - 6 DRY commits, 0 regressions, CI green
+
 ### v1.9.2 (2026-07-03)
 
 - **DRY refactoring: 113+ tools migrated to `h.allAUBoxes()` / `h.auBox()` helpers**
