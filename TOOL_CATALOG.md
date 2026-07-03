@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-249 MCP tools for headless openDAW control via Playwright bridge.
+250 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -290,13 +290,14 @@
 - `get_neuralamp_model` — Get the NeuralAmp (Tone3000) model JSON for a NeuralAmp effect.
 - `set_neuralamp_model` — Load a Neural Amp Modeler (NAM/Tone3000) model JSON into a NeuralAmp effect.
 
-## Engine Control (7)
+## Engine Control (8)
 - `capture_realtime` — Capture realtime audio output from the DAW engine.
 - `engine_panic` — Send a panic signal to the engine — stops all notes immediately.
 - `engine_sleep` — Put the audio engine to sleep — suspends audio processing to save CPU.
 - `engine_wake` — Wake the audio engine from sleep — resumes audio processing.
 - `get_engine_status` — Get real-time engine status: playing state, position, BPM, CPU load, recording state.
 - `query_loading_complete` — Check if all audio samples are loaded and ready for playback.
+- `set_metronome` — Configure metronome (enabled, gain, beat_subdivision).
 - `start_engine` — Start the audio engine (AudioWorklet) after setting up tracks and regions.
 
 ## MIDI Output (1)
@@ -315,7 +316,7 @@
 - `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
 - `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
-**Total: 249 tools**
+**Total: 250 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)

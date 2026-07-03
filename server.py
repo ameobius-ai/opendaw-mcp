@@ -10997,6 +10997,41 @@ async def mcp_opendaw_engine_panic() -> str:
 
 
 @mcp.tool()
+async def mcp_opendaw_set_metronome(enabled: bool = None, gain: float = None, beat_subdivision: int = None) -> str:
+    """Configure the metronome settings.
+
+    Args:
+        enabled: Toggle metronome on/off. None = leave unchanged.
+        gain: Click volume 0.0-1.0 (default 0.5). None = leave unchanged.
+        beat_subdivision: Beats per click (1=quarter, 2=eighths, 4=sixteenths, 8=thirty-seconds, default 4). None = leave unchanged.
+    """
+    parts = []
+    if enabled is not None:
+        parts.append(f'metronome.enabled = {json.dumps(bool(enabled))}')
+    if gain is not None:
+        parts.append(f'metronome.gain = {max(0.0, min(1.0, float(gain)))}')
+    if beat_subdivision is not None:
+        parts.append(f'metronome.beatSubDivision = {int(beat_subdivision)}')
+    if not parts:
+        return _err("At least one of enabled, gain, or beat_subdivision must be provided")
+    body = "; ".join(parts)
+    result = await bridge.evaluate(f"""async () => {{
+        const prefs = window.DAW_StudioPreferences;
+        if (!prefs) return {{error: "StudioPreferences not available"}};
+        const metronome = prefs.settings.metronome;
+        if (!metronome) return {{error: "metronome settings not found"}};
+        const before = {{enabled: metronome.enabled, gain: metronome.gain, beatSubDivision: metronome.beatSubDivision}};
+        {body};
+        return {{
+            success: true,
+            before: before,
+            after: {{enabled: metronome.enabled, gain: metronome.gain, beatSubDivision: metronome.beatSubDivision}},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_get_engine_status() -> str:
     """Get real-time engine status: playing state, position, BPM, CPU load, recording state.
 
@@ -11876,7 +11911,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.9.7 — 249 MCP tools")
+            print("opendaw-mcp 1.9.8 — 250 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -11886,7 +11921,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 249 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 250 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
