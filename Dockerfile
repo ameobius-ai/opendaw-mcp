@@ -42,7 +42,7 @@ ENV PORT=8080
 
 RUN mkdir -p /app/exports
 
-LABEL io.modelcontextprotocol.server.name="io.github.ameobius/opendaw-mcp"
+LABEL io.modelcontextprotocol.server.name="io.github.AMEOBIUS/opendaw-mcp"
 
 EXPOSE 8080
 
