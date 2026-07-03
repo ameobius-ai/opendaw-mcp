@@ -4,7 +4,7 @@
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-243-brightgreen)](TOOL_CATALOG.md)
-[![Tests](https://img.shields.io/badge/Tests-22%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-31%20passing-brightgreen)](tests/)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 
@@ -265,12 +265,12 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.9.5 (2026-07-03)
 
 - **CLI commands** — `--version`, `--list-tools`, `--help` with full env var reference
-- **22 unit tests** — pytest covering `_ok`, `_err`, `_wrap_eval`, `_unwrap_eval`, `_safe_filename`, `_safe_path`
+- **31 unit tests** — pytest covering `_ok`, `_err`, `_wrap_eval`, `_unwrap_eval`, `_safe_filename`, `_safe_path`, `_parse_wav`, `_compute_lufs`
 - **3 bug fixes found by tests:**
   - `_ok()` — `{"success": False}` in data overwrote the `True` flag (security fix)
   - `_safe_filename()` — case-sensitive extension stripping (`.MP3` not stripped)
   - `_safe_filename()` — Windows backslash path traversal not handled on Linux
-- **CI enhanced** — now runs pytest (22 tests) alongside syntax/AST/smoke checks
+- **CI enhanced** — now runs pytest (31 tests) alongside syntax/AST/smoke/ruff checks
 - **PEP 561** — `py.typed` marker for type checker support
 - **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
 - **15 examples total** — all documented in examples/README.md

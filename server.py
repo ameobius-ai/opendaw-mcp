@@ -159,6 +159,129 @@ class HeadlessDawBridge:
         if self.playwright: await self.playwright.stop()
         self.playwright = None; self.page = None; self.browser = None
 
+def _parse_wav(raw: bytes) -> dict:
+    """Parse a WAV file's RIFF header and return format info + de-interleaved float samples.
+
+    Returns dict with: audio_format (1=PCM, 3=float32), n_channels, sample_rate,
+    bits_per_sample, n_frames, channels (list of float lists), or raises ValueError.
+    """
+    import struct
+    if raw[:4] != b"RIFF" or raw[8:12] != b"WAVE":
+        raise ValueError("Not a valid WAV file")
+    pos = 12
+    n_channels = sample_rate = n_frames = 0
+    bits_per_sample = 16
+    audio_format = 1
+    audio_data = b""
+    while pos < len(raw) - 8:
+        chunk_id = raw[pos:pos+4]
+        chunk_size = struct.unpack_from("<I", raw, pos+4)[0]
+        if chunk_id == b"fmt ":
+            audio_format = struct.unpack_from("<H", raw, pos+8)[0]
+            n_channels = struct.unpack_from("<H", raw, pos+10)[0]
+            sample_rate = struct.unpack_from("<I", raw, pos+12)[0]
+            bits_per_sample = struct.unpack_from("<H", raw, pos+22)[0]
+        elif chunk_id == b"data":
+            audio_data = raw[pos+8:pos+8+chunk_size]
+            bytes_per_sample = bits_per_sample // 8
+            n_frames = chunk_size // (bytes_per_sample * n_channels)
+        pos += 8 + chunk_size + (chunk_size % 2)
+    if not audio_data:
+        raise ValueError("No data chunk in WAV")
+    # Convert to float samples
+    if audio_format == 3 and bits_per_sample == 32:
+        fmt = f"<{n_frames * n_channels}f"
+        samples = list(struct.unpack(fmt, audio_data))
+    elif audio_format == 1 and bits_per_sample == 16:
+        fmt = f"<{n_frames * n_channels}h"
+        samples = [s / 32768.0 for s in struct.unpack(fmt, audio_data)]
+    elif audio_format == 1 and bits_per_sample == 24:
+        samples = [int.from_bytes(audio_data[i:i+3], "little", signed=True) / 8388608.0
+                   for i in range(0, len(audio_data), 3)]
+    elif audio_format == 1 and bits_per_sample == 32:
+        fmt = f"<{n_frames * n_channels}i"
+        samples = [s / 2147483648.0 for s in struct.unpack(fmt, audio_data)]
+    else:
+        raise ValueError(f"Unsupported WAV format: {audio_format}/{bits_per_sample}bit")
+    # De-interleave
+    channels = [[] for _ in range(n_channels)]
+    for i, s in enumerate(samples):
+        channels[i % n_channels].append(s)
+    return {
+        "audio_format": audio_format, "n_channels": n_channels,
+        "sample_rate": sample_rate, "bits_per_sample": bits_per_sample,
+        "n_frames": n_frames, "channels": channels,
+    }
+
+
+def _compute_lufs(channels: list, sample_rate: int) -> dict:
+    """Compute ITU-R BS.1770-4 integrated LUFS and true peak from de-interleaved float channels.
+
+    Returns dict with: lufs_integrated, true_peak_db, max_sample, blocks_measured, gated_blocks.
+    """
+    import math
+    n_channels = len(channels)
+    n_frames = len(channels[0]) if channels else 0
+    # K-weighting biquad coefficients (computed from sample_rate)
+    f0, G, Q = 1681.974450955533, 3.9998432737, 0.7081754356
+    K = math.tan(math.pi * f0 / sample_rate)
+    Vh, Vb = 10 ** (G / 20.0), 10 ** (G / 40.0)
+    a0_ = 1.0 + K / Q + K * K
+    s_b0, s_b1, s_b2 = (Vh + Vb * K / Q + K * K) / a0_, 2.0 * (K * K - Vh) / a0_, (Vh - Vb * K / Q + K * K) / a0_
+    s_a1, s_a2 = 2.0 * (K * K - 1.0) / a0_, (1.0 - K / Q + K * K) / a0_
+    f0r, Qr = 38.1354708761, 0.5003270373
+    Kr = math.tan(math.pi * f0r / sample_rate)
+    ar0 = 1.0 + Kr / Qr + Kr * Kr
+    r_b0, r_b1, r_b2 = 1.0 / ar0, -2.0 / ar0, 1.0 / ar0
+    r_a1, r_a2 = 2.0 * (Kr * Kr - 1.0) / ar0, (1.0 - Kr / Qr + Kr * Kr) / ar0
+
+    def _biquad(data, b0, b1, b2, a1, a2):
+        out = [0.0] * len(data)
+        x1 = x2 = y1 = y2 = 0.0
+        for i in range(len(data)):
+            x = data[i]
+            y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+            out[i] = y
+            x2, x1, y2, y1 = x1, x, y1, y
+        return out
+
+    k_weighted = [_biquad(_biquad(ch, s_b0, s_b1, s_b2, s_a1, s_a2), r_b0, r_b1, r_b2, r_a1, r_a2)
+                  for ch in channels]
+    block_size = int(0.4 * sample_rate)
+    hop_size = int(0.1 * sample_rate)
+    if block_size == 0 or hop_size == 0:
+        raise ValueError(f"Sample rate too low: {sample_rate}")
+    ch_weights = [1.0] * n_channels
+    for i in range(2, n_channels):
+        ch_weights[i] = 1.41
+    blocks_ms, pos = [], 0
+    while pos + block_size <= n_frames:
+        block_ms = sum(ch_weights[c] * sum(s * s for s in k_weighted[c][pos:pos + block_size]) / block_size
+                       for c in range(n_channels))
+        blocks_ms.append(block_ms)
+        pos += hop_size
+    if not blocks_ms:
+        raise ValueError("Not enough samples for LUFS measurement")
+    abs_gate_ms = 10 ** ((-70.0 + 0.691) / 10.0)
+    gated_blocks = [ms for ms in blocks_ms if ms > abs_gate_ms]
+    if not gated_blocks:
+        raise ValueError("All blocks below absolute gate (-70 LUFS)")
+    mean_ms = sum(gated_blocks) / len(gated_blocks)
+    rel_gate_ms = 10 ** ((10 * math.log10(mean_ms) - 0.691 - 10) / 10.0)
+    rel_gated = [ms for ms in gated_blocks if ms > rel_gate_ms]
+    final_ms = sum(rel_gated) / len(rel_gated) if rel_gated else mean_ms
+    lufs = -0.691 + 10 * math.log10(final_ms)
+    max_sample = max(max(abs(s) for s in ch) for ch in channels)
+    true_peak_db = 20 * math.log10(max_sample) if max_sample > 0 else -float("inf")
+    return {
+        "lufs_integrated": round(lufs, 1),
+        "true_peak_db": round(true_peak_db, 2),
+        "max_sample": round(max_sample, 6),
+        "blocks_measured": len(blocks_ms),
+        "gated_blocks": len(gated_blocks),
+    }
+
+
 bridge = HeadlessDawBridge()
 def cleanup():
     try: asyncio.run(bridge.stop())
@@ -5781,8 +5904,6 @@ async def mcp_opendaw_measure_lufs(filename: str) -> str:
 
     Returns: LUFS (integrated), true peak (dBTP), max sample, duration seconds.
     """
-    import math
-    import struct
     import os as _os
 
     export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
@@ -5793,203 +5914,16 @@ async def mcp_opendaw_measure_lufs(filename: str) -> str:
         return _err(f"File not found: {filepath}")
 
     try:
-        # Parse WAV header manually — openDAW exports 32-bit float WAVs
-        # which Python's wave module doesn't support (format code 3)
         with open(filepath, "rb") as f:
             raw = f.read()
-
-        # Parse RIFF header
-        if raw[:4] != b"RIFF" or raw[8:12] != b"WAVE":
-            return _err("Not a valid WAV file")
-        pos = 12
-        n_channels = sample_rate = n_frames = 0
-        bits_per_sample = 16
-        audio_format = 1  # 1=PCM, 3=float32
-        audio_data = b""
-        while pos < len(raw) - 8:
-            chunk_id = raw[pos:pos+4]
-            chunk_size = struct.unpack_from("<I", raw, pos+4)[0]
-            if chunk_id == b"fmt ":
-                audio_format = struct.unpack_from("<H", raw, pos+8)[0]
-                n_channels = struct.unpack_from("<H", raw, pos+10)[0]
-                sample_rate = struct.unpack_from("<I", raw, pos+12)[0]
-                bits_per_sample = struct.unpack_from("<H", raw, pos+22)[0]
-            elif chunk_id == b"data":
-                audio_data = raw[pos+8:pos+8+chunk_size]
-                bytes_per_sample = bits_per_sample // 8
-                n_frames = chunk_size // (bytes_per_sample * n_channels)
-            pos += 8 + chunk_size + (chunk_size % 2)  # pad to even
-
-        if not audio_data:
-            return _err("No data chunk in WAV")
-
-        # Convert to float samples based on format
-        if audio_format == 3 and bits_per_sample == 32:
-            # 32-bit float
-            fmt = f"<{n_frames * n_channels}f"
-            samples = list(struct.unpack(fmt, audio_data))
-        elif audio_format == 1 and bits_per_sample == 16:
-            fmt = f"<{n_frames * n_channels}h"
-            samples = struct.unpack(fmt, audio_data)
-            samples = [s / 32768.0 for s in samples]
-        elif audio_format == 1 and bits_per_sample == 24:
-            samples = []
-            for i in range(0, len(audio_data), 3):
-                val = int.from_bytes(audio_data[i:i+3], byteorder="little", signed=True)
-                samples.append(val / 8388608.0)
-        elif audio_format == 1 and bits_per_sample == 32:
-            fmt = f"<{n_frames * n_channels}i"
-            samples = struct.unpack(fmt, audio_data)
-            samples = [s / 2147483648.0 for s in samples]
-        else:
-            return _err(f"Unsupported WAV format: {audio_format}/{bits_per_sample}bit")
-
-        duration_sec = n_frames / sample_rate
-
-        # De-interleave channels
-        channels = [[] for _ in range(n_channels)]
-        for i, s in enumerate(samples):
-            channels[i % n_channels].append(s)
-
-        # ITU-R BS.1770 K-weighting filter coefficients
-        # Stage 1: high-shelf biquad (pre-filter)
-        # Stage 2: high-pass biquad (RLB)
-        # Coefficients for 48kHz from BS.1770-4 Annex
-        # Note: using normalized form where b0 is the gain factor
-        if sample_rate == 48000:
-            # Shelf filter (pre-filter): +4dB high shelf
-            f0 = 1681.974450955533
-            G = 3.9998432737
-            Q = 0.7081754356
-            K = math.tan(math.pi * f0 / sample_rate)
-            Vh = 10 ** (G / 20.0)
-            Vb = 10 ** (G / 40.0)
-            a0_ = 1.0 + K / Q + K * K
-            s_b0 = (Vh + Vb * K / Q + K * K) / a0_
-            s_b1 = 2.0 * (K * K - Vh) / a0_
-            s_b2 = (Vh - Vb * K / Q + K * K) / a0_
-            s_a0 = 1.0
-            s_a1 = 2.0 * (K * K - 1.0) / a0_
-            s_a2 = (1.0 - K / Q + K * K) / a0_
-            # RLB (highpass): ~38Hz
-            f0r = 38.1354708761
-            Qr = 0.5003270373
-            Kr = math.tan(math.pi * f0r / sample_rate)
-            ar0 = 1.0 + Kr / Qr + Kr * Kr
-            r_b0 = 1.0 / ar0
-            r_b1 = -2.0 / ar0
-            r_b2 = 1.0 / ar0
-            r_a0 = 1.0
-            r_a1 = 2.0 * (Kr * Kr - 1.0) / ar0
-            r_a2 = (1.0 - Kr / Qr + Kr * Kr) / ar0
-        else:
-            # For 44100 — recompute with actual sample_rate
-            f0 = 1681.974450955533
-            G = 3.9998432737
-            Q = 0.7081754356
-            K = math.tan(math.pi * f0 / sample_rate)
-            Vh = 10 ** (G / 20.0)
-            Vb = 10 ** (G / 40.0)
-            a0_ = 1.0 + K / Q + K * K
-            s_b0 = (Vh + Vb * K / Q + K * K) / a0_
-            s_b1 = 2.0 * (K * K - Vh) / a0_
-            s_b2 = (Vh - Vb * K / Q + K * K) / a0_
-            s_a0 = 1.0
-            s_a1 = 2.0 * (K * K - 1.0) / a0_
-            s_a2 = (1.0 - K / Q + K * K) / a0_
-            f0r = 38.1354708761
-            Qr = 0.5003270373
-            Kr = math.tan(math.pi * f0r / sample_rate)
-            ar0 = 1.0 + Kr / Qr + Kr * Kr
-            r_b0 = 1.0 / ar0
-            r_b1 = -2.0 / ar0
-            r_b2 = 1.0 / ar0
-            r_a0 = 1.0
-            r_a1 = 2.0 * (Kr * Kr - 1.0) / ar0
-            r_a2 = (1.0 - Kr / Qr + Kr * Kr) / ar0
-
-        def apply_biquad(data, b0, b1, b2, a0, a1, a2):
-            # Normalize by a0
-            b0n, b1n, b2n = b0/a0, b1/a0, b2/a0
-            a1n, a2n = a1/a0, a2/a0
-            out = [0.0] * len(data)
-            x1 = x2 = y1 = y2 = 0.0
-            for i in range(len(data)):
-                x = data[i]
-                y = b0n * x + b1n * x1 + b2n * x2 - a1n * y1 - a2n * y2
-                out[i] = y
-                x2 = x1; x1 = x
-                y2 = y1; y1 = y
-            return out
-
-        # Apply K-weighting to each channel
-        k_weighted = []
-        for ch in channels:
-            stage1 = apply_biquad(ch, s_b0, s_b1, s_b2, s_a0, s_a1, s_a2)
-            stage2 = apply_biquad(stage1, r_b0, r_b1, r_b2, r_a0, r_a1, r_a2)
-            k_weighted.append(stage2)
-
-        # Gated mean squares: 400ms blocks, 75% overlap
-        block_size = int(0.4 * sample_rate)
-        hop_size = int(0.1 * sample_rate)  # 75% overlap
-        if block_size == 0 or hop_size == 0:
-            return _err(f"Sample rate too low: {sample_rate}")
-
-        # Channel weights (L/R/C = 1.0, surround = 1.41)
-        ch_weights = [1.0] * n_channels
-        if n_channels > 2:
-            for i in range(2, n_channels):
-                ch_weights[i] = 1.41
-
-        blocks_ms = []
-        pos = 0
-        while pos + block_size <= n_frames:
-            block_ms = 0.0
-            for ch_idx in range(n_channels):
-                ch_data = k_weighted[ch_idx][pos:pos + block_size]
-                ms = sum(s * s for s in ch_data) / block_size
-                block_ms += ch_weights[ch_idx] * ms
-            blocks_ms.append(block_ms)
-            pos += hop_size
-
-        if not blocks_ms:
-            return _err("Not enough samples for LUFS measurement")
-
-        # Absolute gate: -70 LUFS
-        abs_gate_lufs = -70.0
-        abs_gate_ms = 10 ** ((abs_gate_lufs + 0.691) / 10.0)
-
-        gated_blocks = [ms for ms in blocks_ms if ms > abs_gate_ms]
-        if not gated_blocks:
-            return _err("All blocks below absolute gate (-70 LUFS)")
-
-        # Relative gate: -10 LU below mean of absolutely-gated blocks
-        mean_ms = sum(gated_blocks) / len(gated_blocks)
-        rel_gate_ms = 10 ** ((10 * math.log10(mean_ms) - 0.691 - 10) / 10.0)
-
-        rel_gated = [ms for ms in gated_blocks if ms > rel_gate_ms]
-        if not rel_gated:
-            # Use absolutely-gated mean as fallback
-            final_ms = mean_ms
-        else:
-            final_ms = sum(rel_gated) / len(rel_gated)
-
-        lufs = -0.691 + 10 * math.log10(final_ms)
-
-        # True peak: max absolute sample across all channels
-        max_sample = max(max(abs(s) for s in ch) for ch in channels)
-        true_peak_db = 20 * math.log10(max_sample) if max_sample > 0 else -float("inf")
-
+        wav = _parse_wav(raw)
+        lufs_data = _compute_lufs(wav["channels"], wav["sample_rate"])
         return json.dumps({
             "success": True,
-            "lufs_integrated": round(lufs, 1),
-            "true_peak_db": round(true_peak_db, 2),
-            "max_sample": round(max_sample, 6),
-            "duration_seconds": round(duration_sec, 2),
-            "sample_rate": sample_rate,
-            "channels": n_channels,
-            "blocks_measured": len(blocks_ms),
-            "gated_blocks": len(gated_blocks),
+            **lufs_data,
+            "duration_seconds": round(wav["n_frames"] / wav["sample_rate"], 2),
+            "sample_rate": wav["sample_rate"],
+            "channels": wav["n_channels"],
         })
     except Exception as e:
         return _err(f"LUFS measurement error: {e}")
