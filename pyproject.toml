@@ -5,6 +5,21 @@ description = "250 MCP tools for agent-native control of openDAW — a browser-b
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
+keywords = ["mcp", "model-context-protocol", "daw", "music-production", "audio", "synth", "midi", "playwright", "opendaw", "ai-agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Sound/Audio :: Editors",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "playwright>=1.40",
     "mcp>=0.3",
@@ -14,13 +29,19 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/AMEOBIUS/opendaw-mcp"
 Repository = "https://github.com/AMEOBIUS/opendaw-mcp"
+Documentation = "https://github.com/AMEOBIUS/opendaw-mcp/blob/main/ARCHITECTURE.md"
+Changelog = "https://github.com/AMEOBIUS/opendaw-mcp/releases"
+Issues = "https://github.com/AMEOBIUS/opendaw-mcp/issues"
 
 [project.scripts]
 opendaw-mcp = "server:main"
 
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [tool.setuptools]
 py-modules = ["server"]
-package-data = { "" = ["py.typed"] }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
