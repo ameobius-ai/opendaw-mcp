@@ -4082,14 +4082,14 @@ Returns remaining region count on the track.
 """
     type_val = json.dumps(region_type)
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
         const typeVal = {type_val};
 
         let tracks = [];
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4108,7 +4108,7 @@ Returns remaining region count on the track.
         const regions = [...trackBox.regions.pointerHub.incoming()].map(({{box}}) => box);
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].delete();
         }});
 
@@ -4132,16 +4132,15 @@ track_index: Track index within the AU.
 region_index: Region to move (0-based).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const PPQN = window.DAW_PPQN;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
         const rType = "{safe_region_type}";
-        const newPos = Math.round({position_beats} * PPQN.Quarter);
+        const newPos = Math.round({position_beats} * h.ppqn.Quarter);
 
         let tracks = [];
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4158,14 +4157,14 @@ region_index: Region to move (0-based).
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldPos = regions[regionIdx].position.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].position.setValue(newPos);
         }});
 
         return {{
             success: true,
-            old_position_beats: oldPos / PPQN.Quarter,
-            new_position_beats: newPos / PPQN.Quarter,
+            old_position_beats: oldPos / h.ppqn.Quarter,
+            new_position_beats: newPos / h.ppqn.Quarter,
         }};
     }}""")
     return _wrap_eval(result)
@@ -4177,15 +4176,14 @@ async def mcp_opendaw_set_region_duration(track_index: int, region_index: int, d
 duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
-        const PPQN = window.DAW_PPQN;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
-        const newDur = Math.round({duration_beats} * PPQN.Quarter);
+        const newDur = Math.round({duration_beats} * h.ppqn.Quarter);
 
         let tracks = [];
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4202,7 +4200,7 @@ duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldDur = regions[regionIdx].duration.getValue();
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].duration.setValue(newDur);
             if (regions[regionIdx].loopDuration) {{
                 regions[regionIdx].loopDuration.setValue(newDur);
@@ -4211,8 +4209,8 @@ duration_beats: New duration in beats (e.g. 4.0 = 1 bar in 4/4).
 
         return {{
             success: true,
-            old_duration_beats: oldDur / PPQN.Quarter,
-            new_duration_beats: newDur / PPQN.Quarter,
+            old_duration_beats: oldDur / h.ppqn.Quarter,
+            new_duration_beats: newDur / h.ppqn.Quarter,
         }};
     }}""")
     return _wrap_eval(result)
@@ -4224,14 +4222,14 @@ async def mcp_opendaw_set_region_mute(track_index: int, region_index: int, mute:
 mute: true to mute, false to unmute.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
         const muteVal = {json.dumps(mute)};
 
         let tracks = [];
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4248,7 +4246,7 @@ mute: true to mute, false to unmute.
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldMute = regions[regionIdx].mute?.getValue?.() ?? false;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].mute.setValue(muteVal);
         }});
 
@@ -4271,13 +4269,13 @@ region_index: Region to rename (0-based).
 """
     safe_label = label.replace('"', '').replace("'", '').replace('\\', '')
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
 
         let tracks = [];
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4294,7 +4292,7 @@ region_index: Region to rename (0-based).
         if (regionIdx >= regions.length) return {{error: "No region at index " + regionIdx}};
 
         const oldLabel = regions[regionIdx].label?.getValue?.() ?? "";
-        p.editing.modify(() => {{
+        h.modify(() => {{
             regions[regionIdx].label.setValue("{safe_label}");
         }});
 
@@ -4322,14 +4320,14 @@ unit_index: Audio unit index (-1 = search all AUs).
 Returns old and new hue values.
 """
     result = await bridge.evaluate(f"""() => {{
-        const p = window.DAW;
+        const h = window.DAW_HELPERS;
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
         const regionIdx = {region_index};
         const hueVal = {hue};
 
         let tracks = [];
-        const units = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
+        const units = [...h.rootBox.audioUnits.pointerHub.incoming()].map(({{box}}) => box).sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
         if (unitIdx < 0) {{
             for (const au of units) {{
                 const ts = [...au.tracks.pointerHub.incoming()].map(({{box}}) => box);
@@ -4348,7 +4346,7 @@ Returns old and new hue values.
 
         if (!region.hue) return {{error: "Region has no hue field"}};
         const oldHue = region.hue?.getValue?.() ?? 0;
-        p.editing.modify(() => {{
+        h.modify(() => {{
             region.hue.setValue(hueVal);
         }});
 
