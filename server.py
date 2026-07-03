@@ -513,7 +513,7 @@ Returns the created signature event details.
         // List all signature events
         const allEvents = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = allEvents.map(e => ({{
-            position_beats: e.relativePosition?.getValue?.() / h.ppqn.Quarter ?? 0,
+            position_beats: (e.relativePosition?.getValue?.() ?? 0) / h.ppqn.Quarter,
             numerator: e.nominator?.getValue?.() ?? 4,
             denominator: e.denominator?.getValue?.() ?? 4,
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -590,7 +590,7 @@ Returns the created tempo event and full tempo map.
         const coll = tempoTrack.events.targetVertex.unwrap().box;
         const events = [...coll.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = events.map(e => ({{
-            position_beats: e.position?.getValue?.() / h.ppqn.Quarter ?? 0,
+            position_beats: (e.position?.getValue?.() ?? 0) / h.ppqn.Quarter,
             bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
             interpolation: e.interpolation?.getValue?.() === 1 ? "linear" : "hold",
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -637,7 +637,7 @@ The tempo track uses normalized values mapped to minBpm..maxBpm (default 60..240
         const collection = eventsVertex.unwrap().box;
         const events = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = events.map(e => ({{
-            position_beats: e.position?.getValue?.() / h.ppqn.Quarter ?? 0,
+            position_beats: (e.position?.getValue?.() ?? 0) / h.ppqn.Quarter,
             bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
             interpolation: e.interpolation?.getValue?.() === 1 ? "linear" : "hold",
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -669,7 +669,7 @@ Returns each signature event with position (beats), numerator, and denominator.
 
         const events = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = events.map(e => ({{
-            position_beats: e.relativePosition?.getValue?.() / h.ppqn.Quarter ?? 0,
+            position_beats: (e.relativePosition?.getValue?.() ?? 0) / h.ppqn.Quarter,
             numerator: e.nominator?.getValue?.() ?? 4,
             denominator: e.denominator?.getValue?.() ?? 4,
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -727,7 +727,7 @@ Returns updated signature event list.
 
         const remaining = [...sigTrack.events.pointerHub.incoming()].map(({{box}}) => box);
         const eventList = remaining.map(e => ({{
-            position_beats: e.relativePosition?.getValue?.() / h.ppqn.Quarter ?? 0,
+            position_beats: (e.relativePosition?.getValue?.() ?? 0) / h.ppqn.Quarter,
             numerator: e.nominator?.getValue?.() ?? 4,
             denominator: e.denominator?.getValue?.() ?? 4,
         }})).sort((a, b) => a.position_beats - b.position_beats);
@@ -3913,8 +3913,8 @@ Returns list of notes sorted by position.
         const notes = [...collection.events.pointerHub.incoming()].map(({{box}}) => box);
         const noteList = notes.map((n, i) => ({{
             index: i,
-            position_beats: n.position?.getValue?.() / Quarter ?? 0,
-            duration_beats: n.duration?.getValue?.() / Quarter ?? 0,
+            position_beats: (n.position?.getValue?.() ?? 0) / Quarter,
+            duration_beats: (n.duration?.getValue?.() ?? 0) / Quarter,
             pitch: n.pitch?.getValue?.() ?? 60,
             velocity: n.velocity?.getValue?.() ?? 0.787,
             cent: n.cent?.getValue?.() ?? 0,
@@ -5087,7 +5087,7 @@ Returns clip creation details.
             success: true,
             clip_class: clip.constructor.name,
             label: clip.label?.getValue?.() ?? "",
-            duration_beats: clip.duration?.getValue?.() / h.ppqn.Quarter ?? 0,
+            duration_beats: (clip.duration?.getValue?.() ?? 0) / h.ppqn.Quarter,
             mute: clip.mute?.getValue?.() ?? false,
         }};
     }}""")
@@ -5215,10 +5215,10 @@ Returns list of automation regions.
                         unit_index: unitIdx < 0 ? ui : unitIdx,
                         track_index: actualTrackIdx,
                         region_index: ri,
-                        position_beats: region.position?.getValue?.() / Quarter ?? 0,
-                        duration_beats: region.duration?.getValue?.() / Quarter ?? 0,
-                        loop_offset_beats: region.loopOffset?.getValue?.() / Quarter ?? 0,
-                        loop_duration_beats: region.loopDuration?.getValue?.() / Quarter ?? 0,
+                        position_beats: (region.position?.getValue?.() ?? 0) / Quarter,
+                        duration_beats: (region.duration?.getValue?.() ?? 0) / Quarter,
+                        loop_offset_beats: (region.loopOffset?.getValue?.() ?? 0) / Quarter,
+                        loop_duration_beats: (region.loopDuration?.getValue?.() ?? 0) / Quarter,
                         mute: region.mute?.getValue?.() ?? false,
                         label: region.label?.getValue?.() ?? "",
                     }});
@@ -5354,7 +5354,7 @@ Returns updated clip properties.
             label: clip.label?.getValue?.() ?? "",
             hue: clip.hue?.getValue?.() ?? 0,
             mute: clip.mute?.getValue?.() ?? false,
-            duration_beats: clip.duration?.getValue?.() / Quarter ?? 0,
+            duration_beats: (clip.duration?.getValue?.() ?? 0) / Quarter,
         }};
     }}""")
     return _wrap_eval(result)
@@ -5445,7 +5445,7 @@ Returns list of clips with type, index, duration, mute, label, loop.
                     clip_index: clip.index?.getValue?.() ?? ci,
                     type: clipType,
                     class: clsName,
-                    duration_beats: clip.duration?.getValue?.() / Quarter ?? 0,
+                    duration_beats: (clip.duration?.getValue?.() ?? 0) / Quarter,
                     mute: clip.mute?.getValue?.() ?? false,
                     label: clip.label?.getValue?.() ?? "",
                     loop: clip.triggerMode?.loop?.getValue?.() ?? false,
