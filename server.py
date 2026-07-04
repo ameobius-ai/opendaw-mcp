@@ -12565,12 +12565,150 @@ Returns created AU indices, note counts, and suggested next steps.
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_song_structure(sections: str, unit_index: int = 0) -> str:
+    """Create song structure markers for arrangement (intro/verse/chorus/bridge/outro).
+
+    Creates labeled markers at section boundaries, enabling agents to reason about song form.
+    Reduces 5-10 marker calls to one structured call.
+
+    sections: JSON array of section objects: [{"name": "Intro", "bars": 4}, {"name": "Verse 1", "bars": 8}, ...].
+              If bars omitted, defaults to 8. Names are used as marker labels.
+    unit_index: AU index (unused but kept for API consistency).
+
+    Returns created markers with positions and total duration.
+
+    Example:
+      sections='[{"name":"Intro","bars":4},{"name":"Verse","bars":8},{"name":"Chorus","bars":8},{"name":"Outro","bars":4}]'
+    """
+    parsed = json.loads(sections)
+    total_beats = 0
+    marker_data = []
+    for sec in parsed:
+        name = sec.get("name", "Section")
+        bars = sec.get("bars", 8)
+        marker_data.append({"name": name, "position": total_beats})
+        total_beats += bars * 4
+
+    markers_json = json.dumps(marker_data)
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const p = window.DAW;
+        try {{
+            const markers = {markers_json};
+            let created = [];
+            for (const m of markers) {{
+                const ppqn = Math.round(m.position * 960);
+                h.modify(() => {{
+                    p.api.addMarker(m.name, ppqn);
+                }});
+                created.push({{name: m.name, position_beats: m.position}});
+            }}
+            return {{
+                success: true,
+                markers_created: created.length,
+                markers: created,
+                total_beats: {total_beats},
+                total_bars: {total_beats} / 4,
+                next_steps: [
+                    "Use create_genre_track or create_notes_batch to fill sections",
+                    "Use render_full to render the complete arrangement",
+                ],
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_automation_sweep(unit_index: int, track_index: int, start_beat: float, end_beat: float, start_value: float, end_value: float, steps: int = 16, curve: str = "linear") -> str:
+    """Create a smooth automation sweep (ramp) between two values over a beat range.
+
+    Generates multiple automation events with interpolated values, creating smooth parameter
+    transitions (filter sweeps, volume fades, pitch drops, etc.) in one call.
+
+    unit_index: AU index.
+    track_index: Value (automation) track index.
+    start_beat: Start position in beats.
+    end_beat: End position in beats.
+    start_value: Starting normalized value (0.0-1.0).
+    end_value: Ending normalized value (0.0-1.0).
+    steps: Number of interpolation points (default 16, more = smoother).
+    curve: "linear" (even spacing), "exp" (exponential, good for filter sweeps), "log" (logarithmic).
+
+    Returns the number of events created and their positions.
+
+    Example: Filter sweep from closed (0.1) to open (0.9) over 16 beats:
+      automation_sweep(unit_index=0, track_index=0, start_beat=0, end_beat=16, start_value=0.1, end_value=0.9, steps=32, curve="exp")
+    """
+    safe_curve = curve.replace('"', '').replace("'", "")
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const track = h.track({unit_index}, {track_index});
+            const regions = track.regions.collection.asArray();
+            if (regions.length === 0) return {{error: "No value regions on track"}};
+            const region = regions[0];
+            if (!region.isValueRegion?.()) return {{error: "Region is not a value region"}};
+            const optCol = region.optCollection;
+            if (optCol.isEmpty()) return {{error: "No event collection"}};
+            const collection = optCol.unwrap();
+            const startBeat = {start_beat};
+            const endBeat = {end_beat};
+            const startVal = {start_value};
+            const endVal = {end_value};
+            const numSteps = {steps};
+            const curveType = "{safe_curve}";
+            const beatRange = endBeat - startBeat;
+            let created = 0;
+            const events = [];
+            h.modify(() => {{
+                for (let i = 0; i < numSteps; i++) {{
+                    const t = i / (numSteps - 1);
+                    let value;
+                    if (curveType === "exp") {{
+                        value = startVal + (endVal - startVal) * (Math.exp(t * 3) - 1) / (Math.exp(3) - 1);
+                    }} else if (curveType === "log") {{
+                        value = startVal + (endVal - startVal) * Math.log(1 + t * (Math.E - 1));
+                    }} else {{
+                        value = startVal + (endVal - startVal) * t;
+                    }}
+                    const beatPos = startBeat + beatRange * t;
+                    const ppqn = Math.round(beatPos * 960);
+                    const evt = collection.createEvent({{
+                        position: ppqn,
+                        index: 0,
+                        value: Math.max(0, Math.min(1, value)),
+                        interpolation: {{type: "linear"}},
+                    }});
+                    events.push({{position_beats: Math.round(beatPos * 100) / 100, value: Math.round(value * 1000) / 1000}});
+                    created++;
+                }}
+            }});
+            return {{
+                success: true,
+                events_created: created,
+                start_beat: startBeat,
+                end_beat: endBeat,
+                value_range: [startVal, endVal],
+                curve: curveType,
+                events: events.slice(0, 5), // first 5 as preview
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.9.8 — 255 MCP tools")
+            print("opendaw-mcp 1.10.0 — 260 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -12580,7 +12718,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 250 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 260 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
