@@ -12915,7 +12915,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.11.4 — 258 MCP tools")
+            print("opendaw-mcp 1.11.5 — 258 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio

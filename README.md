@@ -208,7 +208,7 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains 18 example DSP scripts (12 Werkstatt + 4 Apparat + 2 Spielwerk):
+The `scripts/` directory contains 21 example DSP scripts (14 Werkstatt + 5 Apparat + 2 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
@@ -225,10 +225,13 @@ The `scripts/` directory contains 18 example DSP scripts (12 Werkstatt + 4 Appar
 | `werkstatt_adsr_trim.js` | Werkstatt | ADSR envelope trim for sustained samples (#241) |
 | `werkstatt_granular_stretch.js` | Werkstatt | Granular time-stretch with Hann window + pitch shift (#201) |
 | `werkstatt_pitch_shift.js` | Werkstatt | Real-time pitch shifter via delay-line sweep with crossfade (#188) |
+| `werkstatt_dcremover.js` | Werkstatt | DC offset remover + M/S stereo width tool (#91) |
+| `werkstatt_allpass.js` | Werkstatt | Allpass filter with invert + cascade stages (#133) |
 | `apparat_darkbass.js` | Apparat | Bass synth with sub oscillator and filter envelope |
 | `apparat_coldlead.js` | Apparat | Lead synth with detune and vibrato |
 | `apparat_subcrusher.js` | Apparat | Sub-bass synth with glide and distortion |
 | `apparat_ringmod.js` | Apparat | Ring modulator synth with ADSR and sub-oscillator (#277) |
+| `apparat_fm.js` | Apparat | 2-operator FM synth with carrier/modulator ratio and ADSR (#138) |
 | `spielwerk_powerchord.js` | Spielwerk | MIDI effect that generates power chord harmonies |
 | `spielwerk_arpeggiator.js` | Spielwerk | MIDI arpeggiator with swing and octave range |
 
@@ -313,6 +316,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.11.5 (2026-07-04)
+
+- **3 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138)
+- **Coldfold fix**: removed unused `range` variable (CodeRabbit review)
+- **21 DSP scripts total** (14 Werkstatt + 5 Apparat + 2 Spielwerk)
 
 ### v1.11.4 (2026-07-04)
 
