@@ -1,6 +1,6 @@
 # Examples
 
-30 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge.
+36 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge.
 
 ## Genre Templates (8)
 
@@ -72,6 +72,7 @@ python examples/genre_house.py
 | `automation_sweep.py` | Filter sweeps, volume fades |
 | `song_structure_demo.py` | Arrangement markers: intro/verse/chorus/bridge/outro |
 | `preset_management.py` | Save/load .opb presets |
+| `music_theory_demo.py` | Use shared note/chord/scale data to compute pitches, build progressions |
 
 ## Running examples
 

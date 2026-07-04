@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.16.1 (2026-07-05)
+
+- **`opendaw_mcp/music_theory.py`** — shared music theory module: `NOTE_TO_PITCH`, `CHORD_INTERVALS`, `SCALE_INTERVALS`, `GENRE_PRESETS`, `chord_to_pitches()`, `scale_to_pitches()`
+- **DRY refactor**: `create_chord_progression` and `create_genre_track` now import from `music_theory` instead of duplicating dicts inline
+- **2 new genres**: `coldwave` (110 BPM, dark bass) and `hiphop` (90 BPM, boom bap) — `create_genre_track` now supports 8 genres
+- **14 scale types**: major, minor, harmonic minor, melodic minor, dorian, phrygian, lydian, mixolydian, locrian, pentatonic major/minor, blues, chromatic
+- **38 new unit tests** (test_music_theory.py) — 134 total
+- ruff clean, 263 MCP tools intact, no regressions
+
 ## v1.16.0 (2026-07-05)
 
 - **Modular architecture** — infrastructure extracted from 13K-line `server.py` into `opendaw_mcp/` package:
