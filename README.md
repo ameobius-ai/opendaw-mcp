@@ -11,7 +11,7 @@
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 
-**258 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**260 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -47,12 +47,12 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 
 ## Agent Skills
 
-The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 258 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
+The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 260 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
 
 | Skill | Domain | Description |
 |-------|--------|-------------|
 | `adaptive-mix-mastering` | Mix → Master pipeline | Universal pipeline with decision points: genre detection, stem strategy, effect chain selection, LUFS targeting, mastering approach. Adapts to coldwave, techno, hip-hop, ambient, rock, pop. Includes `references/decision-tree.md`. |
-| `opendaw-automation` | API reference | 258 MCP tools full reference, bridge architecture, pitfalls, DSP script library (26 scripts), CodeRabbit review patterns, PyPI publishing workflow. The base skill — others cross-reference it. 146 reference files. |
+| `opendaw-automation` | API reference | 260 MCP tools full reference, bridge architecture, pitfalls, DSP script library (26 scripts), CodeRabbit review patterns, PyPI publishing workflow. The base skill — others cross-reference it. 146 reference files. |
 | `opendaw-track-architecture` | Track structure | Tracks, regions, clips, notes, tempo, time signature, markers, groove, song form. 50+ tools for building the skeleton of a track. |
 | `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 26 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
 | `opendaw-effect-routing` | Effects + routing | Effect chains, sends/returns, sidechain, buses, mixing, mastering chain, render/export. How to route audio and deliver final output. |
@@ -292,7 +292,7 @@ The `examples/` directory contains 19 Python scripts demonstrating the full work
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 258 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 260 tools with parameters and descriptions.
 
 ### Orchestration Tools
 
@@ -346,6 +346,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.12.1 (2026-07-04)
+
+- **Stem Splitter**: 2 new MCP tools for SOTA open-source source separation. `split_stems` runs 7 modes locally on GPU (ensemble, scnet, bs6, polarformer, dereverb, drumsep, denoise). Optional auto-import into DAW. Uses BS-Roformer, HTDemucs FT, SCNet XL, MelBand Roformer models.
+- `list_split_modes` — list all separation modes with SDR scores
+- **260 MCP tools** (252 low-level + 8 orchestration)
 
 ### v1.12.0 (2026-07-04)
 
@@ -420,7 +426,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.11.0 (2026-07-04)
 
 - **`apply_mix_preset`** — 8th orchestration tool: batch volume/pan/mute/solo across all tracks. Named presets (lofi, house, balanced, wide) or custom JSON
-- **258 MCP tools** (250 low-level + 8 orchestration)
+- **258 MCP tools** (252 low-level + 8 orchestration)
 
 ### v1.10.2 (2026-07-04)
 
@@ -429,7 +435,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ### v1.10.1 (2026-07-04)
 
-- **258 MCP tools** (251 low-level + 7 orchestration)
+- **258 MCP tools** (253 low-level + 7 orchestration)
 - **`create_song_structure`** — arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list
 - **`automation_sweep`** — smooth automation ramps with linear/exp/log curves. Replaces 10-30 `create_automation_event` calls
 - **PyPI v1.10.1 published** — `pip install opendaw-mcp`

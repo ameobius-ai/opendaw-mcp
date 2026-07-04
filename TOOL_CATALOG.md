@@ -316,6 +316,10 @@
 - `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
 - `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
+## Stem Splitter (2)
+- `list_split_modes` — List all available stem separation modes with SDR scores and descriptions.
+- `split_stems` — Split an audio file into stems using SOTA open-source separation models (BS-Roformer, HTDemucs, SCNet, MelBand Roformer). Runs locally on GPU. 7 modes: ensemble, scnet, bs6, polarformer, dereverb, drumsep, denoise. Optional auto-import into DAW.
+
 ## Orchestration Tools (5)
 High-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.

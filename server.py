@@ -12910,12 +12910,154 @@ async def mcp_opendaw_apply_mix_preset(preset: str) -> str:
     return _wrap_eval(result)
 
 
+# ============================================================================
+# STEM SPLITTER — SOTA source separation via local GPU models
+# ============================================================================
+
+STEM_SPLITTER_DIR = os.environ.get("STEM_SPLITTER_DIR",
+    os.path.expanduser("~/projects/creative-studio/stem-splitter"))
+STEM_SPLITTER_VENV = os.path.join(STEM_SPLITTER_DIR, "venv", "bin", "python")
+STEM_SPLITTER_SCRIPT = os.path.join(STEM_SPLITTER_DIR, "sota_splitter.py")
+
+STEM_MODES = {
+    "ensemble": "Max quality: HTDemucs FT bass+drums + PolarFormer vocals + bs6 other (4 stems, 4 passes, slowest)",
+    "scnet": "SCNet XL IHF — best 4-stem multi-stem (drums/bass/other/vocals, SDR avg 10.08)",
+    "bs6": "BS-Rofo-SW-Fixed 6-stem (bass/drums/other/vocals/guitar/piano, fast, low bleeding)",
+    "polarformer": "PolarFormer — best vocal extraction (vocals/instrumental, SDR 11.00)",
+    "dereverb": "MelBand Roformer dereverb — removes reverb from vocals (dry/reverb, SDR 19.17)",
+    "drumsep": "DrumSep — separate drums into kick/snare/cymbals/toms",
+    "denoise": "MelBand Roformer denoise — clean 128kbps MP3 noise (clean/noise, SDR 27.99)",
+}
+
+
+@mcp.tool()
+async def mcp_opendaw_split_stems(input_path: str, mode: str = "bs6", output_dir: str = "", import_to_daw: bool = False) -> str:
+    """Split an audio file into stems using SOTA open-source separation models.
+
+    Runs locally on GPU (GTX 1650 4GB, ~4.5 min for 4-min track).
+    All models trained at 44100Hz — auto-resampling handled internally.
+
+    input_path: Absolute path to input audio file (WAV/MP3/FLAC/OGG).
+    mode: Separation mode (default "bs6"):
+        - "ensemble": Max quality, 4 passes (bass/drums/vocals/other). Slowest, best SDR.
+        - "scnet": 4-stem (drums/bass/other/vocals). Best single-pass multi-stem.
+        - "bs6": 6-stem (bass/drums/other/vocals/guitar/piano). Fast, low bleeding.
+        - "polarformer": Vocal extraction only (vocals/instrumental).
+        - "dereverb": Remove reverb from vocals (dry/reverb).
+        - "drumsep": Drum separation (kick/snare/cymbals/toms).
+        - "denoise": Noise cleanup for low-quality sources (clean/noise).
+    output_dir: Directory for stem files (default: /tmp/stems_<input_basename>).
+    import_to_daw: If True, load each stem into the DAW and return sample IDs
+                   for use with place_audio_region. Requires DAW bridge running.
+
+    Returns list of stem file paths (and sample IDs if import_to_daw=True).
+
+    Workflow:
+      split_stems("track.wav", "bs6") → 6 stem WAVs
+      split_stems("track.wav", "ensemble", import_to_daw=True) → 4 stems loaded into DAW
+    """
+    import asyncio
+
+    if not os.path.exists(input_path):
+        return json.dumps({"error": f"Input not found: {input_path}"})
+    if mode not in STEM_MODES:
+        return json.dumps({"error": f"Unknown mode: {mode}. Available: {list(STEM_MODES.keys())}"})
+    if not os.path.exists(STEM_SPLITTER_SCRIPT):
+        return json.dumps({"error": f"Stem splitter not found at {STEM_SPLITTER_SCRIPT}. Set STEM_SPLITTER_DIR env var."})
+    if not os.path.exists(STEM_SPLITTER_VENV):
+        return json.dumps({"error": f"venv not found at {STEM_SPLITTER_VENV}"})
+
+    if not output_dir:
+        base = os.path.splitext(os.path.basename(input_path))[0]
+        output_dir = f"/tmp/stems_{base}"
+
+    cmd = [STEM_SPLITTER_VENV, STEM_SPLITTER_SCRIPT, input_path, "-o", output_dir, "-m", mode, "-d", "cuda"]
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await proc.communicate()
+        output_text = stdout.decode("utf-8", errors="replace") if stdout else ""
+
+        if proc.returncode != 0:
+            return json.dumps({
+                "error": "Stem splitter failed",
+                "returncode": proc.returncode,
+                "output": output_text[-500:],
+            })
+
+        # Collect stem files
+        stems = []
+        for fname in sorted(os.listdir(output_dir)):
+            if fname.endswith(".wav"):
+                fpath = os.path.join(output_dir, fname)
+                stems.append({
+                    "name": os.path.splitext(fname)[0],
+                    "path": fpath,
+                    "size_mb": round(os.path.getsize(fpath) / 1024 / 1024, 1),
+                })
+
+        result = {
+            "success": True,
+            "mode": mode,
+            "mode_desc": STEM_MODES[mode],
+            "input": input_path,
+            "output_dir": output_dir,
+            "stems": stems,
+            "stem_count": len(stems),
+        }
+
+        # Optionally import each stem into DAW
+        if import_to_daw and stems:
+            imported = []
+            for stem in stems:
+                load_result = await mcp_opendaw_load_audio(stem["path"], stem["name"])
+                load_data = json.loads(load_result)
+                if "id" in load_data:
+                    imported.append({
+                        "name": stem["name"],
+                        "sample_id": load_data["id"],
+                        "duration": load_data.get("duration", 0),
+                    })
+                else:
+                    imported.append({
+                        "name": stem["name"],
+                        "error": load_data.get("error", "load failed"),
+                    })
+            result["imported"] = imported
+
+        return json.dumps(result, indent=2)
+
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+async def mcp_opendaw_list_split_modes() -> str:
+    """List available stem separation modes with descriptions.
+
+    Returns all modes supported by mcp_opendaw_split_stems, with SDR scores
+    and use-case recommendations.
+    """
+    modes_info = []
+    for key, desc in STEM_MODES.items():
+        modes_info.append({"mode": key, "description": desc})
+    return json.dumps({
+        "modes": modes_info,
+        "default": "bs6",
+        "note": "All modes run locally on GPU. Ensemble is slowest but highest quality.",
+    }, indent=2)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.11.7 — 258 MCP tools")
+            print("opendaw-mcp 1.11.7 — 260 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -12925,7 +13067,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 258 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 260 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
