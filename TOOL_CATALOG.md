@@ -316,7 +316,16 @@
 - `screenshot_daw` — Take a screenshot of the openDAW UI. Returns base64-encoded PNG image.
 - `wait_for_condition` — Wait for a JavaScript condition to evaluate to true in the DAW context.
 
-**Total: 250 tools**
+## Orchestration Tools (5)
+High-level composers that combine multiple low-level operations into a single call.
+Designed for agents — reduce token usage and round-trips when building musical structures.
+- `create_notes_batch` — Create multiple MIDI notes from a JSON array in one call. Replaces 10-50 create_note calls.
+- `create_drum_pattern` — Create a drum beat from compact step-sequencer notation (x/o/./X per 16th note). One call = full beat.
+- `create_chord_progression` — Create chords from names (Cm, Fm7, Gdom7) — auto-voiced, positioned, batched.
+- `add_mastering_chain` — Add EQ + Compressor + Maximizer to the output bus with genre-style presets (balanced/warm/loud/transparent).
+- `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient) — synth, drums, bass, chords, BPM in one call.
+
+**Total: 255 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)

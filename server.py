@@ -11905,13 +11905,665 @@ async def mcp_opendaw_set_audio_region_waveform_offset(unit_index: int, track_in
     }}""")
     return _wrap_eval(result)
 
+# ---------------------------------------------------------------------------
+# Orchestration Tools — high-level composers that combine multiple low-level
+# operations into a single call. These reduce token usage and round-trips
+# for agents building complete musical structures.
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def mcp_opendaw_create_notes_batch(notes: str, unit_index: int = 0, track_index: int = 0) -> str:
+    """Create multiple MIDI notes in a single call — batch creation for melodies, chords, arpeggios.
+
+notes: JSON array of note objects, each with:
+  - pitch (int): MIDI note number (60 = C4, 69 = A4)
+  - start (float): beat position
+  - duration (float): note length in beats
+  - velocity (float, optional): 0.0-1.0, default 0.8
+
+Example: '[{"pitch":60,"start":0,"duration":0.5},{"pitch":64,"start":0.5,"duration":0.5},{"pitch":67,"start":1,"duration":1}]'
+
+All notes go into one region on the specified note track. If no region exists, one is created.
+Faster than calling create_note repeatedly — one round-trip, one editing.modify() block.
+"""
+    import json as _json
+    try:
+        note_list = _json.loads(notes)
+        if not isinstance(note_list, list) or len(note_list) == 0:
+            return "Error: notes must be a non-empty JSON array"
+        if len(note_list) > 500:
+            return f"Error: max 500 notes per batch, got {len(note_list)}"
+    except _json.JSONDecodeError as e:
+        return f"Error parsing notes JSON: {e}"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const notes = {json.dumps(note_list)};
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+
+        let noteTracks = [];
+        if (unitIdx < 0) {{
+            for (const au of h.allAUBoxes()) {{
+                noteTracks.push(...h.trackBoxes(au).filter(box => box.type?.getValue?.() === 1));
+            }}
+        }} else {{
+            const units = h.allAUBoxes();
+            if (unitIdx >= units.length) return {{error: "No AU at index " + unitIdx}};
+            noteTracks = h.noteTrackBoxes(units[unitIdx]);
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found"}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range (" + noteTracks.length + ")"}};
+
+        const trackBox = noteTracks[trackIdx];
+        let regionBox = null;
+        let createdCount = 0;
+
+        h.modify(() => {{
+            const existing = h.regionBoxes(trackBox);
+            if (existing.length > 0) {{
+                regionBox = existing[0];
+            }} else {{
+                let maxEnd = 0;
+                for (const n of notes) maxEnd = Math.max(maxEnd, Math.round((n.start + n.duration) * Quarter));
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Notes");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            const regionStart = regionBox.position.getValue();
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            let maxEnd = 0;
+            for (const n of notes) {{
+                const vel = n.velocity !== undefined ? n.velocity : 0.8;
+                const pos = Math.max(0, Math.round(n.start * Quarter) - regionStart);
+                const dur = Math.round(n.duration * Quarter);
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(dur);
+                    box.velocity.setValue(vel);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+                maxEnd = Math.max(maxEnd, pos + dur);
+            }}
+            if (maxEnd > regionBox.duration.getValue()) {{
+                regionBox.duration.setValue(maxEnd);
+                regionBox.loopDuration.setValue(maxEnd);
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: createdCount,
+            track_index: trackIdx,
+            unit_index: unitIdx,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_create_drum_pattern(pattern: str, unit_index: int = -1) -> str:
+    """Create a drum beat from compact step-sequencer notation — one call replaces 10-20 note creations.
+
+pattern: JSON object with drum lanes, each lane is a string where each char is a 16th-note step:
+  - 'x' = hit (velocity 0.9)
+  - 'o' = soft hit (velocity 0.5)
+  - '.' = rest
+  - 'X' = accent (velocity 1.0)
+
+Lanes: kick, snare, hihat, clap, perc (each optional).
+
+Example (4/4 house beat):
+'{"kick":"x...x...x...x...","snare":"....x.......x...","hihat":"....o...o...o..."}'
+
+unit_index: AU index with a note track (-1 = find first AU with note tracks).
+
+Returns the number of notes created per lane.
+"""
+    import json as _json
+    try:
+        pat = _json.loads(pattern)
+        if not isinstance(pat, dict) or len(pat) == 0:
+            return "Error: pattern must be a JSON object with drum lanes"
+    except _json.JSONDecodeError as e:
+        return f"Error parsing pattern JSON: {e}"
+
+    valid_lanes = {"kick", "snare", "hihat", "clap", "perc"}
+    for lane in pat:
+        if lane not in valid_lanes:
+            return f"Error: unknown lane '{lane}'. Valid: {valid_lanes}"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+        const Sixteenth = Quarter / 4;
+
+        const pattern = {json.dumps(pat)};
+        const unitIdx = {unit_index};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if (unitIdx >= 0 && unitIdx < allUnits.length) {{
+            targetAU = allUnits[unitIdx];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[0];
+        const velocities = {{'x': 0.9, 'o': 0.5, 'X': 1.0}};
+        const lanePitches = {{kick: 36, snare: 38, hihat: 42, clap: 39, perc: 47}};
+        let totalNotes = 0;
+        const laneCounts = {{}};
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const maxSteps = Math.max(...Object.values(pattern).map(s => s.length));
+            const regionDur = Math.max(maxSteps * Sixteenth, 4 * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(0);
+                box.label.setValue("Drums");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const [laneName, steps] of Object.entries(pattern)) {{
+                const pitch = lanePitches[laneName] || 36;
+                let count = 0;
+                for (let i = 0; i < steps.length; i++) {{
+                    const ch = steps[i];
+                    if (ch === '.' || ch === ' ') continue;
+                    const vel = velocities[ch] || 0.8;
+                    NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                        box.position.setValue(Math.round(i * Sixteenth));
+                        box.duration.setValue(Math.round(Sixteenth * 0.8));
+                        box.velocity.setValue(vel);
+                        box.pitch.setValue(pitch);
+                        box.chance.setValue(100);
+                        box.cent.setValue(0);
+                        box.events.refer(collBox.events);
+                    }});
+                    count++;
+                    totalNotes++;
+                }}
+                laneCounts[laneName] = count;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            lanes: laneCounts,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_create_chord_progression(chords: str, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, chord_duration: float = 4) -> str:
+    """Create a chord progression from chord names — one call instead of 15-50 note creations.
+
+chords: JSON array of chord specs. Each chord is [root_note_name, chord_type].
+  Root names: C, C#, D, D#, E, F, F#, G, G#, A, A#, B (or flats: Db, Eb, Gb, Ab, Bb)
+  Chord types: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug
+
+Example: '[["C","min"],["F","min"],["G","dom7"],["C","min"]]'
+
+unit_index: AU index with a note track.
+track_index: Note track index within the AU.
+start_beat: Where the progression starts (0 = bar 1).
+chord_duration: Length of each chord in beats (4 = one bar at 4/4).
+
+Returns the total notes created and chord voicings used.
+"""
+    import json as _json
+    try:
+        chord_list = _json.loads(chords)
+        if not isinstance(chord_list, list) or len(chord_list) == 0:
+            return "Error: chords must be a non-empty JSON array"
+    except _json.JSONDecodeError as e:
+        return f"Error parsing chords JSON: {e}"
+
+    note_to_pitch = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11}
+    chord_intervals = {"maj": [0, 4, 7], "min": [0, 3, 7], "dom7": [0, 4, 7, 10], "maj7": [0, 4, 7, 11], "min7": [0, 3, 7, 10], "sus2": [0, 2, 7], "sus4": [0, 5, 7], "add9": [0, 4, 7, 14], "dim": [0, 3, 6], "aug": [0, 4, 8]}
+
+    note_list = []
+    voicings = []
+    for ci, chord_spec in enumerate(chord_list):
+        if len(chord_spec) < 2:
+            return f"Error: chord {ci} must have [root, type]"
+        root_name = chord_spec[0]
+        chord_type = chord_spec[1]
+        if root_name not in note_to_pitch:
+            return f"Error: unknown root '{root_name}'"
+        if chord_type not in chord_intervals:
+            return f"Error: unknown chord type '{chord_type}'. Valid: {list(chord_intervals.keys())}"
+
+        root_pc = note_to_pitch[root_name]
+        intervals = chord_intervals[chord_type]
+        root_pitch = 60 + root_pc
+        if root_pc > 5:
+            root_pitch -= 12
+
+        chord_start = start_beat + ci * chord_duration
+        voicing = []
+        for interval in intervals:
+            pitch = root_pitch + interval
+            note_list.append({"pitch": pitch, "start": chord_start, "duration": chord_duration, "velocity": 0.7})
+            voicing.append(pitch)
+        voicings.append({"chord": f"{root_name}{chord_type}", "pitches": voicing})
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const notes = {json.dumps(note_list)};
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const voicings = {json.dumps(voicings)};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const trackBox = noteTracks[trackIdx];
+        let regionBox = null;
+        let createdCount = 0;
+
+        h.modify(() => {{
+            const existing = h.regionBoxes(trackBox);
+            if (existing.length > 0) {{
+                regionBox = existing[0];
+            }} else {{
+                let maxEnd = 0;
+                for (const n of notes) maxEnd = Math.max(maxEnd, Math.round((n.start + n.duration) * Quarter));
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Chords");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            const regionStart = regionBox.position.getValue();
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of notes) {{
+                const pos = Math.max(0, Math.round(n.start * Quarter) - regionStart);
+                const dur = Math.round(n.duration * Quarter);
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(dur);
+                    box.velocity.setValue(n.velocity);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+            const maxEnd = Math.max(...notes.map(n => Math.round((n.start + n.duration) * Quarter)));
+            if (maxEnd > regionBox.duration.getValue()) {{
+                regionBox.duration.setValue(maxEnd);
+                regionBox.loopDuration.setValue(maxEnd);
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: createdCount,
+            chords: voicings.length,
+            voicings: voicings,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_add_mastering_chain(target_lufs: float = -14, style: str = "balanced") -> str:
+    """Add a ready-made mastering chain to the output bus — EQ + compressor + maximizer in one call.
+
+target_lufs: Target loudness (-14 = Spotify, -16 = Apple, -10 = loud).
+style: Preset character:
+  - "balanced" — transparent EQ, gentle comp, clean limiter
+  - "warm" — low shelf boost, slower comp attack, soft saturation
+  - "loud" — aggressive comp, fast release, hard limit
+  - "transparent" — minimal EQ, light comp, true peak limiting
+
+Creates: Revamp EQ → Compressor → Maximizer on the output/master AU.
+Returns the effect indices and parameter values set.
+"""
+    styles = {
+        "balanced": {"comp_threshold": -18, "comp_ratio": 2.5, "comp_attack": 10, "comp_release": 100, "max_ceiling": -1.0, "max_release": 50},
+        "warm": {"comp_threshold": -20, "comp_ratio": 3, "comp_attack": 30, "comp_release": 150, "max_ceiling": -1.5, "max_release": 80},
+        "loud": {"comp_threshold": -14, "comp_ratio": 4, "comp_attack": 5, "comp_release": 50, "max_ceiling": -0.5, "max_release": 30},
+        "transparent": {"comp_threshold": -22, "comp_ratio": 2, "comp_attack": 20, "comp_release": 200, "max_ceiling": -1.0, "max_release": 100},
+    }
+    if style not in styles:
+        return f"Error: unknown style '{style}'. Valid: {list(styles.keys())}"
+
+    params = styles[style]
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const p = window.DAW;
+        const EF = window.DAW_EffectFactories;
+
+        const params = {json.dumps(params)};
+
+        const allUnits = h.allAUBoxes();
+        if (allUnits.length === 0) return {{error: "No audio units in project"}};
+
+        // Use the last AU (typically the output/master bus)
+        const targetAU = allUnits[allUnits.length - 1];
+        const targetIdx = allUnits.length - 1;
+
+        let eqIdx = -1, compIdx = -1, maxIdx = -1;
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU, EF.Revamp, -1);
+            eqIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU, EF.Compressor, -1);
+            compIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU, EF.Maximizer, -1);
+            maxIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        // Set compressor and maximizer params
+        const effects = h.effectBoxes(targetAU);
+        const compBox = effects[compIdx];
+        const maxBox = effects[maxIdx];
+
+        h.modify(() => {{
+            if (compBox) {{
+                const fields = [...compBox._fields.entries()];
+                for (const [name, field] of fields) {{
+                    if (name === 'threshold') field.setValue(params.comp_threshold);
+                    if (name === 'ratio') field.setValue(params.comp_ratio);
+                    if (name === 'attack') field.setValue(params.comp_attack);
+                    if (name === 'release') field.setValue(params.comp_release);
+                }}
+            }}
+            if (maxBox) {{
+                const fields = [...maxBox._fields.entries()];
+                for (const [name, field] of fields) {{
+                    if (name === 'ceiling') field.setValue(params.max_ceiling);
+                    if (name === 'release') field.setValue(params.max_release);
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            unit_index: targetIdx,
+            chain: [
+                {{name: "Revamp EQ", index: eqIdx}},
+                {{name: "Compressor", index: compIdx, params: {{threshold: params.comp_threshold, ratio: params.comp_ratio}}}},
+                {{name: "Maximizer", index: maxIdx, params: {{ceiling: params.max_ceiling}}}},
+            ],
+            style: "{style}",
+            target_lufs: {target_lufs},
+            note: "Parameters applied. Run auto_gain after rendering to hit target LUFS.",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_create_genre_track(genre: str, bpm: float = 120) -> str:
+    """Create a genre-specific starting track with synth, beat, and basic mix — one call builds a full section.
+
+genre: Musical genre preset:
+  - "house" — 4/4 kick, offbeat hat, stab bass, 128 BPM
+  - "techno" — driving kick, ride hat, acid bass, 130 BPM
+  - "lofi" — swing kick/snare, soft keys, 80 BPM
+  - "dnb" — breakbeat drums, sub bass, 174 BPM
+  - "trap" — 808 kick, hat rolls, melodic lead, 140 BPM
+  - "ambient" — pad chord, no drums, 70 BPM
+
+bpm: Override tempo (default per genre).
+
+Returns created AU indices, note counts, and suggested next steps.
+"""
+    genres = {
+        "house": {"bpm": 128, "drums": {"kick": "x...x...x...x...", "hihat": "....o...o...o..."}, "bass": [{"pitch": 36, "start": 0, "duration": 0.5}, {"pitch": 36, "start": 2, "duration": 0.5}, {"pitch": 43, "start": 4, "duration": 0.5}, {"pitch": 36, "start": 6, "duration": 0.5}], "chords": [["F", "min7"], ["Ab", "maj7"], ["Db", "maj7"], ["Eb", "min7"]]},
+        "techno": {"bpm": 130, "drums": {"kick": "x...x...x...x...", "hihat": "x.x.x.x.x.x.x.x."}, "bass": [{"pitch": 31, "start": 0, "duration": 0.25}, {"pitch": 31, "start": 0.5, "duration": 0.25}, {"pitch": 31, "start": 1, "duration": 0.25}, {"pitch": 31, "start": 1.5, "duration": 0.25}], "chords": []},
+        "lofi": {"bpm": 80, "drums": {"kick": "x.......x.......", "snare": "....x.......x...", "hihat": "x.x.x.x.x.x.x.x."}, "bass": [], "chords": [["D", "min7"], ["G", "dom7"], ["C", "maj7"], ["A", "min7"]]},
+        "dnb": {"bpm": 174, "drums": {"kick": "x.......x...", "snare": "....x.......x.."}, "bass": [{"pitch": 28, "start": 0, "duration": 2}, {"pitch": 28, "start": 4, "duration": 2}], "chords": []},
+        "trap": {"bpm": 140, "drums": {"kick": "x.....x.x.....", "hihat": "x.x.x.xxx.x.x.x."}, "bass": [{"pitch": 36, "start": 0, "duration": 1}, {"pitch": 36, "start": 3, "duration": 0.5}], "chords": [["F", "min"], ["Ab", "maj"], ["Eb", "min"]]},
+        "ambient": {"bpm": 70, "drums": {}, "bass": [], "chords": [["C", "maj7"], ["F", "maj7"], ["A", "min7"], ["G", "maj7"]]},
+    }
+    if genre not in genres:
+        return f"Error: unknown genre '{genre}'. Valid: {list(genres.keys())}"
+
+    g = genres[genre]
+    actual_bpm = bpm if bpm != 120 else g["bpm"]
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const p = window.DAW;
+        const IF = window.DAW_InstrumentFactories;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+        const Sixteenth = Quarter / 4;
+
+        const genreData = {json.dumps(g)};
+        const bpm = {actual_bpm};
+
+        // Set BPM
+        h.modify(() => {{
+            const normalizedBpm = Math.max(0, Math.min(1, (bpm - 60) / (240 - 60)));
+            p.rootBoxAdapter.project.tempo.getValue().setValue(normalizedBpm);
+        }});
+
+        // Create synth AU for chords/bass
+        const synthAU = p.api.createInstrument(IF.Vaporisateur, {{}});
+        const synthAUIdx = h.allAUBoxes().length - 1;
+        const synthNoteTracks = h.noteTrackBoxes(synthAU);
+
+        let chordNotes = 0;
+        let bassNotes = 0;
+        let drumNotes = 0;
+
+        // Add chords
+        if (genreData.chords.length > 0 && synthNoteTracks.length > 0) {{
+            const trackBox = synthNoteTracks[0];
+            const noteToPitch = {{"C":0,"C#":1,"Db":1,"D":2,"D#":3,"Eb":3,"E":4,"F":5,"F#":6,"Gb":6,"G":7,"G#":8,"Ab":8,"A":9,"A#":10,"Bb":10,"B":11}};
+            const chordIntervals = {{"maj":[0,4,7],"min":[0,3,7],"dom7":[0,4,7,10],"maj7":[0,4,7,11],"min7":[0,3,7,10],"sus2":[0,2,7],"sus4":[0,5,7],"add9":[0,4,7,14],"dim":[0,3,6],"aug":[0,4,8]}};
+
+            h.modify(() => {{
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                let maxEnd = 0;
+                for (let ci = 0; ci < genreData.chords.length; ci++) {{
+                    const [rootName, chordType] = genreData.chords[ci];
+                    const rootPc = noteToPitch[rootName] || 0;
+                    const intervals = chordIntervals[chordType] || [0,4,7];
+                    const rootPitch = 60 + rootPc - (rootPc > 5 ? 12 : 0);
+                    for (const iv of intervals) {{
+                        NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                            box.position.setValue(Math.round(ci * 4 * Quarter));
+                            box.duration.setValue(Math.round(4 * Quarter));
+                            box.velocity.setValue(0.6);
+                            box.pitch.setValue(rootPitch + iv);
+                            box.chance.setValue(100);
+                            box.cent.setValue(0);
+                            box.events.refer(collection.events);
+                        }});
+                        chordNotes++;
+                        maxEnd = Math.max(maxEnd, Math.round((ci * 4 + 4) * Quarter));
+                    }}
+                }}
+                NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Chords");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }});
+        }}
+
+        // Add bass on same AU, second note track if available
+        if (genreData.bass.length > 0 && synthNoteTracks.length > 0) {{
+            const bassTrack = synthNoteTracks[Math.min(1, synthNoteTracks.length - 1)];
+            h.modify(() => {{
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                let maxEnd = 0;
+                for (const n of genreData.bass) {{
+                    NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                        box.position.setValue(Math.round(n.start * Quarter));
+                        box.duration.setValue(Math.round(n.duration * Quarter));
+                        box.velocity.setValue(0.85);
+                        box.pitch.setValue(n.pitch);
+                        box.chance.setValue(100);
+                        box.cent.setValue(0);
+                        box.events.refer(collection.events);
+                    }});
+                    bassNotes++;
+                    maxEnd = Math.max(maxEnd, Math.round((n.start + n.duration) * Quarter));
+                }}
+                NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Bass");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(bassTrack.regions);
+                }});
+            }});
+        }}
+
+        // Add drums on a separate AU
+        if (Object.keys(genreData.drums).length > 0) {{
+            const drumAU = p.api.createInstrument(IF.Vaporisateur, {{}});
+            const drumTracks = h.noteTrackBoxes(drumAU);
+            if (drumTracks.length > 0) {{
+                const drumTrack = drumTracks[0];
+                const velocities = {{'x': 0.9, 'o': 0.5, 'X': 1.0}};
+                const lanePitches = {{kick: 36, snare: 38, hihat: 42, clap: 39, perc: 47}};
+                h.modify(() => {{
+                    const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                    const maxSteps = Math.max(...Object.values(genreData.drums).map(s => s.length));
+                    for (const [laneName, steps] of Object.entries(genreData.drums)) {{
+                        const pitch = lanePitches[laneName] || 36;
+                        for (let i = 0; i < steps.length; i++) {{
+                            const ch = steps[i];
+                            if (ch === '.' || ch === ' ') continue;
+                            NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                                box.position.setValue(Math.round(i * Sixteenth));
+                                box.duration.setValue(Math.round(Sixteenth * 0.8));
+                                box.velocity.setValue(velocities[ch] || 0.8);
+                                box.pitch.setValue(pitch);
+                                box.chance.setValue(100);
+                                box.cent.setValue(0);
+                                box.events.refer(collection.events);
+                            }});
+                            drumNotes++;
+                        }}
+                    }}
+                    NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                        box.position.setValue(0);
+                        box.label.setValue("Drums");
+                        box.mute.setValue(false);
+                        box.duration.setValue(Math.max(maxSteps * Sixteenth, 4 * Quarter));
+                        box.loopDuration.setValue(Math.max(maxSteps * Sixteenth, 4 * Quarter));
+                        box.eventOffset.setValue(0);
+                        box.events.refer(collection.owners);
+                        box.regions.refer(drumTrack.regions);
+                    }});
+                }});
+            }}
+        }}
+
+        return {{
+            success: true,
+            genre: "{genre}",
+            bpm: bpm,
+            chord_notes: chordNotes,
+            bass_notes: bassNotes,
+            drum_notes: drumNotes,
+            synth_au_index: synthAUIdx,
+            next_steps: [
+                "Call add_mastering_chain to add mastering to the output bus",
+                "Call render_full to render the mix",
+                "Call auto_gain with target_lufs=-14 for streaming loudness",
+            ],
+        }};
+    }}""")
+    return _wrap_eval(result)
+
 
 def main():
     """Entry point for opendaw-mcp command."""
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.9.8 — 250 MCP tools")
+            print("opendaw-mcp 1.9.8 — 255 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
