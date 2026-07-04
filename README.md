@@ -4,8 +4,11 @@
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-258-brightgreen)](TOOL_CATALOG.md)
-[![Tests](https://img.shields.io/badge/Tests-93%20unit%20%2B%206%20E2E-brightgreen)](tests/)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-263-brightgreen)](TOOL_CATALOG.md)
+[![Skills](https://img.shields.io/badge/Agent%20Skills-8-blue)](skills/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-26-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-93%20unit%20%2B%207%20E2E-brightgreen)](tests/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
@@ -14,6 +17,24 @@
 **263 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
+
+## Why opendaw-mcp?
+
+**The only MCP server that gives an AI agent full DAW control — not just file conversion or playback.**
+
+| Feature | opendaw-mcp | Other audio MCPs |
+|---------|-------------|-------------------|
+| Full DAW control (263 tools) | ✅ | ❌ (1-10 tools) |
+| Scriptable DSP (write custom JS effects) | ✅ | ❌ |
+| SOTA stem separation (7 models, GPU local) | ✅ | ❌ |
+| Suno → DAW E2E pipeline | ✅ | ❌ |
+| Genre templates (8 genres) | ✅ | ❌ |
+| Agent skills with decision points | ✅ (8 skills) | ❌ |
+| Offline render with LUFS targeting | ✅ | ❌ |
+| Preset save/load (.opb) | ✅ | ❌ |
+| dawproject interchange (Ableton/Bitwig) | ✅ | ❌ |
+
+**Unique workflow:** Suno generates → SOTA stem split → openDAW import → mix/master → export. No other tool does this.
 
 ## How It Works
 
@@ -146,8 +167,8 @@ python server.py --list-tools  # list all 258 registered MCP tools
 
 ```bash
 # Pull pre-built image from GitHub Container Registry
-docker pull ghcr.io/ameobius/opendaw-mcp:1.10.0
-docker run -p 8080:8080 ghcr.io/ameobius/opendaw-mcp:1.9.6
+docker pull ghcr.io/ameobius/opendaw-mcp:1.14.1
+docker run -p 8080:8080 ghcr.io/ameobius/opendaw-mcp:1.14.1
 # MCP server available at http://localhost:8080/sse
 
 # Or build from source
