@@ -11,6 +11,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 | `create_drum_pattern` | Create a drum beat from compact step-sequencer notation |
 | `create_chord_progression` | Create chords from names (Cm, Fm7, Gdom7) — auto-voiced |
 | `create_melody` | Create a melody from scale + rhythmic pattern using scale degrees (1-7) |
+| `create_bassline` | Create a bassline from root + rhythmic pattern with low octave and high velocity |
 | `add_mastering_chain` | Add EQ + Compressor + Maximizer to output bus with genre presets |
 | `create_genre_track` | Create a full genre starting point in one call |
 | `create_song_structure` | Create arrangement markers from JSON section list |
@@ -102,6 +103,30 @@ Pattern syntax (space-separated, each step = one 16th note):
 | `+` | Octave up (applies to next note only) |
 
 Supports 14 scales: major, minor, harmonic_minor, melodic_minor, dorian, phrygian, lydian, mixolydian, locrian, pentatonic_major, pentatonic_minor, blues, chromatic.
+
+## create_bassline
+
+Create a bassline from root + rhythmic pattern with low octave and high velocity:
+
+```python
+await server.mcp_opendaw_create_bassline(
+    root="A",
+    pattern="1 - - - 5 - - - 1 - - - 4 - - -",
+    unit_index=2,
+    track_index=0,
+    octave=2,       # A2 = 45
+    velocity=0.9,
+    scale="minor"
+)
+```
+
+Same pattern syntax as `create_melody`, plus:
+
+| Symbol | Meaning |
+|--------|---------|
+| `_` | Octave down (applies to next note only) |
+
+Default octave is 2 (C2=36) for bass range. Default velocity is 0.9 for strong bass.
 
 ## add_mastering_chain
 

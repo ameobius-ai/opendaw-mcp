@@ -12162,6 +12162,165 @@ Returns the total notes created and pitches used.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_create_bassline(root: str, pattern: str, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, octave: int = 2, velocity: float = 0.9, scale: str = "minor") -> str:
+    """Create a bassline from root note + rhythmic pattern — one call instead of 8-20 create_note calls.
+
+Basslines use low octaves (default octave 2 = C2=36) and high velocity (default 0.9).
+
+root: Root note name (C, C#, D, D#, E, F, F#, G, G#, A, A#, B or flats Db, Eb, Gb, Ab, Bb).
+pattern: Rhythmic pattern using scale degrees and special chars. Each step = one 16th note:
+  - Numbers 1-7 = scale degree (1 = root, 5 = fifth, etc.)
+  - 0 = rest
+  - '-' = sustain previous note (tie)
+  - '+' = octave up for next note
+  - '_' = octave down for next note
+  - Example: "1 - - - 5 - - - 1 - - - 4 - - -" = root-fifth-root-fourth bassline
+  - Example: "1 0 1 0 5 0 5 0 1 0 1 0 3 0 3 0" = syncopated bass
+unit_index: AU index with a note track.
+track_index: Note track index within the AU.
+start_beat: Where the bassline starts (0 = bar 1).
+octave: MIDI octave for the root (2 = C2=36, typical bass range).
+velocity: Note velocity 0-1 (default 0.9 for strong bass).
+scale: Scale type for degree mapping (default "minor"). Same scales as create_melody.
+
+Returns the total notes created and pitches used.
+"""
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if scale not in SCALE_INTERVALS:
+        return f"Error: unknown scale '{scale}'. Valid: {list(SCALE_INTERVALS.keys())}"
+
+    root_pc = NOTE_TO_PITCH[root]
+    intervals = SCALE_INTERVALS[scale]
+    base_pitch = (octave + 1) * 12 + root_pc
+
+    steps = pattern.split()
+    note_list = []
+    current_octave_shift = 0
+
+    for i, step in enumerate(steps):
+        if step == "0":
+            continue
+        elif step == "-":
+            if note_list:
+                note_list[-1]["duration"] += 0.25
+            continue
+        elif step == "+":
+            current_octave_shift += 12
+            continue
+        elif step == "_":
+            current_octave_shift -= 12
+            continue
+        else:
+            try:
+                degree = int(step)
+            except ValueError:
+                return f"Error: invalid pattern step '{step}' at position {i}. Use numbers, 0, '-', '+', or '_'."
+
+            if degree < 1 or degree > len(intervals):
+                return f"Error: scale degree {degree} out of range for {scale} (1-{len(intervals)})"
+
+            idx = degree - 1
+            octave_wrap = idx // len(intervals)
+            scale_idx = idx % len(intervals)
+            pitch = base_pitch + intervals[scale_idx] + 12 * octave_wrap + current_octave_shift
+
+            # Clamp to valid MIDI range
+            if pitch < 0:
+                pitch = 0
+            if pitch > 127:
+                pitch = 127
+
+            note_list.append({
+                "pitch": pitch,
+                "start": start_beat + i * 0.25,
+                "duration": 0.25,
+                "velocity": velocity,
+            })
+            current_octave_shift = 0
+
+    if not note_list:
+        return "Error: pattern produced no notes (all rests?)"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const notes = {json.dumps(note_list)};
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const trackBox = noteTracks[trackIdx];
+        let regionBox = null;
+        let createdCount = 0;
+
+        h.modify(() => {{
+            const existing = h.regionBoxes(trackBox);
+            if (existing.length > 0) {{
+                regionBox = existing[0];
+            }} else {{
+                let maxEnd = 0;
+                for (const n of notes) maxEnd = Math.max(maxEnd, Math.round((n.start + n.duration) * Quarter));
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Bassline");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            const regionStart = regionBox.position.getValue();
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of notes) {{
+                const pos = Math.max(0, Math.round(n.start * Quarter) - regionStart);
+                const dur = Math.round(n.duration * Quarter);
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(dur);
+                    box.velocity.setValue(n.velocity);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+            const maxEnd = Math.max(...notes.map(n => Math.round((n.start + n.duration) * Quarter)));
+            if (maxEnd > regionBox.duration.getValue()) {{
+                regionBox.duration.setValue(maxEnd);
+                regionBox.loopDuration.setValue(maxEnd);
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: createdCount,
+            root: "{root}",
+            scale: "{scale}",
+            octave: {octave},
+            pitches: notes.map(n => n.pitch),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_add_mastering_chain(target_lufs: float = -14, style: str = "balanced") -> str:
     """Add a ready-made mastering chain to the output bus — EQ + compressor + maximizer in one call.
 
