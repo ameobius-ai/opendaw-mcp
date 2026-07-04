@@ -127,6 +127,17 @@ cp -r skills/adaptive-mix-mastering ~/.hermes/profiles/your-profile/skills/creat
 
 The SKILL.md files are standard markdown with YAML frontmatter. Any agent that supports skill loading can use them. The decision points and tool references are agent-agnostic.
 
+## Suno Integration
+
+opendaw-mcp connects with [Suno](https://suno.com) for AI music generation. The flagship `suno_generate_to_opendaw.py` example demonstrates the full pipeline: Suno generation → download → openDAW import → mastering → render.
+
+**Getting Suno API access:** Join the [Suno Discord](https://discord.gg/kRpauM54vn) to get chirp API access. Without it, generation won't work — this is required for all Suno-based workflows.
+
+**Pipeline examples:**
+- `suno_generate_to_opendaw.py` — Suno generation → openDAW mastering (flagship)
+- `suno_to_opendaw.py` — Import existing Suno track → enhance with DSP
+- `suno_stems_to_opendaw.py` — Stem split → per-stem mix → render
+
 ## Quick Start
 
 📚 **Full documentation: https://ameobius.github.io/opendaw-mcp/**

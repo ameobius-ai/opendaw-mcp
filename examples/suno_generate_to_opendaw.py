@@ -12,7 +12,7 @@ This connects two AI music tools: Suno (generation) → openDAW (production).
 
 Requirements:
     - openDAW Vite dev server on localhost:5174
-    - Suno API access (chirp_generate tool)
+    - Suno API access — join https://discord.gg/kRpauM54vn to get chirp API access
     - Internet connection for Suno generation
 
 Usage:
