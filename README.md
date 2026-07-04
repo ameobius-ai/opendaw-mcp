@@ -290,7 +290,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 28 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 30 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -321,6 +321,8 @@ The `examples/` directory contains 28 Python scripts demonstrating the full work
 | `genre_hiphop.py` | Genre template: hip-hop skeleton (85 BPM, boom bap drums, 808 bass Ab minor, dark pentatonic melody, Compressor+Waveshaper) |
 | `genre_dnb.py` | Genre template: DnB skeleton (174 BPM, Amen break, reese+sub bass F minor, aggressive Comp 8:1, Waveshaper) |
 | `genre_house.py` | Genre template: house skeleton (124 BPM, 4-on-floor, off-beat chord stabs Fmin9-Cmin9-Gmin9-Dmin9, rolling bass, Delay+Reverb) |
+| `genre_lofi.py` | Genre template: lofi skeleton (82 BPM, swung drums, jazzy Dmin7-Gdom7-Cmaj7-Fmaj7 ii-V-I, warm bass, short reverb) |
+| `genre_trap.py` | Genre template: trap skeleton (145 BPM, fast hi-hat rolls, gliding 808 F minor, dark pentatonic melody, hard Comp 6:1) |
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 
 ## Tool Catalog
@@ -379,6 +381,10 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.14.4 (2026-07-04)
+
+- **Final 2 genre examples (E2E verified)**: `genre_lofi.py` (82 BPM, swung drums, jazzy ii-V-I, warm) and `genre_trap.py` (145 BPM, fast hi-hat rolls, gliding 808, dark minor). **All 8 genres from the skill now covered with E2E examples.** 30 examples total.
 
 ### v1.14.3 (2026-07-04)
 
