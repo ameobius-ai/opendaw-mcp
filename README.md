@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-261-brightgreen)](TOOL_CATALOG.md)
-[![Tests](https://img.shields.io/badge/Tests-78%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-93%20passing-brightgreen)](tests/)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
@@ -295,6 +295,8 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **Scriptable device mapping info** — `list_script_params` now returns full `@param` mapping metadata (min, max, mapping type, unit) via `ScriptDeclaration.parseParams()`
 - **Range validation** — `set_script_param` now validates values against `@param` declarations: bool snaps to 0/1, int rounds+clamps, linear/exp clamps to [min, max]. Returns `clamped` flag and `range` info
+- **`_clamp_script_param`** Python helper mirrors JS-side clamping logic
+- **+15 unit tests** (93 total) — TestScriptParamClamping: linear/exp/int/bool/unipolar clamping, rounding, snapping
 - **`DAW_ScriptDeclaration`** added to headless-daw globals
 
 ### v1.11.0 (2026-07-04)

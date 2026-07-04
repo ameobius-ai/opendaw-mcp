@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from server import _ok, _err, _wrap_eval, _unwrap_eval, _safe_filename, _safe_path
+from server import _ok, _err, _wrap_eval, _unwrap_eval, _safe_filename, _safe_path, _clamp_script_param
 
 
 class TestOk:
@@ -604,3 +604,82 @@ class TestDrumPatternParsing:
         assert len(hits) == 8
         positions = [h["step"] for h in hits]
         assert positions == [0, 2, 4, 6, 8, 10, 12, 14]
+
+
+class TestScriptParamClamping:
+    """Verify _clamp_script_param mirrors JS-side @param range validation."""
+
+    def test_linear_clamp_high(self):
+        val, clamped = _clamp_script_param(99999, "linear", 20, 20000)
+        assert val == 20000.0
+        assert clamped is True
+
+    def test_linear_clamp_low(self):
+        val, clamped = _clamp_script_param(-5, "linear", 20, 20000)
+        assert val == 20.0
+        assert clamped is True
+
+    def test_linear_no_clamp(self):
+        val, clamped = _clamp_script_param(1000, "linear", 20, 20000)
+        assert val == 1000.0
+        assert clamped is False
+
+    def test_exp_clamp(self):
+        val, clamped = _clamp_script_param(50000, "exp", 20, 20000)
+        assert val == 20000.0
+        assert clamped is True
+
+    def test_int_round_up(self):
+        val, clamped = _clamp_script_param(2.7, "int", 0, 4)
+        assert val == 3.0
+        assert clamped is True
+
+    def test_int_round_down(self):
+        val, clamped = _clamp_script_param(2.3, "int", 0, 4)
+        assert val == 2.0
+        assert clamped is True
+
+    def test_int_no_round(self):
+        val, clamped = _clamp_script_param(3, "int", 0, 4)
+        assert val == 3.0
+        assert clamped is False
+
+    def test_int_clamp_high(self):
+        val, clamped = _clamp_script_param(7.9, "int", 0, 4)
+        assert val == 4.0
+        assert clamped is True
+
+    def test_int_clamp_low(self):
+        val, clamped = _clamp_script_param(-2.7, "int", 0, 4)
+        assert val == 0.0
+        assert clamped is True
+
+    def test_bool_snap_high(self):
+        val, clamped = _clamp_script_param(0.8, "bool", 0, 1)
+        assert val == 1.0
+        assert clamped is True
+
+    def test_bool_snap_low(self):
+        val, clamped = _clamp_script_param(0.3, "bool", 0, 1)
+        assert val == 0.0
+        assert clamped is True
+
+    def test_bool_exact_one(self):
+        val, clamped = _clamp_script_param(1, "bool", 0, 1)
+        assert val == 1.0
+        assert clamped is False
+
+    def test_bool_exact_zero(self):
+        val, clamped = _clamp_script_param(0, "bool", 0, 1)
+        assert val == 0.0
+        assert clamped is False
+
+    def test_unipolar_clamp(self):
+        val, clamped = _clamp_script_param(1.5, "unipolar", 0, 1)
+        assert val == 1.0
+        assert clamped is True
+
+    def test_unipolar_no_clamp(self):
+        val, clamped = _clamp_script_param(0.5, "unipolar", 0, 1)
+        assert val == 0.5
+        assert clamped is False

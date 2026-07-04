@@ -354,6 +354,22 @@ def _safe_path(export_dir: str, filename: str, ext: str = "wav") -> str:
         path = os.path.join(export_dir, f"output.{ext}")
     return path
 
+def _clamp_script_param(value: float, mapping: str, min_val: float, max_val: float) -> tuple:
+    """Clamp a script parameter value based on its mapping type.
+    
+    Mirrors the JS-side clamping in set_script_param.
+    Returns (clamped_value, was_clamped).
+    """
+    original = value
+    if mapping == "bool":
+        result = 1 if value >= 0.5 else 0
+    elif mapping == "int":
+        result = round(value)
+        result = max(min_val, min(max_val, result))
+    else:  # unipolar, linear, exp
+        result = max(min_val, min(max_val, value))
+    return (float(result), result != original)
+
 @mcp.tool()
 async def mcp_opendaw_get_project_state() -> str:
     """Get full project state: BPM, sample rate, playing status, track list, effects chain."""
