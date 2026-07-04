@@ -208,16 +208,27 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains example Werkstatt and Apparat DSP scripts:
+The `scripts/` directory contains 16 example DSP scripts (11 Werkstatt + 3 Apparat + 2 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
 | `werkstatt_darksat.js` | Werkstatt | Tape saturation with drive, bias, tone, mix, output gain |
 | `werkstatt_coldfold.js` | Werkstatt | Wavefolding + bitcrush + slew rate reduction |
+| `werkstatt_paulstretch.js` | Werkstatt | Extreme time-stretch via FFT/ISTFT overlap-add |
+| `werkstatt_envfollower.js` | Werkstatt | Envelope follower with sidechain ducking |
+| `werkstatt_chorus.js` | Werkstatt | Stereo chorus with LFO-modulated delay lines |
+| `werkstatt_reverb.js` | Werkstatt | Algorithmic reverb with comb + allpass filters |
+| `werkstatt_shimmer.js` | Werkstatt | Pitch-shimmer reverb with granular pitch shift |
+| `werkstatt_phaser.js` | Werkstatt | Phaser with LFO-swept allpass filter chain |
+| `werkstatt_subcrusher.js` | Werkstatt | Sub-bass enhancement with glide and distortion |
+| `werkstatt_lookahead.js` | Werkstatt | Lookahead limiter with gain reduction metering |
+| `werkstatt_adsr_trim.js` | Werkstatt | ADSR envelope trim for sustained samples (#241) |
+| `werkstatt_granular_stretch.js` | Werkstatt | Granular time-stretch with Hann window + pitch shift (#201) |
 | `apparat_darkbass.js` | Apparat | Bass synth with sub oscillator and filter envelope |
 | `apparat_coldlead.js` | Apparat | Lead synth with detune and vibrato |
+| `apparat_subcrusher.js` | Apparat | Sub-bass synth with glide and distortion |
 | `spielwerk_powerchord.js` | Spielwerk | MIDI effect that generates power chord harmonies |
-| `spielwerk_arpeggiator.js` | Spielwerk | MIDI arpeggiator with sync |
+| `spielwerk_arpeggiator.js` | Spielwerk | MIDI arpeggiator with swing and octave range |
 
 ## Examples
 
@@ -304,6 +315,8 @@ Apache-2.0 — see [LICENSE](LICENSE)
   - subcrusher: bidirectional glide (was diverging on upward glides)
   - arpeggiator: swing notes no longer dropped at block boundaries
 - **14 DSP scripts total** (9 Werkstatt + 3 Apparat + 2 Spielwerk) — all CodeRabbit issues addressed
+- **2 new Werkstatt scripts**: ADSR trim (sustained sample trimming, #241) + granular time-stretch (Hann window overlap + pitch shift, #201)
+- **16 DSP scripts total** (11 Werkstatt + 3 Apparat + 2 Spielwerk)
 
 ### v1.11.1 (2026-07-04)
 
