@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **263** MCP tools | **33** Python examples (8 genre templates) |
+| **263** MCP tools | **35** Python examples (8 genre templates) |
 | **26** DSP scripts | **8** agent skills |
 | **3** framework wrappers | **93** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -326,7 +326,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 34 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 35 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -350,6 +350,7 @@ The `examples/` directory contains 34 Python scripts demonstrating the full work
 | `warp_marker_tempo_match.py` | Warp markers for tempo-matched audio regions |
 | `suno_to_opendaw.py` | Suno→openDAW pipeline: import AI track, add mastering chain, reverb send, arp layer, render+stems |
 | `suno_stems_to_opendaw.py` | Full E2E: stem split (7 SOTA modes, local GPU) → import stems → per-stem mix (vol/pan/effects) → MIDI arp layer → render+export |
+| `suno_generate_to_opendaw.py` | **Flagship**: Suno generation (chirp_generate) → download → openDAW load → mastering (DarkSat+Lookahead) → LUFS check → render |
 | `preset_management.py` | Save/load Werkstatt effect presets (.opb) — compile DSP script, tweak params, export preset, import back |
 | `genre_techno.py` | Genre template: techno skeleton (130 BPM, 4-on-floor drums, rolling bass, Vaporisateur+Playfield, Compressor+Waveshaper chain) |
 | `genre_coldwave.py` | Genre template: coldwave skeleton (100 BPM, sparse drums, Am-Fmaj7-Cmaj-Gdom7 progression, 4 tracks, Dattorro reverb, Waveshaper hardclip) |

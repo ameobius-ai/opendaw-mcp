@@ -20,7 +20,7 @@ Control every aspect of music production from your LLM agent: synths, effects, M
 ## Quick numbers
 
 - **263** MCP tools (`mcp_opendaw_*` prefix)
-- **30** Python examples (8 genre templates)
+- **35** Python examples (8 genre templates)
 - **26** DSP scripts (Werkstatt / Apparat / Spielwerk)
 - **8** agent skills
 - **93** unit tests + 8 E2E tests
