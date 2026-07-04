@@ -6941,15 +6941,17 @@ Returns the full code string, header line, and code length.
 
 @mcp.tool()
 async def mcp_opendaw_list_script_params(device_type: str, unit_index: int, device_index: int) -> str:
-    """List @param declarations on a scriptable device.
+    """List @param declarations on a scriptable device with full mapping info.
 
-Each parameter is a WerkstattParameterBox with: label, index, value, defaultValue.
-Parameters are auto-created from `// @param <name> <min> <max> <default> <scaling> <unit>`
-declarations in the code. They appear after the code is compiled and loaded.
-"""
+    Each parameter includes: label, index, current value, default value,
+    min, max, mapping type (unipolar/linear/exp/int/bool), and unit.
+    Mapping info is parsed from `// @param <name> <default> <min> <max> <type> <unit>`
+    declarations in the code — the code is the single source of truth.
+    """
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
+        const SD = window.DAW_ScriptDeclaration;
         const allAU = h.allAUBoxes();
         const au = allAU[{unit_index}];
         if (!au) return {{error: "Unit {unit_index} not found"}};
@@ -6968,15 +6970,30 @@ declarations in the code. They appear after the code is compiled and loaded.
         if (!device) return {{error: "Scriptable device '" + dt + "' not found on unit {unit_index}"}};
         if (!device.parameters) return {{error: "Device has no parameters field"}};
         const params = h.scriptParams(device);
+        // Parse @param declarations from code for mapping metadata
+        const code = device.code ? device.code.getValue() : "";
+        let decls = [];
+        if (SD && SD.parseParams) {{
+            try {{ decls = SD.parseParams(code) || []; }} catch(e) {{ decls = []; }}
+        }}
+        const declMap = {{}};
+        for (const d of decls) {{ declMap[d.label] = d; }}
         return {{
             success: true,
             device: device.constructor.name,
-            params: params.map(param => ({{
-                label: param.label.getValue(),
-                index: param.index.getValue(),
-                value: param.value.getValue(),
-                defaultValue: param.defaultValue.getValue(),
-            }})),
+            params: params.map(param => {{
+                const decl = declMap[param.label.getValue()];
+                return {{
+                    label: param.label.getValue(),
+                    index: param.index.getValue(),
+                    value: param.value.getValue(),
+                    defaultValue: param.defaultValue.getValue(),
+                    min: decl ? decl.min : 0,
+                    max: decl ? decl.max : 1,
+                    mapping: decl ? decl.mapping : "unipolar",
+                    unit: decl ? decl.unit : "",
+                }};
+            }}),
             param_count: params.length,
         }};
     }}""")
@@ -6986,9 +7003,13 @@ declarations in the code. They appear after the code is compiled and loaded.
 async def mcp_opendaw_set_script_param(device_type: str, unit_index: int, device_index: int, param_label: str, value: float) -> str:
     """Set a parameter value on a scriptable device by label.
 
-The parameter must exist (created from a `// @param` declaration in the code).
-The value is set directly on the WerkstattParameterBox.value field.
-"""
+    The parameter must exist (created from a `// @param` declaration in the code).
+    The value is validated against the declaration's range (min/max) and mapping type:
+    - bool: snaps to 0 or 1
+    - int: rounds to nearest integer within [min, max]
+    - linear/exp/unipolar: clamps to [min, max]
+    Response includes `clamped` flag and `range` info if the value was adjusted.
+    """
     safe_device_type = device_type.replace('"', '').replace('\\', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
@@ -7013,15 +7034,45 @@ The value is set directly on the WerkstattParameterBox.value field.
         const targetLabel = {json.dumps(param_label)};
         const param = params.find(p => p.label.getValue() === targetLabel);
         if (!param) return {{error: "Parameter '" + targetLabel + "' not found. Available: " + params.map(p => p.label.getValue()).join(", ")}};
+        // Parse declaration for range validation
+        const SD = window.DAW_ScriptDeclaration;
+        const code = device.code ? device.code.getValue() : "";
+        let rangeInfo = null;
+        if (SD && SD.parseParams) {{
+            try {{
+                const decls = SD.parseParams(code) || [];
+                const decl = decls.find(d => d.label === targetLabel);
+                if (decl) rangeInfo = {{min: decl.min, max: decl.max, mapping: decl.mapping, unit: decl.unit}};
+            }} catch(e) {{}}
+        }}
+        let setValue = {value};
+        let clamped = false;
+        if (rangeInfo) {{
+            if (rangeInfo.mapping === "bool") {{
+                setValue = setValue >= 0.5 ? 1 : 0;
+                if (setValue !== {value}) clamped = true;
+            }} else if (rangeInfo.mapping === "int") {{
+                setValue = Math.round(setValue);
+                if (setValue !== {value}) clamped = true;
+                if (setValue < rangeInfo.min) {{ setValue = rangeInfo.min; clamped = true; }}
+                if (setValue > rangeInfo.max) {{ setValue = rangeInfo.max; clamped = true; }}
+            }} else {{
+                if (setValue < rangeInfo.min) {{ setValue = rangeInfo.min; clamped = true; }}
+                if (setValue > rangeInfo.max) {{ setValue = rangeInfo.max; clamped = true; }}
+            }}
+        }}
         const oldVal = param.value.getValue();
         h.editing.modify(() => {{
-            param.value.setValue({value});
+            param.value.setValue(setValue);
         }});
         return {{
             success: true,
             param: param.label.getValue(),
             old_value: oldVal,
             new_value: param.value.getValue(),
+            requested_value: {value},
+            clamped: clamped,
+            range: rangeInfo,
         }};
     }}""")
     return _wrap_eval(result)

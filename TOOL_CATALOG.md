@@ -257,10 +257,10 @@
 
 ## Scriptable Devices (5)
 - `get_script_device_code` — Read the current user JavaScript code from a scriptable device.
-- `list_script_params` — List @param declarations on a scriptable device.
+- `list_script_params` — List @param declarations with full mapping info (min/max/type/unit).
 - `list_script_samples` — List @sample declaration slots on a scriptable device.
-- `set_script_device_code` — Set the user JavaScript code on a scriptable device (Apparat/Werkstatt/Spielwerk).
-- `set_script_param` — Set a parameter value on a scriptable device by label.
+- `set_script_device_code` — Set the user JavaScript code on a scriptable device (Apparat/Werkstatt/Spielwerk). Compiles via ScriptCompiler.
+- `set_script_param` — Set a parameter value with range validation (clamps to min/max, rounds int, snaps bool).
 
 ## Playfield / Drum Machine (5)
 - `copy_playfield_sample` — Copy a Playfield (drum machine) sample to a new index slot.
