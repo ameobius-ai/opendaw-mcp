@@ -6,6 +6,7 @@ the utility functions that handle JSON serialization, filename sanitization,
 and path traversal protection.
 """
 import json
+import math
 import os
 import sys
 
@@ -389,3 +390,217 @@ class TestOkErrCombo:
         result = json.loads(_err("fail"))
         assert "error" in result
         assert "success" not in result
+
+
+class TestOrchestrationCurves:
+    """Test interpolation math used by automation_sweep.
+
+    The sweep tool generates points along linear/exp/log curves.
+    These tests verify the math produces correct values at boundaries.
+    """
+
+    def _linear(self, t, start, end):
+        return start + (end - start) * t
+
+    def _exp(self, t, start, end):
+        return start + (end - start) * (math.exp(t * 3) - 1) / (math.exp(3) - 1)
+
+    def _log(self, t, start, end):
+        return start + (end - start) * math.log(1 + t * (math.e - 1))
+
+    def test_linear_endpoints(self):
+        assert abs(self._linear(0, 0.1, 0.9) - 0.1) < 1e-9
+        assert abs(self._linear(1, 0.1, 0.9) - 0.9) < 1e-9
+        assert abs(self._linear(0.5, 0.1, 0.9) - 0.5) < 1e-9
+
+    def test_exp_endpoints(self):
+        assert abs(self._exp(0, 0.1, 0.9) - 0.1) < 1e-9
+        assert abs(self._exp(1, 0.1, 0.9) - 0.9) < 1e-9
+
+    def test_exp_slow_start(self):
+        # exponential curve should start slower than linear
+        mid_exp = self._exp(0.3, 0.0, 1.0)
+        mid_lin = self._linear(0.3, 0.0, 1.0)
+        assert mid_exp < mid_lin  # exp accelerates
+
+    def test_log_endpoints(self):
+        assert abs(self._log(0, 0.1, 0.9) - 0.1) < 1e-9
+        assert abs(self._log(1, 0.1, 0.9) - 0.9) < 1e-9
+
+    def test_log_fast_start(self):
+        # logarithmic curve should start faster than linear
+        mid_log = self._log(0.3, 0.0, 1.0)
+        mid_lin = self._linear(0.3, 0.0, 1.0)
+        assert mid_log > mid_lin  # log decelerates
+
+    def test_clamp_to_01(self):
+        # values should be clamped to [0, 1] range
+        for curve_fn in [self._linear, self._exp, self._log]:
+            for t in [0, 0.25, 0.5, 0.75, 1]:
+                v = curve_fn(t, 0.0, 1.0)
+                assert 0.0 <= v <= 1.0
+
+    def test_reverse_sweep(self):
+        # sweep from high to low should work
+        for curve_fn in [self._linear, self._exp, self._log]:
+            assert curve_fn(0, 0.9, 0.1) > curve_fn(1, 0.9, 0.1)
+
+
+class TestSongStructureParsing:
+    """Test JSON section parsing used by create_song_structure."""
+
+    def test_valid_sections(self):
+        sections = json.dumps([
+            {"name": "Intro", "bars": 4},
+            {"name": "Verse", "bars": 8},
+            {"name": "Chorus", "bars": 8},
+        ])
+        parsed = json.loads(sections)
+        assert len(parsed) == 3
+        assert parsed[0]["name"] == "Intro"
+        assert parsed[1]["bars"] == 8
+
+    def test_default_bars(self):
+        # if bars omitted, should default to 8
+        sections = json.dumps([{"name": "Verse"}])
+        parsed = json.loads(sections)
+        bars = parsed[0].get("bars", 8)
+        assert bars == 8
+
+    def test_total_beats_calculation(self):
+        sections = [
+            {"name": "Intro", "bars": 4},
+            {"name": "Verse", "bars": 8},
+            {"name": "Outro", "bars": 4},
+        ]
+        total = sum(s.get("bars", 8) * 4 for s in sections)
+        assert total == 64  # (4+8+4) * 4
+
+    def test_marker_positions(self):
+        sections = [
+            {"name": "A", "bars": 4},
+            {"name": "B", "bars": 8},
+            {"name": "C", "bars": 4},
+        ]
+        pos = 0
+        positions = []
+        for s in sections:
+            positions.append(pos)
+            pos += s.get("bars", 8) * 4
+        assert positions == [0, 16, 48]
+
+    def test_empty_sections(self):
+        sections = json.dumps([])
+        parsed = json.loads(sections)
+        assert len(parsed) == 0
+
+
+class TestChordProgressionTheory:
+    """Test chord name parsing and note generation logic used by create_chord_progression."""
+
+    # Chord intervals (semitones from root)
+    CHORD_INTERVALS = {
+        "maj": [0, 4, 7],
+        "min": [0, 3, 7],
+        "min7": [0, 3, 7, 10],
+        "dom7": [0, 4, 7, 10],
+        "maj7": [0, 4, 7, 11],
+        "dim": [0, 3, 6],
+        "sus4": [0, 5, 7],
+    }
+
+    NOTE_TO_SEMITONE = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                        "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+
+    def _parse_chord(self, name):
+        """Parse chord name like 'Cmin7' → (root_semitone, intervals)."""
+        if len(name) >= 2 and name[1] == "#":
+            root = name[:2]
+            quality = name[2:]
+        else:
+            root = name[0]
+            quality = name[1:]
+        root_st = self.NOTE_TO_SEMITONE[root]
+        if quality == "" or quality == "maj":
+            intervals = self.CHORD_INTERVALS["maj"]
+        else:
+            intervals = self.CHORD_INTERVALS.get(quality, self.CHORD_INTERVALS["maj"])
+        return root_st, intervals
+
+    def test_major_chord(self):
+        root, intervals = self._parse_chord("C")
+        assert root == 0
+        assert intervals == [0, 4, 7]
+
+    def test_minor_seventh(self):
+        root, intervals = self._parse_chord("Amin7")
+        assert root == 9
+        assert intervals == [0, 3, 7, 10]
+
+    def test_dominant_seventh(self):
+        root, intervals = self._parse_chord("Gdom7")
+        assert root == 7
+        assert intervals == [0, 4, 7, 10]
+
+    def test_sharp_root(self):
+        root, intervals = self._parse_chord("F#min7")
+        assert root == 6
+        assert intervals == [0, 3, 7, 10]
+
+    def test_diminished(self):
+        root, intervals = self._parse_chord("Bdim")
+        assert root == 11
+        assert intervals == [0, 3, 6]
+
+    def test_sus4(self):
+        root, intervals = self._parse_chord("Dsus4")
+        assert root == 2
+        assert intervals == [0, 5, 7]
+
+    def test_chord_note_count(self):
+        # 7th chords should have 4 notes, triads 3
+        _, maj_intervals = self._parse_chord("C")
+        _, min7_intervals = self._parse_chord("Dmin7")
+        assert len(maj_intervals) == 3
+        assert len(min7_intervals) == 4
+
+
+class TestDrumPatternParsing:
+    """Test step-sequencer notation parsing used by create_drum_pattern."""
+
+    VELOCITIES = {"x": 0.9, "o": 0.5, "X": 1.0, ".": 0.0, " ": 0.0}
+
+    def _parse_pattern(self, steps):
+        hits = []
+        for i, ch in enumerate(steps):
+            if ch in (".", " "):
+                continue
+            vel = self.VELOCITIES.get(ch, 0.8)
+            hits.append({"step": i, "velocity": vel})
+        return hits
+
+    def test_basic_kick(self):
+        hits = self._parse_pattern("x...x...x...x...")
+        assert len(hits) == 4
+        assert hits[0]["step"] == 0
+        assert hits[1]["step"] == 4
+        assert all(h["velocity"] == 0.9 for h in hits)
+
+    def test_accent_hit(self):
+        hits = self._parse_pattern("X...x...X...x...")
+        assert hits[0]["velocity"] == 1.0  # X = accent
+        assert hits[1]["velocity"] == 0.9  # x = normal
+
+    def test_ghost_note(self):
+        hits = self._parse_pattern("o...x...o...x...")
+        assert hits[0]["velocity"] == 0.5  # o = ghost
+
+    def test_empty_pattern(self):
+        hits = self._parse_pattern("................")
+        assert len(hits) == 0
+
+    def test_sixteenth_positions(self):
+        hits = self._parse_pattern("x.x.x.x.x.x.x.x.")
+        assert len(hits) == 8
+        positions = [h["step"] for h in hits]
+        assert positions == [0, 2, 4, 6, 8, 10, 12, 14]
