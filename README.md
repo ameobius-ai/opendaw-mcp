@@ -20,6 +20,38 @@
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
+> ⭐ **Star this repo** if it's useful — it helps others discover it!
+
+### Quick numbers
+
+| | |
+|---|---|
+| **263** MCP tools | **33** Python examples (8 genre templates) |
+| **26** DSP scripts | **8** agent skills |
+| **3** framework wrappers | **93** unit + **8** E2E tests |
+| **7** stem separation modes | **0** ruff errors |
+
+### 30-second demo
+
+```python
+from opendaw_mcp.server import OpendawServer
+
+server = OpendawServer()
+await server.bridge.start()
+
+# Full drum beat in one call (kick|snare|hihat, 16 steps each)
+await server.mcp_opendaw_create_drum_pattern(
+    pattern="x...x...x...x...|o.......o.....o.|..x...x...x...x.", unit_index=0
+)
+
+# Synth + reverb
+await server.mcp_opendaw_create_synth_track(name="Lead")
+await server.mcp_opendaw_add_effect(unit_index=1, effect_type="Dattorro")
+
+# Render to WAV
+await server.mcp_opendaw_render_full(output_path="beat.wav")
+```
+
 ## Why opendaw-mcp?
 
 **The only MCP server that gives an AI agent full DAW control — not just file conversion or playback.**
