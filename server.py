@@ -12593,14 +12593,23 @@ async def mcp_opendaw_create_song_structure(sections: str, unit_index: int = 0) 
     markers_json = json.dumps(marker_data)
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
-        const p = window.DAW;
+        const MarkerBox = window.DAW_MarkerBox;
+        if (!MarkerBox) return {{error: "MarkerBox not loaded — reload page"}};
+        const markerTrack = h.timelineBox?.markerTrack;
+        if (!markerTrack) return {{error: "No markerTrack on timeline"}};
         try {{
             const markers = {markers_json};
             let created = [];
             for (const m of markers) {{
-                const ppqn = Math.round(m.position * 960);
+                const ppqn = Math.round(m.position * h.ppqn.Quarter);
                 h.modify(() => {{
-                    p.api.addMarker(m.name, ppqn);
+                    MarkerBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                        box.position.setValue(ppqn);
+                        box.plays.setValue(0);
+                        box.label.setValue(m.name);
+                        box.hue.setValue(0);
+                        box.track.refer(markerTrack.markers);
+                    }});
                 }});
                 created.push({{name: m.name, position_beats: m.position}});
             }}
@@ -12623,14 +12632,15 @@ async def mcp_opendaw_create_song_structure(sections: str, unit_index: int = 0) 
 
 
 @mcp.tool()
-async def mcp_opendaw_automation_sweep(unit_index: int, track_index: int, start_beat: float, end_beat: float, start_value: float, end_value: float, steps: int = 16, curve: str = "linear") -> str:
+async def mcp_opendaw_automation_sweep(unit_index: int, parameter_name: str, start_beat: float, end_beat: float, start_value: float, end_value: float, steps: int = 16, curve: str = "linear") -> str:
     """Create a smooth automation sweep (ramp) between two values over a beat range.
 
     Generates multiple automation events with interpolated values, creating smooth parameter
     transitions (filter sweeps, volume fades, pitch drops, etc.) in one call.
+    Automatically creates the automation track if it doesn't exist yet.
 
     unit_index: AU index.
-    track_index: Value (automation) track index.
+    parameter_name: Instrument parameter to automate (e.g. "cutoff", "volume", "resonance").
     start_beat: Start position in beats.
     end_beat: End position in beats.
     start_value: Starting normalized value (0.0-1.0).
@@ -12638,63 +12648,86 @@ async def mcp_opendaw_automation_sweep(unit_index: int, track_index: int, start_
     steps: Number of interpolation points (default 16, more = smoother).
     curve: "linear" (even spacing), "exp" (exponential, good for filter sweeps), "log" (logarithmic).
 
-    Returns the number of events created and their positions.
+    Returns the number of events created and a preview of the first few points.
 
     Example: Filter sweep from closed (0.1) to open (0.9) over 16 beats:
-      automation_sweep(unit_index=0, track_index=0, start_beat=0, end_beat=16, start_value=0.1, end_value=0.9, steps=32, curve="exp")
+      automation_sweep(unit_index=0, parameter_name="cutoff", start_beat=0, end_beat=16, start_value=0.1, end_value=0.9, steps=32, curve="exp")
     """
+    safe_param = parameter_name.replace('"', '').replace('\\', '').replace("'", "")
     safe_curve = curve.replace('"', '').replace("'", "")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
         try {{
-            const track = h.track({unit_index}, {track_index});
-            const regions = track.regions.collection.asArray();
-            if (regions.length === 0) return {{error: "No value regions on track"}};
-            const region = regions[0];
-            if (!region.isValueRegion?.()) return {{error: "Region is not a value region"}};
-            const optCol = region.optCollection;
-            if (optCol.isEmpty()) return {{error: "No event collection"}};
-            const collection = optCol.unwrap();
+            const unitIdx = {unit_index};
+            const paramName = "{safe_param}";
             const startBeat = {start_beat};
             const endBeat = {end_beat};
             const startVal = {start_value};
             const endVal = {end_value};
             const numSteps = {steps};
             const curveType = "{safe_curve}";
+
+            const units = h.allAUBoxes();
+            if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
+            const au = units[unitIdx];
+
+            // Find instrument box
+            const incoming = h.inputBoxes(au);
+            const instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
+            if (!instBox) return {{error: "No instrument on AU " + unitIdx}};
+
+            const field = instBox[paramName];
+            if (!field) return {{error: "No field '" + paramName + "' on " + instBox.constructor.name}};
+
             const beatRange = endBeat - startBeat;
-            let created = 0;
-            const events = [];
-            h.modify(() => {{
-                for (let i = 0; i < numSteps; i++) {{
-                    const t = i / (numSteps - 1);
-                    let value;
-                    if (curveType === "exp") {{
-                        value = startVal + (endVal - startVal) * (Math.exp(t * 3) - 1) / (Math.exp(3) - 1);
-                    }} else if (curveType === "log") {{
-                        value = startVal + (endVal - startVal) * Math.log(1 + t * (Math.E - 1));
-                    }} else {{
-                        value = startVal + (endVal - startVal) * t;
-                    }}
-                    const beatPos = startBeat + beatRange * t;
-                    const ppqn = Math.round(beatPos * 960);
-                    const evt = collection.createEvent({{
-                        position: ppqn,
-                        index: 0,
-                        value: Math.max(0, Math.min(1, value)),
-                        interpolation: {{type: "linear"}},
-                    }});
-                    events.push({{position_beats: Math.round(beatPos * 100) / 100, value: Math.round(value * 1000) / 1000}});
-                    created++;
+            const points = [];
+            for (let i = 0; i < numSteps; i++) {{
+                const t = i / (numSteps - 1);
+                let value;
+                if (curveType === "exp") {{
+                    value = startVal + (endVal - startVal) * (Math.exp(t * 3) - 1) / (Math.exp(3) - 1);
+                }} else if (curveType === "log") {{
+                    value = startVal + (endVal - startVal) * Math.log(1 + t * (Math.E - 1));
+                }} else {{
+                    value = startVal + (endVal - startVal) * t;
                 }}
+                const beatPos = startBeat + beatRange * t;
+                points.push([beatPos, Math.max(0, Math.min(1, value))]);
+            }}
+
+            // Create automation track + value clip + events
+            let autoTrack, collection;
+            h.editing.modify(() => {{
+                autoTrack = h.api.createAutomationTrack(au, field);
+                const valueClip = h.api.createValueClip(autoTrack, 0, {{name: paramName}});
+                collection = valueClip.events?.targetVertex?.unwrap?.()?.box;
+                if (!collection) throw new Error("No event collection on value clip");
+
+                points.forEach(([beatPos, value], i) => {{
+                    ValueEventBox.create(h.boxGraph, UUID.generate(), (box) => {{
+                        box.events.refer(collection.events);
+                        box.position.setValue(Math.round(beatPos * Quarter));
+                        box.index.setValue(i);
+                        box.value.setValue(value);
+                        box.interpolation.setValue(1);
+                    }});
+                }});
             }});
+
             return {{
                 success: true,
-                events_created: created,
+                events_created: points.length,
+                parameter: paramName,
+                unit_index: unitIdx,
                 start_beat: startBeat,
                 end_beat: endBeat,
                 value_range: [startVal, endVal],
                 curve: curveType,
-                events: events.slice(0, 5), // first 5 as preview
+                track_index: autoTrack?.index?.getValue?.() ?? 0,
+                events_preview: points.slice(0, 5).map(([b, v]) => ({{position_beats: Math.round(b * 100) / 100, value: Math.round(v * 1000) / 1000}})),
             }};
         }} catch(e) {{
             return {{error: e.message}};
@@ -12708,7 +12741,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.10.0 — 260 MCP tools")
+            print("opendaw-mcp 1.10.1 — 260 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
