@@ -290,6 +290,7 @@ The `examples/` directory contains 19 Python scripts demonstrating the full work
 | `warp_marker_tempo_match.py` | Warp markers for tempo-matched audio regions |
 | `suno_to_opendaw.py` | Suno→openDAW pipeline: import AI track, add mastering chain, reverb send, arp layer, render+stems |
 | `suno_stems_to_opendaw.py` | Full E2E: stem split (7 SOTA modes, local GPU) → import stems → per-stem mix (vol/pan/effects) → MIDI arp layer → render+export |
+| `preset_management.py` | Save/load Werkstatt effect presets (.opb) — compile DSP script, tweak params, export preset, import back |
 
 ## Tool Catalog
 
@@ -496,7 +497,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **CI enhanced** — now runs pytest (54 tests) alongside syntax/AST/smoke/ruff checks
 - **PEP 561** — `py.typed` marker for type checker support
 - **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
-- **16 examples total** — all syntax-validated
+- **21 examples total** — all syntax-validated
 - **255 total tools** (added `export_dry_stem` for freeze/flatten workflows)
 
 ### v1.9.4 (2026-07-03)
