@@ -101,3 +101,12 @@ r = await bridge.evaluate(script)
 # r is a dict: {ok: true} or {ok: false, error: "..."}
 ```
 `new Function(code)` does NOT work — it tries to execute the script body as an expression, and `// @werkstatt ...` + `class Processor {}` is not a valid expression. Use `eval()` inside a function wrapper.
+
+### Example script signatures (pitfall)
+
+When writing example scripts calling MCP tools directly (`server.mcp_opendaw_*`), check actual signatures:
+- `create_drum_pattern(pattern: str, unit_index: int = -1)` — pattern FIRST
+- `create_notes_batch(notes: str, unit_index: int = 0, track_index: int = 0)` — notes FIRST
+- `set_track_volume(unit_index: int, volume_db: float)` — only 2 args, no track_index
+- Init: `await server.bridge.start()` + call `server.mcp_opendaw_*` directly. NO `Server()` class.
+
