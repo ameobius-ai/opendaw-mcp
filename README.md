@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-261-brightgreen)](TOOL_CATALOG.md)
-[![Tests](https://img.shields.io/badge/Tests-93%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-93%20unit%20%2B%206%20E2E-brightgreen)](tests/)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
@@ -297,6 +297,8 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **Range validation** — `set_script_param` now validates values against `@param` declarations: bool snaps to 0/1, int rounds+clamps, linear/exp clamps to [min, max]. Returns `clamped` flag and `range` info
 - **`_clamp_script_param`** Python helper mirrors JS-side clamping logic
 - **+15 unit tests** (93 total) — TestScriptParamClamping: linear/exp/int/bool/unipolar clamping, rounding, snapping
+- **+6 integration E2E tests** — bridge startup, globals, track ops, scriptable compile, param clamping, latency benchmark (avg 4ms round-trip)
+- **5 new Werkstatt DSP scripts** — reverb (Schroeder plate), chorus (stereo dual-LFO), phaser (allpass cascade), lookahead compressor (soft knee), shimmer delay (granular pitch shift). Total: 12 scripts
 - **`DAW_ScriptDeclaration`** added to headless-daw globals
 
 ### v1.11.0 (2026-07-04)
