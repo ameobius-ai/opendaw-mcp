@@ -289,6 +289,7 @@ The `examples/` directory contains 19 Python scripts demonstrating the full work
 | `dawproject_export.py` | Export to Bitwig .dawproject format |
 | `warp_marker_tempo_match.py` | Warp markers for tempo-matched audio regions |
 | `suno_to_opendaw.py` | Suno→openDAW pipeline: import AI track, add mastering chain, reverb send, arp layer, render+stems |
+| `suno_stems_to_opendaw.py` | Full E2E: stem split (7 SOTA modes, local GPU) → import stems → per-stem mix (vol/pan/effects) → MIDI arp layer → render+export |
 
 ## Tool Catalog
 
