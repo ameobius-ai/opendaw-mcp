@@ -1,9 +1,9 @@
 # Orchestration Tools
 
-12 high-level composers that combine multiple low-level operations into a single call.
+13 high-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 
-## Orchestration Tools (12)
+## Orchestration Tools (13)
 
 | Tool | Description |
 |------|-------------|
@@ -14,6 +14,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 | `create_bassline` | Create a bassline from root + rhythmic pattern with low octave and high velocity |
 | `create_arpeggio` | Create an arpeggio from chord name — 6 patterns (up/down/updown/downup/random/chord) |
 | `humanize_notes` | Add human-like velocity/timing/duration variation and swing to existing notes |
+| `create_harmony` | Generate harmony parts from existing notes — diatonic & chromatic intervals |
 | `add_mastering_chain` | Add EQ + Compressor + Maximizer to output bus with genre presets |
 | `create_genre_track` | Create a full genre starting point in one call |
 | `create_song_structure` | Create arrangement markers from JSON section list |
@@ -181,6 +182,35 @@ Works on all notes in the specified track(s)/unit(s), or globally with `unit_ind
 | `duration_amount` | 0-1 | 0.10 | Duration deviation depth |
 | `swing` | 0-1 | 0.0 | Swing amount (shifts odd 16th notes later) |
 | `seed` | int | 42 | PRNG seed for reproducibility |
+
+## create_harmony
+
+Generate harmony parts from existing notes — diatonic and chromatic intervals:
+
+```python
+await server.mcp_opendaw_create_harmony(
+    unit_index=0,           # source AU
+    track_index=0,          # source note track
+    region_index=0,         # source region
+    interval="thirds",      # diatonic: thirds, fifths, sixths
+    direction="up",         # up or down
+    # new_unit_index=-1,    # -1 = auto-create new synth track
+    # velocity=0.65,        # slightly quieter than melody
+)
+```
+
+| Interval | Type | Description |
+|----------|------|-------------|
+| `thirds` | diatonic | 3rd scale degree (scale-aware) |
+| `fifths` | diatonic | 5th scale degree (scale-aware) |
+| `sixths` | diatonic | 6th scale degree (scale-aware) |
+| `octave` | chromatic | 12 semitones |
+| `fifth_chromatic` | chromatic | 7 semitones (perfect fifth) |
+| `fourth_chromatic` | chromatic | 5 semitones (perfect fourth) |
+| `third_major` | chromatic | 4 semitones |
+| `third_minor` | chromatic | 3 semitones |
+
+When `new_unit_index=-1`, a new Vaporisateur synth track is automatically created for the harmony.
 
 ## add_mastering_chain
 

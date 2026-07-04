@@ -12634,6 +12634,247 @@ async def mcp_opendaw_humanize_notes(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_create_harmony(
+    unit_index: int,
+    track_index: int = 0,
+    region_index: int = 0,
+    interval: str = "thirds",
+    direction: str = "up",
+    new_unit_index: int = -1,
+    new_track_index: int = 0,
+    velocity: float = 0.65,
+) -> str:
+    """Generate harmony parts from existing notes — thirds, fifths, sixths, octaves.
+
+    Reads notes from an existing region and creates harmonized copies at a fixed interval.
+    Supports diatonic (scale-aware) and chromatic (fixed semitone) intervals.
+    Output goes to a new or existing track.
+
+    unit_index: Source AU index.
+    track_index: Source note track index.
+    region_index: Source region index.
+    interval: Harmony interval type:
+      - "thirds" — diatonic third above/below (3rd scale degree)
+      - "fifths" — diatonic fifth (5th scale degree)
+      - "sixths" — diatonic sixth (6th scale degree)
+      - "octave" — octave up/down (12 semitones)
+      - "fifth_chromatic" — perfect fifth (7 semitones, fixed)
+      - "fourth_chromatic" — perfect fourth (5 semitones, fixed)
+      - "third_major" — major third (4 semitones, fixed)
+      - "third_minor" — minor third (3 semitones, fixed)
+    direction: "up" or "down" (harmony above or below the melody).
+    new_unit_index: Target AU index (-1 = create new synth track for harmony).
+    new_track_index: Target note track index on the target AU.
+    velocity: Velocity for harmony notes (default 0.65, slightly quieter than melody).
+
+    Returns source notes read and harmony notes created.
+    """
+    diatonic_offsets = {
+        "thirds": 2,
+        "fifths": 4,
+        "sixths": 5,
+    }
+    chromatic_offsets = {
+        "octave": 12,
+        "fifth_chromatic": 7,
+        "fourth_chromatic": 5,
+        "third_major": 4,
+        "third_minor": 3,
+    }
+    valid_intervals = list(diatonic_offsets.keys()) + list(chromatic_offsets.keys())
+    if interval not in valid_intervals:
+        return f"Error: unknown interval '{interval}'. Valid: {valid_intervals}"
+    if direction not in ("up", "down"):
+        return f"Error: direction must be 'up' or 'down', got '{direction}'"
+
+    is_diatonic = interval in diatonic_offsets
+    degree_offset = diatonic_offsets.get(interval, 0)
+    semitone_offset = chromatic_offsets.get(interval, 0)
+    direction_sign = 1 if direction == "up" else -1
+
+    safe_interval = interval.replace('"', '').replace("'", "")
+    safe_direction = direction
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const newUnitIdx = {new_unit_index};
+        const newTrackIdx = {new_track_index};
+        const velocity = {velocity};
+        const isDiatonic = {str(is_diatonic).lower()};
+        const degreeOffset = {degree_offset};
+        const semitoneOffset = {semitone_offset};
+        const dirSign = {direction_sign};
+
+        // Major scale pattern (semitone steps): W W H W W W H = [2,2,1,2,2,2,1]
+        const majorScale = [2, 2, 1, 2, 2, 2, 1];
+        const scaleSemis = [0];
+        let acc = 0;
+        for (let i = 0; i < 7; i++) {{ acc += majorScale[i]; scaleSemis.push(acc); }}
+        // scaleSemis = [0, 2, 4, 5, 7, 9, 11, 12]
+
+        function pitchToScaleDegree(pitch) {{
+            const pc = ((pitch % 12) + 12) % 12;
+            for (let d = 0; d < 7; d++) {{
+                if (scaleSemis[d] === pc) return d;
+            }}
+            return -1;
+        }}
+
+        // Read source notes
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const srcNoteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (srcNoteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= srcNoteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const srcTrack = srcNoteTracks[trackIdx];
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (regionIdx >= srcRegions.length) return {{error: "Region " + regionIdx + " out of range"}};
+        const srcRegion = srcRegions[regionIdx];
+        const regionStart = srcRegion.position.getValue();
+
+        let srcEvents = [];
+        try {{
+            const vertex = srcRegion.events.targetVertex.unwrap();
+            const collBox = vertex.box || vertex;
+            if (collBox && collBox.events) {{
+                srcEvents = h.eventBoxes(collBox);
+            }}
+        }} catch(e) {{ return {{error: "Could not read source notes: " + e.message}}; }}
+
+        if (srcEvents.length === 0) return {{error: "No notes in source region"}};
+
+        // Build harmony notes
+        const harmonyNotes = [];
+        for (const evt of srcEvents) {{
+            const srcPitch = evt.pitch.getValue();
+            const srcPos = evt.position.getValue();
+            const srcDur = evt.duration.getValue();
+
+            let harmonyPitch;
+            if (isDiatonic) {{
+                const degree = pitchToScaleDegree(srcPitch);
+                if (degree >= 0) {{
+                    const rawNewDegree = degree + degreeOffset * dirSign;
+                    const newDegree = ((rawNewDegree % 7) + 7) % 7;
+                    const octaveShift = Math.floor(rawNewDegree / 7) * 12 * (dirSign > 0 ? 1 : -1);
+                    const newSemis = scaleSemis[newDegree];
+                    const oldSemis = scaleSemis[degree];
+                    harmonyPitch = srcPitch + (newSemis - oldSemis) + octaveShift;
+                }} else {{
+                    harmonyPitch = srcPitch + 3 * dirSign;
+                }}
+            }} else {{
+                harmonyPitch = srcPitch + semitoneOffset * dirSign;
+            }}
+
+            if (harmonyPitch < 0 || harmonyPitch > 127) continue;
+
+            harmonyNotes.push({{
+                pitch: harmonyPitch,
+                position: srcPos,
+                duration: srcDur,
+                velocity: velocity,
+            }});
+        }}
+
+        if (harmonyNotes.length === 0) return {{error: "No harmony notes could be generated"}};
+
+        // Determine target track — create AU inside modify block
+        let targetAU = null, targetTrack = null, targetUnitIdx = -1;
+        const needNewAU = (newUnitIdx < 0 || newUnitIdx >= allUnits.length);
+        if (!needNewAU) {{
+            targetAU = allUnits[newUnitIdx];
+            const targetTracks = h.noteTrackBoxes(targetAU);
+            if (newTrackIdx < targetTracks.length) {{
+                targetTrack = targetTracks[newTrackIdx];
+            }}
+        }}
+
+        let createdCount = 0;
+        h.modify(() => {{
+            if (needNewAU) {{
+                const AudioUnitBox = window.DAW_AudioUnitBox;
+                const CaptureAudioBox = window.DAW_CaptureAudioBox;
+                const AudioUnitType = window.DAW_AudioUnitType;
+                const IconSymbol = window.DAW_IconSymbol;
+                const InstrumentFactories = window.DAW_InstrumentFactories;
+                if (!InstrumentFactories) throw new Error("InstrumentFactories not loaded");
+
+                const factory = InstrumentFactories["Vaporisateur"];
+                if (!factory) throw new Error("Vaporisateur factory not found");
+
+                const captureBox = CaptureAudioBox.create(h.boxGraph, h.uuid.generate());
+                targetAU = AudioUnitBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.type.setValue(AudioUnitType.Instrument);
+                    box.collection.refer(h.rootBox.audioUnits);
+                    box.output.refer(h.primaryAudioBusBox.input);
+                    box.capture.refer(captureBox);
+                    box.index.setValue(0);
+                    box.volume.setValue(0.767835);
+                }});
+                factory.create(h.boxGraph, targetAU.input, "Harmony", IconSymbol.Piano);
+                targetTrack = h.api.createNoteTrack(targetAU);
+            }} else if (!targetTrack) {{
+                targetTrack = h.api.createNoteTrack(targetAU);
+            }}
+
+            const maxEnd = Math.max(...harmonyNotes.map(n => n.position + n.duration));
+            const collection = NoteEventCollectionBox.create(h.boxGraph, h.uuid.generate());
+            const regionBox = NoteRegionBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                box.position.setValue(regionStart);
+                box.label.setValue("Harmony");
+                box.mute.setValue(false);
+                box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(targetTrack.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of harmonyNotes) {{
+                const pos = Math.max(0, n.position - regionStart);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(n.duration);
+                    box.velocity.setValue(n.velocity);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+        }});
+
+        // Find target unit index after creation
+        const allUnitsAfter = h.allAUBoxes();
+        targetUnitIdx = allUnitsAfter.findIndex(au => String(au.address) === String(targetAU.address));
+
+        return {{
+            success: true,
+            source_notes: srcEvents.length,
+            harmony_notes_created: createdCount,
+            interval: "{safe_interval}",
+            direction: "{safe_direction}",
+            target_unit_index: targetUnitIdx,
+            sample_pitches: harmonyNotes.slice(0, 8).map(n => n.pitch),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_add_mastering_chain(target_lufs: float = -14, style: str = "balanced") -> str:
     """Add a ready-made mastering chain to the output bus — EQ + compressor + maximizer in one call.
 
