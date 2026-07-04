@@ -323,6 +323,11 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.11.9 (2026-07-04)
+
+- **CodeRabbit fixes**: reverb stereo width (separate L/R comb banks with decorrelated delay times, M/S width on reverb tail), paulstretch cursor split (independent read/write cursors, proper frame emission gating)
+- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
+
 ### v1.11.8 (2026-07-04)
 
 - **New Werkstatt script**: ring modulator with envelope-followed frequency modulation (#277) — workaround for MIDI input limitation in Werkstatt audio effects
