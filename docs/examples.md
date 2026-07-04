@@ -73,6 +73,13 @@ python examples/genre_house.py
 | `song_structure_demo.py` | Arrangement markers: intro/verse/chorus/bridge/outro |
 | `preset_management.py` | Save/load .opb presets |
 | `music_theory_demo.py` | Use shared note/chord/scale data to compute pitches, build progressions |
+| `create_melody.py` | Melody from scale degrees + rhythmic pattern (14 scales) |
+| `create_bassline.py` | Bassline from root + rhythmic pattern (low octave, high velocity) |
+| `create_arpeggio.py` | Arpeggios from chord names — 6 patterns, 6 rates |
+| `humanize_notes.py` | Humanize MIDI: velocity/timing/duration variation + swing |
+| `create_harmony.py` | Generate harmony parts — diatonic + chromatic intervals |
+| `create_counterpoint.py` | Counter-melody in contrary motion |
+| `reverse_invert_notes.py` | Melodic variation: retrograde + mirror inversion |
 
 ## Running examples
 

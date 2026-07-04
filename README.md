@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **271** MCP tools | **36** Python examples (8 genre templates) |
+| **271** MCP tools | **43** Python examples (8 genre templates) |
 | **27** DSP scripts | **9** agent skills |
 | **3** framework wrappers | **150** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -338,7 +338,7 @@ The `scripts/` directory contains 27 example DSP scripts (16 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 35 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 43 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -371,7 +371,14 @@ The `examples/` directory contains 35 Python scripts demonstrating the full work
 | `genre_dnb.py` | Genre template: DnB skeleton (174 BPM, Amen break, reese+sub bass F minor, aggressive Comp 8:1, Waveshaper) |
 | `genre_house.py` | Genre template: house skeleton (124 BPM, 4-on-floor, off-beat chord stabs Fmin9-Cmin9-Gmin9-Dmin9, rolling bass, Delay+Reverb) |
 | `genre_lofi.py` | Genre template: lofi skeleton (82 BPM, swung drums, jazzy Dmin7-Gdom7-Cmaj7-Fmaj7 ii-V-I, warm bass, short reverb) |
-| `genre_trap.py` | Genre template: trap skeleton (145 BPM, fast hi-hat rolls, gliding 808 F minor, dark pentatonic melody, hard Comp 6:1) |
+| `genre_trap.py` | Genre template: trap skeleton (145 BPM, fast hi-hat rolls, gliding 808 bass, dark minor melody) |
+| `create_melody.py` | Melody from scale degrees + rhythmic pattern (14 scales, rests, sustains, octave shifts) |
+| `create_bassline.py` | Bassline from root + rhythmic pattern (low octave, high velocity, scale degrees) |
+| `create_arpeggio.py` | Arpeggios from chord names — 6 patterns (up/down/updown/downup/random/chord), 6 rates |
+| `humanize_notes.py` | Humanize MIDI: velocity/timing/duration variation + swing (seeded PRNG, reproducible) |
+| `create_harmony.py` | Generate harmony parts — diatonic (3rds/5ths/6ths) + chromatic intervals, up/down |
+| `create_counterpoint.py` | Counter-melody in contrary motion — mirrors melody around center pitch |
+| `reverse_invert_notes.py` | Melodic variation: retrograde (reverse) + mirror inversion around axis |
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 | `langchain_integration.py` | LangChain toolkit: use opendaw-mcp tools as LangChain Tool objects with any LLM agent |
 | `autogen_integration.py` | AutoGen toolkit: use opendaw-mcp tools with Microsoft AutoGen agents |
@@ -492,6 +499,20 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.17.0 (2026-07-05)
+
+- **`create_counterpoint`** — new orchestration tool: generate counter-melody in contrary motion. Mirrors melody around center pitch. Auto-creates target track.
+- **`humanize_notes`** — new orchestration tool: velocity/timing/duration variation + swing. Seeded mulberry32 PRNG for reproducibility.
+- **`create_harmony`** — new orchestration tool: generate harmony from existing notes. 8 intervals (diatonic thirds/fifths/sixths + chromatic). Up/down direction.
+- **`reverse_notes`** — melodic variation: retrograde (reverse note order in region)
+- **`invert_notes`** — melodic variation: mirror inversion around axis pitch (newPitch = 2*axis - oldPitch)
+- **`suno-prompt-engineering` skill** — concentrated Suno prompt engineering guide from 20+ KB files
+- **7 new examples**: create_melody, create_bassline, create_arpeggio, humanize_notes, create_harmony, create_counterpoint, reverse_invert_notes
+- **TOOL_CATALOG**: all 27 DSP scripts documented (was 7)
+- **KB index sync**: 31→33 entries (all files covered)
+- **bridge.py**: `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` env var for system chromium
+- **271 MCP tools**, **43 examples**, **9 skills**, ruff clean, CI green
 
 ### v1.16.1 (2026-07-05)
 

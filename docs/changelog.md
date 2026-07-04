@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.17.0 (2026-07-05)
+
+- **`create_counterpoint`** — new orchestration tool: generate counter-melody in contrary motion. Mirrors melody around center pitch. Auto-creates target track.
+- **`humanize_notes`** — new orchestration tool: velocity/timing/duration variation + swing. Seeded mulberry32 PRNG for reproducibility.
+- **`create_harmony`** — new orchestration tool: generate harmony from existing notes. 8 intervals (diatonic thirds/fifths/sixths + chromatic). Up/down direction.
+- **`reverse_notes`** — melodic variation: retrograde (reverse note order in region)
+- **`invert_notes`** — melodic variation: mirror inversion around axis pitch (newPitch = 2*axis - oldPitch)
+- **`suno-prompt-engineering` skill** — concentrated Suno prompt engineering guide from 20+ KB files
+- **7 new examples**: create_melody, create_bassline, create_arpeggio, humanize_notes, create_harmony, create_counterpoint, reverse_invert_notes
+- **TOOL_CATALOG**: all 27 DSP scripts documented (was 7)
+- **KB index sync**: 31→33 entries (all files covered)
+- **bridge.py**: `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` env var for system chromium
+- **271 MCP tools**, **43 examples**, **9 skills**, ruff clean, CI green
+
 ## v1.16.1 (2026-07-05)
 
 - **`create_melody`** — new orchestration tool: generate melodies from scale + rhythmic pattern using scale degrees (1-7). Supports 14 scales, rests (0), sustains (-), octave shifts (+). One call replaces 10-30 `create_note` calls.

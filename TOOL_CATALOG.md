@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-263 MCP tools for headless openDAW control via Playwright bridge.
+271 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -347,14 +347,40 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 271 tools**
 
-## DSP Scripts (scripts/)
-- `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)
-- `werkstatt_coldfold.js` — Wavefolding + bitcrush DSP (drive, fold, crush, slew, mix)
-- `apparat_darkbass.js` — Sub bass synth (oscillator, envelope, filter)
-- `apparat_coldlead.js` — Cold lead synth (oscillator, envelope, filter)
-- `apparat_subcrusher.js` — Sub crusher synth (oscillator, distortion, envelope)
+## DSP Scripts (scripts/) — 27 scripts
+
+### Werkstatt (Audio Effects) — 16 scripts
+- `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
+- `werkstatt_coldfold.js` — Wavefolding + bitcrush (drive, fold, crush, slew, mix)
+- `werkstatt_chorus.js` — Stereo chorus (rate, depth, delay, feedback)
+- `werkstatt_reverb.js` — Plate reverb (decay, predelay, wet, tone)
+- `werkstatt_phaser.js` — Phaser (rate, depth, feedback, stages)
+- `werkstatt_shimmer.js` — Shimmer delay (time, feedback, pitch, mix)
+- `werkstatt_allpass.js` — Allpass filter (freq, feedback)
+- `werkstatt_dcremover.js` — DC remover + stereo tool (dc_freq, width)
+- `werkstatt_pitch_shift.js` — Pitch shifter (semitones -24..24)
+- `werkstatt_lookahead.js` — Lookahead compressor (threshold, ratio, attack, release)
+- `werkstatt_envfollower.js` — Envelope follower (tracks input amplitude, gain modulation)
+- `werkstatt_granular_stretch.js` — Granular time-stretch (stretch 0.5..20x)
+- `werkstatt_paulstretch.js` — Paulstretch extreme time stretch (no pitch change)
+- `werkstatt_spectral_freezer.js` — Spectral freeze (captures snapshot, sustains indefinitely)
+- `werkstatt_ringmod_env.js` — Ring modulator with envelope-followed freq modulation
+- `werkstatt_adsr_trim.js` — ADSR trim utility (attack, decay, sustain, release)
+
+### Apparat (Instruments) — 5 scripts
+- `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
+- `apparat_coldlead.js` — Cold lead synth (waveform, cutoff, resonance, envelope)
+- `apparat_subcrusher.js` — Sub crusher bass (wave, cutoff, resonance, distortion)
+- `apparat_fm.js` — 2-operator FM synth (carrier, ratio, mod_depth)
+- `apparat_ringmod.js` — Ring modulator synth (frequency, waveform, envelope)
+
+### Spielwerk (MIDI Effects) — 6 scripts
 - `spielwerk_arpeggiator.js` — MIDI arpeggiator (rate, octave, pattern)
-- `spielwerk_powerchord.js` — MIDI powerchord generator (interval, voicing)
+- `spielwerk_chordmemory.js` — Chord memory (chord type 0-6)
+- `spielwerk_mididelay.js` — MIDI delay (time, feedback, mix)
+- `spielwerk_powerchord.js` — Power chord generator (interval, voicing)
+- `spielwerk_strum.js` — Strummer (speed, direction)
+- `spielwerk_velocity.js` — Velocity scaler (scale, offset)
 
 ## DAW_HELPERS (17 helpers)
 All box enumeration is done through typed helpers injected into the bridge context:
