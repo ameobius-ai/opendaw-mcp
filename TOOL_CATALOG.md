@@ -332,7 +332,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_drum_pattern` — Create a drum beat from compact step-sequencer notation (x/o/./X per 16th note). One call = full beat.
 - `create_chord_progression` — Create chords from names (Cm, Fm7, Gdom7) — auto-voiced, positioned, batched.
 - `add_mastering_chain` — Add EQ + Compressor + Maximizer to the output bus with genre-style presets (balanced/warm/loud/transparent).
-- `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient) — synth, drums, bass, chords, BPM in one call.
+- `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient/coldwave/hiphop) — synth, drums, bass, chords, BPM in one call.
 - `create_song_structure` — Create arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list. Enables agents to reason about song form.
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
