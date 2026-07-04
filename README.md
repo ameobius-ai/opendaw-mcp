@@ -322,6 +322,10 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.11.7 (2026-07-04)
+
+- **Suno→openDAW pipeline example**: import AI-generated track, add mastering chain (tape sat + lookahead comp), reverb send bus, MIDI arp layer, render + stems + LUFS
+
 ### v1.11.6 (2026-07-04)
 
 - **4 new Spielwerk MIDI effect scripts**: chord memory, strummer, velocity scaler, MIDI delay
