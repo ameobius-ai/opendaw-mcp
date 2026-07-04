@@ -52,6 +52,8 @@ The `skills/` directory contains structured skill files for AI agents (Hermes, C
 | Skill | Domain | Description |
 |-------|--------|-------------|
 | `adaptive-mix-mastering` | Mix → Master pipeline | Universal pipeline with decision points: genre detection, stem strategy, effect chain selection, LUFS targeting, mastering approach. Adapts to coldwave, techno, hip-hop, ambient, rock, pop. Includes `references/decision-tree.md`. |
+| `suno-to-opendaw` | Suno → openDAW E2E | Killer workflow: Suno AI generation → SOTA stem separation (7 modes) → openDAW import → arrange → mix → master → export. 6-stage pipeline from prompt to finished track. Unique value prop — no other MCP server offers this. |
+| `dsp-script-authoring` | Custom DSP writing | How to author custom Werkstatt/Apparat/Spielwerk DSP scripts. Processor API, @param/@sample declarations, DSP patterns (filters, saturation, reverb, LFO, envelope), validation workflow, 8 critical pitfalls. For writing new DSP, not using existing. |
 | `opendaw-automation` | API reference | 263 MCP tools full reference, bridge architecture, pitfalls, DSP script library (26 scripts), CodeRabbit review patterns, PyPI publishing workflow. The base skill — others cross-reference it. 146 reference files. |
 | `opendaw-track-architecture` | Track structure | Tracks, regions, clips, notes, tempo, time signature, markers, groove, song form. 50+ tools for building the skeleton of a track. |
 | `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 26 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
@@ -349,6 +351,12 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.14.0 (2026-07-04)
+
+- **2 new agent skills**: `suno-to-opendaw` (6-stage Suno→stems→openDAW→mix→master→export pipeline) and `dsp-script-authoring` (custom Werkstatt/Apparat/Spielwerk DSP script writing guide with patterns, validation, pitfalls). **7 skills total.**
+- `set_marker_repeat` MCP tool (v1.13.1) — marker repeat count control (0=infinite)
+- **263 MCP tools** (254 low-level + 8 orchestration)
+
 ### v1.13.0 (2026-07-04)
 
 - **Preset Management**: 2 new MCP tools for openDAW preset format (.opb). `save_effect_preset` encodes any audio effect chain into a shareable .opb bundle via PresetEncoder.encodeEffects. `load_effect_preset` decodes .opb and applies it to a project. Enables agent-driven preset creation and reuse.
@@ -363,7 +371,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ### v1.12.0 (2026-07-04)
 
-- **Agent Skills**: 5 structured skill files in `skills/` directory — adaptive mix→master pipeline, opendaw-automation (258 tools API reference, 146 ref files), track architecture, sound design, effect routing. Decision points for genre-adaptive workflows. Agent-agnostic (Hermes, Claude, any skill-capable agent).
+- **Agent Skills**: 7 structured skill files in `skills/` directory — adaptive mix→master pipeline, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP writing), opendaw-automation (263 tools API reference, 146 ref files), track architecture, sound design, effect routing. Decision points for genre-adaptive workflows. Agent-agnostic (Hermes, Claude, any skill-capable agent).
 - **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.9 (2026-07-04)

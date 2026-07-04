@@ -1,12 +1,12 @@
 ---
 name: opendaw-automation
-description: "openDAW automation — 263 MCP tools via Playwright. 8 orchestration tools. Full DAW control. v1.13.1 on PyPI. 26 DSP scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues. Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 93 unit + 6 E2E tests. Scriptable params mapping-aware. See references/."
+description: "openDAW automation — 263 MCP tools via Playwright. 8 orchestration tools. Full DAW control. v1.14.0 on PyPI. 7 agent skills. 26 DSP scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues. Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 93 unit + 7 E2E tests. Scriptable params mapping-aware. See references/."
 tags: [opendaw, audio, daw, headless, mcp, playwright]
 ---
 
 # openDAW Automation Meta-Skill
 
-263 MCP tools (mcp_opendaw_* prefix; 265 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.13.1 on PyPI** (token saved in credentials.db, service='pypi', username='__token__' — extract via `python3 credentials/credman.py export --table accounts` then `json.loads → accounts[].password`). **26 DSP scripts** (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues (#91, #133, #138, #139, #188, #195, #201, #209, #241, #277). PR #283 open (26 DSP examples, **all 19 CodeRabbit findings fixed**). PR #280 closed (bundler issue, not upstream bug — do NOT resubmit). **Stem splitter integration** (v1.12.1): `split_stems` + `list_split_modes` MCP tools, 7 SOTA models locally on GPU (see stem-splitter-local skill).
+263 MCP tools (mcp_opendaw_* prefix; 266 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.14.0 on PyPI** — 7 agent skills (adaptive-mix-mastering, suno-to-opendaw, dsp-script-authoring, opendaw-automation, opendaw-track-architecture, opendaw-sound-design, opendaw-effect-routing). 26 DSP scripts covering 11 upstream issues.
 
 ## References (read these before working on opendaw-mcp)
 
