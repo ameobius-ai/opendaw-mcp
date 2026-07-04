@@ -2,6 +2,7 @@
 # openDAW MCP
 
 [![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
+[![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-263-brightgreen)](TOOL_CATALOG.md)
@@ -94,6 +95,8 @@ cp -r skills/adaptive-mix-mastering ~/.hermes/profiles/your-profile/skills/creat
 The SKILL.md files are standard markdown with YAML frontmatter. Any agent that supports skill loading can use them. The decision points and tool references are agent-agnostic.
 
 ## Quick Start
+
+📚 **Full documentation: https://ameobius.github.io/opendaw-mcp/**
 
 ### Prerequisites
 
