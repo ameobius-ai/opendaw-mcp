@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **263** MCP tools | **35** Python examples (8 genre templates) |
-| **26** DSP scripts | **8** agent skills |
+| **27** DSP scripts | **8** agent skills |
 | **3** framework wrappers | **93** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -303,7 +303,7 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk):
+The `scripts/` directory contains 27 example DSP scripts (16 Werkstatt + 5 Apparat + 6 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
@@ -314,6 +314,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 | `werkstatt_chorus.js` | Werkstatt | Stereo chorus with LFO-modulated delay lines |
 | `werkstatt_reverb.js` | Werkstatt | Algorithmic reverb with comb + allpass filters |
 | `werkstatt_shimmer.js` | Werkstatt | Pitch-shimmer reverb with granular pitch shift |
+| `werkstatt_spectral_freezer.js` | Werkstatt | Spectral freeze — captures & sustains a spectral frame for drone/ambient textures |
 | `werkstatt_phaser.js` | Werkstatt | Phaser with LFO-swept allpass filter chain |
 | `werkstatt_subcrusher.js` | Werkstatt | Sub-bass enhancement with glide and distortion |
 | `werkstatt_lookahead.js` | Werkstatt | Lookahead limiter with gain reduction metering |
@@ -563,17 +564,17 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.12.0 (2026-07-04)
 
 - **Agent Skills**: 8 structured skill files in `skills/` directory — adaptive mix→master, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP), opendaw-genres (8 genre templates), opendaw-automation (263 tools, 146 ref files), track architecture, sound design, effect routing. Decision points for genre-adaptive workflows. Agent-agnostic.
-- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.9 (2026-07-04)
 
 - **CodeRabbit fixes**: reverb stereo width (separate L/R comb banks with decorrelated delay times, M/S width on reverb tail), paulstretch cursor split (independent read/write cursors, proper frame emission gating)
-- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.8 (2026-07-04)
 
 - **New Werkstatt script**: ring modulator with envelope-followed frequency modulation (#277) — workaround for MIDI input limitation in Werkstatt audio effects
-- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.7 (2026-07-04)
 
@@ -583,13 +584,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **4 new Spielwerk MIDI effect scripts**: chord memory, strummer, velocity scaler, MIDI delay
 - **1 new Python example**: Suno→openDAW pipeline (import AI track, mastering chain, reverb send, arp layer, render+stems)
-- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.5 (2026-07-04)
 
 - **7 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138), chord memory, strummer, velocity scaler, MIDI delay
 - **Coldfold fix**: removed unused `range` variable (CodeRabbit review)
-- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.4 (2026-07-04)
 
