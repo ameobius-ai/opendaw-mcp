@@ -64,7 +64,7 @@ async def main():
             pattern_json, drum_uid
         )
         drum_r = json.loads(drum_result)
-        print(f"   ✓ {drum_r.get('notes_added', drum_r.get('total', 0))} drum notes added")
+        print(f"   ✓ {drum_r.get('total_notes', 0)} drum notes added ({drum_r.get('lanes', {})})")
 
         # === 5. Add rolling bass (16th notes, A1 = 33) ===
         print("\n5. Adding rolling bass (16th notes, A1)...")
@@ -80,7 +80,7 @@ async def main():
             json.dumps(bass_notes), bass_uid, 0
         )
         bass_r = json.loads(bass_result)
-        print(f"   ✓ {bass_r.get('notes_added', 0)} bass notes added")
+        print(f"   ✓ {bass_r.get('notes_created', 0)} bass notes added")
 
         # === 6. Add effects on drums ===
         print("\n6. Adding effects on drums...")

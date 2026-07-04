@@ -290,7 +290,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 23 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 25 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -316,6 +316,8 @@ The `examples/` directory contains 23 Python scripts demonstrating the full work
 | `suno_stems_to_opendaw.py` | Full E2E: stem split (7 SOTA modes, local GPU) → import stems → per-stem mix (vol/pan/effects) → MIDI arp layer → render+export |
 | `preset_management.py` | Save/load Werkstatt effect presets (.opb) — compile DSP script, tweak params, export preset, import back |
 | `genre_techno.py` | Genre template: techno skeleton (130 BPM, 4-on-floor drums, rolling bass, Vaporisateur+Playfield, Compressor+Waveshaper chain) |
+| `genre_coldwave.py` | Genre template: coldwave skeleton (100 BPM, sparse drums, Am-Fmaj7-Cmaj-Gdom7 progression, 4 tracks, Dattorro reverb, Waveshaper hardclip) |
+| `genre_ambient.py` | Genre template: ambient skeleton (70 BPM, no drums, Cmaj7-Amin7-Fmaj7-Gmaj7, pad+bell+texture, long reverbs decay 0.85-0.95) |
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 
 ## Tool Catalog
@@ -374,6 +376,11 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.14.2 (2026-07-04)
+
+- **2 new genre examples (E2E verified)**: `genre_coldwave.py` (100 BPM, Am-Fmaj7-Cmaj-Gdom7, 4 tracks, Dattorro+Waveshaper) and `genre_ambient.py` (70 BPM, Cmaj7-Amin7-Fmaj7-Gmaj7, pad+bell+texture, long reverbs). **25 examples total.**
+- Fixed return key names in genre examples (`notes_created` / `total_notes` / `lanes`)
 
 ### v1.14.1 (2026-07-04)
 
@@ -533,7 +540,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **CI enhanced** — now runs pytest (54 tests) alongside syntax/AST/smoke/ruff checks
 - **PEP 561** — `py.typed` marker for type checker support
 - **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
-- **23 examples total** — all syntax-validated
+- **25 examples total** — all syntax-validated
 - **255 total tools** (added `export_dry_stem` for freeze/flatten workflows)
 
 ### v1.9.4 (2026-07-03)
