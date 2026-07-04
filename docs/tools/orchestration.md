@@ -1,9 +1,9 @@
 # Orchestration Tools
 
-8 high-level composers that combine multiple low-level operations into a single call.
+12 high-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 
-## Orchestration Tools (8)
+## Orchestration Tools (12)
 
 | Tool | Description |
 |------|-------------|
@@ -13,6 +13,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 | `create_melody` | Create a melody from scale + rhythmic pattern using scale degrees (1-7) |
 | `create_bassline` | Create a bassline from root + rhythmic pattern with low octave and high velocity |
 | `create_arpeggio` | Create an arpeggio from chord name — 6 patterns (up/down/updown/downup/random/chord) |
+| `humanize_notes` | Add human-like velocity/timing/duration variation and swing to existing notes |
 | `add_mastering_chain` | Add EQ + Compressor + Maximizer to output bus with genre presets |
 | `create_genre_track` | Create a full genre starting point in one call |
 | `create_song_structure` | Create arrangement markers from JSON section list |
@@ -154,6 +155,32 @@ await server.mcp_opendaw_create_arpeggio(
 | `downup` | Down then up |
 | `random` | Random chord tones |
 | `chord` | Full chord on each step (block chords) |
+
+## humanize_notes
+
+Add human-like variation to existing notes — velocity, timing, duration, and swing:
+
+```python
+await server.mcp_opendaw_humanize_notes(
+    unit_index=0,           # -1 = all AUs
+    velocity_amount=0.15,   # ±15% velocity variation
+    timing_amount=0.12,     # ±12% of 16th note timing drift
+    duration_amount=0.10,   # ±10% duration variation
+    swing=0.35,             # 0=straight, 0.5=light swing, 1.0=triplet feel
+    seed=42                 # reproducible results
+)
+```
+
+Uses a seeded mulberry32 PRNG so the same seed always produces the same humanization.
+Works on all notes in the specified track(s)/unit(s), or globally with `unit_index=-1`.
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `velocity_amount` | 0-1 | 0.15 | Velocity deviation depth (0.05=subtle, 0.25=loose) |
+| `timing_amount` | 0-1 | 0.15 | Timing offset depth in 16th note fractions |
+| `duration_amount` | 0-1 | 0.10 | Duration deviation depth |
+| `swing` | 0-1 | 0.0 | Swing amount (shifts odd 16th notes later) |
+| `seed` | int | 42 | PRNG seed for reproducibility |
 
 ## add_mastering_chain
 

@@ -12499,6 +12499,141 @@ Returns the total notes created and pitches used.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_humanize_notes(
+    unit_index: int = -1,
+    track_index: int = -1,
+    velocity_amount: float = 0.15,
+    timing_amount: float = 0.15,
+    duration_amount: float = 0.10,
+    swing: float = 0.0,
+    seed: int = 42,
+) -> str:
+    """Add human-like variation to existing notes — velocity, timing, duration, and swing.
+
+    Makes programmed MIDI feel less robotic by applying small random deviations.
+    Works on all notes in the specified track(s)/unit(s), or globally with unit_index=-1.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    velocity_amount: Velocity deviation depth 0-1 (0.15 = ±15% of current velocity).
+      Example: 0.05 = subtle, 0.15 = natural, 0.25 = loose.
+    timing_amount: Timing offset depth in beats 0-1 (0.15 = up to ±15% of a 16th note = ±3.6 ticks).
+      Example: 0.05 = tight, 0.15 = natural groove, 0.30 = sloppy.
+    duration_amount: Duration deviation depth 0-1 (0.10 = ±10% of current duration).
+    swing: Swing amount 0-1 (0 = straight, 0.5 = light swing, 1.0 = full triplet feel).
+      Shifts every other 16th note later by swing * 1/3 of a 16th.
+    seed: Random seed for reproducibility (same seed = same humanization).
+
+    Returns per-track note counts and total notes humanized.
+
+    Example:
+      humanize_notes(unit_index=0, velocity_amount=0.15, timing_amount=0.12, swing=0.35)
+    """
+    if not (0.0 <= velocity_amount <= 1.0):
+        return f"Error: velocity_amount must be 0-1, got {velocity_amount}"
+    if not (0.0 <= timing_amount <= 1.0):
+        return f"Error: timing_amount must be 0-1, got {timing_amount}"
+    if not (0.0 <= duration_amount <= 1.0):
+        return f"Error: duration_amount must be 0-1, got {duration_amount}"
+    if not (0.0 <= swing <= 1.0):
+        return f"Error: swing must be 0-1, got {swing}"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const velAmt = {velocity_amount};
+        const timAmt = {timing_amount};
+        const durAmt = {duration_amount};
+        const swingAmt = {swing};
+        const seed = {seed};
+        const Quarter = h.ppqn.Quarter;
+        const sixteenthTicks = Math.floor(Quarter / 4);  // 240
+
+        // Seeded PRNG (mulberry32)
+        let s = seed >>> 0;
+        function rand() {{
+            s = (s + 0x6D2B79F5) >>> 0;
+            let t = s;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }}
+
+        let totalCount = 0;
+        const trackStats = [];
+        const allUnits = h.allAUBoxes();
+        const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
+
+        h.modify(() => {{
+            for (let ui = 0; ui < targetUnits.length; ui++) {{
+                const au = targetUnits[ui];
+                const noteTracks = h.trackBoxes(au)
+                    .filter(box => box.type?.getValue?.() === 1);
+                const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
+
+                for (let ti = 0; ti < targetTracks.length; ti++) {{
+                    const track = targetTracks[ti];
+                    let trackCount = 0;
+
+                    for (const region of h.regionBoxes(track)) {{
+                        try {{
+                            const vertex = region.events.targetVertex.unwrap();
+                            const collectionBox = vertex.box || vertex;
+                            if (!collectionBox || !collectionBox.events) continue;
+
+                            const noteEvents = h.eventBoxes(collectionBox);
+                            for (let ni = 0; ni < noteEvents.length; ni++) {{
+                                const evt = noteEvents[ni];
+
+                                // Velocity humanization: ±velAmt * currentVelocity, clamped 0.05-1.0
+                                const curVel = evt.velocity.getValue();
+                                const velDelta = (rand() - 0.5) * 2 * velAmt * curVel;
+                                evt.velocity.setValue(Math.max(0.05, Math.min(1.0, curVel + velDelta)));
+
+                                // Timing humanization: ±timAmt * sixteenthTicks
+                                const curPos = evt.position.getValue();
+                                const timDelta = Math.round((rand() - 0.5) * 2 * timAmt * sixteenthTicks);
+                                evt.position.setValue(Math.max(0, curPos + timDelta));
+
+                                // Swing: shift every other 16th later
+                                if (swingAmt > 0) {{
+                                    const gridPos = Math.round(curPos / sixteenthTicks);
+                                    if (gridPos % 2 === 1) {{
+                                        const swingOffset = Math.round(sixteenthTicks * swingAmt / 3);
+                                        evt.position.setValue(evt.position.getValue() + swingOffset);
+                                    }}
+                                }}
+
+                                // Duration humanization: ±durAmt * currentDuration
+                                const curDur = evt.duration.getValue();
+                                const durDelta = Math.round((rand() - 0.5) * 2 * durAmt * curDur);
+                                evt.duration.setValue(Math.max(1, curDur + durDelta));
+
+                                trackCount++;
+                                totalCount++;
+                            }}
+                        }} catch(e) {{}}
+                    }}
+                    trackStats.push({{unit_index: ui, track_index: ti, notes_humanized: trackCount}});
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            velocity_amount: velAmt,
+            timing_amount: timAmt,
+            duration_amount: durAmt,
+            swing: swingAmt,
+            seed: seed,
+            total_notes_humanized: totalCount,
+            tracks: trackStats,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_add_mastering_chain(target_lufs: float = -14, style: str = "balanced") -> str:
     """Add a ready-made mastering chain to the output bus — EQ + compressor + maximizer in one call.
 
