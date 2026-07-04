@@ -269,7 +269,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 19 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 23 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -294,6 +294,8 @@ The `examples/` directory contains 19 Python scripts demonstrating the full work
 | `suno_to_opendaw.py` | Suno→openDAW pipeline: import AI track, add mastering chain, reverb send, arp layer, render+stems |
 | `suno_stems_to_opendaw.py` | Full E2E: stem split (7 SOTA modes, local GPU) → import stems → per-stem mix (vol/pan/effects) → MIDI arp layer → render+export |
 | `preset_management.py` | Save/load Werkstatt effect presets (.opb) — compile DSP script, tweak params, export preset, import back |
+| `genre_techno.py` | Genre template: techno skeleton (130 BPM, 4-on-floor drums, rolling bass, Vaporisateur+Playfield, Compressor+Waveshaper chain) |
+| `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 
 ## Tool Catalog
 
@@ -510,7 +512,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **CI enhanced** — now runs pytest (54 tests) alongside syntax/AST/smoke/ruff checks
 - **PEP 561** — `py.typed` marker for type checker support
 - **Mastering pipeline example** — full chain: render → measure LUFS → auto-gain → stems → MP3
-- **21 examples total** — all syntax-validated
+- **23 examples total** — all syntax-validated
 - **255 total tools** (added `export_dry_stem` for freeze/flatten workflows)
 
 ### v1.9.4 (2026-07-03)
