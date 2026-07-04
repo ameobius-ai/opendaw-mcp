@@ -57,6 +57,7 @@ The `skills/` directory contains structured skill files for AI agents (Hermes, C
 | `opendaw-automation` | API reference | 263 MCP tools full reference, bridge architecture, pitfalls, DSP script library (26 scripts), CodeRabbit review patterns, PyPI publishing workflow. The base skill — others cross-reference it. 146 reference files. |
 | `opendaw-track-architecture` | Track structure | Tracks, regions, clips, notes, tempo, time signature, markers, groove, song form. 50+ tools for building the skeleton of a track. |
 | `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 26 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
+| `opendaw-genres` | Genre templates | Concrete parameters per genre — BPM, track layout, drum patterns, bass lines, chords, effect chains, pan, LUFS targets. 8 genres: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. Not theory — actual tool calls and values. |
 | `opendaw-effect-routing` | Effects + routing | Effect chains, sends/returns, sidechain, buses, mixing, mastering chain, render/export. How to route audio and deliver final output. |
 
 ### Using skills with Hermes
@@ -351,6 +352,10 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.14.1 (2026-07-04)
+
+- **`opendaw-genres` skill** — 8 genre templates with concrete parameters: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. BPM, track layout, drum patterns, bass lines, chord progressions, effect chains, pan, LUFS targets. Not theory — actual tool calls and values. **8 skills total.**
+
 ### v1.14.0 (2026-07-04)
 
 - **2 new agent skills**: `suno-to-opendaw` (6-stage Suno→stems→openDAW→mix→master→export pipeline) and `dsp-script-authoring` (custom Werkstatt/Apparat/Spielwerk DSP script writing guide with patterns, validation, pitfalls). **7 skills total.**
@@ -371,7 +376,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ### v1.12.0 (2026-07-04)
 
-- **Agent Skills**: 7 structured skill files in `skills/` directory — adaptive mix→master pipeline, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP writing), opendaw-automation (263 tools API reference, 146 ref files), track architecture, sound design, effect routing. Decision points for genre-adaptive workflows. Agent-agnostic (Hermes, Claude, any skill-capable agent).
+- **Agent Skills**: 8 structured skill files in `skills/` directory — adaptive mix→master, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP), opendaw-genres (8 genre templates), opendaw-automation (263 tools, 146 ref files), track architecture, sound design, effect routing. Decision points for genre-adaptive workflows. Agent-agnostic.
 - **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.9 (2026-07-04)
