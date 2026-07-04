@@ -208,7 +208,7 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains 16 example DSP scripts (11 Werkstatt + 3 Apparat + 2 Spielwerk):
+The `scripts/` directory contains 17 example DSP scripts (12 Werkstatt + 3 Apparat + 2 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
@@ -224,6 +224,7 @@ The `scripts/` directory contains 16 example DSP scripts (11 Werkstatt + 3 Appar
 | `werkstatt_lookahead.js` | Werkstatt | Lookahead limiter with gain reduction metering |
 | `werkstatt_adsr_trim.js` | Werkstatt | ADSR envelope trim for sustained samples (#241) |
 | `werkstatt_granular_stretch.js` | Werkstatt | Granular time-stretch with Hann window + pitch shift (#201) |
+| `werkstatt_pitch_shift.js` | Werkstatt | Real-time pitch shifter via delay-line sweep with crossfade (#188) |
 | `apparat_darkbass.js` | Apparat | Bass synth with sub oscillator and filter envelope |
 | `apparat_coldlead.js` | Apparat | Lead synth with detune and vibrato |
 | `apparat_subcrusher.js` | Apparat | Sub-bass synth with glide and distortion |
@@ -316,7 +317,8 @@ Apache-2.0 — see [LICENSE](LICENSE)
   - arpeggiator: swing notes no longer dropped at block boundaries
 - **14 DSP scripts total** (9 Werkstatt + 3 Apparat + 2 Spielwerk) — all CodeRabbit issues addressed
 - **2 new Werkstatt scripts**: ADSR trim (sustained sample trimming, #241) + granular time-stretch (Hann window overlap + pitch shift, #201)
-- **16 DSP scripts total** (11 Werkstatt + 3 Apparat + 2 Spielwerk)
+- **1 new Werkstatt script**: real-time pitch shifter via delay-line sweep (#188)
+- **17 DSP scripts total** (12 Werkstatt + 3 Apparat + 2 Spielwerk)
 
 ### v1.11.1 (2026-07-04)
 
