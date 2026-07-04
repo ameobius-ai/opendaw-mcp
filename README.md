@@ -290,7 +290,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 25 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 28 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -318,6 +318,9 @@ The `examples/` directory contains 25 Python scripts demonstrating the full work
 | `genre_techno.py` | Genre template: techno skeleton (130 BPM, 4-on-floor drums, rolling bass, Vaporisateur+Playfield, Compressor+Waveshaper chain) |
 | `genre_coldwave.py` | Genre template: coldwave skeleton (100 BPM, sparse drums, Am-Fmaj7-Cmaj-Gdom7 progression, 4 tracks, Dattorro reverb, Waveshaper hardclip) |
 | `genre_ambient.py` | Genre template: ambient skeleton (70 BPM, no drums, Cmaj7-Amin7-Fmaj7-Gmaj7, pad+bell+texture, long reverbs decay 0.85-0.95) |
+| `genre_hiphop.py` | Genre template: hip-hop skeleton (85 BPM, boom bap drums, 808 bass Ab minor, dark pentatonic melody, Compressor+Waveshaper) |
+| `genre_dnb.py` | Genre template: DnB skeleton (174 BPM, Amen break, reese+sub bass F minor, aggressive Comp 8:1, Waveshaper) |
+| `genre_house.py` | Genre template: house skeleton (124 BPM, 4-on-floor, off-beat chord stabs Fmin9-Cmin9-Gmin9-Dmin9, rolling bass, Delay+Reverb) |
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 
 ## Tool Catalog
@@ -376,6 +379,10 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.14.3 (2026-07-04)
+
+- **3 more genre examples (E2E verified)**: `genre_hiphop.py` (85 BPM, boom bap, 808 Ab minor), `genre_dnb.py` (174 BPM, Amen break, reese+sub F minor), `genre_house.py` (124 BPM, 4-on-floor, off-beat chord stabs Fmin9-Cmin9-Gmin9-Dmin9). **28 examples total, 6 genres covered.**
 
 ### v1.14.2 (2026-07-04)
 
