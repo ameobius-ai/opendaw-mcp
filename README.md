@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **263** MCP tools | **36** Python examples (8 genre templates) |
+| **264** MCP tools | **36** Python examples (8 genre templates) |
 | **27** DSP scripts | **8** agent skills |
-| **3** framework wrappers | **134** unit + **8** E2E tests |
+| **3** framework wrappers | **150** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -495,12 +495,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ### v1.16.1 (2026-07-05)
 
+- **`create_melody`** — new orchestration tool: generate melodies from scale + rhythmic pattern using scale degrees (1-7). Supports 14 scales, rests, sustains, octave shifts. One call replaces 10-30 `create_note` calls.
 - **`opendaw_mcp/music_theory.py`** — shared music theory module: `NOTE_TO_PITCH`, `CHORD_INTERVALS`, `SCALE_INTERVALS`, `GENRE_PRESETS`, `chord_to_pitches()`, `scale_to_pitches()`
 - **DRY refactor**: `create_chord_progression` and `create_genre_track` now import from `music_theory` instead of duplicating dicts inline
 - **2 new genres**: `coldwave` (110 BPM, dark bass, Dm-Fmaj-Gmin-Amin) and `hiphop` (90 BPM, boom bap, Cm7-Ebmaj7-Gmin7-Bbmaj7) — `create_genre_track` now supports 8 genres
 - **Scales**: 14 scale types (major, minor, harmonic minor, melodic minor, dorian, phrygian, lydian, mixolydian, locrian, pentatonic major/minor, blues, chromatic)
-- **38 new unit tests** (test_music_theory.py) — 131 total
-- ruff clean, 263 MCP tools intact, no regressions
+- **38 new unit tests** (test_music_theory.py) — 150 total
+- ruff clean, 264 MCP tools intact, no regressions
 
 ### v1.16.0 (2026-07-05)
 

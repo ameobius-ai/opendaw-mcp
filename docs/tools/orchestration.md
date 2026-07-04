@@ -10,6 +10,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 | `create_notes_batch` | Create multiple MIDI notes from a JSON array in one call |
 | `create_drum_pattern` | Create a drum beat from compact step-sequencer notation |
 | `create_chord_progression` | Create chords from names (Cm, Fm7, Gdom7) — auto-voiced |
+| `create_melody` | Create a melody from scale + rhythmic pattern using scale degrees (1-7) |
 | `add_mastering_chain` | Add EQ + Compressor + Maximizer to output bus with genre presets |
 | `create_genre_track` | Create a full genre starting point in one call |
 | `create_song_structure` | Create arrangement markers from JSON section list |
@@ -73,6 +74,34 @@ await server.mcp_opendaw_create_chord_progression(
 ```
 
 Supported chord types: maj, min, dim, aug, sus2, sus4, dom7, maj7, min7, m7b5, etc.
+
+## create_melody
+
+Create a melody from a scale + rhythmic pattern using scale degrees:
+
+```python
+await server.mcp_opendaw_create_melody(
+    scale="minor",
+    root="A",
+    pattern="1 0 3 0 5 - 4 3 2 0 1 + 1",
+    unit_index=1,
+    track_index=0,
+    start_beat=0,
+    octave=4,
+    velocity=0.75
+)
+```
+
+Pattern syntax (space-separated, each step = one 16th note):
+
+| Symbol | Meaning |
+|--------|---------|
+| `1`-`7` | Scale degree (1 = root) |
+| `0` | Rest |
+| `-` | Sustain previous note (extend by one step) |
+| `+` | Octave up (applies to next note only) |
+
+Supports 14 scales: major, minor, harmonic_minor, melodic_minor, dorian, phrygian, lydian, mixolydian, locrian, pentatonic_major, pentatonic_minor, blues, chromatic.
 
 ## add_mastering_chain
 

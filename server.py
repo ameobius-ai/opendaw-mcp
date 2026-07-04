@@ -40,8 +40,10 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _clamp_script_param,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
+    SCALE_INTERVALS,
     GENRE_PRESETS,
     VALID_GENRES,
+    parse_melody_pattern,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -12044,6 +12046,117 @@ Returns the total notes created and chord voicings used.
             notes_created: createdCount,
             chords: voicings.length,
             voicings: voicings,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_create_melody(scale: str, root: str, pattern: str, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, octave: int = 4, velocity: float = 0.75) -> str:
+    """Create a melody from a scale and rhythmic pattern — one call instead of 10-30 create_note calls.
+
+scale: Scale type (major, minor, harmonic_minor, melodic_minor, dorian, phrygian, lydian, mixolydian, locrian, pentatonic_major, pentatonic_minor, blues, chromatic).
+root: Root note name (C, C#, D, D#, E, F, F#, G, G#, A, A#, B or flats Db, Eb, Gb, Ab, Bb).
+pattern: Rhythmic pattern using scale degrees. Each step is one 16th note:
+  - Numbers 1-7 (or 1-5 for pentatonic, 1-6 for blues) = scale degree (1 = root)
+  - 0 = rest
+  - '-' = sustain previous note (tie)
+  - '+' = octave up for this note
+  - Example: "1-2-3-5-4-3-2-1" = ascending then descending scale fragment
+  - Example: "1 0 3 0 5 0 3 0" = arpeggio with rests
+unit_index: AU index with a note track.
+track_index: Note track index within the AU.
+start_beat: Where the melody starts (0 = bar 1).
+octave: MIDI octave for the root (4 = C4=60, the middle C).
+velocity: Note velocity 0-1 (default 0.75).
+
+Returns the total notes created and pitches used.
+"""
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if scale not in SCALE_INTERVALS:
+        return f"Error: unknown scale '{scale}'. Valid: {list(SCALE_INTERVALS.keys())}"
+
+    try:
+        note_list = parse_melody_pattern(pattern, root, scale, octave, velocity, 0.25, start_beat)
+    except ValueError as e:
+        return f"Error: {e}"
+    except KeyError as e:
+        return f"Error: unknown {e}"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const notes = {json.dumps(note_list)};
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const trackBox = noteTracks[trackIdx];
+        let regionBox = null;
+        let createdCount = 0;
+
+        h.modify(() => {{
+            const existing = h.regionBoxes(trackBox);
+            if (existing.length > 0) {{
+                regionBox = existing[0];
+            }} else {{
+                let maxEnd = 0;
+                for (const n of notes) maxEnd = Math.max(maxEnd, Math.round((n.start + n.duration) * Quarter));
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Melody");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            const regionStart = regionBox.position.getValue();
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of notes) {{
+                const pos = Math.max(0, Math.round(n.start * Quarter) - regionStart);
+                const dur = Math.round(n.duration * Quarter);
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(dur);
+                    box.velocity.setValue(n.velocity);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+            const maxEnd = Math.max(...notes.map(n => Math.round((n.start + n.duration) * Quarter)));
+            if (maxEnd > regionBox.duration.getValue()) {{
+                regionBox.duration.setValue(maxEnd);
+                regionBox.loopDuration.setValue(maxEnd);
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: createdCount,
+            scale: "{scale}",
+            root: "{root}",
+            octave: {octave},
+            pitches: notes.map(n => n.pitch),
         }};
     }}""")
     return _wrap_eval(result)

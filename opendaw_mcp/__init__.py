@@ -37,6 +37,7 @@ from .music_theory import (
     VALID_SCALE_TYPES,
     chord_to_pitches,
     scale_to_pitches,
+    parse_melody_pattern,
 )
 
 __all__ = [
@@ -64,4 +65,5 @@ __all__ = [
     "VALID_SCALE_TYPES",
     "chord_to_pitches",
     "scale_to_pitches",
+    "parse_melody_pattern",
 ]

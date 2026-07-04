@@ -198,3 +198,84 @@ def scale_to_pitches(root: str, scale_type: str, octave: int = 4, length: int = 
         scale_idx = i % len(intervals)
         pitches.append(base + root_pc + intervals[scale_idx] + 12 * octave_offset)
     return pitches
+
+
+def parse_melody_pattern(
+    pattern: str,
+    root: str,
+    scale_type: str,
+    octave: int = 4,
+    velocity: float = 0.75,
+    step_duration: float = 0.25,
+    start_beat: float = 0,
+) -> list[dict]:
+    """Parse a melody pattern string into a list of note dicts.
+
+    Pattern syntax (space-separated, each step = one 16th note):
+        1-7   — scale degree (1 = root)
+        0     — rest
+        -     — sustain (extend previous note by one step)
+        +     — octave up (applies to next note only)
+
+    Args:
+        pattern: Space-separated pattern string.
+        root: Root note name (C, D#, Bb, etc.).
+        scale_type: Scale type (major, minor, blues, etc.).
+        octave: MIDI octave (4 = C4=60).
+        velocity: Note velocity 0-1.
+        step_duration: Duration of each step in beats (0.25 = 16th).
+        start_beat: Starting beat position.
+
+    Returns:
+        List of dicts: {"pitch": int, "start": float, "duration": float, "velocity": float}
+
+    Raises:
+        KeyError: If root or scale_type is unknown.
+        ValueError: If pattern contains invalid steps or produces no notes.
+    """
+    root_pc = NOTE_TO_PITCH[root]
+    intervals = SCALE_INTERVALS[scale_type]
+    base_pitch = (octave + 1) * 12 + root_pc
+
+    steps = pattern.split()
+    note_list: list[dict] = []
+    current_octave_shift = 0
+
+    for i, step in enumerate(steps):
+        if step == "0":
+            continue
+        elif step == "-":
+            if note_list:
+                note_list[-1]["duration"] += step_duration
+            continue
+        elif step == "+":
+            current_octave_shift = 12
+            continue
+        else:
+            try:
+                degree = int(step)
+            except ValueError:
+                raise ValueError(f"Invalid pattern step '{step}' at position {i}")
+
+            if degree < 1 or degree > len(intervals):
+                raise ValueError(
+                    f"Scale degree {degree} out of range for {scale_type} (1-{len(intervals)})"
+                )
+
+            idx = degree - 1
+            octave_wrap = idx // len(intervals)
+            scale_idx = idx % len(intervals)
+            pitch = base_pitch + intervals[scale_idx] + 12 * octave_wrap + current_octave_shift
+
+            note_list.append({
+                "pitch": pitch,
+                "start": start_beat + i * step_duration,
+                "duration": step_duration,
+                "velocity": velocity,
+            })
+            current_octave_shift = 0
+
+    if not note_list:
+        raise ValueError("Pattern produced no notes (all rests?)")
+
+    return note_list

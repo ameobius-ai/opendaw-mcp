@@ -11,6 +11,7 @@ from opendaw_mcp.music_theory import (
     VALID_SCALE_TYPES,
     chord_to_pitches,
     scale_to_pitches,
+    parse_melody_pattern,
 )
 
 
@@ -192,3 +193,86 @@ class TestScaleToPitches:
         result = scale_to_pitches("A", "blues", length=6)
         # A4=69, blues=[0, 3, 5, 6, 7, 10] → [69, 72, 74, 75, 76, 79]
         assert result == [69, 72, 74, 75, 76, 79]
+
+
+class TestParseMelodyPattern:
+    def test_simple_ascending(self):
+        notes = parse_melody_pattern("1 2 3 4 5", "C", "major")
+        assert len(notes) == 5
+        assert notes[0]["pitch"] == 60  # C4
+        assert notes[1]["pitch"] == 62  # D4
+        assert notes[4]["pitch"] == 67  # G4
+
+    def test_rests(self):
+        notes = parse_melody_pattern("1 0 3 0 5", "C", "major")
+        assert len(notes) == 3  # rests don't create notes
+        assert notes[0]["pitch"] == 60
+        assert notes[1]["pitch"] == 64  # E4 (degree 3)
+        assert notes[2]["pitch"] == 67  # G4 (degree 5)
+
+    def test_sustain_extends_duration(self):
+        notes = parse_melody_pattern("1 - -", "C", "major")
+        assert len(notes) == 1
+        assert notes[0]["duration"] == 0.75  # 3 steps × 0.25
+
+    def test_octave_shift(self):
+        notes = parse_melody_pattern("1 + 1", "C", "major")
+        assert len(notes) == 2
+        assert notes[0]["pitch"] == 60   # C4
+        assert notes[1]["pitch"] == 72   # C5 (octave up)
+
+    def test_start_beat_offset(self):
+        notes = parse_melody_pattern("1 2", "C", "major", start_beat=4)
+        assert notes[0]["start"] == 4.0
+        assert notes[1]["start"] == 4.25
+
+    def test_velocity(self):
+        notes = parse_melody_pattern("1", "C", "major", velocity=0.5)
+        assert notes[0]["velocity"] == 0.5
+
+    def test_minor_scale_degrees(self):
+        # A minor: 1=A4(69), 3=C5(72), 5=E5(76)
+        notes = parse_melody_pattern("1 3 5", "A", "minor")
+        assert notes[0]["pitch"] == 69
+        assert notes[1]["pitch"] == 72
+        assert notes[2]["pitch"] == 76
+
+    def test_pentatonic_max_degree(self):
+        # pentatonic_minor has 5 intervals, degree 5 is valid
+        notes = parse_melody_pattern("1 2 3 4 5", "A", "pentatonic_minor")
+        assert len(notes) == 5
+
+    def test_degree_out_of_range(self):
+        with pytest.raises(ValueError, match="out of range"):
+            parse_melody_pattern("6", "C", "pentatonic_major")  # only 5 degrees
+
+    def test_all_rests_raises(self):
+        with pytest.raises(ValueError, match="no notes"):
+            parse_melody_pattern("0 0 0", "C", "major")
+
+    def test_invalid_step_raises(self):
+        with pytest.raises(ValueError, match="Invalid pattern step"):
+            parse_melody_pattern("1 x 3", "C", "major")
+
+    def test_unknown_root_raises(self):
+        with pytest.raises(KeyError):
+            parse_melody_pattern("1 2 3", "H", "major")
+
+    def test_unknown_scale_raises(self):
+        with pytest.raises(KeyError):
+            parse_melody_pattern("1 2 3", "C", "foobar")
+
+    def test_octave_shift_resets(self):
+        notes = parse_melody_pattern("+ 1 1", "C", "major")
+        assert notes[0]["pitch"] == 72  # C5 (octave up)
+        assert notes[1]["pitch"] == 60  # C4 (back to normal)
+
+    def test_blues_scale_melody(self):
+        # A blues: degrees 1-6, A4=69
+        # 1=69, 2=72, 3=74, 4=75, 5=76, 6=79
+        notes = parse_melody_pattern("1 2 3 4 5 6", "A", "blues")
+        assert [n["pitch"] for n in notes] == [69, 72, 74, 75, 76, 79]
+
+    def test_step_duration_custom(self):
+        notes = parse_melody_pattern("1 -", "C", "major", step_duration=0.5)
+        assert notes[0]["duration"] == 1.0  # 2 steps × 0.5
