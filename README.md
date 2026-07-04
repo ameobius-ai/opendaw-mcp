@@ -294,7 +294,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 30 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 31 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -409,6 +409,15 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.15.0 (2026-07-04)
+
+- **LangChain toolkit** — `opendaw_mcp/langchain_tools.py` wraps 30+ tools as LangChain `StructuredTool` objects. Category filtering, auto bridge start. Use with any LangChain agent.
+- **Docs site** — mkdocs-material at https://ameobius.github.io/opendaw-mcp/ — 21 pages, dark mode, search, auto-deploy via GitHub Actions
+- **PR template** — structured checklist for contributors
+- **PyPI metadata** — Documentation, Issues, Changelog URLs pointing to docs site
+- **dev.to article** — "Controlling a DAW with AI Agents via MCP" (in `promotion/`)
+- **31 examples total** (added `langchain_integration.py`)
 
 ### v1.14.4 (2026-07-04)
 
