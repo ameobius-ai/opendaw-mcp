@@ -3221,22 +3221,27 @@ Returns note count and time range.
     return _wrap_eval(result)
 
 @mcp.tool()
-async def mcp_opendaw_transpose_notes(semitones: int, unit_index: int, track_index: int) -> str:
+async def mcp_opendaw_transpose_notes(semitones: int, unit_index: int, track_index: int, region_index: int = -1) -> str:
     """Transpose all notes by a number of semitones.
 
 semitones: Positive = up, negative = down (e.g. +12 = octave up, -5 = perfect fourth down).
 unit_index: Audio unit index (-1 = all AUs with note tracks).
 track_index: Specific note track (-1 = all note tracks on the AU).
+region_index: Specific region index (-1 = all regions on the track).
 
-Returns count of notes transposed.
+Returns count of notes transposed and notes skipped (out of MIDI range 0-127).
 """
+    if not (-127 <= semitones <= 127):
+        return f"Error: semitones must be -127 to 127, got {semitones}"
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         const semis = {semitones};
         const unitIdx = {unit_index};
         const trackIdx = {track_index};
+        const regionIdx = {region_index};
 
-        let count = 0;
+        let transposed = 0;
+        let skipped = 0;
         const allUnits = h.allAUBoxes();
         const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
 
@@ -3247,7 +3252,8 @@ Returns count of notes transposed.
                 const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
                 for (const track of targetTracks) {{
                     const regions = h.regionBoxes(track);
-                    for (const region of regions) {{
+                    const targetRegions = regionIdx < 0 ? regions : (regionIdx < regions.length ? [regions[regionIdx]] : []);
+                    for (const region of targetRegions) {{
                         try {{
                             const vertex = region.events.targetVertex.unwrap();
                             const collectionBox = vertex.box || vertex;
@@ -3255,9 +3261,13 @@ Returns count of notes transposed.
                                 const noteEvents = h.eventBoxes(collectionBox);
                                 for (const evt of noteEvents) {{
                                     const current = evt.pitch.getValue();
-                                    const newPitch = Math.max(0, Math.min(127, current + semis));
+                                    const newPitch = current + semis;
+                                    if (newPitch < 0 || newPitch > 127) {{
+                                        skipped++;
+                                        continue;
+                                    }}
                                     evt.pitch.setValue(newPitch);
-                                    count++;
+                                    transposed++;
                                 }}
                             }}
                         }} catch(e) {{}}
@@ -3269,7 +3279,138 @@ Returns count of notes transposed.
         return {{
             success: true,
             semitones: semis,
-            notes_transposed: count,
+            notes_transposed: transposed,
+            notes_skipped: skipped,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_reverse_notes(unit_index: int, track_index: int, region_index: int = -1) -> str:
+    """Reverse the order of notes in a region — retrograde variation.
+
+    Swaps note positions so the last note becomes first and vice versa.
+    Durations and velocities are preserved; only positions are mirrored.
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = all regions on the track).
+
+    Returns count of notes reversed.
+    """
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+
+        let count = 0;
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.trackBoxes(allUnits[unitIdx])
+            .filter(box => box.type?.getValue?.() === 1);
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const regions = h.regionBoxes(noteTracks[trackIdx]);
+        const targetRegions = regionIdx < 0 ? regions : (regionIdx < regions.length ? [regions[regionIdx]] : []);
+
+        h.modify(() => {{
+            for (const region of targetRegions) {{
+                try {{
+                    const vertex = region.events.targetVertex.unwrap();
+                    const collBox = vertex.box || vertex;
+                    if (!collBox || !collBox.events) continue;
+
+                    const noteEvents = h.eventBoxes(collBox);
+                    if (noteEvents.length < 2) continue;
+
+                    // Collect positions and durations
+                    const positions = noteEvents.map(e => e.position.getValue());
+                    const regionStart = Math.min(...positions);
+                    const regionEnd = Math.max(...positions.map((p, i) => p + noteEvents[i].duration.getValue()));
+
+                    // Reverse: newPos = regionStart + regionEnd - oldPos - duration
+                    for (const evt of noteEvents) {{
+                        const oldPos = evt.position.getValue();
+                        const dur = evt.duration.getValue();
+                        const newPos = regionStart + (regionEnd - regionStart - dur) - (oldPos - regionStart);
+                        evt.position.setValue(Math.max(0, Math.round(newPos)));
+                        count++;
+                    }}
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_reversed: count,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_invert_notes(unit_index: int, track_index: int, region_index: int = -1, axis: int = 60) -> str:
+    """Invert melody around a pitch axis — mirror reflection.
+
+    Each note's pitch is reflected around the axis: newPitch = 2*axis - oldPitch.
+    Example: with axis=60 (C4), C4(60)→C4(60), D4(62)→Bb3(58), E4(64)→Ab3(56).
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = all regions on the track).
+    axis: Pivot pitch for inversion (default 60 = C4). Notes equidistant from axis
+      on opposite sides swap. Use the first note's pitch for tonal inversion.
+
+    Returns count of notes inverted and notes skipped (out of MIDI range).
+    """
+    if not (0 <= axis <= 127):
+        return f"Error: axis must be 0-127, got {axis}"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const axisPitch = {axis};
+
+        let inverted = 0;
+        let skipped = 0;
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.trackBoxes(allUnits[unitIdx])
+            .filter(box => box.type?.getValue?.() === 1);
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const regions = h.regionBoxes(noteTracks[trackIdx]);
+        const targetRegions = regionIdx < 0 ? regions : (regionIdx < regions.length ? [regions[regionIdx]] : []);
+
+        h.modify(() => {{
+            for (const region of targetRegions) {{
+                try {{
+                    const vertex = region.events.targetVertex.unwrap();
+                    const collBox = vertex.box || vertex;
+                    if (!collBox || !collBox.events) continue;
+
+                    const noteEvents = h.eventBoxes(collBox);
+                    for (const evt of noteEvents) {{
+                        const oldPitch = evt.pitch.getValue();
+                        const newPitch = 2 * axisPitch - oldPitch;
+                        if (newPitch < 0 || newPitch > 127) {{
+                            skipped++;
+                            continue;
+                        }}
+                        evt.pitch.setValue(newPitch);
+                        inverted++;
+                    }}
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            axis: axisPitch,
+            notes_inverted: inverted,
+            notes_skipped: skipped,
         }};
     }}""")
     return _wrap_eval(result)

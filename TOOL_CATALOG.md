@@ -126,7 +126,9 @@
 - `quantize_notes` — Quantize note positions to a grid division.
 - `set_note_advanced` — Set advanced note properties — chance, cent, playCount, playCurve.
 - `set_note_properties` — Edit properties of a single note within a region.
-- `transpose_notes` — Transpose all notes by a number of semitones.
+- `transpose_notes` — Transpose all notes by a number of semitones. Supports region_index and skips out-of-range notes.
+- `reverse_notes` — Reverse note order in a region (retrograde). Positions mirrored, durations/velocities preserved.
+- `invert_notes` — Invert melody around a pitch axis (mirror reflection). newPitch = 2*axis - oldPitch.
 
 ## Note Editing (2)
 - `consolidate_note` — Consolidate a repeated note (playCount > 1) into individual separate notes.
@@ -342,7 +344,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 268 tools**
+**Total: 270 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)
