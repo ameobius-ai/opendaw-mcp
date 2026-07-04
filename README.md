@@ -208,7 +208,7 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains 17 example DSP scripts (12 Werkstatt + 3 Apparat + 2 Spielwerk):
+The `scripts/` directory contains 18 example DSP scripts (12 Werkstatt + 4 Apparat + 2 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
@@ -228,6 +228,7 @@ The `scripts/` directory contains 17 example DSP scripts (12 Werkstatt + 3 Appar
 | `apparat_darkbass.js` | Apparat | Bass synth with sub oscillator and filter envelope |
 | `apparat_coldlead.js` | Apparat | Lead synth with detune and vibrato |
 | `apparat_subcrusher.js` | Apparat | Sub-bass synth with glide and distortion |
+| `apparat_ringmod.js` | Apparat | Ring modulator synth with ADSR and sub-oscillator (#277) |
 | `spielwerk_powerchord.js` | Spielwerk | MIDI effect that generates power chord harmonies |
 | `spielwerk_arpeggiator.js` | Spielwerk | MIDI arpeggiator with swing and octave range |
 
@@ -324,7 +325,8 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **14 DSP scripts total** (9 Werkstatt + 3 Apparat + 2 Spielwerk) — all CodeRabbit issues addressed
 - **2 new Werkstatt scripts**: ADSR trim (sustained sample trimming, #241) + granular time-stretch (Hann window overlap + pitch shift, #201)
 - **1 new Werkstatt script**: real-time pitch shifter via delay-line sweep (#188)
-- **17 DSP scripts total** (12 Werkstatt + 3 Apparat + 2 Spielwerk)
+- **1 new Apparat script**: ring modulator synth with ADSR and sub-oscillator (#277)
+- **18 DSP scripts total** (12 Werkstatt + 4 Apparat + 2 Spielwerk)
 
 ### v1.11.1 (2026-07-04)
 
