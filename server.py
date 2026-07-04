@@ -13098,7 +13098,7 @@ async def mcp_opendaw_save_effect_preset(unit_index: int, effect_index: int, nam
     out_dir = output_path or os.environ.get("OPENDAW_EXPORT_DIR", "/tmp")
     os.makedirs(out_dir, exist_ok=True)
     now = int(time.time() * 1000)
-    meta = {{
+    meta = {
         "category": "audio-effect",
         "uuid": str(uuid.uuid4()),
         "name": name,
@@ -13106,7 +13106,7 @@ async def mcp_opendaw_save_effect_preset(unit_index: int, effect_index: int, nam
         "description": description,
         "created": now,
         "modified": now,
-    }}
+    }
     filename = name.replace(" ", "_") + ".opb"
     filepath = os.path.join(out_dir, filename)
     buf = io.BytesIO()
@@ -13116,13 +13116,13 @@ async def mcp_opendaw_save_effect_preset(unit_index: int, effect_index: int, nam
         zf.writestr("preset.odp", preset_bytes)
     with open(filepath, "wb") as f:
         f.write(buf.getvalue())
-    return _json.dumps({{
+    return _json.dumps({
         "success": True,
         "path": filepath,
         "size_bytes": len(buf.getvalue()),
         "device": device_key,
         "name": name,
-    }}, indent=2)
+    }, indent=2)
 
 
 @mcp.tool()
@@ -13159,14 +13159,13 @@ async def mcp_opendaw_load_effect_preset(filepath: str, unit_index: int = -1) ->
         const binary = atob(b64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        // PresetDecoder.decode(bytes, target) expects a ProjectSkeleton target
-        // The decode copies boxes from the preset into the target graph, then
-        // we need to transfer them into the live project. For now, just validate.
-        let imported = [];
-        h.modify(() => {{
-            const target = PS.empty({{createOutputMaximizer: false, createDefaultUser: false}});
-            imported = PD.decode(bytes.buffer, target);
-        }});
+        // PresetDecoder.decode(bytes, target) — target is a fresh skeleton.
+        // PS.empty() does its own begin/endTransaction, but decode() creates
+        // boxes in target.boxGraph — needs explicit transaction.
+        const target = PS.empty({{createOutputMaximizer: false, createDefaultUser: false}});
+        target.boxGraph.beginTransaction();
+        const imported = PD.decode(bytes.buffer, target);
+        target.boxGraph.endTransaction();
         return {{
             success: true,
             preset_name: {meta_json}.name,
