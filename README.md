@@ -292,15 +292,26 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ## Changelog
 
 ### v1.10.0 (2026-07-04)
-- **5 orchestration tools** — high-level composers for agents:
+### v1.10.1 (2026-07-04)
+
+- **260 MCP tools** (253 low-level + 7 orchestration)
+- **`create_song_structure`** — arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list
+- **`automation_sweep`** — smooth automation ramps with linear/exp/log curves. Replaces 10-30 `create_automation_event` calls
+- **PyPI v1.10.1 published** — `pip install opendaw-mcp`
+- **Both orchestration tools tested end-to-end** via Playwright bridge
+- **54 tests, ruff clean, CI green**
+
+### v1.10.0 (2026-07-04)
+
+- **7 orchestration tools** — high-level composers for agents:
   - `create_notes_batch` — batch MIDI note creation (JSON array, one round-trip)
   - `create_drum_pattern` — step-sequencer notation (`x...x...` → drum beat)
   - `create_chord_progression` — chord names → auto-voiced notes (`[["C","min7"]]`)
   - `add_mastering_chain` — EQ + Compressor + Maximizer with style presets
   - `create_genre_track` — full genre starting point (house/techno/lofi/dnb/trap/ambient)
-- **255 total tools** (250 low-level + 5 orchestration)
-
-- **255 total tools** (+7 since v1.9.6)
+  - `create_song_structure` — arrangement markers from JSON
+  - `automation_sweep` — smooth parameter ramps with linear/exp/log curves
+- **260 total tools** (250 low-level + 7 orchestration + 3 internal)
 - **`set_metronome`** — dedicated metronome control (enabled, gain, beat_subdivision)
 - **Module-level lookup tables** — TIDAL_RATE_MAP, DELAY_SYNC_MAP, WAVESHAPER_FUNCS, REVAMP_SECTIONS extracted for testability
 - **+23 new unit tests** (54 total) — fraction maps, waveshaper funcs, revamp sections, safe_filename edge cases
