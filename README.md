@@ -291,6 +291,20 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.11.2 (2026-07-04)
+
+- **10 DSP bug fixes** synced from upstream PR #283 CodeRabbit review:
+  - darksat: undefined `outR` variable fix, DC blocker signal path corrected
+  - chorus: delay buffer 2× for depth modulation, safe modulo for negative indices
+  - coldfold: slew parameter `/100` scaling removed (was disabling the parameter)
+  - lookahead: gain reduction now applied to delayed signal (true lookahead)
+  - reverb: comb filter indices advancing, per-comb damping state, M/S stereo width decode
+  - shimmer: per-channel pitch shifter state (eliminates stereo crosstalk)
+  - phaser: stable 1st-order allpass topology (2nd-order was unstable)
+  - subcrusher: bidirectional glide (was diverging on upward glides)
+  - arpeggiator: swing notes no longer dropped at block boundaries
+- **14 DSP scripts total** (9 Werkstatt + 3 Apparat + 2 Spielwerk) — all CodeRabbit issues addressed
+
 ### v1.11.1 (2026-07-04)
 
 - **Scriptable device mapping info** — `list_script_params` now returns full `@param` mapping metadata (min, max, mapping type, unit) via `ScriptDeclaration.parseParams()`
