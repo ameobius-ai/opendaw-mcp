@@ -1,75 +1,111 @@
-# openDAW MCP — Usage Examples
+# Scriptable Device Examples
 
-This directory contains example scripts showing how to use the MCP tools to create music programmatically.
+Community-contributed DSP scripts for openDAW's scriptable devices:
+- [Werkstatt](werkstatt/) — audio effect (processes audio)
+- [Apparat](apparat/) — instrument (generates audio from MIDI)
+- [Spielwerk](spielwerk/) — MIDI effect (transforms MIDI events)
 
-## Files
+Each script is a self-contained `Processor` class that runs in the AudioWorklet.
+Parameters are declared via `// @param` directives and auto-create UI knobs when compiled.
 
-| File | Description |
-|------|-------------|
-| `create_beat.py` | Create a 4-bar drum beat with Playfield (kick, snare, hi-hat) |
-| `create_chord_progression.py` | Create a chord progression with Vaporisateur synth |
-| `mix_workflow.py` | Full mixing workflow: set levels, add effects, route sends |
-| `render_stems.py` | Render individual stems and full mix with LUFS targeting |
-| `automation_sweep.py` | Create filter cutoff automation sweep on a synth |
-| `modular_patch.py` | Modular system patch: AU → Gain → Delay → Output with patch cables |
-| `full_production_pipeline.py` | Complete track from scratch: synth + drums + DSP + automation + render |
-| `full_production_pipeline_v2.py` | Enhanced pipeline with modular routing and scriptable devices |
-| `render_convert.py` | Render mix and convert to MP3/FLAC via ffmpeg |
-| `instrument_automation.py` | Automate instrument parameters (Vaporisateur filter sweep) |
-| `device_specific_params.py` | Control device-specific params (Vocoder, Crusher, Fold, StereoTool) |
-| `scriptable_devices_demo.py` | Apparat/Werkstatt/Spielwerk custom DSP scripts |
-| `warp_marker_tempo_match.py` | Warp markers for tempo-matching audio regions |
-| `dawproject_export.py` | Export to .dawproject format (Bitwig/Ableton/rePitch interop) |
-| `mastering_pipeline.py` | Full mastering chain: render → measure LUFS → auto-gain → stems → MP3 |
-| `metronome_settings.py` | Configure metronome: enable, gain, subdivision, monophonic mode |
+## Werkstatt (9 scripts)
 
-## Prerequisites
+| File | Effect | Parameters |
+|------|--------|------------|
+| `werkstatt_darksat.js` | Tape saturation / overdrive | drive, bias, tone, mix, output (dB) |
+| `werkstatt_coldfold.js` | Wavefolding + bitcrush | drive, fold, crush, slew, mix |
+| `werkstatt_reverb.js` | Schroeder plate reverb | decay, predelay, damping, width, mix |
+| `werkstatt_chorus.js` | Stereo chorus (dual LFO) | rate (Hz), depth, center (s), feedback, mix |
+| `werkstatt_phaser.js` | Allpass cascade phaser | rate (Hz), depth, feedback, stages (2-8), mix |
+| `werkstatt_lookahead.js` | Lookahead compressor | threshold (dB), ratio, attack (s), release (s), knee (dB), makeup (dB), mix |
+| `werkstatt_shimmer.js` | Pitch-shift delay | time (s), feedback, pitch (semitones), shimmer, damping, mix |
+| `werkstatt_paulstretch.js` | Extreme time-stretch (Paul Nasca algorithm) | stretch, window, mix |
+| `werkstatt_envfollower.js` | Envelope follower / sidechain ducking | attack, release, depth, threshold, invert, makeup |
 
-```bash
-# Terminal 1: Start openDAW
-cd openDAW && npm run dev
+## Apparat (3 scripts)
 
-# Terminal 2: Start MCP server
-cd opendaw-mcp
-source venv/bin/activate
-python server.py
+| File | Instrument | Parameters |
+|------|-----------|------------|
+| `apparat_darkbass.js` | Mono subtractive bass synth | waveform, cutoff (Hz), resonance, ADSR, subOsc, detune, volume |
+| `apparat_subcrusher.js` | Sub-bass with sub-oscillator | waveform, cutoff (Hz), resonance, ADSR, sub, volume |
+| `apparat_coldlead.js` | Lead synth with glide | waveform, cutoff (Hz), resonance, ADSR, glide, volume |
+
+## Spielwerk (2 scripts)
+
+| File | MIDI Effect | Parameters |
+|------|------------|------------|
+| `spielwerk_arpeggiator.js` | Arpeggiator | rate, octaves, direction, hold, velocity, swing |
+| `spielwerk_powerchord.js` | Power chord generator | interval, interval2, velScale, detune |
+
+## Usage
+
+1. Open openDAW
+2. Add a scriptable device (Werkstatt/Apparat/Spielwerk) to a track
+3. Click the code editor
+4. Paste the script contents
+5. The `@param` declarations auto-generate knobs — adjust and play
+
+## API Reference
+
+### Werkstatt (audio effect)
+
+```javascript
+class Processor {
+  constructor() { /* sampleRate on globalThis, init buffers */ }
+  process(io, block) {
+    // io.src[0], io.src[1] — input (Float32Array)
+    // io.out[0], io.out[1] — output (Float32Array)
+    // block.s0, block.s1 — sample range
+    for (let i = block.s0; i < block.s1; i++) {
+      io.out[0][i] = io.src[0][i]
+    }
+  }
+  paramChanged(label, value) { /* optional */ }
+}
 ```
 
-## Using with AI Agents
+### Apparat (instrument)
 
-These tools are designed to be called by AI agents via MCP. Here's a typical conversation flow:
-
-1. **Create a project**: `create_note_track` → `create_note_region`
-2. **Add notes**: `create_note_event` with positions and pitches
-3. **Add instruments**: `create_synth` (Vaporisateur, Nano, etc.)
-4. **Add effects**: `add_effect` (Delay, Reverb, Compressor, etc.)
-5. **Mix**: `set_track_volume`, `set_effect_parameter`, `create_send`
-6. **Render**: `render_stems` or `render_mix`
-
-## Using with Python Directly
-
-```python
-import asyncio
-import server
-
-async def main():
-    # Start the bridge
-    await server.bridge.start()
-    
-    # Create a synth
-    result = await server.mcp_opendaw_create_synth("Vaporisateur")
-    print(f"Created: {result}")
-    
-    # Add a delay effect
-    result = await server.mcp_opendaw_add_effect(0, "Delay")
-    print(f"Added effect: {result}")
-    
-    # Set delay time
-    result = await server.mcp_opendaw_set_effect_parameter(0, 0, "time", 0.5)
-    print(f"Set parameter: {result}")
-    
-    # Stop the bridge
-    await server.bridge.stop()
-
-asyncio.run(main())
+```javascript
+class Processor {
+  constructor() { /* sampleRate on globalThis */ }
+  process(output, block) {
+    // output[0], output[1] — output channels (Float32Array)
+    // block.s0, block.s1 — sample range
+    // No input — instrument generates audio
+  }
+  paramChanged(label, value) {}
+}
 ```
+
+### Spielwerk (MIDI effect)
+
+```javascript
+class Processor {
+  *process(block, events) {
+    // Generator function — yield note events
+    // block.from, block.to — ppqn range
+    // events — Iterable of incoming MIDI events
+    for (const ev of events) {
+      if (ev.gate) {
+        yield { position: ev.position, duration: ev.duration, pitch: ev.pitch, velocity: ev.velocity }
+      }
+    }
+  }
+  paramChanged(label, value) {}
+}
+```
+
+## @param Format
+
+```text
+// @param <name> <default> <min> <max> <type> [unit]
+```
+
+Types: `linear`, `exp`, `int`, `bool`.
+
+See `plans/werkstatt.md`, `plans/apparat.md`, `plans/spielwerk.md`, and `plans/custom-mapping.md` for full specifications.
+
+## License
+
+Apache-2.0 (same as openDAW)
