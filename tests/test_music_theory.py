@@ -14,6 +14,17 @@ from opendaw_mcp.music_theory import (
 )
 
 
+class TestValidLists:
+    def test_valid_genres_non_empty(self):
+        assert len(VALID_GENRES) >= 8
+
+    def test_valid_chord_types_non_empty(self):
+        assert len(VALID_CHORD_TYPES) >= 10
+
+    def test_valid_scale_types_non_empty(self):
+        assert len(VALID_SCALE_TYPES) >= 12
+
+
 class TestNoteToPitch:
     def test_natural_notes(self):
         assert NOTE_TO_PITCH["C"] == 0

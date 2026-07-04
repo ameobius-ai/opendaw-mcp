@@ -24,7 +24,7 @@ async def main():
     r = await mcp_opendaw_set_bpm(bpm=128)
     state = json.loads(r)
     assert state.get("success") or "bpm" in state, f"set_bpm failed: {r[:200]}"
-    print(f"✅ set_bpm(128)")
+    print("✅ set_bpm(128)")
 
     # 3. Create synth track
     r = await mcp_opendaw_create_synth_track(name="TestSynth", synth_type="Vaporisateur")
