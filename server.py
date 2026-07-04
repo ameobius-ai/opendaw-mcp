@@ -697,6 +697,32 @@ label: New label text.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_set_marker_repeat(marker_index: int, repeat_count: int) -> str:
+    """Set the repeat count on a timeline marker.
+
+marker_index: Index from list_markers (0-based).
+repeat_count: 0 = infinite repeat, 1-16 = N repeats.
+"""
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const markerTrack = h.timelineBox?.markerTrack;
+        if (!markerTrack) return {{error: "No markerTrack"}};
+        const markers = h.markerBoxes(markerTrack);
+        if ({marker_index} >= markers.length) return {{error: "No marker at index {marker_index}"}};
+        const marker = markers[{marker_index}];
+        if (!marker.box.plays) return {{error: "Marker has no plays field"}};
+        const oldPlays = marker.box.plays?.getValue?.() ?? 1;
+        h.modify(() => {{ marker.box.plays.setValue({repeat_count}); }});
+        return {{
+            success: true,
+            marker_index: {marker_index},
+            old_repeat: oldPlays,
+            new_repeat: marker.box.plays.getValue(),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_set_time_signature(numerator: int, denominator: int) -> str:
     """Set the project time signature (e.g. 4/4, 3/4, 6/8, 7/8).
 

@@ -55,11 +55,15 @@ PRESETS = [
         "script_file": "werkstatt_chorus.js",
         "label": "Stereo Chorus",
     },
+    {
+        "name": "Paulstretch",
+        "description": "Extreme time stretching without pitch change. FFT-based phase randomization (Paul Nasca algorithm). Stretch factor 1x–100x.",
+        "script_file": "werkstatt_paulstretch.js",
+        "label": "Paulstretch",
+    },
 ]
 
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "openDAW", "examples", "werkstatt"
-)
+SCRIPTS_DIR = os.path.join(os.path.dirname(__file__))
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "presets")
 
 

@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-262 MCP tools for headless openDAW control via Playwright bridge.
+263 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -191,12 +191,13 @@
 - `set_clip_playback` — Set clip playback parameters (loop, reverse, speed) on a clip.
 - `set_clip_properties` — Set properties on a clip (session view): label, color, mute, duration.
 
-## Markers (5)
+## Markers (6)
 - `add_marker` — Add a timeline marker at a position.
 - `delete_marker` — Delete a timeline marker by index.
 - `list_markers` — List all timeline markers with positions and labels.
 - `set_marker_label` — Rename a timeline marker.
 - `set_marker_position` — Move a timeline marker to a new position.
+- `set_marker_repeat` — Set repeat count on a marker (0=infinite, 1-16=N repeats).
 
 ## Sends & Buses (12)
 - `create_audio_bus` — Create a new audio bus (aux bus) with its own audio unit and track.
