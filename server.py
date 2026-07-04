@@ -12313,17 +12313,17 @@ Returns the effect indices and parameter values set.
         let eqIdx = -1, compIdx = -1, maxIdx = -1;
 
         h.modify(() => {{
-            p.api.insertEffect(targetAU, EF.Revamp, -1);
+            p.api.insertEffect(targetAU.audioEffects, EF.Revamp);
             eqIdx = h.effectBoxes(targetAU).length - 1;
         }});
 
         h.modify(() => {{
-            p.api.insertEffect(targetAU, EF.Compressor, -1);
+            p.api.insertEffect(targetAU.audioEffects, EF.Compressor);
             compIdx = h.effectBoxes(targetAU).length - 1;
         }});
 
         h.modify(() => {{
-            p.api.insertEffect(targetAU, EF.Maximizer, -1);
+            p.api.insertEffect(targetAU.audioEffects, EF.Maximizer);
             maxIdx = h.effectBoxes(targetAU).length - 1;
         }});
 
@@ -12334,19 +12334,21 @@ Returns the effect indices and parameter values set.
 
         h.modify(() => {{
             if (compBox) {{
-                const fields = [...compBox._fields.entries()];
-                for (const [name, field] of fields) {{
-                    if (name === 'threshold') field.setValue(params.comp_threshold);
-                    if (name === 'ratio') field.setValue(params.comp_ratio);
-                    if (name === 'attack') field.setValue(params.comp_attack);
-                    if (name === 'release') field.setValue(params.comp_release);
+                const record = compBox.record();
+                for (const [key, field] of Object.entries(record)) {{
+                    const fname = field._fieldName || field.fieldName || key;
+                    if (fname === 'threshold') field.setValue(params.comp_threshold);
+                    if (fname === 'ratio') field.setValue(params.comp_ratio);
+                    if (fname === 'attack') field.setValue(params.comp_attack);
+                    if (fname === 'release') field.setValue(params.comp_release);
                 }}
             }}
             if (maxBox) {{
-                const fields = [...maxBox._fields.entries()];
-                for (const [name, field] of fields) {{
-                    if (name === 'ceiling') field.setValue(params.max_ceiling);
-                    if (name === 'release') field.setValue(params.max_release);
+                const record = maxBox.record();
+                for (const [key, field] of Object.entries(record)) {{
+                    const fname = field._fieldName || field.fieldName || key;
+                    if (fname === 'ceiling') field.setValue(params.max_ceiling);
+                    if (fname === 'release') field.setValue(params.max_release);
                 }}
             }}
         }});
@@ -12410,16 +12412,17 @@ Returns created AU indices, note counts, and suggested next steps.
         const genreData = {json.dumps(g)};
         const bpm = {actual_bpm};
 
-        // Set BPM
-        h.modify(() => {{
-            const normalizedBpm = Math.max(0, Math.min(1, (bpm - 60) / (240 - 60)));
-            p.rootBoxAdapter.project.tempo.getValue().setValue(normalizedBpm);
-        }});
+        // Set BPM via existing API (inside modify)
+        h.modify(() => h.api.setBpm(bpm));
 
-        // Create synth AU for chords/bass
-        const synthAU = p.api.createInstrument(IF.Vaporisateur, {{}});
-        const synthAUIdx = h.allAUBoxes().length - 1;
-        const synthNoteTracks = h.noteTrackBoxes(synthAU);
+        // Create synth AU for chords/bass (inside modify — createInstrument needs transaction)
+        let synthAU, synthAUIdx, synthNoteTracks;
+        h.modify(() => {{
+            const result = p.api.createInstrument(IF.Vaporisateur, {{}});
+            synthAU = result.audioUnitBox;
+            synthAUIdx = h.allAUBoxes().length - 1;
+            synthNoteTracks = h.noteTrackBoxes(synthAU);
+        }});
 
         let chordNotes = 0;
         let bassNotes = 0;
@@ -12500,8 +12503,12 @@ Returns created AU indices, note counts, and suggested next steps.
 
         // Add drums on a separate AU
         if (Object.keys(genreData.drums).length > 0) {{
-            const drumAU = p.api.createInstrument(IF.Vaporisateur, {{}});
-            const drumTracks = h.noteTrackBoxes(drumAU);
+            let drumAU, drumTracks;
+            h.modify(() => {{
+                const drumResult = p.api.createInstrument(IF.Vaporisateur, {{}});
+                drumAU = drumResult.audioUnitBox;
+                drumTracks = h.noteTrackBoxes(drumAU);
+            }});
             if (drumTracks.length > 0) {{
                 const drumTrack = drumTracks[0];
                 const velocities = {{'x': 0.9, 'o': 0.5, 'X': 1.0}};
