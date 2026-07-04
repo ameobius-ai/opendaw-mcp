@@ -208,7 +208,7 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains 21 example DSP scripts (14 Werkstatt + 5 Apparat + 2 Spielwerk):
+The `scripts/` directory contains 25 example DSP scripts (14 Werkstatt + 5 Apparat + 6 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
@@ -234,10 +234,14 @@ The `scripts/` directory contains 21 example DSP scripts (14 Werkstatt + 5 Appar
 | `apparat_fm.js` | Apparat | 2-operator FM synth with carrier/modulator ratio and ADSR (#138) |
 | `spielwerk_powerchord.js` | Spielwerk | MIDI effect that generates power chord harmonies |
 | `spielwerk_arpeggiator.js` | Spielwerk | MIDI arpeggiator with swing and octave range |
+| `spielwerk_chordmemory.js` | Spielwerk | Chord memory — holds last chord shape (major/minor/7/dim/aug) |
+| `spielwerk_strum.js` | Spielwerk | Strummer with up/down/random direction and spread |
+| `spielwerk_velocity.js` | Spielwerk | Velocity scaler with curve, offset, and min/max clamp |
+| `spielwerk_mididelay.js` | Spielwerk | MIDI delay with feedback, transpose per repeat, and decay |
 
 ## Examples
 
-The `examples/` directory contains 18 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 19 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -259,6 +263,7 @@ The `examples/` directory contains 18 Python scripts demonstrating the full work
 | `render_convert.py` | Render and convert audio formats |
 | `dawproject_export.py` | Export to Bitwig .dawproject format |
 | `warp_marker_tempo_match.py` | Warp markers for tempo-matched audio regions |
+| `suno_to_opendaw.py` | Suno→openDAW pipeline: import AI track, add mastering chain, reverb send, arp layer, render+stems |
 
 ## Tool Catalog
 
@@ -317,11 +322,17 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.11.6 (2026-07-04)
+
+- **4 new Spielwerk MIDI effect scripts**: chord memory, strummer, velocity scaler, MIDI delay
+- **1 new Python example**: Suno→openDAW pipeline (import AI track, mastering chain, reverb send, arp layer, render+stems)
+- **25 DSP scripts total** (14 Werkstatt + 5 Apparat + 6 Spielwerk)
+
 ### v1.11.5 (2026-07-04)
 
-- **3 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138)
+- **7 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138), chord memory, strummer, velocity scaler, MIDI delay
 - **Coldfold fix**: removed unused `range` variable (CodeRabbit review)
-- **21 DSP scripts total** (14 Werkstatt + 5 Apparat + 2 Spielwerk)
+- **25 DSP scripts total** (14 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.4 (2026-07-04)
 
