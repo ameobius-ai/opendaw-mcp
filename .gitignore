@@ -23,3 +23,5 @@ mcp-publisher
 .coverage
 .coverage
 opendaw_mcp.egg-info/
+dist/
+build/
