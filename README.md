@@ -17,7 +17,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 ## How It Works
 
-```
+```text
 AI Agent ──MCP──▶ Python Server ──Playwright──▶ Headless Chromium ──▶ openDAW (Vite dev server)
 ```
 
