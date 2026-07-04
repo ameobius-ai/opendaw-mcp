@@ -29,7 +29,7 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 - **Instrument Control** — Vaporisateur ( polysynth), Nano, Tape, Soundfont, Playfield (drum machine), MIDI output
 - **Effects** — Delay, Reverb, Compressor, Equalizer, Saturation, Waveshaper, Stereo, Vocoder, NeuralAmp, Maximizer
 - **MIDI Effects** — Arpeggio, Pitch, Velocity, Zeitgeist, Spielwerk (scriptable)
-- **Scriptable Devices** — Apparat (instrument), Werkstatt (audio effect), Spielwerk (MIDI effect) with JS code compilation
+- **Scriptable Devices** — Apparat (instrument), Werkstatt (audio effect), Spielwerk (MIDI effect) with JS code compilation, full `@param` mapping metadata, and range-validated parameter setting
 - **Automation** — event creation, interpolation modes, tempo/signature changes
 - **Audio Operations** — region fades, gain, time/pitch stretch, warp markers, play modes
 - **Mixing** — send/return routing, buses, volume, solo/mute, mixer state inspection
@@ -291,7 +291,22 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
-### v1.10.0 (2026-07-04)
+### v1.11.1 (2026-07-04)
+
+- **Scriptable device mapping info** — `list_script_params` now returns full `@param` mapping metadata (min, max, mapping type, unit) via `ScriptDeclaration.parseParams()`
+- **Range validation** — `set_script_param` now validates values against `@param` declarations: bool snaps to 0/1, int rounds+clamps, linear/exp clamps to [min, max]. Returns `clamped` flag and `range` info
+- **`DAW_ScriptDeclaration`** added to headless-daw globals
+
+### v1.11.0 (2026-07-04)
+
+- **`apply_mix_preset`** — 8th orchestration tool: batch volume/pan/mute/solo across all tracks. Named presets (lofi, house, balanced, wide) or custom JSON
+- **258 MCP tools** (250 low-level + 8 orchestration)
+
+### v1.10.2 (2026-07-04)
+
+- **24 new unit tests** for orchestration tools (78 total) — curve interpolation, chord theory, drum pattern parsing, song structure parsing
+- **TOOL_CATALOG fully synchronized** — 0 discrepancies with server.py
+
 ### v1.10.1 (2026-07-04)
 
 - **260 MCP tools** (253 low-level + 7 orchestration)
