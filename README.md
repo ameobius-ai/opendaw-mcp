@@ -119,7 +119,7 @@ python server.py --list-tools  # list all 255 registered MCP tools
 
 ```bash
 # Pull pre-built image from GitHub Container Registry
-docker pull ghcr.io/ameobius/opendaw-mcp:1.9.8
+docker pull ghcr.io/ameobius/opendaw-mcp:1.10.0
 docker run -p 8080:8080 ghcr.io/ameobius/opendaw-mcp:1.9.6
 # MCP server available at http://localhost:8080/sse
 
@@ -291,7 +291,14 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
-### v1.9.8 (2026-07-04)
+### v1.10.0 (2026-07-04)
+- **5 orchestration tools** — high-level composers for agents:
+  - `create_notes_batch` — batch MIDI note creation (JSON array, one round-trip)
+  - `create_drum_pattern` — step-sequencer notation (`x...x...` → drum beat)
+  - `create_chord_progression` — chord names → auto-voiced notes (`[["C","min7"]]`)
+  - `add_mastering_chain` — EQ + Compressor + Maximizer with style presets
+  - `create_genre_track` — full genre starting point (house/techno/lofi/dnb/trap/ambient)
+- **255 total tools** (250 low-level + 5 orchestration)
 
 - **255 total tools** (+7 since v1.9.6)
 - **`set_metronome`** — dedicated metronome control (enabled, gain, beat_subdivision)
