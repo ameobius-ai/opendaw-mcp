@@ -1,9 +1,5 @@
 # opendaw-mcp
 
-<figure markdown>
-  ![opendaw-mcp](assets/banner.png){ width="100%" }
-</figure>
-
 **263 MCP tools** for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
 
 Control every aspect of music production from your LLM agent: synths, effects, MIDI, mixing, automation, rendering, stem separation, DSP scripting, and more.
