@@ -91,19 +91,53 @@ $VENV <songsee_dir>/scripts/band_energy_analysis.py stem.wav
 
 ### Decision Point: Split Method
 
-```bash
-# Persistent stem splitter (survives reboot)
-SPLIT=~/projects/creative-studio/stem-splitter/venv/bin/python
+**MCP tool (preferred — agent-native, auto-imports into DAW):**
+```python
+# mcp_opendaw_split_stems(input_path, mode, import_to_daw=True)
+# 7 modes: ensemble, scnet, bs6, polarformer, dereverb, drumsep, denoise
+# Returns stem file paths + sample IDs (if import_to_daw=True)
 
-# Fast (6 stems one pass)
-$SPLIT ~/projects/creative-studio/stem-splitter/bs6_full.py input.wav -o /tmp/stems --device cuda
+# Fast 6-stem split + auto-import into DAW
+mcp_opendaw_split_stems("track.wav", mode="bs6", import_to_daw=True)
+# → 6 stems loaded, sample_ids returned for place_audio_region
 
-# Max quality (ensemble — specialist per stem)
-$SPLIT scripts/ensemble_split.py input.wav -o /tmp/stems --device cuda
+# Max quality ensemble
+mcp_opendaw_split_stems("track.wav", mode="ensemble", import_to_daw=True)
+# → 4 specialist stems (bass 11.96 SDR, drums 11.13, vocals 11.00, other)
+
+# Vocal-only extraction
+mcp_opendaw_split_stems("track.wav", mode="polarformer")
+# → 1 stem (vocals, SDR 11.00)
 ```
 
-**Ensemble (max quality):** Bass=HTDemucs4 FT, Drums=HTDemucs4 FT, Vocals=BS PolarFormer, Other=bs6
-**Studio (fast):** bs6_full.py → bass/drums/vocals/other/guitar/piano in one pass
+**CLI (when DAW not running):**
+```bash
+SPLIT=~/projects/creative-studio/stem-splitter/venv/bin/python
+SCRIPT=~/projects/creative-studio/stem-splitter/sota_splitter.py
+
+# Fast (6 stems one pass, 15s for 30s audio)
+$SPLIT $SCRIPT input.wav -o /tmp/stems -m bs6
+
+# Max quality (ensemble — specialist per stem, ~4.5min for 4-min track)
+$SPLIT $SCRIPT input.wav -o /tmp/stems -m ensemble
+
+# Vocal dereverb (run AFTER polarformer, on vocals.wav)
+$SPLIT $SCRIPT /tmp/stems/vocals.wav -o /tmp/dry -m dereverb
+
+# Drum separation (run AFTER scnet/bs6, on drums.wav)
+$SPLIT $SCRIPT /tmp/stems/drums.wav -o /tmp/drumkit -m drumsep
+```
+
+**Mode selection:**
+| Need | Mode | Stems | Speed |
+|------|------|-------|-------|
+| Final mix (max quality) | ensemble | 4 | slowest (3 passes) |
+| Quick 4-stem | scnet | 4 | medium |
+| 6 stems (guitar/piano) | bs6 | 6 | fast |
+| Vocals only | polarformer | 1 | fast |
+| Dry vocals | dereverb | 2 | fast (run on vocals.wav) |
+| Drum kit breakdown | drumsep | 4 | medium (run on drums.wav) |
+| Clean noisy MP3 | denoise | 2 | fast (run before split) |
 
 ### Decision Point: Anchor Strategy
 
@@ -126,14 +160,14 @@ $SPLIT scripts/ensemble_split.py input.wav -o /tmp/stems --device cuda
 
 | When | Engine | Why |
 |------|--------|-----|
-| User says "opendaw" / "наш mcp" | openDAW MCP | agent-native, 258 tools, real-time |
+| User says "opendaw" / "наш mcp" | openDAW MCP | agent-native, 260 tools, real-time |
 | User says "быстро" / "pedalboard" | pedalboard Python | faster, no browser needed |
 | Default (no preference) | openDAW | user built it, prefers it (lesson #16) |
 
 ### openDAW mix workflow
 
 ```python
-# MCP tools (258 available, key ones for mixing):
+# MCP tools (260 available, key ones for mixing):
 # mcp_opendaw_create_audio_track() → track index
 # mcp_opendaw_load_audio(file_path, name) → sample_id
 # mcp_opendaw_create_audio_clip(sample_id, unit_idx, clip_idx, track_idx, bpm)
@@ -336,13 +370,13 @@ track_name_mastered/
 ### Venvs
 - **Analysis**: `/tmp/audio_analysis_venv/bin/python` (librosa, pyloudnorm, pedalboard, matplotlib). Recreate: `bash <songsee_dir>/scripts/setup_audio_venv.sh`
 - **Stem splitter**: `~/projects/creative-studio/stem-splitter/venv/bin/python` (torch, demucs, MSST). Persistent.
-- **openDAW MCP**: `~/projects/creative-studio/agent-daw/opendaw-mcp/venv/` (server.py, 258 tools)
+- **openDAW MCP**: `~/projects/creative-studio/agent-daw/opendaw-mcp/venv/` (server.py, 260 tools)
 
 ### openDAW MCP
 - Server: `~/projects/creative-studio/agent-daw/opendaw-mcp/server.py`
 - Headless: `~/projects/creative-studio/agent-daw/headless-daw/` (Vite port 5174)
-- 258 MCP tools, 8 orchestration tools, 26 DSP scripts
-- See `opendaw-automation` skill for full API reference
+- 260 MCP tools, 8 orchestration tools, 26 DSP scripts
+- See `opendaw-automation` skill for full API reference (260 tools)
 
 ### DSP Scripts (26 available)
 - 15 Werkstatt (audio effects): darksat, coldfold, reverb, chorus, phaser, lookahead, shimmer, paulstretch, envfollower, adsr_trim, granular, pitch_shift, dcremover, allpass, ringmod_env
@@ -350,7 +384,7 @@ track_name_mastered/
 - 6 Spielwerk (MIDI effects): arpeggiator, powerchord, chordmemory, strum, velocity, mididelay
 
 ### Related skills
-- `opendaw-automation` — 258 MCP tools API reference
+- `opendaw-automation` — 260 MCP tools API reference
 - `coldwave-mix-mastering` — coldwave-specific session log (F01→F12, Glass.wav)
 - `stem-splitter-local` — SOTA stem separation (Demucs, BS-Roformer, MSST)
 - `songsee` — audio analysis CLI (spectrograms, features)

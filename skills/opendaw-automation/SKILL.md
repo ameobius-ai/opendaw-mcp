@@ -1,12 +1,12 @@
 ---
 name: opendaw-automation
-description: "openDAW automation — 258 MCP tools via Playwright. 8 orchestration tools. Full DAW control. v1.11.9 on PyPI. 26 DSP scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues. All 19 CodeRabbit findings fixed. 93 unit + 6 E2E tests. Scriptable params mapping-aware. See references/."
+description: "openDAW automation — 260 MCP tools via Playwright. 8 orchestration tools. Full DAW control. v1.12.1 on PyPI. 26 DSP scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues. Stem splitter integration (7 SOTA models, GPU local). 93 unit + 6 E2E tests. Scriptable params mapping-aware. See references/."
 tags: [opendaw, audio, daw, headless, mcp, playwright]
 ---
 
 # openDAW Automation Meta-Skill
 
-258 MCP tools (mcp_opendaw_* prefix; 261 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.11.9 on PyPI** (token saved in credentials.db, service='pypi', username='__token__' — extract via `python3 credentials/credman.py export --table accounts` then `json.loads → accounts[].password`). **26 DSP scripts** (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues (#91, #133, #138, #139, #188, #195, #201, #209, #241, #277). PR #283 open (26 DSP examples, **all 19 CodeRabbit findings fixed**). PR #280 closed (bundler issue, not upstream bug — do NOT resubmit).
+260 MCP tools (mcp_opendaw_* prefix; 263 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.12.1 on PyPI** (token saved in credentials.db, service='pypi', username='__token__' — extract via `python3 credentials/credman.py export --table accounts` then `json.loads → accounts[].password`). **26 DSP scripts** (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues (#91, #133, #138, #139, #188, #195, #201, #209, #241, #277). PR #283 open (26 DSP examples, **all 19 CodeRabbit findings fixed**). PR #280 closed (bundler issue, not upstream bug — do NOT resubmit). **Stem splitter integration** (v1.12.1): `split_stems` + `list_split_modes` MCP tools, 7 SOTA models locally on GPU (see stem-splitter-local skill).
 
 ## References (read these before working on opendaw-mcp)
 
@@ -21,7 +21,7 @@ tags: [opendaw, audio, daw, headless, mcp, playwright]
 ## Key facts
 
 ### Project layout
-- MCP server: `opendaw-mcp/server.py` (~12900 lines, 258 tools)
+- MCP server: `opendaw-mcp/server.py` (~13050 lines, 260 tools)
 - Headless host: `headless-daw/` (Vite on port 5174, COOP/COEP → crossOriginIsolated)
 - openDAW upstream: `openDAW/` (git remote: upstream → andremichelle/openDAW)
 - Tests: `tests/test_utils.py` (93 unit), `tests/test_integration.py` (6 E2E, auto-skip if DAW not running)
@@ -67,6 +67,12 @@ const werkIdx = fx.findIndex(b => b.constructor.name === 'WerkstattDeviceBox');
 
 ### Orchestration tools (8)
 `create_notes_batch`, `create_drum_pattern`, `create_chord_progression`, `add_mastering_chain`, `create_genre_track`, `create_song_structure`, `automation_sweep`, `apply_mix_preset`.
+
+### Stem Splitter tools (2, v1.12.1+)
+`split_stems(input_path, mode, output_dir, import_to_daw)` — runs SOTA separation locally on GPU. 7 modes: ensemble, scnet, bs6, polarformer, dereverb, drumsep, denoise. Optional auto-import into DAW (loads each stem via `load_audio`, returns sample IDs). Uses `sota_splitter.py` in `~/projects/creative-studio/stem-splitter/`. See stem-splitter-local skill for model details.
+`list_split_modes()` — returns all modes with SDR scores and descriptions.
+
+**Stem splitter path resolution**: `STEM_SPLITTER_DIR` env var (default `~/projects/creative-studio/stem-splitter`). Uses `venv/bin/python` directly (NOT `source venv/bin/activate` — activate doesn't persist between terminal calls and may pick up wrong venv).
 
 ### PyPI publishing (WORKING — token saved)
 Token IS in `credentials/credentials.db` → `accounts` table, service='pypi', username='__token__', password column = full `pypi-AgE...` token. Extract: `python3 -c "import json,subprocess; out=subprocess.check_output(['python3','credentials/credman.py','export','--table','accounts']); data=json.loads(out); [print(a['password'],end='') for a in data['accounts'] if a.get('service')=='pypi' and a.get('username')=='__token__']"`. Save to temp file, then `UV_PUBLISH_TOKEN="$(cat /tmp/.pypi_token)" uv publish dist/opendaw_mcp-X.Y.Z-*.whl dist/opendaw_mcp-X.Y.Z-*.tar.gz` — **pass explicit file paths** to avoid re-uploading old versions in dist/ (PyPI rejects duplicate uploads). **The user had to provide this token THREE TIMES because previous sessions failed to persist it — when the user gives you a credential, SAVE IT IMMEDIATELY in credentials.db, do not assume it's already there or that "it'll be in the next session". The user was visibly frustrated ("я тебе уже 3й раз его скидываю"). This is a FIRST-CLASS lesson: credential persistence is step 1, not an afterthought.** Build: `uv build` → wheel+sdist in `dist/`. GitHub release: `curl --resolve api.github.com:443:140.82.121.6 -X POST -H "Authorization: token $TOKEN" ... repos/AMEOBIUS/opendaw-mcp/releases -d '{"tag_name":"vX.Y.Z",...}'`. MCP Registry auto-publishes via CI workflow `publish-mcp.yml` using GitHub OIDC (no token needed).
