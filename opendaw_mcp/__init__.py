@@ -27,6 +27,17 @@ from .utils import (
     _safe_path,
     _clamp_script_param,
 )
+from .music_theory import (
+    NOTE_TO_PITCH,
+    CHORD_INTERVALS,
+    SCALE_INTERVALS,
+    GENRE_PRESETS,
+    VALID_GENRES,
+    VALID_CHORD_TYPES,
+    VALID_SCALE_TYPES,
+    chord_to_pitches,
+    scale_to_pitches,
+)
 
 __all__ = [
     "HeadlessDawBridge",
@@ -44,4 +55,13 @@ __all__ = [
     "_safe_filename",
     "_safe_path",
     "_clamp_script_param",
+    "NOTE_TO_PITCH",
+    "CHORD_INTERVALS",
+    "SCALE_INTERVALS",
+    "GENRE_PRESETS",
+    "VALID_GENRES",
+    "VALID_CHORD_TYPES",
+    "VALID_SCALE_TYPES",
+    "chord_to_pitches",
+    "scale_to_pitches",
 ]

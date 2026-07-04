@@ -38,6 +38,10 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _safe_filename,
     _safe_path,
     _clamp_script_param,
+    NOTE_TO_PITCH,
+    CHORD_INTERVALS,
+    GENRE_PRESETS,
+    VALID_GENRES,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -11941,9 +11945,6 @@ Returns the total notes created and chord voicings used.
     except _json.JSONDecodeError as e:
         return f"Error parsing chords JSON: {e}"
 
-    note_to_pitch = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11}
-    chord_intervals = {"maj": [0, 4, 7], "min": [0, 3, 7], "dom7": [0, 4, 7, 10], "maj7": [0, 4, 7, 11], "min7": [0, 3, 7, 10], "sus2": [0, 2, 7], "sus4": [0, 5, 7], "add9": [0, 4, 7, 14], "dim": [0, 3, 6], "aug": [0, 4, 8]}
-
     note_list = []
     voicings = []
     for ci, chord_spec in enumerate(chord_list):
@@ -11951,13 +11952,13 @@ Returns the total notes created and chord voicings used.
             return f"Error: chord {ci} must have [root, type]"
         root_name = chord_spec[0]
         chord_type = chord_spec[1]
-        if root_name not in note_to_pitch:
+        if root_name not in NOTE_TO_PITCH:
             return f"Error: unknown root '{root_name}'"
-        if chord_type not in chord_intervals:
-            return f"Error: unknown chord type '{chord_type}'. Valid: {list(chord_intervals.keys())}"
+        if chord_type not in CHORD_INTERVALS:
+            return f"Error: unknown chord type '{chord_type}'. Valid: {list(CHORD_INTERVALS.keys())}"
 
-        root_pc = note_to_pitch[root_name]
-        intervals = chord_intervals[chord_type]
+        root_pc = NOTE_TO_PITCH[root_name]
+        intervals = CHORD_INTERVALS[chord_type]
         root_pitch = 60 + root_pc
         if root_pc > 5:
             root_pitch -= 12
@@ -12156,23 +12157,17 @@ genre: Musical genre preset:
   - "dnb" — breakbeat drums, sub bass, 174 BPM
   - "trap" — 808 kick, hat rolls, melodic lead, 140 BPM
   - "ambient" — pad chord, no drums, 70 BPM
+  - "coldwave" — driving kick, dark bass, 110 BPM
+  - "hiphop" — boom bap kick/snare, 90 BPM
 
 bpm: Override tempo (default per genre).
 
 Returns created AU indices, note counts, and suggested next steps.
 """
-    genres = {
-        "house": {"bpm": 128, "drums": {"kick": "x...x...x...x...", "hihat": "....o...o...o..."}, "bass": [{"pitch": 36, "start": 0, "duration": 0.5}, {"pitch": 36, "start": 2, "duration": 0.5}, {"pitch": 43, "start": 4, "duration": 0.5}, {"pitch": 36, "start": 6, "duration": 0.5}], "chords": [["F", "min7"], ["Ab", "maj7"], ["Db", "maj7"], ["Eb", "min7"]]},
-        "techno": {"bpm": 130, "drums": {"kick": "x...x...x...x...", "hihat": "x.x.x.x.x.x.x.x."}, "bass": [{"pitch": 31, "start": 0, "duration": 0.25}, {"pitch": 31, "start": 0.5, "duration": 0.25}, {"pitch": 31, "start": 1, "duration": 0.25}, {"pitch": 31, "start": 1.5, "duration": 0.25}], "chords": []},
-        "lofi": {"bpm": 80, "drums": {"kick": "x.......x.......", "snare": "....x.......x...", "hihat": "x.x.x.x.x.x.x.x."}, "bass": [], "chords": [["D", "min7"], ["G", "dom7"], ["C", "maj7"], ["A", "min7"]]},
-        "dnb": {"bpm": 174, "drums": {"kick": "x.......x...", "snare": "....x.......x.."}, "bass": [{"pitch": 28, "start": 0, "duration": 2}, {"pitch": 28, "start": 4, "duration": 2}], "chords": []},
-        "trap": {"bpm": 140, "drums": {"kick": "x.....x.x.....", "hihat": "x.x.x.xxx.x.x.x."}, "bass": [{"pitch": 36, "start": 0, "duration": 1}, {"pitch": 36, "start": 3, "duration": 0.5}], "chords": [["F", "min"], ["Ab", "maj"], ["Eb", "min"]]},
-        "ambient": {"bpm": 70, "drums": {}, "bass": [], "chords": [["C", "maj7"], ["F", "maj7"], ["A", "min7"], ["G", "maj7"]]},
-    }
-    if genre not in genres:
-        return f"Error: unknown genre '{genre}'. Valid: {list(genres.keys())}"
+    if genre not in GENRE_PRESETS:
+        return f"Error: unknown genre '{genre}'. Valid: {VALID_GENRES}"
 
-    g = genres[genre]
+    g = GENRE_PRESETS[genre]
     actual_bpm = bpm if bpm != 120 else g["bpm"]
 
     result = await bridge.evaluate(f"""() => {{
