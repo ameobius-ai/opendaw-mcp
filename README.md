@@ -304,6 +304,11 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.11.4 (2026-07-04)
+
+- **1 new Apparat script**: ring modulator synth with ADSR and sub-oscillator (#277)
+- **18 DSP scripts total** (12 Werkstatt + 4 Apparat + 2 Spielwerk)
+
 ### v1.11.3 (2026-07-04)
 
 - **1 new Werkstatt script**: real-time pitch shifter via delay-line sweep (#188)
