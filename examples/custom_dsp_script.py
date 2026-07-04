@@ -5,6 +5,8 @@ Demonstrates the dsp-script-authoring skill: writes a custom Werkstatt
 audio effect (analog-style saturation with tone control), compiles it
 via ScriptCompiler, sets parameters, and verifies.
 
+Uses MCP tools directly (not raw bridge evaluate) — same as an agent would.
+
 Usage:
     # Start Vite first:
     #   cd headless-daw && npx vite --port 5174
@@ -15,10 +17,9 @@ Usage:
 import asyncio
 import sys
 sys.path.insert(0, ".")
-from server import HeadlessDawBridge
+import server
 
 # Custom Werkstatt DSP script — analog saturation with tone control
-# This is a simplified version of werkstatt_darksat.js showing the authoring pattern
 CUSTOM_SCRIPT = """// @werkstatt analog_sat 1 1
 // @param drive 0.5 0 2 linear
 // @param tone 0.5 0 1 linear
@@ -29,7 +30,6 @@ class Processor {
   p = {drive: 0.5, tone: 0.5, mix: 0.5, output: 0.0}
   sr = sampleRate
   lp = 0
-  hp = 0
   prevIn = 0
   prevOut = 0
 
@@ -46,12 +46,8 @@ class Processor {
     const tone = this.p.tone
     const mix = this.p.mix
     const outGain = Math.pow(10, this.p.output / 20)
-
-    // DC blocker coefficients
     const dcCoeff = 0.995
-
-    // Tone filter: lowpass when tone < 0.5, highpass when tone > 0.5
-    const lpFreq = 200 + tone * 8000  // 200Hz..8200Hz
+    const lpFreq = 200 + tone * 8000
     const lpCoeff = Math.exp(-2 * Math.PI * lpFreq / this.sr)
 
     for (let i = block.s0; i < block.s1; i++) {
@@ -68,12 +64,10 @@ class Processor {
       this.lp = this.lp + lpCoeff * (saturated - this.lp)
       const toned = this.lp
 
-      // 4. Output gain
+      // 4. Output gain + dry/wet mix
       const wet = toned * outGain
-
-      // 5. Dry/wet mix
       io.out[0][i] = dcOut * (1 - mix) + wet * mix
-      io.out[1][i] = io.out[0][i]  // mono effect
+      io.out[1][i] = io.out[0][i]
     }
   }
 }
@@ -81,146 +75,73 @@ class Processor {
 
 
 async def main():
-    bridge = HeadlessDawBridge()
-    await bridge.start()
+    await server.bridge.start()
 
     try:
-        # === 1. Create an audio unit with Werkstatt ===
-        print("1. Creating audio unit with Werkstatt effect...")
-        setup = await bridge.evaluate("""async () => {
-            const h = window.DAW_HELPERS;
-            const p = h.api;
-            // Create a synth AU (Vaporisateur) so we have audio to process
-            const inst = p.createAnyInstrument(h.InstrumentFactories.Vaporisateur);
-            const au = inst.audioUnit;
-            const auIndex = h.allAUs().indexOf(au);
-            // Add Werkstatt as audio effect
-            const werkstatt = p.insertEffect(au.audioEffects, h.EffectFactories.Werkstatt);
-            const fx = [...au.audioEffects.adapters()];
-            const werkIdx = fx.findIndex(f => f.box.constructor.name === 'WerkstattDeviceBox');
-            return {
-                au_index: auIndex,
-                werkstatt_index: werkIdx,
-                total_effects: fx.length
-            };
-        }""")
-        print(f"   AU: {setup.get('au_index')}, Werkstatt at index: {setup.get('werkstatt_index')}")
-
-        # === 2. Load custom DSP script (compiles via ScriptCompiler) ===
-        print("\n2. Compiling custom DSP script...")
+        # === 1. Create a synth track (Vaporisateur) ===
+        print("1. Creating synth track (Vaporisateur)...")
+        synth = await server.mcp_opendaw_create_synth_track("Custom DSP", "Vaporisateur")
         import json
-        code_escaped = json.dumps(CUSTOM_SCRIPT)
-        compile_result = await bridge.evaluate(f"""async () => {{
-            const h = window.DAW_HELPERS;
-            const aus = h.allAUs();
-            if ({setup.get('au_index', 0)} >= aus.length) return {{error: "No AU"}};
-            const au = aus[{setup.get('au_index', 0)}];
-            const fx = [...au.audioEffects.adapters()];
-            const werkIdx = fx.findIndex(f => f.box.constructor.name === 'WerkstattDeviceBox');
-            if (werkIdx < 0) return {{error: "No Werkstatt"}};
-            const werkBox = fx[werkIdx].box;
+        synth_data = json.loads(synth)
+        uid = synth_data.get("unit_index")
+        print(f"   AU created: unit_index={uid}")
 
-            // Use ScriptCompiler to compile
-            const compiler = window.DAW_ScriptCompiler;
-            if (!compiler) return {{error: "ScriptCompiler not available"}};
+        # === 2. Add Werkstatt effect ===
+        print("\n2. Adding Werkstatt audio effect...")
+        fx = await server.mcp_opendaw_add_effect(uid, "Werkstatt")
+        fx_data = json.loads(fx)
+        fx_idx = fx_data.get("effect_index", 0)
+        print(f"   Werkstatt added at effect_index={fx_idx}")
 
-            const audioContext = window.DAW_audioContext;
-            if (!audioContext) return {{error: "No audioContext"}};
-
-            const code = {code_escaped};
-
-            try {{
-                compiler.compile(audioContext, h.editing, werkBox, code);
-                return {{
-                    success: true,
-                    code_length: code.length,
-                    header: code.split('\\n')[0]
-                }};
-            }} catch(e) {{
-                return {{error: e.message, stack: e.stack?.substring(0, 200)}};
-            }}
-        }}""")
-        print(f"   Compile result: {compile_result}")
-
-        if compile_result.get("error"):
-            print(f"   ❌ Compilation failed: {compile_result['error']}")
+        # === 3. Compile custom DSP script ===
+        print("\n3. Compiling custom DSP script (analog saturation)...")
+        compile = await server.mcp_opendaw_set_script_device_code(
+            "Werkstatt", uid, fx_idx, CUSTOM_SCRIPT
+        )
+        compile_data = json.loads(compile)
+        print(f"   Compiled: {compile_data.get('success', False)}")
+        print(f"   Params created: {compile_data.get('params_created', 0)}")
+        if compile_data.get("error"):
+            print(f"   ❌ Error: {compile_data['error']}")
             return
 
-        # === 3. List parameters (should match @param declarations) ===
-        print("\n3. Listing script parameters...")
-        params = await bridge.evaluate(f"""async () => {{
-            const h = window.DAW_HELPERS;
-            const aus = h.allAUs();
-            const au = aus[{setup.get('au_index', 0)}];
-            const fx = [...au.audioEffects.adapters()];
-            const werkIdx = fx.findIndex(f => f.box.constructor.name === 'WerkstattDeviceBox');
-            const werkAdapter = fx[werkIdx];
-            const params = [...werkAdapter.box.parameters.pointerHub.incoming()];
-            return params.map(p => ({{
-                label: p.box.label.getValue(),
-                index: p.box.index.getValue(),
-                value: p.box.value.getValue(),
-                defaultValue: p.box.defaultValue.getValue()
-            }}));
-        }}""")
-        print(f"   Parameters ({len(params)}):")
-        for p in params:
-            print(f"   - {p['label']}: value={p['value']}, default={p['defaultValue']}")
+        # === 4. List parameters ===
+        print("\n4. Listing script parameters...")
+        params = await server.mcp_opendaw_list_script_params("Werkstatt", uid, fx_idx)
+        params_data = json.loads(params)
+        for p in params_data.get("parameters", []):
+            print(f"   - {p['label']}: value={p['value']}, "
+                  f"range=[{p.get('min','?')}-{p.get('max','?')}], "
+                  f"type={p.get('type','?')}")
 
-        # === 4. Set parameters ===
-        print("\n4. Setting parameters...")
-        for param_name, value in [("drive", 0.85), ("tone", 0.3), ("mix", 0.8), ("output", -3.0)]:
-            result = await bridge.evaluate(f"""async () => {{
-                const h = window.DAW_HELPERS;
-                const aus = h.allAUs();
-                const au = aus[{setup.get('au_index', 0)}];
-                const fx = [...au.audioEffects.adapters()];
-                const werkIdx = fx.findIndex(f => f.box.constructor.name === 'WerkstattDeviceBox');
-                const params = [...fx[werkIdx].box.parameters.pointerHub.incoming()];
-                const param = params.find(p => p.box.label.getValue() === "{param_name}");
-                if (!param) return {{error: "Param '{param_name}' not found"}};
-                const old = param.box.value.getValue();
-                h.modify(() => {{
-                    param.box.value.setValue({value});
-                }});
-                return {{
-                    param: "{param_name}",
-                    old: old,
-                    new: param.box.value.getValue()
-                }};
-            }}""")
-            print(f"   {param_name}: {result.get('old')} → {result.get('new')}")
+        # === 5. Set parameters ===
+        print("\n5. Setting parameters...")
+        for name, value in [("drive", 0.85), ("tone", 0.3), ("mix", 0.8), ("output", -3.0)]:
+            result = await server.mcp_opendaw_set_script_param(
+                "Werkstatt", uid, fx_idx, name, value
+            )
+            r = json.loads(result)
+            print(f"   {name}: {r.get('old_value', '?')} → {r.get('new_value', '?')}")
 
-        # === 5. Read code back ===
-        print("\n5. Reading code back from device...")
-        code_back = await bridge.evaluate(f"""async () => {{
-            const h = window.DAW_HELPERS;
-            const aus = h.allAUs();
-            const au = aus[{setup.get('au_index', 0)}];
-            const fx = [...au.audioEffects.adapters()];
-            const werkIdx = fx.findIndex(f => f.box.constructor.name === 'WerkstattDeviceBox');
-            const code = fx[werkIdx].box.code.getValue();
-            return {{
-                length: code.length,
-                header: code.split('\\n')[0],
-                has_process: code.includes('process(io, block)'),
-                has_paramChanged: code.includes('paramChanged'),
-                has_tanh: code.includes('Math.tanh')
-            }};
-        }}""")
-        print(f"   Code: {code_back.get('length')} bytes, header: {code_back.get('header')}")
-        print(f"   Has process(): {code_back.get('has_process')}")
-        print(f"   Has paramChanged(): {code_back.get('has_paramChanged')}")
-        print(f"   Has tanh saturation: {code_back.get('has_tanh')}")
+        # === 6. Read code back ===
+        print("\n6. Reading code back from device...")
+        code = await server.mcp_opendaw_get_script_device_code("Werkstatt", uid, fx_idx)
+        code_data = json.loads(code)
+        code_str = code_data.get("code", "")
+        print(f"   Code: {len(code_str)} bytes")
+        print(f"   Header: {code_str.split(chr(10))[0] if code_str else 'empty'}")
+        print(f"   Has process(): {'process(io, block)' in code_str}")
+        print(f"   Has tanh: {'Math.tanh' in code_str}")
+        print(f"   Has DC blocker: {'prevIn' in code_str}")
 
-        # === 6. Verify ===
+        # === 7. Verify ===
         print("\n✅ Custom DSP script compiled and tested!")
         print(f"   Script: analog saturation with DC blocker + tone filter + dry/wet")
         print(f"   4 parameters: drive, tone, mix, output")
         print(f"   All parameters set and verified")
 
     finally:
-        await bridge.stop()
+        await server.bridge.stop()
 
 
 if __name__ == "__main__":

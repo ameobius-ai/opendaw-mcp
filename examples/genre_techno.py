@@ -2,251 +2,130 @@
 Example: Genre Template — Techno Track Skeleton
 
 Demonstrates the opendaw-genres skill: creates a complete techno track skeleton
-with BPM, drum pattern, rolling bass, chord stab, and effect chain.
+with BPM, drum pattern, rolling bass, and effect chain.
+
+Uses MCP tools directly — same as an agent would.
 
 Usage:
-    # Start Vite first (in separate terminal):
+    # Start Vite first:
     #   cd headless-daw && npx vite --port 5174
     #
-    # Then:
     source venv/bin/activate
     OPENDAW_URL=http://localhost:5174 python3 examples/genre_techno.py
 """
 import asyncio
+import json
 import sys
 sys.path.insert(0, ".")
-from server import HeadlessDawBridge
+import server
 
 
 async def main():
-    bridge = HeadlessDawBridge()
-    await bridge.start()
+    await server.bridge.start()
 
     try:
         # === 1. Set BPM ===
-        await bridge.evaluate("""() => {
-            const h = window.DAW_HELPERS;
-            h.api.setBpm(130);
-            return {bpm: 130};
-        }""")
-        print("✓ BPM set to 130")
+        print("1. Setting BPM to 130...")
+        await server.mcp_opendaw_set_bpm(130)
+        print("   ✓ BPM = 130")
 
         # === 2. Create drum track (Playfield) ===
-        drum_result = await bridge.evaluate("""async () => {
-            const h = window.DAW_HELPERS;
-            const p = h.api;
-            // Create instrument AU
-            const inst = p.createAnyInstrument(h.InstrumentFactories.Playfield);
-            const au = inst.audioUnit;
-            const auIndex = h.allAUs().indexOf(au);
-            // Create note track
-            const track = p.createNoteTrack(au);
-            const trackIndex = au.tracks.size - 1;
-            // Create note region (4 bars = 16 beats)
-            const region = p.createNoteRegion({
-                owner: track,
-                position: 0,
-                duration: 16,
-                unit: h.allAUs().indexOf(au)
-            });
-            return {
-                au_index: auIndex,
-                track_index: trackIndex,
-                region_index: 0,
-                instrument: "Playfield"
-            };
-        }""")
-        print(f"✓ Drum track created: {drum_result}")
+        print("\n2. Creating drum track (Playfield)...")
+        drums = await server.mcp_opendaw_create_synth_track("Drums", "Playfield")
+        drum_data = json.loads(drums)
+        drum_uid = drum_data.get("unit_index")
+        print(f"   ✓ Drum AU: unit_index={drum_uid}")
+
+        # Create note track + region
+        await server.mcp_opendaw_create_note_track(drum_uid)
+        await server.mcp_opendaw_create_track_region(drum_uid, 0, 0, 16, "Drums", 190)
+        print("   ✓ Note track + 16-beat region")
 
         # === 3. Create bass track (Vaporisateur) ===
-        bass_result = await bridge.evaluate("""async () => {
-            const h = window.DAW_HELPERS;
-            const p = h.api;
-            const inst = p.createAnyInstrument(h.InstrumentFactories.Vaporisateur);
-            const au = inst.audioUnit;
-            const auIndex = h.allAUs().indexOf(au);
-            const track = p.createNoteTrack(au);
-            const region = p.createNoteRegion({
-                owner: track,
-                position: 0,
-                duration: 16,
-                unit: auIndex
-            });
-            return {au_index: auIndex, track_index: 0, region_index: 0};
-        }""")
-        print(f"✓ Bass track created: {bass_result}")
+        print("\n3. Creating bass track (Vaporisateur)...")
+        bass = await server.mcp_opendaw_create_synth_track("Bass", "Vaporisateur")
+        bass_data = json.loads(bass)
+        bass_uid = bass_data.get("unit_index")
+        print(f"   ✓ Bass AU: unit_index={bass_uid}")
+
+        await server.mcp_opendaw_create_note_track(bass_uid)
+        await server.mcp_opendaw_create_track_region(bass_uid, 0, 0, 16, "Bass", 210)
+        print("   ✓ Note track + 16-beat region")
 
         # === 4. Add drum pattern (4-on-the-floor) ===
-        # Using create_drum_pattern orchestration tool logic
-        drum_pattern = {
+        print("\n4. Adding drum pattern (4-on-the-floor)...")
+        pattern = {
             "kick":  "x...x...x...x...",
             "clap":  "....x.......x...",
             "hihat": "o.o.o.o.o.o.o.o.",
         }
-        drum_pattern_json = str(drum_pattern).replace("'", '"')
-        pattern_result = await bridge.evaluate(f"""async () => {{
-            const h = window.DAW_HELPERS;
-            const p = h.api;
-            const aus = h.allAUs();
-            if (aus.length < 1) return {{error: "No AUs"}};
-            const drumAU = aus[0]; // first AU = drums
-            const track = [...drumAU.tracks.values()][0];
-            const region = [...track.regions.collection.asArray()][0];
-            const notes = [];
-            const lanes = {{
-                "kick": 36, "clap": 39, "hihat": 42, "snare": 38, "perc": 47
-            }};
-            const pattern = {drum_pattern_json};
-            const ppqn = h.ppqn.Quarter; // 960
-            const stepLen = ppqn / 4; // 16th note = 240 ppqn
-            for (const [lane, hits] of Object.entries(pattern)) {{
-                const pitch = lanes[lane] || 36;
-                for (let i = 0; i < hits.length; i++) {{
-                    const c = hits[i];
-                    if (c === '.') continue;
-                    let vel = 0.7;
-                    if (c === 'x') vel = 0.9;
-                    else if (c === 'o') vel = 0.5;
-                    else if (c === 'X') vel = 1.0;
-                    notes.push({{
-                        position: i * stepLen,
-                        duration: stepLen,
-                        pitch: pitch,
-                        velocity: vel
-                    }});
-                }}
-            }}
-            // Add notes to region
-            const events = region.events.targetVertex.unwrap().box;
-            const NoteEventBox = window.DAW_NoteEventBox;
-            h.modify(() => {{
-                for (const n of notes) {{
-                    p.createNoteEvent({{
-                        owner: events,
-                        position: n.position,
-                        duration: n.duration,
-                        velocity: n.velocity,
-                        pitch: n.pitch
-                    }});
-                }}
-            }});
-            return {{notes_added: notes.length}};
-        }}""")
-        print(f"✓ Drum pattern added: {pattern_result}")
+        pattern_json = json.dumps(pattern)
+        drum_result = await server.mcp_opendaw_create_drum_pattern(
+            pattern_json, drum_uid
+        )
+        drum_r = json.loads(drum_result)
+        print(f"   ✓ {drum_r.get('notes_added', drum_r.get('total', 0))} drum notes added")
 
         # === 5. Add rolling bass (16th notes, A1 = 33) ===
-        bass_notes_result = await bridge.evaluate("""async () => {
-            const h = window.DAW_HELPERS;
-            const p = h.api;
-            const aus = h.allAUs();
-            if (aus.length < 2) return {error: "No bass AU"};
-            const bassAU = aus[1]; // second AU = bass
-            const track = [...bassAU.tracks.values()][0];
-            const region = [...track.regions.collection.asArray()][0];
-            const events = region.events.targetVertex.unwrap().box;
-            const ppqn = h.ppqn.Quarter;
-            const stepLen = ppqn / 4; // 16th
-            const notes = [];
-            // 16 bars × 4 beats × 4 sixteenths = 256 notes (but we do 4 bars = 64)
-            for (let i = 0; i < 64; i++) {
-                notes.push({
-                    position: i * stepLen,
-                    duration: stepLen,
-                    pitch: 33, // A1
-                    velocity: 0.7
-                });
-            }
-            h.modify(() => {
-                for (const n of notes) {
-                    p.createNoteEvent({
-                        owner: events,
-                        position: n.position,
-                        duration: n.duration,
-                        velocity: n.velocity,
-                        pitch: n.pitch
-                    });
-                }
-            });
-            return {bass_notes: notes.length};
-        }""")
-        print(f"✓ Rolling bass added: {bass_notes_result}")
+        print("\n5. Adding rolling bass (16th notes, A1)...")
+        bass_notes = []
+        for i in range(64):  # 4 bars × 16 sixteenths
+            bass_notes.append({
+                "pitch": 33,      # A1
+                "start": i * 0.25, # 16th note spacing
+                "duration": 0.125, # short
+                "velocity": 0.7
+            })
+        bass_result = await server.mcp_opendaw_create_notes_batch(
+            json.dumps(bass_notes), bass_uid, 0
+        )
+        bass_r = json.loads(bass_result)
+        print(f"   ✓ {bass_r.get('notes_added', 0)} bass notes added")
 
-        # === 6. Add effect chain on drums ===
-        drum_fx = await bridge.evaluate("""async () => {
-            const h = window.DAW_HELPERS;
-            const p = h.api;
-            const aus = h.allAUs();
-            if (aus.length < 1) return {error: "No drum AU"};
-            const drumAU = aus[0];
-            // Add Compressor
-            const comp = p.insertEffect(drumAU.audioEffects, h.EffectFactories.Compressor);
-            // Add Revamp (EQ)
-            const eq = p.insertEffect(drumAU.audioEffects, h.EffectFactories.Revamp);
-            const fx = [...drumAU.audioEffects.adapters()];
-            return {
-                effects: fx.length,
-                types: fx.map(f => f.box.constructor.name.replace('DeviceBox',''))
-            };
-        }""")
-        print(f"✓ Drum effects: {drum_fx}")
+        # === 6. Add effects on drums ===
+        print("\n6. Adding effects on drums...")
+        comp = await server.mcp_opendaw_add_effect(drum_uid, "Compressor")
+        comp_data = json.loads(comp)
+        comp_idx = comp_data.get("effect_index", 0)
+        await server.mcp_opendaw_set_effect_parameter(drum_uid, comp_idx, "threshold", -15.0)
+        await server.mcp_opendaw_set_effect_parameter(drum_uid, comp_idx, "ratio", 4.0)
+        print(f"   ✓ Compressor (threshold=-15dB, ratio=4:1) at index {comp_idx}")
+
+        eq = await server.mcp_opendaw_add_effect(drum_uid, "Revamp")
+        eq_data = json.loads(eq)
+        eq_idx = eq_data.get("effect_index", 0)
+        print(f"   ✓ Revamp EQ at index {eq_idx}")
 
         # === 7. Add Waveshaper on bass ===
-        bass_fx = await bridge.evaluate("""async () => {
-            const h = window.DAW_HELPERS;
-            const p = h.api;
-            const aus = h.allAUs();
-            if (aus.length < 2) return {error: "No bass AU"};
-            const bassAU = aus[1];
-            const ws = p.insertEffect(bassAU.audioEffects, h.EffectFactories.Waveshaper);
-            const fx = [...bassAU.audioEffects.adapters()];
-            return {
-                effects: fx.length,
-                types: fx.map(f => f.box.constructor.name.replace('DeviceBox',''))
-            };
-        }""")
-        print(f"✓ Bass effects: {bass_fx}")
+        print("\n7. Adding Waveshaper on bass...")
+        ws = await server.mcp_opendaw_add_effect(bass_uid, "Waveshaper")
+        ws_data = json.loads(ws)
+        ws_idx = ws_data.get("effect_index", 0)
+        await server.mcp_opendaw_set_effect_parameter(bass_uid, ws_idx, "inputGain", 3.0)
+        print(f"   ✓ Waveshaper (input +3dB) at index {ws_idx}")
 
         # === 8. Set track volumes ===
-        volumes = await bridge.evaluate("""async () => {
-            const h = window.DAW_HELPERS;
-            const aus = h.allAUs();
-            const results = [];
-            // Drums at -3 dB
-            if (aus[0]) {
-                aus[0].box.volume.setValue(-3.0);
-                results.push({au: 0, volume: aus[0].box.volume.getValue()});
-            }
-            // Bass at -6 dB
-            if (aus[1]) {
-                aus[1].box.volume.setValue(-6.0);
-                results.push({au: 1, volume: aus[1].box.volume.getValue()});
-            }
-            return results;
-        }""")
-        print(f"✓ Track volumes: {volumes}")
+        print("\n8. Setting track volumes...")
+        await server.mcp_opendaw_set_track_volume(drum_uid, -3.0)
+        await server.mcp_opendaw_set_track_volume(bass_uid, -6.0)
+        print("   ✓ Drums: -3 dB, Bass: -6 dB")
 
-        # === 9. Get project state ===
-        state = await bridge.evaluate("""() => {
-            const h = window.DAW_HELPERS;
-            const aus = h.allAUs();
-            return {
-                bpm: h.timelineBox?.box?.bpm?.getValue() || "unknown",
-                au_count: aus.length,
-                au_details: aus.map(au => ({
-                    name: au.box.label?.getValue() || "unnamed",
-                    volume: au.box.volume?.getValue(),
-                    effect_count: [...au.audioEffects.adapters()].length
-                }))
-            };
-        }""")
-        print(f"\n✅ Techno skeleton created!")
-        print(f"   BPM: {state.get('bpm')}")
-        print(f"   AUs: {state.get('au_count')}")
-        for au in state.get('au_details', []):
-            print(f"   - {au['name']}: vol={au['volume']}dB, fx={au['effect_count']}")
+        # === 9. Verify project state ===
+        print("\n9. Verifying project state...")
+        state = await server.mcp_opendaw_get_project_info()
+        state_data = json.loads(state)
+        print(f"   BPM: {state_data.get('bpm')}")
+        print(f"   AUs: {state_data.get('au_count', state_data.get('audio_units', 'N/A'))}")
+        print(f"   Tracks: {state_data.get('track_count', 'N/A')}")
+
+        print("\n✅ Techno skeleton created!")
+        print("   130 BPM, 4-on-floor drums, rolling A1 bass")
+        print("   Drum chain: Compressor → Revamp EQ")
+        print("   Bass chain: Waveshaper")
+        print("   Next: add pad/lead synth, create send reverb, master chain")
 
     finally:
-        await bridge.stop()
+        await server.bridge.stop()
 
 
 if __name__ == "__main__":
