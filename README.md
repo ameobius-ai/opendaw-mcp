@@ -14,6 +14,7 @@
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
+[![LangChain](https://img.shields.io/badge/LangChain-Ready-blue)](opendaw_mcp/langchain_tools.py)
 
 **263 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
@@ -327,6 +328,30 @@ The `examples/` directory contains 30 Python scripts demonstrating the full work
 | `genre_lofi.py` | Genre template: lofi skeleton (82 BPM, swung drums, jazzy Dmin7-Gdom7-Cmaj7-Fmaj7 ii-V-I, warm bass, short reverb) |
 | `genre_trap.py` | Genre template: trap skeleton (145 BPM, fast hi-hat rolls, gliding 808 F minor, dark pentatonic melody, hard Comp 6:1) |
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
+| `langchain_integration.py` | LangChain toolkit: use opendaw-mcp tools as LangChain Tool objects with any LLM agent |
+
+## Agent Framework Integration
+
+### LangChain
+
+```python
+from opendaw_mcp.langchain_tools import OpendawToolkit
+
+toolkit = OpendawToolkit()
+tools = toolkit.get_tools()  # or filter: get_tools(categories=["transport", "orchestration"])
+
+# Use with any LangChain agent
+from langchain.agents import create_react_agent, AgentExecutor
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+agent = create_react_agent(llm, tools, prompt)
+executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+executor.invoke({"input": "Create a dark techno track at 130 BPM and render it"})
+```
+
+See [`examples/langchain_integration.py`](examples/langchain_integration.py) for a full demo.
 
 ## Tool Catalog
 

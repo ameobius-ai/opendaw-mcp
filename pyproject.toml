@@ -28,10 +28,10 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/AMEOBIUS/opendaw-mcp"
+Documentation = "https://ameobius.github.io/opendaw-mcp/"
 Repository = "https://github.com/AMEOBIUS/opendaw-mcp"
-Documentation = "https://github.com/AMEOBIUS/opendaw-mcp/blob/main/ARCHITECTURE.md"
-Changelog = "https://github.com/AMEOBIUS/opendaw-mcp/releases"
 Issues = "https://github.com/AMEOBIUS/opendaw-mcp/issues"
+Changelog = "https://ameobius.github.io/opendaw-mcp/changelog/"
 
 [project.scripts]
 opendaw-mcp = "server:main"
@@ -42,6 +42,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 py-modules = ["server"]
+packages = ["opendaw_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
