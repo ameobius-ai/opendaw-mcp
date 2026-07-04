@@ -28,16 +28,20 @@ I built **opendaw-mcp**, an MCP (Model Context Protocol) server that gives AI ag
 - Adaptive mix→master pipeline
 - Full 263-tool API reference with decision points
 
-**30 Python examples** — all E2E verified through the browser bridge:
+**3 framework wrappers:** LangChain (`StructuredTool`), Microsoft AutoGen (`FunctionTool`), CrewAI (`BaseTool`). All with category filtering. Plus native MCP for Claude Desktop, Cursor, Hermes.
+
+**34 Python examples** — all E2E verified through the browser bridge:
 - Genre skeletons: techno (130 BPM), coldwave (100 BPM), ambient (70 BPM), hip-hop (85 BPM), DnB (174 BPM), house (124 BPM), lofi (82 BPM), trap (145 BPM)
 - Each creates real tracks, notes, effects, and parameters — not stubs
+
+**Docs site:** https://ameobius.github.io/opendaw-mcp/ — 22 pages, dark mode, search, auto-deploy via GitHub Actions.
 
 **Links:**
 - GitHub: https://github.com/AMEOBIUS/opendaw-mcp
 - PyPI: https://pypi.org/project/opendaw-mcp/
+- Docs: https://ameobius.github.io/opendaw-mcp/
 - MCP Registry: io.github.AMEOBIUS/opendaw-mcp
-- 26 DSP scripts (Werkstatt/Apparat/Spielwerk): https://github.com/AMEOBIUS/openDAW/tree/feat/werkstatt-examples/examples
 
-**Tech:** Python 3.11+, Playwright, FastMCP, openDAW (TypeScript/React). 93 unit tests + 7 E2E tests. Ruff clean. Apache-2.0.
+**Tech:** Python 3.11+, Playwright, FastMCP, openDAW (TypeScript/React). 93 unit tests + 8 E2E tests. Ruff clean. Apache-2.0.
 
 Happy to answer questions about the architecture, the box-graph system, or how to build MCP tools for complex web apps.

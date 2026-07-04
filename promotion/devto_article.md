@@ -2,6 +2,11 @@
 
 > What if your AI agent could mix a track, tune a synth, and master to -14 LUFS — without you touching a single knob?
 
+**opendaw-mcp** gives an LLM agent full control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation. 263 MCP tools, 3 framework wrappers (LangChain, AutoGen, CrewAI), 26 DSP scripts, 8 genre templates, stem separation, and a full docs site.
+
+📖 **Full docs**: https://ameobius.github.io/opendaw-mcp/
+📦 **PyPI**: `pip install opendaw-mcp`
+
 Most "AI music" tools generate audio end-to-end. You prompt, it spits out a track. But real music production happens *inside* a DAW — tracks, effects, automation, mixing, rendering. That's where the craft lives.
 
 What if an AI agent could work *inside* the DAW? Not generating audio, but *producing* it — the way a producer does.
