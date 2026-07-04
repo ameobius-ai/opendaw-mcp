@@ -12321,6 +12321,184 @@ Returns the total notes created and pitches used.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_create_arpeggio(chord: str, pattern: str = "up", rate: str = "16", octave: int = 4, steps: int = 16, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, velocity: float = 0.65) -> str:
+    """Create an arpeggio from a chord name — one call instead of 8-32 create_note calls.
+
+chord: Chord name in format RootType, e.g. "Cmin7", "F#maj", "Abmin7", "Ddim".
+  Root: C, C#, D, D#, E, F, F#, G, G#, A, A#, B (or flats Db, Eb, Gb, Ab, Bb).
+  Type: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug.
+pattern: Arpeggio direction/pattern:
+  - "up" — bottom to top, repeat
+  - "down" — top to bottom, repeat
+  - "updown" — up then down (includes top and bottom twice)
+  - "downup" — down then up
+  - "random" — random chord tones
+  - "chord" — play full chord on each step (block chords)
+rate: Note rate: "32" (32nd), "16" (16th), "8" (8th), "4" (quarter), "16t" (16th triplet).
+octave: MIDI octave for the chord root (4 = C4=60).
+steps: Number of arpeggio steps (default 16 = one bar of 16th notes).
+unit_index: AU index with a note track.
+track_index: Note track index within the AU.
+start_beat: Where the arpeggio starts (0 = bar 1).
+velocity: Note velocity 0-1 (default 0.65 for arpeggios).
+
+Returns the total notes created and pitches used.
+"""
+    import re
+    # Parse chord name: e.g. "Cmin7", "F#maj", "Bbmaj7"
+    match = re.match(r'^([A-G][#b]?)(.*)$', chord)
+    if not match:
+        return f"Error: invalid chord '{chord}'. Format: RootType (e.g. Cmin7, F#maj)"
+    root_name = match.group(1)
+    chord_type = match.group(2).lower() if match.group(2) else "maj"
+
+    if root_name not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root_name}'"
+    if chord_type not in CHORD_INTERVALS:
+        return f"Error: unknown chord type '{chord_type}'. Valid: {list(CHORD_INTERVALS.keys())}"
+
+    # Rate to duration in beats
+    rate_map = {"32": 0.125, "16": 0.25, "8": 0.5, "4": 1.0, "16t": 1.0/6, "32t": 1.0/12}
+    if rate not in rate_map:
+        return f"Error: unknown rate '{rate}'. Valid: {list(rate_map.keys())}"
+    step_dur = rate_map[rate]
+
+    # Build chord pitches
+    root_pc = NOTE_TO_PITCH[root_name]
+    intervals = CHORD_INTERVALS[chord_type]
+    base_pitch = (octave + 1) * 12 + root_pc
+    chord_pitches = [base_pitch + iv for iv in intervals]
+
+    import random
+    random.seed(hash(chord + pattern) % (2**32))
+
+    note_list = []
+    for i in range(steps):
+        if pattern == "up":
+            idx = i % len(chord_pitches)
+            pitch = chord_pitches[idx]
+        elif pattern == "down":
+            idx = len(chord_pitches) - 1 - (i % len(chord_pitches))
+            pitch = chord_pitches[idx]
+        elif pattern == "updown":
+            cycle_len = 2 * len(chord_pitches) - 2
+            if cycle_len <= 0:
+                cycle_len = 1
+            idx = i % cycle_len
+            if idx < len(chord_pitches):
+                pitch = chord_pitches[idx]
+            else:
+                pitch = chord_pitches[cycle_len - idx]
+        elif pattern == "downup":
+            cycle_len = 2 * len(chord_pitches) - 2
+            if cycle_len <= 0:
+                cycle_len = 1
+            idx = i % cycle_len
+            if idx < len(chord_pitches):
+                pitch = chord_pitches[len(chord_pitches) - 1 - idx]
+            else:
+                pitch = chord_pitches[idx - len(chord_pitches) + 1]
+        elif pattern == "random":
+            pitch = random.choice(chord_pitches)
+        elif pattern == "chord":
+            # Play all chord notes on each step
+            for cp in chord_pitches:
+                note_list.append({
+                    "pitch": cp,
+                    "start": start_beat + i * step_dur,
+                    "duration": step_dur * 0.9,
+                    "velocity": velocity,
+                })
+            continue
+        else:
+            return f"Error: unknown pattern '{pattern}'. Valid: up, down, updown, downup, random, chord"
+
+        note_list.append({
+            "pitch": pitch,
+            "start": start_beat + i * step_dur,
+            "duration": step_dur * 0.9,
+            "velocity": velocity,
+        })
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const notes = {json.dumps(note_list)};
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const trackBox = noteTracks[trackIdx];
+        let regionBox = null;
+        let createdCount = 0;
+
+        h.modify(() => {{
+            const existing = h.regionBoxes(trackBox);
+            if (existing.length > 0) {{
+                regionBox = existing[0];
+            }} else {{
+                let maxEnd = 0;
+                for (const n of notes) maxEnd = Math.max(maxEnd, Math.round((n.start + n.duration) * Quarter));
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Arpeggio");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            const regionStart = regionBox.position.getValue();
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of notes) {{
+                const pos = Math.max(0, Math.round(n.start * Quarter) - regionStart);
+                const dur = Math.round(n.duration * Quarter);
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(dur);
+                    box.velocity.setValue(n.velocity);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+            const maxEnd = Math.max(...notes.map(n => Math.round((n.start + n.duration) * Quarter)));
+            if (maxEnd > regionBox.duration.getValue()) {{
+                regionBox.duration.setValue(maxEnd);
+                regionBox.loopDuration.setValue(maxEnd);
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: createdCount,
+            chord: "{chord}",
+            pattern: "{pattern}",
+            rate: "{rate}",
+            chord_pitches: {json.dumps(chord_pitches)},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_add_mastering_chain(target_lufs: float = -14, style: str = "balanced") -> str:
     """Add a ready-made mastering chain to the output bus — EQ + compressor + maximizer in one call.
 

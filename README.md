@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **265** MCP tools | **36** Python examples (8 genre templates) |
+| **266** MCP tools | **36** Python examples (8 genre templates) |
 | **27** DSP scripts | **8** agent skills |
 | **3** framework wrappers | **150** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -497,6 +497,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **`create_melody`** — new orchestration tool: generate melodies from scale + rhythmic pattern using scale degrees (1-7). Supports 14 scales, rests, sustains, octave shifts. One call replaces 10-30 `create_note` calls.
 - **`create_bassline`** — new orchestration tool: generate basslines from root + rhythmic pattern. Low octave default (C2=36), high velocity (0.9), octave up/down (+/_). One call replaces 8-20 `create_note` calls.
+- **`create_arpeggio`** — new orchestration tool: generate arpeggios from chord name with 6 patterns (up/down/updown/downup/random/chord) and 6 rates. One call replaces 8-32 `create_note` calls.
 - **`opendaw_mcp/music_theory.py`** — shared music theory module: `NOTE_TO_PITCH`, `CHORD_INTERVALS`, `SCALE_INTERVALS`, `GENRE_PRESETS`, `chord_to_pitches()`, `scale_to_pitches()`
 - **DRY refactor**: `create_chord_progression` and `create_genre_track` now import from `music_theory` instead of duplicating dicts inline
 - **2 new genres**: `coldwave` (110 BPM, dark bass, Dm-Fmaj-Gmin-Amin) and `hiphop` (90 BPM, boom bap, Cm7-Ebmaj7-Gmin7-Bbmaj7) — `create_genre_track` now supports 8 genres

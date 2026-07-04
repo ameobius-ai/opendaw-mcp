@@ -12,6 +12,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 | `create_chord_progression` | Create chords from names (Cm, Fm7, Gdom7) — auto-voiced |
 | `create_melody` | Create a melody from scale + rhythmic pattern using scale degrees (1-7) |
 | `create_bassline` | Create a bassline from root + rhythmic pattern with low octave and high velocity |
+| `create_arpeggio` | Create an arpeggio from chord name — 6 patterns (up/down/updown/downup/random/chord) |
 | `add_mastering_chain` | Add EQ + Compressor + Maximizer to output bus with genre presets |
 | `create_genre_track` | Create a full genre starting point in one call |
 | `create_song_structure` | Create arrangement markers from JSON section list |
@@ -127,6 +128,32 @@ Same pattern syntax as `create_melody`, plus:
 | `_` | Octave down (applies to next note only) |
 
 Default octave is 2 (C2=36) for bass range. Default velocity is 0.9 for strong bass.
+
+## create_arpeggio
+
+Create an arpeggio from a chord name with 6 patterns and 6 rates:
+
+```python
+await server.mcp_opendaw_create_arpeggio(
+    chord="Cmin7",
+    pattern="up",       # up, down, updown, downup, random, chord
+    rate="16",          # 32, 16, 8, 4, 16t, 32t
+    steps=16,           # number of steps (16 = one bar of 16ths)
+    unit_index=1,
+    track_index=0,
+    octave=4,
+    velocity=0.65
+)
+```
+
+| Pattern | Description |
+|---------|-------------|
+| `up` | Bottom to top, repeat |
+| `down` | Top to bottom, repeat |
+| `updown` | Up then down (ping-pong) |
+| `downup` | Down then up |
+| `random` | Random chord tones |
+| `chord` | Full chord on each step (block chords) |
 
 ## add_mastering_chain
 
