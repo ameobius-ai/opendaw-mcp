@@ -1,9 +1,9 @@
 # Orchestration Tools
 
-13 high-level composers that combine multiple low-level operations into a single call.
+14 high-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 
-## Orchestration Tools (13)
+## Orchestration Tools (14)
 
 | Tool | Description |
 |------|-------------|
@@ -15,6 +15,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 | `create_arpeggio` | Create an arpeggio from chord name — 6 patterns (up/down/updown/downup/random/chord) |
 | `humanize_notes` | Add human-like velocity/timing/duration variation and swing to existing notes |
 | `create_harmony` | Generate harmony parts from existing notes — diatonic & chromatic intervals |
+| `create_counterpoint` | Generate counter-melody in contrary motion — mirrors melody around center pitch |
 | `add_mastering_chain` | Add EQ + Compressor + Maximizer to output bus with genre presets |
 | `create_genre_track` | Create a full genre starting point in one call |
 | `create_song_structure` | Create arrangement markers from JSON section list |

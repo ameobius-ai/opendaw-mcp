@@ -13016,6 +13016,191 @@ async def mcp_opendaw_create_harmony(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_create_counterpoint(
+    unit_index: int,
+    track_index: int = 0,
+    region_index: int = 0,
+    interval: int = 7,
+    new_unit_index: int = -1,
+    new_track_index: int = 0,
+    velocity: float = 0.6,
+) -> str:
+    """Generate a counter-melody in contrary motion to existing notes.
+
+    Reads notes from a melody and creates a counterpoint that moves in the
+    opposite direction: when the melody goes up, the counterpoint goes down,
+    and vice versa. Each note is offset by a fixed interval from the melody's
+    midpoint pitch, then mirrored.
+
+    unit_index: Source AU index.
+    track_index: Source note track index.
+    region_index: Source region index.
+    interval: Base interval in semitones between melody and counterpoint (default 7 = fifth).
+      The counterpoint is placed interval semitones below the melody's average pitch,
+      then each note is mirrored around that center.
+    new_unit_index: Target AU index (-1 = create new synth track).
+    new_track_index: Target note track index on the target AU.
+    velocity: Velocity for counterpoint notes (default 0.6, quieter than melody).
+
+    Returns source notes read and counterpoint notes created.
+    """
+    if not (-48 <= interval <= 48):
+        return f"Error: interval must be -48 to 48, got {interval}"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const newUnitIdx = {new_unit_index};
+        const newTrackIdx = {new_track_index};
+        const velocity = {velocity};
+        const baseInterval = {interval};
+
+        // Read source notes
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const srcNoteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (srcNoteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= srcNoteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const srcTrack = srcNoteTracks[trackIdx];
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (regionIdx >= srcRegions.length) return {{error: "Region " + regionIdx + " out of range"}};
+        const srcRegion = srcRegions[regionIdx];
+        const regionStart = srcRegion.position.getValue();
+
+        let srcEvents = [];
+        try {{
+            const vertex = srcRegion.events.targetVertex.unwrap();
+            const collBox = vertex.box || vertex;
+            if (collBox && collBox.events) {{
+                srcEvents = h.eventBoxes(collBox);
+            }}
+        }} catch(e) {{ return {{error: "Could not read source notes: " + e.message}}; }}
+
+        if (srcEvents.length === 0) return {{error: "No notes in source region"}};
+
+        // Sort by position
+        srcEvents.sort((a, b) => a.position.getValue() - b.position.getValue());
+
+        // Calculate melody center pitch
+        const pitches = srcEvents.map(e => e.pitch.getValue());
+        const minPitch = Math.min(...pitches);
+        const maxPitch = Math.max(...pitches);
+        const centerPitch = Math.round((minPitch + maxPitch) / 2) - baseInterval;
+
+        // Build counterpoint: contrary motion — mirror around center
+        const cpNotes = [];
+        for (const evt of srcEvents) {{
+            const srcPitch = evt.pitch.getValue();
+            const srcPos = evt.position.getValue();
+            const srcDur = evt.duration.getValue();
+
+            // Mirror: cpPitch = 2*center - srcPitch
+            const cpPitch = 2 * centerPitch - srcPitch;
+            if (cpPitch < 0 || cpPitch > 127) continue;
+
+            cpNotes.push({{
+                pitch: cpPitch,
+                position: srcPos,
+                duration: srcDur,
+                velocity: velocity,
+            }});
+        }}
+
+        if (cpNotes.length === 0) return {{error: "No counterpoint notes could be generated"}};
+
+        // Determine target track
+        let targetAU = null, targetTrack = null, targetUnitIdx = -1;
+        const needNewAU = (newUnitIdx < 0 || newUnitIdx >= allUnits.length);
+        if (!needNewAU) {{
+            targetAU = allUnits[newUnitIdx];
+            const targetTracks = h.noteTrackBoxes(targetAU);
+            if (newTrackIdx < targetTracks.length) {{
+                targetTrack = targetTracks[newTrackIdx];
+            }}
+        }}
+
+        let createdCount = 0;
+        h.modify(() => {{
+            if (needNewAU) {{
+                const AudioUnitBox = window.DAW_AudioUnitBox;
+                const CaptureAudioBox = window.DAW_CaptureAudioBox;
+                const AudioUnitType = window.DAW_AudioUnitType;
+                const IconSymbol = window.DAW_IconSymbol;
+                const InstrumentFactories = window.DAW_InstrumentFactories;
+                if (!InstrumentFactories) throw new Error("InstrumentFactories not loaded");
+                const factory = InstrumentFactories["Vaporisateur"];
+                if (!factory) throw new Error("Vaporisateur factory not found");
+
+                const captureBox = CaptureAudioBox.create(h.boxGraph, h.uuid.generate());
+                targetAU = AudioUnitBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.type.setValue(AudioUnitType.Instrument);
+                    box.collection.refer(h.rootBox.audioUnits);
+                    box.output.refer(h.primaryAudioBusBox.input);
+                    box.capture.refer(captureBox);
+                    box.index.setValue(0);
+                    box.volume.setValue(0.767835);
+                }});
+                factory.create(h.boxGraph, targetAU.input, "Counterpoint", IconSymbol.Piano);
+                targetTrack = h.api.createNoteTrack(targetAU);
+            }} else if (!targetTrack) {{
+                targetTrack = h.api.createNoteTrack(targetAU);
+            }}
+
+            const maxEnd = Math.max(...cpNotes.map(n => n.position + n.duration));
+            const collection = NoteEventCollectionBox.create(h.boxGraph, h.uuid.generate());
+            const regionBox = NoteRegionBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                box.position.setValue(regionStart);
+                box.label.setValue("Counterpoint");
+                box.mute.setValue(false);
+                box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(targetTrack.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of cpNotes) {{
+                const pos = Math.max(0, n.position - regionStart);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(n.duration);
+                    box.velocity.setValue(n.velocity);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+        }});
+
+        const allUnitsAfter = h.allAUBoxes();
+        targetUnitIdx = allUnitsAfter.findIndex(au => String(au.address) === String(targetAU.address));
+
+        return {{
+            success: true,
+            source_notes: srcEvents.length,
+            counterpoint_notes_created: createdCount,
+            interval: baseInterval,
+            center_pitch: centerPitch,
+            target_unit_index: targetUnitIdx,
+            sample_pitches: cpNotes.slice(0, 8).map(n => n.pitch),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_add_mastering_chain(target_lufs: float = -14, style: str = "balanced") -> str:
     """Add a ready-made mastering chain to the output bus — EQ + compressor + maximizer in one call.
 

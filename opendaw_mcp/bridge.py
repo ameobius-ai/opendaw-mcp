@@ -29,13 +29,18 @@ class HeadlessDawBridge:
         if node_dir:
             env["PATH"] = node_dir + ":" + env.get("PATH", "")
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(
+        launch_opts = dict(
             headless=True,
             args=[
                 "--use-fake-ui-for-media-stream",
                 "--autoplay-policy=no-user-gesture-required",
             ],
         )
+        # Allow system chromium via env var
+        chrome_path = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", "")
+        if chrome_path and os.path.exists(chrome_path):
+            launch_opts["executable_path"] = chrome_path
+        self.browser = await self.playwright.chromium.launch(**launch_opts)
         self.page = await self.browser.new_page()
         await self.page.goto(DAW_URL, timeout=15000)
         await self.page.wait_for_function("typeof window.DAW !== 'undefined'", timeout=30000)
