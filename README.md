@@ -112,7 +112,7 @@ MCP_TRANSPORT=sse FASTMCP_HOST=0.0.0.0 FASTMCP_PORT=8080 python server.py
 ```bash
 python server.py --help        # show usage and env vars
 python server.py --version     # print version and tool count
-python server.py --list-tools  # list all 260 registered MCP tools
+python server.py --list-tools  # list all 258 registered MCP tools
 ```
 
 ### Docker
@@ -234,7 +234,7 @@ The `scripts/` directory contains 18 example DSP scripts (12 Werkstatt + 4 Appar
 
 ## Examples
 
-The `examples/` directory contains 9 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 18 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -245,11 +245,21 @@ The `examples/` directory contains 9 Python scripts demonstrating the full workf
 | `automation_sweep.py` | Filter cutoff automation |
 | `modular_patch.py` | Modular system with patch cables |
 | `full_production_pipeline.py` | Complete track: synth + drums + DSP + automation + render |
+| `full_production_pipeline_v2.py` | Enhanced pipeline with orchestration tools |
 | `scriptable_devices_demo.py` | All 3 scriptable device types: Apparat synth + Werkstatt DSP + Spielwerk MIDI |
+| `device_specific_params.py` | Effect parameters: Compressor, Reverb, Delay, etc. |
+| `instrument_automation.py` | Automating instrument parameters over time |
+| `mastering_pipeline.py` | Mastering chain: EQ, compression, limiting |
+| `metronome_settings.py` | Metronome configuration and tempo changes |
+| `orchestration_demo.py` | High-level orchestration tools in action |
+| `song_structure_demo.py` | Song structure with markers and sections |
+| `render_convert.py` | Render and convert audio formats |
+| `dawproject_export.py` | Export to Bitwig .dawproject format |
+| `warp_marker_tempo_match.py` | Warp markers for tempo-matched audio regions |
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 260 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 258 tools with parameters and descriptions.
 
 ### Orchestration Tools
 
@@ -355,7 +365,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ### v1.10.1 (2026-07-04)
 
-- **260 MCP tools** (253 low-level + 7 orchestration)
+- **258 MCP tools** (251 low-level + 7 orchestration)
 - **`create_song_structure`** — arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list
 - **`automation_sweep`** — smooth automation ramps with linear/exp/log curves. Replaces 10-30 `create_automation_event` calls
 - **PyPI v1.10.1 published** — `pip install opendaw-mcp`
@@ -372,7 +382,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
   - `create_genre_track` — full genre starting point (house/techno/lofi/dnb/trap/ambient)
   - `create_song_structure` — arrangement markers from JSON
   - `automation_sweep` — smooth parameter ramps with linear/exp/log curves
-- **260 total tools** (250 low-level + 7 orchestration + 3 internal)
+- **258 total tools** (250 low-level + 7 orchestration + 1 internal)
 - **`set_metronome`** — dedicated metronome control (enabled, gain, beat_subdivision)
 - **Module-level lookup tables** — TIDAL_RATE_MAP, DELAY_SYNC_MAP, WAVESHAPER_FUNCS, REVAMP_SECTIONS extracted for testability
 - **+23 new unit tests** (54 total) — fraction maps, waveshaper funcs, revamp sections, safe_filename edge cases
