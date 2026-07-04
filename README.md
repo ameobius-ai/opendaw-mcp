@@ -303,6 +303,12 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.11.3 (2026-07-04)
+
+- **1 new Werkstatt script**: real-time pitch shifter via delay-line sweep (#188)
+- **Ruff lint fixes**: removed unused imports/variables in examples and midi_parser
+- **17 DSP scripts total** (12 Werkstatt + 3 Apparat + 2 Spielwerk)
+
 ### v1.11.2 (2026-07-04)
 
 - **10 DSP bug fixes** synced from upstream PR #283 CodeRabbit review:

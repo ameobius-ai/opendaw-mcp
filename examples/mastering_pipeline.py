@@ -21,8 +21,6 @@ import server
 
 
 async def main():
-    bridge = server.bridge
-
     # ─── Setup ──────────────────────────────────────────────
     print("=== Mastering Pipeline ===\n")
 

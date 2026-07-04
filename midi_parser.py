@@ -39,7 +39,7 @@ def parse_midi_file(data: bytes) -> List[MidiNote]:
     if data[0:4] != b'MThd':
         raise ValueError("Not a MIDI file (no MThd header)")
     header_len = struct.unpack('>I', data[4:8])[0]
-    format_type = struct.unpack('>H', data[8:10])[0]
+    struct.unpack('>H', data[8:10])[0]  # format_type (unused)
     num_tracks = struct.unpack('>H', data[10:12])[0]
     time_division = struct.unpack('>H', data[12:14])[0]
     

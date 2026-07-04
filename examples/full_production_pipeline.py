@@ -13,7 +13,6 @@ This demonstrates the full agent-native production workflow.
 """
 import asyncio
 import json
-import os
 import server
 
 
@@ -36,11 +35,11 @@ async def main():
 
     # Create note track for chords
     await server.mcp_opendaw_create_note_track(synth_uid)
-    print(f"Note track created")
+    print("Note track created")
 
     # Add a region spanning 4 bars (16 beats)
     await server.mcp_opendaw_create_track_region(synth_uid, 0, 0, 16, "Chords", 200)
-    print(f"Note region created (4 bars)")
+    print("Note region created (4 bars)")
 
     # Add chord progression: Am - F - C - G (one chord per bar)
     # create_note(track_index, pitch, start_beat, duration_beats, velocity, unit_index)
@@ -61,7 +60,7 @@ async def main():
                 track_index=0, pitch=pitch, start_beat=start,
                 duration_beats=4, velocity=0.6, unit_index=synth_uid
             )
-    print(f"Added 12 notes (4 chords: Am-F-C-G)")
+    print("Added 12 notes (4 chords: Am-F-C-G)")
 
     # Set Vaporisateur to warm saw pad
     # set_vaporisateur_osc_param(osc_index, param_name, value, unit_index)
@@ -103,14 +102,14 @@ async def main():
             track_index=0, pitch=42, start_beat=i * 2,
             duration_beats=0.125, velocity=0.5, unit_index=drum_uid
         )
-    print(f"Added 14 drum hits (4 kick, 2 snare, 8 hihat)")
+    print("Added 14 drum hits (4 kick, 2 snare, 8 hihat)")
 
     # ─── 4. Effects ─────────────────────────────────────────────
     print("\n=== Effects ===")
 
     # Add reverb on synth
     await server.mcp_opendaw_add_effect(synth_uid, "Reverb")
-    print(f"Reverb added to synth AU")
+    print("Reverb added to synth AU")
 
     # ─── 5. Automation sweep on filter cutoff ───────────────────
     print("\n=== Automation ===")
@@ -131,7 +130,7 @@ async def main():
     if auto_data.get("error"):
         print(f"Automation warning: {auto_data['error']}")
     else:
-        print(f"Filter cutoff automation: 5-point sweep across 4 bars")
+        print("Filter cutoff automation: 5-point sweep across 4 bars")
 
     # ─── 6. Mixing ──────────────────────────────────────────────
     print("\n=== Mixing ===")
@@ -193,7 +192,7 @@ async def main():
     ag_result = await server.mcp_opendaw_auto_gain("-14", "mastered", 48000, "3")
     ag_data = json.loads(ag_result)
     if ag_data.get("success"):
-        print(f"Auto-gain → target -14 LUFS:")
+        print("Auto-gain → target -14 LUFS:")
         for it in ag_data.get("iterations", []):
             print(f"  iter {it['iteration']}: LUFS={it['lufs']}, "
                   f"diff={it['diff']:+.1f}, vol={it['volume_db']}dB")
@@ -215,11 +214,11 @@ async def main():
 
     # ─── Done ───────────────────────────────────────────────────
     print("\n=== Pipeline Complete ===")
-    print(f"2 AUs (Vaporisateur + Playfield)")
-    print(f"1 effect (Reverb on synth)")
-    print(f"1 automation track (filter sweep)")
-    print(f"2 markers (Intro, Verse)")
-    print(f"Full mix + stems + range render + LUFS + auto-gain")
+    print("2 AUs (Vaporisateur + Playfield)")
+    print("1 effect (Reverb on synth)")
+    print("1 automation track (filter sweep)")
+    print("2 markers (Intro, Verse)")
+    print("Full mix + stems + range render + LUFS + auto-gain")
 
     await server.bridge.stop()
 

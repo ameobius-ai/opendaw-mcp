@@ -27,13 +27,11 @@ from server import (
     mcp_opendaw_create_note_track,
     mcp_opendaw_create_track_region,
     mcp_opendaw_create_note,
-    mcp_opendaw_list_notes,
     mcp_opendaw_add_effect,
     mcp_opendaw_add_midi_effect,
     mcp_opendaw_set_effect_parameter,
     mcp_opendaw_set_script_device_code,
     mcp_opendaw_set_script_param,
-    mcp_opendaw_list_script_params,
     mcp_opendaw_set_bpm,
     mcp_opendaw_render_full,
 )
@@ -120,7 +118,7 @@ async def main():
 
     # Add Spielwerk arpeggiator as MIDI effect
     r = await mcp_opendaw_add_midi_effect(lead_au, "Spielwerk")
-    print(f"  Added Spielwerk MIDI effect")
+    print("  Added Spielwerk MIDI effect")
 
     arp_code = load_script("spielwerk_arpeggiator.js")
     await mcp_opendaw_set_script_device_code("spielwerk", lead_au, 0, arp_code)
@@ -155,7 +153,7 @@ async def main():
     await mcp_opendaw_set_effect_parameter(lead_au, delay_idx, "time", 0.375)
     await mcp_opendaw_set_effect_parameter(lead_au, delay_idx, "feedback", 0.35)
     await mcp_opendaw_set_effect_parameter(lead_au, delay_idx, "mix", 0.3)
-    print(f"  Delay: time=3/8, feedback=0.35, mix=0.3")
+    print("  Delay: time=3/8, feedback=0.35, mix=0.3")
 
     # ─── 4. Project state summary ────────────────────────────
     print("\n── Project Summary ──")

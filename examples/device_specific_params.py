@@ -30,9 +30,8 @@ async def main():
     print("--- Guitar FX Chain ---")
 
     # 1. Compressor with lookahead + auto features
-    from server import mcp_opendaw_add_effect, mcp_opendaw_set_effect_parameter
+    from server import mcp_opendaw_add_effect
     from server import mcp_opendaw_set_effect_parameter_bool
-    from server import mcp_opendaw_set_effect_parameter_int
 
     r = await mcp_opendaw_add_effect(unit_index=0, effect_type='Compressor')
     print(f"1. Compressor added: {r}")

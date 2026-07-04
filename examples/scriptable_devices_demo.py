@@ -117,7 +117,7 @@ async def main():
     # ─── 4. Werkstatt — custom audio effect (tape saturation) ───
     print("\n--- Werkstatt (custom audio effect) ---")
     await server.mcp_opendaw_add_effect(uid, "Werkstatt")
-    print(f"  Werkstatt added to Apparat AU")
+    print("  Werkstatt added to Apparat AU")
 
     # Load and compile the tape saturation DSP
     darksat_code = load_script("werkstatt_darksat.js")
@@ -138,7 +138,7 @@ async def main():
     # ─── 5. Spielwerk — custom MIDI effect (arpeggiator) ───────
     print("\n--- Spielwerk (custom MIDI effect) ---")
     await server.mcp_opendaw_add_midi_effect(uid, "Spielwerk")
-    print(f"  Spielwerk added as MIDI effect")
+    print("  Spielwerk added as MIDI effect")
 
     # Load and compile the arpeggiator script
     arpeggiator_code = load_script("spielwerk_arpeggiator.js")
