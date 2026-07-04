@@ -45,6 +45,30 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 - **Project & Bus Metadata** — creation date, signature, AU/track count, bus labels and colors
 - **Debugging & Control** — screenshots, condition polling, raw JS evaluation
 
+## Agent Skills
+
+The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 258 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
+
+| Skill | Domain | Description |
+|-------|--------|-------------|
+| `adaptive-mix-mastering` | Mix → Master pipeline | Universal pipeline with decision points: genre detection, stem strategy, effect chain selection, LUFS targeting, mastering approach. Adapts to coldwave, techno, hip-hop, ambient, rock, pop. Includes `references/decision-tree.md`. |
+| `opendaw-automation` | API reference | 258 MCP tools full reference, bridge architecture, pitfalls, DSP script library (26 scripts), CodeRabbit review patterns, PyPI publishing workflow. The base skill — others cross-reference it. 146 reference files. |
+| `opendaw-track-architecture` | Track structure | Tracks, regions, clips, notes, tempo, time signature, markers, groove, song form. 50+ tools for building the skeleton of a track. |
+| `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 26 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
+| `opendaw-effect-routing` | Effects + routing | Effect chains, sends/returns, sidechain, buses, mixing, mastering chain, render/export. How to route audio and deliver final output. |
+
+### Using skills with Hermes
+
+```bash
+# Skills are auto-discovered from ~/.hermes/profiles/*/skills/
+# Copy to your profile:
+cp -r skills/adaptive-mix-mastering ~/.hermes/profiles/your-profile/skills/creative/
+```
+
+### Using skills with other agents
+
+The SKILL.md files are standard markdown with YAML frontmatter. Any agent that supports skill loading can use them. The decision points and tool references are agent-agnostic.
+
 ## Quick Start
 
 ### Prerequisites
@@ -322,6 +346,11 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.12.0 (2026-07-04)
+
+- **Agent Skills**: 5 structured skill files in `skills/` directory — adaptive mix→master pipeline, opendaw-automation (258 tools API reference, 146 ref files), track architecture, sound design, effect routing. Decision points for genre-adaptive workflows. Agent-agnostic (Hermes, Claude, any skill-capable agent).
+- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.9 (2026-07-04)
 
