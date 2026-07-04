@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-258 MCP tools for headless openDAW control via Playwright bridge.
+262 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -319,6 +319,10 @@
 ## Stem Splitter (2)
 - `list_split_modes` — List all available stem separation modes with SDR scores and descriptions.
 - `split_stems` — Split an audio file into stems using SOTA open-source separation models (BS-Roformer, HTDemucs, SCNet, MelBand Roformer). Runs locally on GPU. 7 modes: ensemble, scnet, bs6, polarformer, dereverb, drumsep, denoise. Optional auto-import into DAW.
+
+## Preset Management (2)
+- `save_effect_preset` — Encode an audio effect chain as a .opb preset bundle (ZIP: meta.json + preset.odp). Uses PresetEncoder.encodeEffects. Shareable, drag-and-drop into openDAW.
+- `load_effect_preset` — Load a .opb preset file and decode it via PresetDecoder into a project skeleton. Returns imported unit count.
 
 ## Orchestration Tools (5)
 High-level composers that combine multiple low-level operations into a single call.

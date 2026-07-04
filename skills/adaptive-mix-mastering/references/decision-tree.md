@@ -67,7 +67,7 @@ Source = single WAV (full mix)?
 INPUT: stems + genre profile + analysis
   ↓
 Mix engine?
-├─ User said "opendaw" → openDAW MCP (260 tools)
+├─ User said "opendaw" → openDAW MCP (262 tools)
 ├─ User said "pedalboard" / "быстро" → pedalboard Python
 └─ No preference → openDAW (user built it)
   ↓
