@@ -7,51 +7,52 @@
 
 class Processor {
     heldNotes = new Map()
+    interval = 7
+    interval2 = 12
+    velScale = 0.85
+    detune = 3;
 
-    process(block, events) {
-        const interval = this.interval || 7
-        const interval2 = this.interval2 || 12
-        const velScale = this.velScale || 0.85
-        const detune = (this.detune || 3) / 100
-        const out = []
+    *process(block, events) {
+        const detuneAmt = this.detune / 100
 
         for (const ev of events) {
             if (ev.gate) {
                 this.heldNotes.set(ev.pitch, {id: ev.id, velocity: ev.velocity})
 
-                out.push({
+                // Root note
+                yield {
                     position: ev.position,
                     duration: ev.duration,
                     pitch: ev.pitch,
                     velocity: ev.velocity,
                     cent: ev.cent || 0
-                })
-
-                if (interval > 0 && ev.pitch + interval <= 127) {
-                    out.push({
-                        position: ev.position + 8,
-                        duration: ev.duration,
-                        pitch: ev.pitch + interval,
-                        velocity: ev.velocity * velScale,
-                        cent: (ev.cent || 0) + detune
-                    })
                 }
 
-                if (interval2 > 0 && ev.pitch + interval2 <= 127) {
-                    out.push({
+                // Fifth
+                if (this.interval > 0 && ev.pitch + this.interval <= 127) {
+                    yield {
+                        position: ev.position + 8,
+                        duration: ev.duration,
+                        pitch: ev.pitch + this.interval,
+                        velocity: ev.velocity * this.velScale,
+                        cent: (ev.cent || 0) + detuneAmt
+                    }
+                }
+
+                // Octave
+                if (this.interval2 > 0 && ev.pitch + this.interval2 <= 127) {
+                    yield {
                         position: ev.position + 16,
                         duration: ev.duration,
-                        pitch: ev.pitch + interval2,
-                        velocity: ev.velocity * velScale * 0.9,
-                        cent: (ev.cent || 0) - detune
-                    })
+                        pitch: ev.pitch + this.interval2,
+                        velocity: ev.velocity * this.velScale * 0.9,
+                        cent: (ev.cent || 0) - detuneAmt
+                    }
                 }
             } else {
                 this.heldNotes.delete(ev.pitch)
             }
         }
-
-        return out
     }
 
     paramChanged(label, value) {
