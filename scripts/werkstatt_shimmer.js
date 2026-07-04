@@ -8,75 +8,74 @@
 // @param mix 0.35 0 1 linear
 
 class Processor {
+  p = {time: 0.25, feedback: 0.55, pitch: 12, shimmer: 0.4, damping: 0.3, mix: 0.35}
+  sr = sampleRate
+  phase = 0
+  pWriteIdx = 0
+
   constructor() {
-    this.sr = this.sampleRate;
-    // Delay buffer (max 1s)
-    const maxLen = this.sr;
-    this.buf = new Float32Array(maxLen * 2);
-    this.idx = 0;
-    // Pitch shifter (granular, simple)
-    this.pitchPhase = 0;
-    this.pitchBuf = new Float32Array(2048);
-    this.pitchWriteIdx = 0;
-    // Damping state
-    this.dampState = [0, 0];
+    const maxLen = this.sr
+    this.buf = new Float32Array(maxLen * 2)
+    this.idx = 0
+    // Granular pitch shifter buffer
+    this.pitchBuf = new Float32Array(4096)
+    this.pitchPhase = 0
+    this.dampState = [0, 0]
   }
 
-  // Simple pitch shift via resampling with crossfade
-  pitchShift(sample, semitones) {
-    if (semitones === 0) return sample;
-    const ratio = Math.pow(2, semitones / 12);
-    // Granular: write to circular buffer, read at different speed
-    this.pitchBuf[this.pitchWriteIdx] = sample;
-    this.pitchWriteIdx = (this.pitchWriteIdx + 1) % this.pitchBuf.length;
-
-    this.pitchPhase += ratio;
-    if (this.pitchPhase >= this.pitchBuf.length) this.pitchPhase -= this.pitchBuf.length;
-
-    const readIdx = Math.floor(this.pitchPhase);
-    const nextIdx = (readIdx + 1) % this.pitchBuf.length;
-    const frac = this.pitchPhase - readIdx;
-    return this.pitchBuf[readIdx] * (1 - frac) + this.pitchBuf[nextIdx] * frac;
+  paramChanged(name, value) {
+    this.p[name] = value
   }
 
-  processAudio(inputs, outputs, parameters) {
-    const input = inputs[0];
-    const out = outputs[0];
-    const delaySamp = Math.floor(parameters.time[0] * this.sr);
-    const feedback = parameters.feedback[0];
-    const semitones = Math.round(parameters.pitch[0]);
-    const shimmerAmt = parameters.shimmer[0];
-    const damping = parameters.damping[0];
-    const mix = parameters.mix[0];
-    const blockSize = out[0] ? out[0].length : 0;
-    const maxLen = this.sr;
+  // Simple granular pitch shift
+  _pitchShift(sample, semitones) {
+    if (semitones === 0) return sample
+    const ratio = Math.pow(2, semitones / 12)
+    this.pitchBuf[this.pWriteIdx] = sample
+    this.pWriteIdx = (this.pWriteIdx + 1) % this.pitchBuf.length
 
-    for (let i = 0; i < blockSize; i++) {
+    this.pitchPhase += ratio
+    if (this.pitchPhase >= this.pitchBuf.length) this.pitchPhase -= this.pitchBuf.length
+
+    const ri = Math.floor(this.pitchPhase)
+    const ni = (ri + 1) % this.pitchBuf.length
+    const f = this.pitchPhase - ri
+    return this.pitchBuf[ri] * (1 - f) + this.pitchBuf[ni] * f
+  }
+
+  process(io, block) {
+    const delaySamp = Math.floor(this.p.time * this.sr)
+    const feedback = this.p.feedback
+    const semitones = this.p.pitch
+    const shimmerAmt = this.p.shimmer
+    const damping = this.p.damping
+    const mix = this.p.mix
+    const maxLen = this.sr
+
+    for (let i = block.s0; i < block.s1; i++) {
       for (let c = 0; c < 2; c++) {
-        const bufBase = c * maxLen;
-        const dry = input && input[c] ? input[c][i] : (input && input[0] ? input[0][i] : 0);
+        const bufBase = c * maxLen
+        const dry = io.src[c][i]
 
         // Read delayed
-        const readIdx = (this.idx - delaySamp + maxLen) % maxLen;
-        const delayed = this.buf[bufBase + readIdx];
+        const readIdx = (this.idx - delaySamp + maxLen) % maxLen
+        const delayed = this.buf[bufBase + readIdx]
 
         // Pitch shift the delayed signal
-        const pitched = this.pitchShift(delayed, semitones);
+        const pitched = this._pitchShift(delayed, semitones)
 
         // Mix dry delay + pitched shimmer
-        const wet = delayed * (1 - shimmerAmt) + pitched * shimmerAmt;
+        const wet = delayed * (1 - shimmerAmt) + pitched * shimmerAmt
 
         // Damping (one-pole lowpass in feedback path)
-        this.dampState[c] = this.dampState[c] * damping + wet * (1 - damping);
+        this.dampState[c] = this.dampState[c] * damping + wet * (1 - damping)
 
         // Write with feedback
-        this.buf[bufBase + this.idx] = dry + this.dampState[c] * feedback;
+        this.buf[bufBase + this.idx] = dry + this.dampState[c] * feedback
 
-        if (out[c]) out[c][i] = dry * (1 - mix) + wet * mix;
+        io.out[c][i] = dry * (1 - mix) + wet * mix
       }
-      this.idx = (this.idx + 1) % maxLen;
+      this.idx = (this.idx + 1) % maxLen
     }
   }
-
-  paramChanged(name, value) {}
 }

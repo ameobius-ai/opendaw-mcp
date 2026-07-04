@@ -7,82 +7,73 @@
 // @param mix 0.3 0 1 linear
 
 class Processor {
+  p = {decay: 0.4, predelay: 0.02, damping: 0.5, width: 0.8, mix: 0.3}
+  sr = sampleRate
+
   constructor() {
     // Schroeder reverb: 4 comb filters + 2 allpass
-    this.sr = this.sampleRate;
-    this.combs = [];
-    const combTimes = [29.7, 37.1, 41.1, 43.7]; // ms
-    for (let i = 0; i < 4; i++) {
-      const len = Math.floor(this.sr * combTimes[i] / 1000);
-      this.combs.push({buf: new Float32Array(len), idx: 0, len});
-    }
-    this.allpasses = [];
-    const apTimes = [5.0, 1.7]; // ms
-    for (let i = 0; i < 2; i++) {
-      const len = Math.floor(this.sr * apTimes[i] / 1000);
-      this.allpasses.push({buf: new Float32Array(len), idx: 0, len});
-    }
-    this.predelayBuf = new Float32Array(Math.floor(this.sr * 0.2));
-    this.predelayIdx = 0;
-    this.dampState = 0;
-    this.dampPrev = 0;
+    const combMs = [29.7, 37.1, 41.1, 43.7]
+    this.combs = combMs.map(ms => {
+      const len = Math.floor(this.sr * ms / 1000)
+      return {buf: new Float32Array(len), idx: 0, len}
+    })
+    const apMs = [5.0, 1.7]
+    this.allpasses = apMs.map(ms => {
+      const len = Math.floor(this.sr * ms / 1000)
+      return {buf: new Float32Array(len), idx: 0, len}
+    })
+    this.pdBuf = new Float32Array(Math.floor(this.sr * 0.2))
+    this.pdIdx = 0
+    this.dampL = 0; this.dampR = 0
   }
 
-  processAudio(inputs, outputs, parameters) {
-    const input = inputs[0];
-    const out = outputs[0];
-    const decay = parameters.decay[0];
-    const predelaySamp = Math.floor(parameters.predelay[0] * this.sr);
-    const damping = parameters.damping[0];
-    const width = parameters.width[0];
-    const mix = parameters.mix[0];
+  paramChanged(name, value) {
+    this.p[name] = value
+  }
 
-    const nch = out.length;
-    for (let c = 0; c < nch; c++) {
-      const inCh = input && input[c] ? input[c] : null;
-      const outCh = out[c];
-      for (let i = 0; i < outCh.length; i++) {
-        const dry = inCh ? inCh[i] : 0;
+  process(io, block) {
+    const decay = this.p.decay
+    const pdSamp = Math.floor(this.p.predelay * this.sr)
+    const damping = this.p.damping
+    const width = this.p.width
+    const mix = this.p.mix
 
-        // Predelay
-        const pdIdx = (this.predelayIdx - predelaySamp + this.predelayBuf.length) % this.predelayBuf.length;
-        const pdOut = this.predelayBuf[pdIdx];
-        this.predelayBuf[this.predelayIdx] = dry;
-        this.predelayIdx = (this.predelayIdx + 1) % this.predelayBuf.length;
+    for (let i = block.s0; i < block.s1; i++) {
+      const dryL = io.src[0][i]
+      const dryR = io.src[1][i]
+      const dry = (dryL + dryR) * 0.5
 
-        // Comb filters
-        let wet = pdOut;
-        for (let k = 0; k < this.combs.length; k++) {
-          const comb = this.combs[k];
-          const feedback = comb.buf[comb.idx];
-          const filtered = feedback * (1 - damping) + this.dampPrev * damping;
-          this.dampPrev = filtered;
-          comb.buf[comb.idx] = pdOut + filtered * decay;
-          wet += filtered;
-        }
+      // Predelay
+      const pdRead = (this.pdIdx - pdSamp + this.pdBuf.length) % this.pdBuf.length
+      const pdOut = this.pdBuf[pdRead]
+      this.pdBuf[this.pdIdx] = dry
+      this.pdIdx = (this.pdIdx + 1) % this.pdBuf.length
 
-        // Allpass filters
-        for (let k = 0; k < this.allpasses.length; k++) {
-          const ap = this.allpasses[k];
-          const delayed = ap.buf[ap.idx];
-          ap.buf[ap.idx] = wet + delayed * 0.7;
-          wet = delayed - wet * 0.7;
-          ap.idx = (ap.idx + 1) % ap.len;
-        }
-
-        // Stereo width (cross-mix on channel 1)
-        let sample = wet;
-        if (c === 1) {
-          // narrow stereo by mixing opposite channel
-          sample = sample * (1 - width * 0.5);
-        } else {
-          sample = sample * (0.5 + width * 0.5);
-        }
-
-        outCh[i] = dry * (1 - mix) + sample * mix;
+      // Comb filters
+      let wet = pdOut
+      for (let k = 0; k < this.combs.length; k++) {
+        const c = this.combs[k]
+        const fb = c.buf[c.idx]
+        this.dampL = this.dampL * damping + fb * (1 - damping)
+        c.buf[c.idx] = pdOut + this.dampL * decay
+        wet += this.dampL
       }
+
+      // Allpass filters
+      for (let k = 0; k < this.allpasses.length; k++) {
+        const a = this.allpasses[k]
+        const delayed = a.buf[a.idx]
+        a.buf[a.idx] = wet + delayed * 0.7
+        wet = delayed - wet * 0.7
+        a.idx = (a.idx + 1) % a.len
+      }
+
+      // Stereo width
+      const wL = wet * (0.5 + width * 0.5)
+      const wR = wet * (0.5 + (1 - width) * 0.5)
+
+      io.out[0][i] = dryL * (1 - mix) + wL * mix
+      io.out[1][i] = dryR * (1 - mix) + wR * mix
     }
   }
-
-  paramChanged(name, value) {}
 }

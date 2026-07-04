@@ -7,65 +7,63 @@
 // @param mix 0.5 0 1 linear
 
 class Processor {
+  p = {rate: 0.5, depth: 0.3, center: 0.015, feedback: 0.2, mix: 0.5}
+  sr = sampleRate
+  phase = 0
+
   constructor() {
-    this.sr = this.sampleRate;
-    this.maxDelay = Math.floor(this.sr * 0.05);
-    this.bufL = new Float32Array(this.maxDelay);
-    this.bufR = new Float32Array(this.maxDelay);
-    this.idxL = 0;
-    this.idxR = 0;
-    this.phase = 0;
+    this.maxDelay = Math.floor(this.sr * 0.05)
+    this.bufL = new Float32Array(this.maxDelay)
+    this.bufR = new Float32Array(this.maxDelay)
+    this.idxL = 0
+    this.idxR = 0
   }
 
-  processAudio(inputs, outputs, parameters) {
-    const input = inputs[0];
-    const out = outputs[0];
-    const rate = parameters.rate[0];
-    const depth = parameters.depth[0];
-    const center = parameters.center[0] * this.sr;
-    const feedback = parameters.feedback[0];
-    const mix = parameters.mix[0];
-    const blockSize = out[0] ? out[0].length : 0;
+  paramChanged(name, value) {
+    this.p[name] = value
+  }
 
-    for (let i = 0; i < blockSize; i++) {
-      this.phase += 2 * Math.PI * rate / this.sr;
-      if (this.phase > 2 * Math.PI) this.phase -= 2 * Math.PI;
+  process(io, block) {
+    const rate = this.p.rate
+    const depth = this.p.depth
+    const center = this.p.center * this.sr
+    const feedback = this.p.feedback
+    const mix = this.p.mix
 
-      // Two LFOs 90 degrees apart for stereo width
-      const lfoL = Math.sin(this.phase);
-      const lfoR = Math.sin(this.phase + Math.PI / 2);
+    for (let i = block.s0; i < block.s1; i++) {
+      this.phase += 2 * Math.PI * rate / this.sr
+      if (this.phase > 2 * Math.PI) this.phase -= 2 * Math.PI
 
-      const delayL = center + depth * center * lfoL;
-      const delayR = center + depth * center * lfoR;
+      // Two LFOs 90° apart
+      const lfoL = Math.sin(this.phase)
+      const lfoR = Math.sin(this.phase + Math.PI / 2)
+
+      const delayL = center + depth * center * lfoL
+      const delayR = center + depth * center * lfoR
 
       // Fractional delay read (linear interp)
-      const readL = this.idxL - delayL + this.maxDelay;
-      const readR = this.idxR - delayR + this.maxDelay;
+      const readL = this.idxL - delayL + this.maxDelay
+      const readR = this.idxR - delayR + this.maxDelay
+      const iL0 = Math.floor(readL) % this.maxDelay
+      const iL1 = (iL0 + 1) % this.maxDelay
+      const fL = readL - Math.floor(readL)
+      const delayedL = this.bufL[iL0] * (1 - fL) + this.bufL[iL1] * fL
+      const iR0 = Math.floor(readR) % this.maxDelay
+      const iR1 = (iR0 + 1) % this.maxDelay
+      const fR = readR - Math.floor(readR)
+      const delayedR = this.bufR[iR0] * (1 - fR) + this.bufR[iR1] * fR
 
-      const iL0 = Math.floor(readL) % this.maxDelay;
-      const iL1 = (iL0 + 1) % this.maxDelay;
-      const fL = readL - Math.floor(readL);
-      const delayedL = this.bufL[iL0] * (1 - fL) + this.bufL[iL1] * fL;
-
-      const iR0 = Math.floor(readR) % this.maxDelay;
-      const iR1 = (iR0 + 1) % this.maxDelay;
-      const fR = readR - Math.floor(readR);
-      const delayedR = this.bufR[iR0] * (1 - fR) + this.bufR[iR1] * fR;
-
-      const dryL = input && input[0] ? input[0][i] : 0;
-      const dryR = input && input[1] ? input[1][i] : dryL;
+      const dryL = io.src[0][i]
+      const dryR = io.src[1][i]
 
       // Write with feedback
-      this.bufL[this.idxL] = dryL + delayedL * feedback;
-      this.bufR[this.idxR] = dryR + delayedR * feedback;
+      this.bufL[this.idxL] = dryL + delayedL * feedback
+      this.bufR[this.idxR] = dryR + delayedR * feedback
+      this.idxL = (this.idxL + 1) % this.maxDelay
+      this.idxR = (this.idxR + 1) % this.maxDelay
 
-      this.idxL = (this.idxL + 1) % this.maxDelay;
-      this.idxR = (this.idxR + 1) % this.maxDelay;
-
-      if (out[0]) out[0][i] = dryL * (1 - mix) + delayedL * mix;
-      if (out[1]) out[1][i] = dryR * (1 - mix) + delayedR * mix;
+      io.out[0][i] = dryL * (1 - mix) + delayedL * mix
+      io.out[1][i] = dryR * (1 - mix) + delayedR * mix
     }
   }
-
-  paramChanged(name, value) {}
 }
