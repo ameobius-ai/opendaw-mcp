@@ -14,7 +14,7 @@
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
-[![LangChain + AutoGen](https://img.shields.io/badge/LangChain%20%2B%20AutoGen-Ready-blue)](opendaw_mcp/)
+[![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
 **263 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
@@ -294,7 +294,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 32 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 33 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -330,6 +330,7 @@ The `examples/` directory contains 32 Python scripts demonstrating the full work
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 | `langchain_integration.py` | LangChain toolkit: use opendaw-mcp tools as LangChain Tool objects with any LLM agent |
 | `autogen_integration.py` | AutoGen toolkit: use opendaw-mcp tools with Microsoft AutoGen agents |
+| `crewai_integration.py` | CrewAI toolkit: use opendaw-mcp tools with CrewAI crews |
 
 ## Agent Framework Integration
 
@@ -370,6 +371,24 @@ user.initiate_chat(assistant, message="Create a dark techno track at 130 BPM and
 ```
 
 See [`examples/autogen_integration.py`](examples/autogen_integration.py) for a full demo.
+
+### CrewAI
+
+```python
+from opendaw_mcp.crewai_tools import get_crewai_tools
+
+tools = get_crewai_tools()
+
+from crewai import Agent, Task, Crew, LLM
+
+llm = LLM(model="gpt-4o-mini")
+producer = Agent(role="Music Producer", goal="Create and mix tracks", backstory="Expert producer", tools=tools, llm=llm)
+task = Task(description="Create a dark techno track at 130 BPM and render it", agent=producer, expected_output="WAV file")
+crew = Crew(agents=[producer], tasks=[task])
+result = crew.kickoff()
+```
+
+See [`examples/crewai_integration.py`](examples/crewai_integration.py) for a full demo.
 
 ## Tool Catalog
 
@@ -427,6 +446,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.15.2 (2026-07-04)
+
+- **CrewAI toolkit** — `opendaw_mcp/crewai_tools.py` wraps 27 tools for CrewAI. Custom `OpendawCrewAITool` class, category filtering, shared server instance.
+- **GitHub Discussions seeded** — 5 discussions: release announcement, 3 FAQ (bridge, GPU, MCP clients), genre showcase
+- **33 examples total** (added `crewai_integration.py`)
 
 ### v1.15.1 (2026-07-04)
 

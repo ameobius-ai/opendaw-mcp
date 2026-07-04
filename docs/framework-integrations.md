@@ -73,6 +73,35 @@ asyncio.run(cleanup())
 
 → See [`examples/autogen_integration.py`](https://github.com/AMEOBIUS/opendaw-mcp/blob/main/examples/autogen_integration.py)
 
+## CrewAI
+
+```python
+from opendaw_mcp.crewai_tools import get_crewai_tools, cleanup
+
+tools = get_crewai_tools()
+
+from crewai import Agent, Task, Crew, LLM
+
+llm = LLM(model="gpt-4o-mini")
+producer = Agent(
+    role="Music Producer",
+    goal="Create and mix music tracks",
+    backstory="Expert producer with 20 years of experience",
+    tools=tools, llm=llm,
+)
+task = Task(
+    description="Create a dark techno track at 130 BPM and render it",
+    agent=producer, expected_output="A WAV file with the finished track",
+)
+crew = Crew(agents=[producer], tasks=[task], verbose=True)
+result = crew.kickoff()
+
+import asyncio
+asyncio.run(cleanup())
+```
+
+→ See [`examples/crewai_integration.py`](https://github.com/AMEOBIUS/opendaw-mcp/blob/main/examples/crewai_integration.py)
+
 ## MCP protocol (direct)
 
 The server speaks MCP natively — no wrapper needed. Add to your MCP client config:
@@ -111,4 +140,5 @@ mcp:
 | **MCP direct** | Claude Desktop, Cursor, or any MCP client — all 263 tools |
 | **LangChain** | Building agents with LangChain's tool-calling ecosystem |
 | **AutoGen** | Multi-agent conversations with Microsoft AutoGen |
+| **CrewAI** | Role-based crews with CrewAI's Agent/Task/Crew pattern |
 | **Hermes** | Hermes Agent framework with skill-based workflows |
