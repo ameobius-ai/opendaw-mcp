@@ -91,6 +91,7 @@ nav:
     - Stems & Presets: tools/stems-presets.md
     - Orchestration: tools/orchestration.md
   - Examples: examples.md
+  - Framework Integration: framework-integrations.md
   - DSP Scripts: dsp-scripts.md
   - Agent Skills: skills.md
   - Changelog: changelog.md

@@ -14,7 +14,7 @@
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
-[![LangChain](https://img.shields.io/badge/LangChain-Ready-blue)](opendaw_mcp/langchain_tools.py)
+[![LangChain + AutoGen](https://img.shields.io/badge/LangChain%20%2B%20AutoGen-Ready-blue)](opendaw_mcp/)
 
 **263 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
@@ -294,7 +294,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 31 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 32 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -329,6 +329,7 @@ The `examples/` directory contains 31 Python scripts demonstrating the full work
 | `genre_trap.py` | Genre template: trap skeleton (145 BPM, fast hi-hat rolls, gliding 808 F minor, dark pentatonic melody, hard Comp 6:1) |
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 | `langchain_integration.py` | LangChain toolkit: use opendaw-mcp tools as LangChain Tool objects with any LLM agent |
+| `autogen_integration.py` | AutoGen toolkit: use opendaw-mcp tools with Microsoft AutoGen agents |
 
 ## Agent Framework Integration
 
@@ -352,6 +353,23 @@ executor.invoke({"input": "Create a dark techno track at 130 BPM and render it"}
 ```
 
 See [`examples/langchain_integration.py`](examples/langchain_integration.py) for a full demo.
+
+### AutoGen
+
+```python
+from opendaw_mcp.autogen_tools import get_autogen_tools
+
+tools = get_autogen_tools()  # or filter: get_autogen_tools(categories=["transport", "orchestration"])
+
+from autogen import AssistantAgent, UserProxyAgent
+
+assistant = AssistantAgent("producer", llm_config=llm_config, tools=tools,
+    system_message="You are a music producer. Use opendaw tools to create, mix, and render music.")
+user = UserProxyAgent("user", human_input_mode="NEVER")
+user.initiate_chat(assistant, message="Create a dark techno track at 130 BPM and render it")
+```
+
+See [`examples/autogen_integration.py`](examples/autogen_integration.py) for a full demo.
 
 ## Tool Catalog
 
@@ -410,14 +428,21 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.15.1 (2026-07-04)
+
+- **AutoGen toolkit** — `opendaw_mcp/autogen_tools.py` wraps 27 tools for Microsoft AutoGen. Category filtering, shared server instance.
+- **Framework integration docs page** — LangChain + AutoGen + MCP direct + Hermes, with comparison table
+- **32 examples total** (added `autogen_integration.py`)
+
 ### v1.15.0 (2026-07-04)
 
 - **LangChain toolkit** — `opendaw_mcp/langchain_tools.py` wraps 30+ tools as LangChain `StructuredTool` objects. Category filtering, auto bridge start. Use with any LangChain agent.
+- **AutoGen toolkit** — `opendaw_mcp/autogen_tools.py` wraps 27 tools for Microsoft AutoGen. Category filtering, shared server instance.
 - **Docs site** — mkdocs-material at https://ameobius.github.io/opendaw-mcp/ — 21 pages, dark mode, search, auto-deploy via GitHub Actions
 - **PR template** — structured checklist for contributors
 - **PyPI metadata** — Documentation, Issues, Changelog URLs pointing to docs site
 - **dev.to article** — "Controlling a DAW with AI Agents via MCP" (in `promotion/`)
-- **31 examples total** (added `langchain_integration.py`)
+- **32 examples total** (added `langchain_integration.py`, `autogen_integration.py`)
 
 ### v1.14.4 (2026-07-04)
 
