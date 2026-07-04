@@ -12736,12 +12736,119 @@ async def mcp_opendaw_automation_sweep(unit_index: int, parameter_name: str, sta
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_apply_mix_preset(preset: str) -> str:
+    """Apply a mix preset to all audio units in one call — volume, pan, mute, solo.
+
+    Replaces 10-30 set_track_volume/set_track_panning/set_track_mute calls.
+    Presets can be genre-specific or custom JSON.
+
+    preset: JSON object mapping unit indices to settings:
+        {"0": {"volume_db": -3, "panning": 0.0, "mute": false},
+         "1": {"volume_db": -6, "panning": -0.3, "solo": false}, ...}
+
+    Alternatively, use a named preset: "lofi", "house", "balanced", "wide"
+
+    Returns applied settings per unit.
+
+    Example:
+      preset='{"0":{"volume_db":-3,"panning":0},"1":{"volume_db":-6,"panning":-0.3}}'
+      preset='lofi'  (built-in: kicks +0, bass -3, synths -6, wide pans)
+    """
+    built_in = {
+        "lofi": {
+            "0": {"volume_db": 0, "panning": 0.0, "mute": False},      # drums
+            "1": {"volume_db": -3, "panning": 0.0, "mute": False},     # bass
+            "2": {"volume_db": -6, "panning": -0.2, "mute": False},    # keys left
+            "3": {"volume_db": -6, "panning": 0.2, "mute": False},     # keys right
+        },
+        "house": {
+            "0": {"volume_db": 0, "panning": 0.0, "mute": False},      # kick
+            "1": {"volume_db": -3, "panning": 0.0, "mute": False},     # bass
+            "2": {"volume_db": -4, "panning": -0.15, "mute": False},   # synths
+            "3": {"volume_db": -4, "panning": 0.15, "mute": False},    # hats
+        },
+        "balanced": {
+            "0": {"volume_db": 0, "panning": 0.0, "mute": False},
+            "1": {"volume_db": 0, "panning": 0.0, "mute": False},
+            "2": {"volume_db": 0, "panning": 0.0, "mute": False},
+        },
+        "wide": {
+            "0": {"volume_db": -2, "panning": -0.4, "mute": False},
+            "1": {"volume_db": -2, "panning": 0.4, "mute": False},
+            "2": {"volume_db": -4, "panning": -0.2, "mute": False},
+            "3": {"volume_db": -4, "panning": 0.2, "mute": False},
+        },
+    }
+
+    preset_lower = preset.strip().lower()
+    if preset_lower in built_in:
+        settings = built_in[preset_lower]
+    else:
+        settings = json.loads(preset)
+
+    settings_json = json.dumps(settings)
+    preset_name = preset_lower if preset_lower in built_in else "custom"
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const settings = {settings_json};
+            const units = h.allAUBoxes();
+            const applied = [];
+            for (const [idxStr, params] of Object.entries(settings)) {{
+                const idx = parseInt(idxStr);
+                if (idx >= units.length) {{
+                    applied.push({{unit: idx, error: "no AU at index"}});
+                    continue;
+                }}
+                const au = units[idx];
+                const result = {{unit: idx, name: au.name?.getValue?.() || "Unit " + idx}};
+
+                h.modify(() => {{
+                    if (params.volume_db !== undefined) {{
+                        let raw = params.volume_db;
+                        try {{
+                            const c = au.volume.constraints;
+                            if (c?.valueMapper) raw = c.valueMapper.mapToNormalized(params.volume_db);
+                            else if (c?.mapper) raw = c.mapper.mapToNormalized(params.volume_db);
+                        }} catch(e) {{}}
+                        au.volume.setValue(raw);
+                        result.volume_db = params.volume_db;
+                    }}
+                    if (params.panning !== undefined) {{
+                        au.panning.setValue(params.panning);
+                        result.panning = params.panning;
+                    }}
+                    if (params.mute !== undefined) {{
+                        au.mute?.setValue?.(params.mute);
+                        result.mute = params.mute;
+                    }}
+                    if (params.solo !== undefined) {{
+                        au.solo?.setValue?.(params.solo);
+                        result.solo = params.solo;
+                    }}
+                }});
+                applied.push(result);
+            }}
+            return {{
+                success: true,
+                preset: "{preset_name}",
+                units_adjusted: applied.length,
+                settings: applied,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.10.2 — 260 MCP tools")
+            print("opendaw-mcp 1.11.0 — 261 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -12751,7 +12858,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 260 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 261 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")

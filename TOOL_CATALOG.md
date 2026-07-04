@@ -326,8 +326,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient) — synth, drums, bass, chords, BPM in one call.
 - `create_song_structure` — Create arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list. Enables agents to reason about song form.
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
+- `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 260 tools**
+**Total: 258 tools**
 
 ## DSP Scripts (scripts/)
 - `werkstatt_darksat.js` — Tape saturation DSP (drive, bias, tone, mix, output)
