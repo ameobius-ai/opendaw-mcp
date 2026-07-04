@@ -7,7 +7,6 @@ Demonstrates the complete agent-native workflow:
 4. Set volume/pan per stem
 5. Add a MIDI arp layer (Apparat + Spielwerk)
 6. Render the enhanced mix
-7. Export stems for further processing
 
 This is the "full production" pipeline — from raw AI generation to mixed track.
 
@@ -36,6 +35,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server import (
+    bridge,
     mcp_opendaw_get_project_state,
     mcp_opendaw_create_audio_track,
     mcp_opendaw_load_audio,
@@ -46,11 +46,11 @@ from server import (
     mcp_opendaw_create_note,
     mcp_opendaw_add_midi_effect,
     mcp_opendaw_set_script_device_code,
+    mcp_opendaw_set_script_param,
     mcp_opendaw_set_bpm,
     mcp_opendaw_set_track_volume,
-    mcp_opendaw_set_track_pan,
-    mcp_opendaw_create_audio_bus,
-    mcp_opendaw_add_send,
+    mcp_opendaw_set_track_panning,
+    mcp_opendaw_create_send,
     mcp_opendaw_render_full,
     mcp_opendaw_export_stems,
     mcp_opendaw_measure_lufs,
@@ -78,6 +78,8 @@ async def main():
     print("Suno → Stem Split → openDAW Enhancement Pipeline")
     print("=" * 60)
 
+    await bridge.start()
+
     # ─── 0. Check available split modes ─────────────────────
     modes = json.loads(await mcp_opendaw_list_split_modes())
     print(f"\nStem split modes available: {len(modes['modes'])}")
@@ -85,6 +87,7 @@ async def main():
 
     # ─── 1. Split stems (or use existing) ────────────────────
     stems = []
+    result = None
     if args.stems_dir and os.path.isdir(args.stems_dir):
         print(f"\n[1/6] Using existing stems from {args.stems_dir}")
         for f in sorted(os.listdir(args.stems_dir)):
@@ -99,14 +102,14 @@ async def main():
         print(f"  Input: {args.input}")
         print("  This runs locally on GPU — may take 15-90s depending on mode...")
         result = json.loads(await mcp_opendaw_split_stems(
-            args.input, mode=args.mode, import_to_daw=True
+            file_path=args.input, mode=args.mode, import_to_daw=True
         ))
         if result.get("success"):
             stems = result.get("stems", [])
             imported = result.get("imported", [])
             print(f"  Split complete: {result['stem_count']} stems in {result['output_dir']}")
             for s in stems:
-                print(f"    {s['name']:12s} {s['size_mb']:.1f} MB")
+                print(f"    {s['name']:12s} {s.get('size_mb', 0):.1f} MB")
             if imported:
                 print(f"  Auto-imported {len(imported)} stems into DAW")
         else:
@@ -114,40 +117,44 @@ async def main():
             return
     else:
         print("\n[1/6] No input file and no stems dir — running in demo mode")
-        print("  (Create a placeholder audio track without stems)")
 
     # ─── 2. Set up project ───────────────────────────────────
     print("\n[2/6] Setting up project...")
     state = json.loads(await mcp_opendaw_get_project_state())
     print(f"  Project: {state.get('track_count', 0)} tracks")
 
-    await mcp_opendaw_set_bpm(120)
+    await mcp_opendaw_set_bpm(bpm=120)
     print("  BPM set to 120")
 
     # ─── 3. Create tracks for each stem ──────────────────────
     print(f"\n[3/6] Creating tracks for {len(stems)} stems...")
 
-    stem_tracks = {}  # stem_name → {track_idx, sample_id}
+    stem_tracks = {}  # stem_name → {unit_idx, track_idx, sample_id}
+    primary_unit = 0
 
     # If stems were auto-imported, use those sample IDs
-    if args.input and 'result' in dir() and result.get("imported"):
+    if result and result.get("imported"):
         for imp in result["imported"]:
             if "sample_id" in imp:
                 track = json.loads(await mcp_opendaw_create_audio_track())
                 tidx = track.get("track_index", 0)
                 json.loads(await mcp_opendaw_create_audio_clip(
-                    imp["sample_id"], tidx, 0, 0, 120
+                    sample_id=imp["sample_id"], unit_index=primary_unit,
+                    clip_index=0, track_index=tidx, bpm=120
                 ))
                 stem_tracks[imp["name"]] = {"track_idx": tidx, "sample_id": imp["sample_id"]}
                 print(f"  {imp['name']:12s} → track {tidx}")
     elif stems:
         for stem in stems:
-            load_result = json.loads(await mcp_opendaw_load_audio(stem["path"], stem["name"]))
+            load_result = json.loads(await mcp_opendaw_load_audio(
+                file_path=stem["path"], name=stem["name"]
+            ))
             if load_result.get("success"):
                 track = json.loads(await mcp_opendaw_create_audio_track())
                 tidx = track.get("track_index", 0)
                 json.loads(await mcp_opendaw_create_audio_clip(
-                    load_result["id"], tidx, 0, 0, 120
+                    sample_id=load_result["id"], unit_index=primary_unit,
+                    clip_index=0, track_index=tidx, bpm=120
                 ))
                 stem_tracks[stem["name"]] = {"track_idx": tidx, "sample_id": load_result["id"]}
                 print(f"  {stem['name']:12s} → track {tidx}")
@@ -157,68 +164,88 @@ async def main():
 
     # Genre-adaptive mix presets (coldwave/darksynth defaults)
     mix_presets = {
-        "bass":    {"volume_db": -3, "pan": 0.0, "effect": None},
-        "drums":   {"volume_db": 0,  "pan": 0.0, "effect": None},
-        "vocals":  {"volume_db": -6, "pan": 0.0, "effect": "reverb_send"},
-        "other":   {"volume_db": -8, "pan": -0.3, "effect": None},  # synths left
-        "guitar":  {"volume_db": -8, "pan": 0.4, "effect": None},
-        "piano":   {"volume_db": -10, "pan": -0.2, "effect": None},
-        "dry":     {"volume_db": -6, "pan": 0.0, "effect": "reverb_send"},
-        "clean":   {"volume_db": 0,  "pan": 0.0, "effect": None},
-        "instrumental": {"volume_db": -12, "pan": 0.0, "effect": None},
+        "bass":          {"volume_db": -3, "pan": 0.0, "send_reverb": False},
+        "drums":         {"volume_db": 0,  "pan": 0.0, "send_reverb": False},
+        "vocals":        {"volume_db": -6, "pan": 0.0, "send_reverb": True},
+        "other":         {"volume_db": -8, "pan": -0.3, "send_reverb": False},
+        "guitar":        {"volume_db": -8, "pan": 0.4, "send_reverb": False},
+        "piano":         {"volume_db": -10, "pan": -0.2, "send_reverb": False},
+        "dry":           {"volume_db": -6, "pan": 0.0, "send_reverb": True},
+        "clean":         {"volume_db": 0,  "pan": 0.0, "send_reverb": False},
+        "instrumental":  {"volume_db": -12, "pan": 0.0, "send_reverb": False},
     }
-
-    # Create reverb bus for vocal sends
-    reverb_bus = json.loads(await mcp_opendaw_create_audio_bus("ReverbBus"))
 
     for stem_name, info in stem_tracks.items():
         tidx = info["track_idx"]
-        preset = mix_presets.get(stem_name, {"volume_db": -8, "pan": 0.0, "effect": None})
+        preset = mix_presets.get(stem_name, {"volume_db": -8, "pan": 0.0, "send_reverb": False})
 
-        await mcp_opendaw_set_track_volume(tidx, preset["volume_db"])
-        await mcp_opendaw_set_track_pan(tidx, preset["pan"])
+        await mcp_opendaw_set_track_volume(unit_index=primary_unit, volume_db=preset["volume_db"])
+        await mcp_opendaw_set_track_panning(unit_index=primary_unit, panning=preset["pan"])
         print(f"  {stem_name:12s} vol={preset['volume_db']:+d}dB pan={preset['pan']:+.1f}")
 
         # Add reverb send for vocals
-        if preset["effect"] == "reverb_send":
-            json.loads(await mcp_opendaw_add_send(tidx, reverb_bus.get("bus_index", 0)))
-            print(f"    → reverb send to bus {reverb_bus.get('bus_index', 0)}")
+        if preset["send_reverb"]:
+            send = json.loads(await mcp_opendaw_create_send(
+                src_unit=primary_unit, name=f"reverb_{stem_name}",
+                send_level_db=-9, routing="primary"
+            ))
+            print(f"    → reverb send: {send.get('success', False)}")
 
-    # ─── 5. Add MIDI layer (optional) ────────────────────────
+    # ─── 5. Add MIDI layer ───────────────────────────────────
     print("\n[5/6] Adding MIDI arp layer...")
     try:
-        synth = json.loads(await mcp_opendaw_create_synth_track("ArpSynth"))
-        synth_idx = synth.get("unit_index", 0)
+        synth = json.loads(await mcp_opendaw_create_synth_track(
+            name="ArpSynth", synth_type="Apparat"
+        ))
+        if synth.get("success"):
+            synth_idx = synth.get("unit_index", 1)
 
-        # Load Apparat sub crusher synth
-        darkbass_code = load_script("apparat_subcrusher.js")
-        await mcp_opendaw_set_script_device_code(synth_idx, darkbass_code)
-
-        # Create note track
-        note_track = json.loads(await mcp_opendaw_create_note_track(synth_idx))
-        note_tidx = note_track.get("track_index", 0)
-
-        # Create a region
-        json.loads(await mcp_opendaw_create_track_region(synth_idx, note_tidx, 0, 16))
-
-        # Add arpeggiator MIDI effect
-        arp_code = load_script("spielwerk_arpeggiator.js")
-        await mcp_opendaw_add_midi_effect(synth_idx, "Spielwerk")
-        await mcp_opendaw_set_script_device_code(synth_idx, arp_code)
-
-        # Add some notes
-        notes = [
-            {"pitch": 36, "position": 0, "duration": 4},   # C2
-            {"pitch": 43, "position": 4, "duration": 4},   # G2
-            {"pitch": 48, "position": 8, "duration": 4},   # C3
-            {"pitch": 43, "position": 12, "duration": 4},  # G2
-        ]
-        for n in notes:
-            await mcp_opendaw_create_note(
-                synth_idx, note_tidx, 0,
-                n["pitch"], n["position"], n["duration"], 0.8
+            # Load Apparat sub crusher synth
+            await mcp_opendaw_set_script_device_code(
+                device_type="apparat", unit_index=synth_idx,
+                device_index=0, code=load_script("apparat_subcrusher.js")
             )
-        print(f"  Arp synth on unit {synth_idx}, {len(notes)} notes")
+            await mcp_opendaw_set_script_param("apparat", synth_idx, 0, "cutoff", 800)
+            await mcp_opendaw_set_script_param("apparat", synth_idx, 0, "volume", 0.5)
+
+            # Create note track
+            note_track = json.loads(await mcp_opendaw_create_note_track(unit_index=synth_idx))
+            if note_track.get("success"):
+                note_tidx = note_track.get("track_index", 0)
+
+                # Create a region
+                json.loads(await mcp_opendaw_create_track_region(
+                    unit_index=synth_idx, track_index=note_tidx,
+                    start_beat=0, duration_beats=16
+                ))
+
+                # Add arpeggiator MIDI effect
+                arp = json.loads(await mcp_opendaw_add_midi_effect(
+                    unit_index=synth_idx, effect_type="Spielwerk"
+                ))
+                if arp.get("success"):
+                    arp_idx = arp.get("effect_index", 0)
+                    await mcp_opendaw_set_script_device_code(
+                        device_type="spielwerk", unit_index=synth_idx,
+                        device_index=arp_idx, code=load_script("spielwerk_arpeggiator.js")
+                    )
+                    await mcp_opendaw_set_script_param("spielwerk", synth_idx, arp_idx, "rate", 0.125)
+                    await mcp_opendaw_set_script_param("spielwerk", synth_idx, arp_idx, "octaves", 2)
+
+                # Add bass notes
+                notes = [
+                    (0, 36, 4),   # C2
+                    (4, 43, 4),   # G2
+                    (8, 48, 4),   # C3
+                    (12, 43, 4),  # G2
+                ]
+                for beat, pitch, dur in notes:
+                    await mcp_opendaw_create_note(
+                        track_index=note_tidx, pitch=pitch,
+                        start_beat=beat, duration_beats=dur,
+                        velocity=0.8, unit_index=synth_idx
+                    )
+                print(f"  Arp synth on unit {synth_idx}, {len(notes)} notes")
     except Exception as e:
         print(f"  MIDI layer skipped: {e}")
 
@@ -226,20 +253,21 @@ async def main():
     print("\n[6/6] Rendering final mix...")
     os.makedirs(args.output, exist_ok=True)
 
-    render = json.loads(await mcp_opendaw_render_full("enhanced_mix", 48000))
+    render = json.loads(await mcp_opendaw_render_full(filename="enhanced_mix", sample_rate=48000))
     if render.get("success"):
         print(f"  Rendered: {render.get('file_path', 'unknown')}")
 
     # Measure LUFS
-    lufs = json.loads(await mcp_opendaw_measure_lufs("enhanced_mix"))
-    if lufs.get("success"):
-        print(f"  LUFS: {lufs.get('integrated', 'N/A')}")
+    lufs = json.loads(await mcp_opendaw_measure_lufs())
+    if lufs.get("success") or "lufs" in lufs:
+        print(f"  LUFS: {lufs.get('lufs', 'N/A')} dB")
 
     # Export stems
-    stems_export = json.loads(await mcp_opendaw_export_stems("enhanced_stem", 48000))
+    stems_export = json.loads(await mcp_opendaw_export_stems(filename="enhanced_stem", sample_rate=48000))
     if stems_export.get("success"):
-        print(f"  Stems exported: {len(stems_export.get('files', []))} files")
+        print(f"  Stems exported: {stems_export.get('stem_count', 0)} files")
 
+    await bridge.stop()
     print("\n" + "=" * 60)
     print("Pipeline complete!")
     print(f"Output: {args.output}/")
