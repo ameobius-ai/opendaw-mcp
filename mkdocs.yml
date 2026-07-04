@@ -1,0 +1,104 @@
+site_name: opendaw-mcp
+site_description: 263 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation
+site_url: https://ameobius.github.io/opendaw-mcp/
+repo_url: https://github.com/ameobius/opendaw-mcp
+repo_name: ameobius/opendaw-mcp
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  favicon: assets/favicon.ico
+
+plugins:
+  - search:
+      lang:
+        - en
+        - ru
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - def_list
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Quick Start: quickstart.md
+  - Architecture: architecture.md
+  - Tool Reference:
+    - Overview: tools/index.md
+    - Project & Transport: tools/project-transport.md
+    - Tracks & Audio Units: tools/tracks.md
+    - Instruments & Synths: tools/instruments.md
+    - Effects & MIDI Effects: tools/effects.md
+    - Notes & Regions: tools/notes-regions.md
+    - Clips & Markers: tools/clips-markers.md
+    - Mixer & Sends: tools/mixer.md
+    - Automation: tools/automation.md
+    - Export & Rendering: tools/export.md
+    - Scriptable Devices: tools/scriptable.md
+    - Drums & Modular: tools/drums-modular.md
+    - Stems & Presets: tools/stems-presets.md
+    - Orchestration: tools/orchestration.md
+  - Examples: examples.md
+  - DSP Scripts: dsp-scripts.md
+  - Agent Skills: skills.md
+  - Changelog: changelog.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ameobius/opendaw-mcp
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/opendaw-mcp/
+  generator: false
