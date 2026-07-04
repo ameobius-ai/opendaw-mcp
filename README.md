@@ -326,7 +326,7 @@ The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 33 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 34 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -363,6 +363,7 @@ The `examples/` directory contains 33 Python scripts demonstrating the full work
 | `langchain_integration.py` | LangChain toolkit: use opendaw-mcp tools as LangChain Tool objects with any LLM agent |
 | `autogen_integration.py` | AutoGen toolkit: use opendaw-mcp tools with Microsoft AutoGen agents |
 | `crewai_integration.py` | CrewAI toolkit: use opendaw-mcp tools with CrewAI crews |
+| `screenshot_demo.py` | Create a full house track with drums/bass/chords/effects, take a screenshot of the DAW UI, render to WAV |
 
 ## Agent Framework Integration
 
