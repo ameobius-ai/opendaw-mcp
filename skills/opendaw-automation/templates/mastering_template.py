@@ -23,14 +23,13 @@ Requirements:
 import sys
 import soundfile as sf
 import numpy as np
-from scipy.signal import butter, sosfiltfilt, welch
+from scipy.signal import butter, sosfiltfilt
 from pedalboard import (
-    Pedalboard, Compressor, Gain, Limiter,
+    Pedalboard, Compressor, Limiter,
     LowShelfFilter, HighShelfFilter, PeakFilter, Resample
 )
 import pyloudnorm as pyln
 from scipy.interpolate import interp1d
-import os
 
 # ─── CONFIG ───
 INPUT = sys.argv[1] if len(sys.argv) > 1 else 'input.wav'
@@ -76,7 +75,7 @@ def measure(a, sr, label=''):
     meter = pyln.Meter(sr)
     lufs = meter.integrated_loudness(m)
     try: lra = meter.loudness_range(m)
-    except: lra = 0
+    except Exception: lra = 0
     # True-peak
     idx = np.arange(len(m))
     idx_os = np.linspace(0, len(m)-1, len(m)*OS_FACTOR)

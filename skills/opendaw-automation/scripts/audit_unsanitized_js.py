@@ -55,6 +55,10 @@ def main():
             if param.startswith(safe_prefixes):
                 continue
 
+            # Skip if param is whitelisted (known non-injectable)
+            if param in whitelist:
+                continue
+
             # Skip if not a str-typed param (check function signature)
             if f'{param}: str' not in params_str and f'{param}: str =' not in params_str:
                 # Could be a non-str param interpolated as string — still check
@@ -64,7 +68,7 @@ def main():
             # Check if a safe_ version exists in the body
             safe_var_candidates = [
                 f'safe_{param}',
-                f'safe_param' if param == 'parameter_name' else None,
+                'safe_param' if param == 'parameter_name' else None,
             ]
             safe_var_candidates = [c for c in safe_var_candidates if c]
 

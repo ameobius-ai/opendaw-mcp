@@ -28,8 +28,6 @@ Usage:
   await session.create_track_with_region('bass', vol=0, pan=0)  # region placement may fail
   await session.close()
 """
-import asyncio
-import json
 import base64
 from playwright.async_api import async_playwright
 

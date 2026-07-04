@@ -16,7 +16,7 @@ Then edit render script STEMS to use 'bass_sat.wav' and 'drums_comp.wav' instead
 """
 import soundfile as sf
 import numpy as np
-from pedalboard import Pedalboard, Compressor, Gain, PeakFilter, Distortion
+from pedalboard import Pedalboard, Compressor, PeakFilter, Distortion
 from scipy.signal import welch
 import pyloudnorm as pyln
 import os
@@ -51,7 +51,7 @@ def measure(audio, sr, label=''):
         mask = (f >= lo) & (f <= hi)
         bands[name] = 10*np.log10(np.sum(Pxx[mask]) + 1e-12)
     print(f'  {label}: RMS={rms_db:.1f}dB peak={peak_db:.1f}dB LUFS={lufs:.1f}')
-    print(f'    bands: ' + ' '.join(f'{k}={v:.1f}' for k,v in bands.items()))
+    print('    bands: ' + ' '.join(f'{k}={v:.1f}' for k,v in bands.items()))
     return {'rms_db': rms_db, 'peak_db': peak_db, 'lufs': lufs, 'bands': bands}
 
 def rms_normalize(processed, original):

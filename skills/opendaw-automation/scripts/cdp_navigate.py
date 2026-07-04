@@ -43,7 +43,7 @@ def main():
     time.sleep(wait)
 
     r = cdp_send(ws, "Runtime.evaluate", {
-        "expression": f"JSON.stringify({{url: window.location.href, title: document.title, body: document.body ? document.body.innerText.substring(0, 5000) : 'NO BODY'}})",
+        "expression": "JSON.stringify({url: window.location.href, title: document.title, body: document.body ? document.body.innerText.substring(0, 5000) : 'NO BODY'})",
         "returnByValue": True
     }, id_=10)
     val = r.get("result", {}).get("result", {}).get("value", "NO VALUE")

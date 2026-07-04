@@ -136,9 +136,9 @@ async def main():
 
         # === 7. Verify ===
         print("\n✅ Custom DSP script compiled and tested!")
-        print(f"   Script: analog saturation with DC blocker + tone filter + dry/wet")
-        print(f"   4 parameters: drive, tone, mix, output")
-        print(f"   All parameters set and verified")
+        print("   Script: analog saturation with DC blocker + tone filter + dry/wet")
+        print("   4 parameters: drive, tone, mix, output")
+        print("   All parameters set and verified")
 
     finally:
         await server.bridge.stop()

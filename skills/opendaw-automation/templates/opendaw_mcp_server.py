@@ -7,7 +7,6 @@ Requirements (pip): mcp>=1.27, playwright>=1.60, pydantic>=2.13
 Also: npx/vite in PATH (nvm node v23+), Playwright chromium installed.
 """
 import asyncio
-import json
 import logging
 import subprocess
 import os

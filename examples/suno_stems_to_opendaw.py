@@ -44,10 +44,8 @@ from server import (
     mcp_opendaw_create_note_track,
     mcp_opendaw_create_track_region,
     mcp_opendaw_create_note,
-    mcp_opendaw_add_effect,
     mcp_opendaw_add_midi_effect,
     mcp_opendaw_set_script_device_code,
-    mcp_opendaw_set_script_param,
     mcp_opendaw_set_bpm,
     mcp_opendaw_set_track_volume,
     mcp_opendaw_set_track_pan,
@@ -99,7 +97,7 @@ async def main():
     elif args.input and os.path.exists(args.input):
         print(f"\n[1/6] Splitting stems (mode={args.mode})...")
         print(f"  Input: {args.input}")
-        print(f"  This runs locally on GPU — may take 15-90s depending on mode...")
+        print("  This runs locally on GPU — may take 15-90s depending on mode...")
         result = json.loads(await mcp_opendaw_split_stems(
             args.input, mode=args.mode, import_to_daw=True
         ))
@@ -137,7 +135,7 @@ async def main():
             if "sample_id" in imp:
                 track = json.loads(await mcp_opendaw_create_audio_track())
                 tidx = track.get("track_index", 0)
-                clip = json.loads(await mcp_opendaw_create_audio_clip(
+                json.loads(await mcp_opendaw_create_audio_clip(
                     imp["sample_id"], tidx, 0, 0, 120
                 ))
                 stem_tracks[imp["name"]] = {"track_idx": tidx, "sample_id": imp["sample_id"]}
@@ -148,7 +146,7 @@ async def main():
             if load_result.get("success"):
                 track = json.loads(await mcp_opendaw_create_audio_track())
                 tidx = track.get("track_index", 0)
-                clip = json.loads(await mcp_opendaw_create_audio_clip(
+                json.loads(await mcp_opendaw_create_audio_clip(
                     load_result["id"], tidx, 0, 0, 120
                 ))
                 stem_tracks[stem["name"]] = {"track_idx": tidx, "sample_id": load_result["id"]}
@@ -183,7 +181,7 @@ async def main():
 
         # Add reverb send for vocals
         if preset["effect"] == "reverb_send":
-            send = json.loads(await mcp_opendaw_add_send(tidx, reverb_bus.get("bus_index", 0)))
+            json.loads(await mcp_opendaw_add_send(tidx, reverb_bus.get("bus_index", 0)))
             print(f"    → reverb send to bus {reverb_bus.get('bus_index', 0)}")
 
     # ─── 5. Add MIDI layer (optional) ────────────────────────
@@ -201,7 +199,7 @@ async def main():
         note_tidx = note_track.get("track_index", 0)
 
         # Create a region
-        region = json.loads(await mcp_opendaw_create_track_region(synth_idx, note_tidx, 0, 16))
+        json.loads(await mcp_opendaw_create_track_region(synth_idx, note_tidx, 0, 16))
 
         # Add arpeggiator MIDI effect
         arp_code = load_script("spielwerk_arpeggiator.js")

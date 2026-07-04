@@ -28,7 +28,7 @@ def close_tab(ws_url):
     tab_id = ws_url.split("/devtools/page/")[1]
     try:
         urllib.request.urlopen(f"{CDP_URL}/json/close/{tab_id}", timeout=3)
-    except:
+    except Exception:
         pass
 
 class CDPSession:

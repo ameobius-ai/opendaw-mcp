@@ -9,7 +9,7 @@ Usage:
 
 Default: reads __pycache__/server.cpython-313.pyc, writes /tmp/pyc_extraction_complete.json
 """
-import marshal, struct, types, dis, json, sys, re
+import marshal, types, dis, json, sys, re
 
 FORMAT_OPS = {'FORMAT_SIMPLE', 'FORMAT_WITH_KIND', 'FORMAT_VALUE'}
 
