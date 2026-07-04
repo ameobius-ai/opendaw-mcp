@@ -208,7 +208,7 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains 25 example DSP scripts (14 Werkstatt + 5 Apparat + 6 Spielwerk):
+The `scripts/` directory contains 26 example DSP scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
@@ -227,6 +227,7 @@ The `scripts/` directory contains 25 example DSP scripts (14 Werkstatt + 5 Appar
 | `werkstatt_pitch_shift.js` | Werkstatt | Real-time pitch shifter via delay-line sweep with crossfade (#188) |
 | `werkstatt_dcremover.js` | Werkstatt | DC offset remover + M/S stereo width tool (#91) |
 | `werkstatt_allpass.js` | Werkstatt | Allpass filter with invert + cascade stages (#133) |
+| `werkstatt_ringmod_env.js` | Werkstatt | Ring modulator with envelope-followed frequency modulation (#277) |
 | `apparat_darkbass.js` | Apparat | Bass synth with sub oscillator and filter envelope |
 | `apparat_coldlead.js` | Apparat | Lead synth with detune and vibrato |
 | `apparat_subcrusher.js` | Apparat | Sub-bass synth with glide and distortion |
@@ -322,6 +323,11 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.11.8 (2026-07-04)
+
+- **New Werkstatt script**: ring modulator with envelope-followed frequency modulation (#277) — workaround for MIDI input limitation in Werkstatt audio effects
+- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
+
 ### v1.11.7 (2026-07-04)
 
 - **Suno→openDAW pipeline example**: import AI-generated track, add mastering chain (tape sat + lookahead comp), reverb send bus, MIDI arp layer, render + stems + LUFS
@@ -330,13 +336,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **4 new Spielwerk MIDI effect scripts**: chord memory, strummer, velocity scaler, MIDI delay
 - **1 new Python example**: Suno→openDAW pipeline (import AI track, mastering chain, reverb send, arp layer, render+stems)
-- **25 DSP scripts total** (14 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.5 (2026-07-04)
 
 - **7 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138), chord memory, strummer, velocity scaler, MIDI delay
 - **Coldfold fix**: removed unused `range` variable (CodeRabbit review)
-- **25 DSP scripts total** (14 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **26 DSP scripts total** (15 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.4 (2026-07-04)
 
