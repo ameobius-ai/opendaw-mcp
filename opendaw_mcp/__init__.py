@@ -1,8 +1,47 @@
-"""LangChain tool wrappers for opendaw-mcp.
+"""opendaw-mcp — MCP server for controlling openDAW programmatically.
 
 Usage:
-    from opendaw_mcp.langchain_tools import OpendawToolkit
+    from server import OpendawServer
 
-    toolkit = OpendawToolkit()
-    tools = toolkit.get_tools()
+Usage (framework wrappers):
+    from opendaw_mcp.langchain_tools import OpendawToolkit
+    from opendaw_mcp.autogen_tools import OpendawAutoGenToolkit
+    from opendaw_mcp.crewai_tools import OpendawCrewAITool
 """
+
+from .constants import (
+    TIDAL_RATE_MAP,
+    DELAY_SYNC_MAP,
+    WAVESHAPER_FUNCS,
+    REVAMP_SECTIONS,
+)
+from .bridge import HeadlessDawBridge, DAW_URL
+from .utils import (
+    _parse_wav,
+    _compute_lufs,
+    _ok,
+    _err,
+    _wrap_eval,
+    _unwrap_eval,
+    _safe_filename,
+    _safe_path,
+    _clamp_script_param,
+)
+
+__all__ = [
+    "HeadlessDawBridge",
+    "DAW_URL",
+    "TIDAL_RATE_MAP",
+    "DELAY_SYNC_MAP",
+    "WAVESHAPER_FUNCS",
+    "REVAMP_SECTIONS",
+    "_parse_wav",
+    "_compute_lufs",
+    "_ok",
+    "_err",
+    "_wrap_eval",
+    "_unwrap_eval",
+    "_safe_filename",
+    "_safe_path",
+    "_clamp_script_param",
+]

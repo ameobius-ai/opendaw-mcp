@@ -7,6 +7,9 @@ where the DAW project lives. No stubs, no placeholders.
 
 Architecture:
   MCP Server (Python/FastMCP) → Playwright → headless Chromium → Vite :5174 → @opendaw/studio-sdk
+
+Infrastructure (bridge, utils, constants) lives in opendaw_mcp/ package.
+This file contains the 263 MCP tool definitions.
 """
 
 import asyncio
@@ -16,359 +19,40 @@ import os
 import atexit
 
 from mcp.server.fastmcp import FastMCP
-from playwright.async_api import async_playwright
+
+# Infrastructure imported from opendaw_mcp package
+# All helpers re-exported for backward compatibility (tests, examples import from server)
+from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
+    HeadlessDawBridge,
+    DAW_URL,
+    TIDAL_RATE_MAP,
+    DELAY_SYNC_MAP,
+    WAVESHAPER_FUNCS,
+    REVAMP_SECTIONS,
+    _parse_wav,
+    _compute_lufs,
+    _ok,
+    _err,
+    _wrap_eval,
+    _unwrap_eval,
+    _safe_filename,
+    _safe_path,
+    _clamp_script_param,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("opendaw-mcp")
 DAW_HOST_DIR = os.environ.get("OPENDAW_HOST_DIR", os.path.join(os.path.dirname(__file__), "..", "headless-daw"))
-DAW_URL = os.environ.get("OPENDAW_URL", "http://localhost:5174")
 EXPORT_DIR = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "..", "exports"))
 os.makedirs(EXPORT_DIR, exist_ok=True)
-
-# ---------------------------------------------------------------------------
-# Module-level lookup tables (extracted from tool functions for testability)
-# ---------------------------------------------------------------------------
-TIDAL_RATE_MAP: dict[str, int] = {
-    "1/1": 0, "1/2": 1, "1/3": 2, "1/4": 3, "3/16": 4, "1/6": 5, "1/8": 6,
-    "3/32": 7, "1/12": 8, "1/16": 9, "3/64": 10, "1/24": 11, "1/32": 12,
-    "1/48": 13, "1/64": 14, "1/96": 15, "1/128": 16,
-}
-DELAY_SYNC_MAP: dict[str, int] = {
-    "off": 0, "1/128": 1, "1/96": 2, "1/64": 3, "1/48": 4, "1/32": 5,
-    "1/24": 6, "3/64": 7, "1/16": 8, "1/12": 9, "3/32": 10, "1/8": 11,
-    "1/6": 12, "3/16": 13, "1/4": 14, "5/16": 15, "1/3": 16, "3/8": 17,
-    "7/16": 18, "1/2": 19, "1/1": 20,
-}
-WAVESHAPER_FUNCS: dict[str, str] = {
-    "hardclip": "min(1, max(-1, x))",
-    "cubicSoft": "x - (x*x*x) / 3.0",
-    "tanh": "tanh(x)",
-    "sigmoid": "2.0 / (1.0 + exp(-x)) - 1.0",
-    "arctan": "atan(x) / (PI/2)",
-    "asymmetric": "x > 0 ? tanh(x*1.5) : tanh(x*0.7)",
-}
-REVAMP_SECTIONS: tuple[str, ...] = (
-    "highPass", "lowShelf", "lowBell", "midBell",
-    "highBell", "highShelf", "lowPass",
-)
-
-class HeadlessDawBridge:
-    """Playwright bridge to headless openDAW."""
-    def __init__(self):
-        self.page = None; self.playwright = None; self.browser = None
-    async def start(self):
-        env = dict(os.environ)
-        node_dir = os.environ.get("NODE_BIN_DIR", "")
-        if node_dir:
-            env["PATH"] = node_dir + ":" + env.get("PATH", "")
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=True, args=["--use-fake-ui-for-media-stream","--autoplay-policy=no-user-gesture-required"])
-        self.page = await self.browser.new_page()
-        await self.page.goto(DAW_URL, timeout=15000)
-        await self.page.wait_for_function("typeof window.DAW !== 'undefined'", timeout=30000)
-        await self.page.wait_for_function("typeof window.DAW_InstrumentFactories !== 'undefined'", timeout=30000)
-        # Inject helper functions into DAW context — eliminates boilerplate in every tool
-        await self.page.evaluate("""() => {
-            if (window.DAW_HELPERS) return;  // already injected
-            const p = window.DAW;
-            window.DAW_HELPERS = {
-                // Get AU adapter by index (sorted by index field)
-                au: (i) => {
-                    const aus = p.rootBoxAdapter.audioUnits.adapters();
-                    if (i >= aus.length) throw new Error('No AU at ' + i);
-                    return aus[i];
-                },
-                // Get track adapter by AU index + track index
-                track: (auIdx, trackIdx) => {
-                    const au = window.DAW_HELPERS.au(auIdx);
-                    const tracks = au.tracks.collection.adapters();
-                    if (trackIdx >= tracks.length) throw new Error('No track ' + trackIdx + ' on AU ' + auIdx);
-                    return tracks[trackIdx];
-                },
-                // Get region adapter by AU/track/region index
-                region: (auIdx, trackIdx, regIdx) => {
-                    const track = window.DAW_HELPERS.track(auIdx, trackIdx);
-                    const regions = track.regions.collection.asArray();
-                    if (regIdx >= regions.length) throw new Error('No region ' + regIdx);
-                    return regions[regIdx];
-                },
-                // Get AU box by index (sorted by index field) — for box-level access
-                auBox: (i) => {
-                    const aus = [...p.rootBox.audioUnits.pointerHub.incoming()].map(({box}) => box)
-                        .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0));
-                    if (i >= aus.length) throw new Error('No AU at ' + i);
-                    return aus[i];
-                },
-                // Get all AU boxes sorted
-                allAUBoxes: () => [...p.rootBox.audioUnits.pointerHub.incoming()].map(({box}) => box)
-                    .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0)),
-                // Get effect boxes for an AU (sorted by index)
-                effectBoxes: (au) => [...au.audioEffects.pointerHub.incoming()].map(({box}) => box)
-                    .sort((a, b) => a.index.getValue() - b.index.getValue()),
-                // Get MIDI effect boxes for an AU (sorted by index)
-                midiEffectBoxes: (au) => [...au.midiEffects.pointerHub.incoming()].map(({box}) => box)
-                    .sort((a, b) => a.index.getValue() - b.index.getValue()),
-                // Get track boxes for an AU (sorted by index)
-                trackBoxes: (au) => [...au.tracks.pointerHub.incoming()].map(({box}) => box)
-                    .sort((a, b) => a.index.getValue() - b.index.getValue()),
-                // Get region boxes for a track (unsorted, insertion order)
-                regionBoxes: (track) => [...track.regions.pointerHub.incoming()].map(({box}) => box),
-                // Get event boxes from a collection (note events, signature events)
-                eventBoxes: (coll) => [...coll.events.pointerHub.incoming()].map(({box}) => box),
-                // Get input device boxes for an AU (instruments, effects)
-                inputBoxes: (au) => [...au.input.pointerHub.incoming()].map(({box}) => box),
-                // Get marker boxes from a marker track
-                markerBoxes: (mt) => [...mt.markers.pointerHub.incoming()].map(({box}) => box),
-                // Get aux send boxes for an AU (sorted by index)
-                sendBoxes: (au) => [...au.auxSends.pointerHub.incoming()].map(({box}) => box)
-                    .sort((a, b) => (a.index?.getValue?.() ?? 0) - (b.index?.getValue?.() ?? 0)),
-                // Get all audio bus boxes
-                busBoxes: () => [...p.rootBox.audioBusses.pointerHub.incoming()].map(({box}) => box),
-                // Get sample boxes from a Playfield instrument
-                sampleBoxes: (pf) => [...pf.samples.pointerHub.incoming()].map(({box}) => box),
-                // Get note track boxes for an AU (type === 1, sorted by index)
-                noteTrackBoxes: (au) => [...au.tracks.pointerHub.incoming()].map(({box}) => box)
-                    .sort((a, b) => a.index.getValue() - b.index.getValue())
-                    .filter(box => box.type?.getValue?.() === 1),
-                // Get clip boxes from a track
-                clipBoxes: (track) => [...track.clips.pointerHub.incoming()].map(({box}) => box),
-                // Get all clips from rootBox
-                rootClipBoxes: () => [...p.rootBox.clips.pointerHub.incoming()].map(({box}) => box),
-                // Get script device parameters
-                scriptParams: (device) => [...device.parameters.pointerHub.incoming()].map(({box}) => box),
-                // Get script device samples
-                scriptSamples: (device) => [...device.samples.pointerHub.incoming()].map(({box}) => box),
-                // Get effect boxes from a chain field (audio or midi)
-                chainBoxes: (field) => [...field.pointerHub.incoming()].map(({box}) => box),
-                // Get all AU adapters sorted
-                allAUs: () => p.rootBoxAdapter.audioUnits.adapters(),
-                // Find instrument AU (first non-output, non-bus)
-                instrumentAU: () => {
-                    const aus = p.rootBoxAdapter.audioUnits.adapters();
-                    const inst = aus.find(a => a.isInstrument);
-                    if (!inst) throw new Error('No instrument AU found');
-                    return inst;
-                },
-                // Safe evaluate — wraps in editing.modify
-                modify: (fn) => p.editing.modify(fn),
-                // Project shortcuts
-                project: p,
-                api: p.api,
-                boxGraph: p.boxGraph,
-                editing: p.editing,
-                tempoMap: p.tempoMap,
-                audioUnitFreeze: p.audioUnitFreeze,
-                rootBoxAdapter: p.rootBoxAdapter,
-                rootBox: p.rootBox,
-                timelineBox: p.timelineBox,
-                engine: p.engine,
-                primaryAudioUnitBox: p.primaryAudioUnitBox,
-                primaryAudioBusBox: p.primaryAudioBusBox,
-                uuid: window.DAW_UUID,
-                ppqn: window.DAW_PPQN,
-            };
-        }""")
-        logging.info("DAW engine ready!")
-    async def evaluate(self, script, timeout=30000):
-        """Execute JS in the DAW context. All errors caught and returned."""
-        if self.page is None:
-            await self.start()
-        wrapped = f"""async () => {{ try {{ return await ({script})(); }} catch (e) {{ return {{ __error: e.message, __stack: e.stack }}; }} }}"""
-        self.page.set_default_timeout(timeout)
-        result = await self.page.evaluate(wrapped)
-        if isinstance(result, dict) and "__error" in result:
-            return {"error": result["__error"], "stack": result.get("__stack","")}
-        return result
-    async def stop(self):
-        if self.browser: await self.browser.close()
-        if self.playwright: await self.playwright.stop()
-        self.playwright = None; self.page = None; self.browser = None
-
-def _parse_wav(raw: bytes) -> dict:
-    """Parse a WAV file's RIFF header and return format info + de-interleaved float samples.
-
-    Returns dict with: audio_format (1=PCM, 3=float32), n_channels, sample_rate,
-    bits_per_sample, n_frames, channels (list of float lists), or raises ValueError.
-    """
-    import struct
-    if raw[:4] != b"RIFF" or raw[8:12] != b"WAVE":
-        raise ValueError("Not a valid WAV file")
-    pos = 12
-    n_channels = sample_rate = n_frames = 0
-    bits_per_sample = 16
-    audio_format = 1
-    audio_data = b""
-    while pos < len(raw) - 8:
-        chunk_id = raw[pos:pos+4]
-        chunk_size = struct.unpack_from("<I", raw, pos+4)[0]
-        if chunk_id == b"fmt ":
-            audio_format = struct.unpack_from("<H", raw, pos+8)[0]
-            n_channels = struct.unpack_from("<H", raw, pos+10)[0]
-            sample_rate = struct.unpack_from("<I", raw, pos+12)[0]
-            bits_per_sample = struct.unpack_from("<H", raw, pos+22)[0]
-        elif chunk_id == b"data":
-            audio_data = raw[pos+8:pos+8+chunk_size]
-            bytes_per_sample = bits_per_sample // 8
-            n_frames = chunk_size // (bytes_per_sample * n_channels)
-        pos += 8 + chunk_size + (chunk_size % 2)
-    if not audio_data:
-        raise ValueError("No data chunk in WAV")
-    # Convert to float samples
-    if audio_format == 3 and bits_per_sample == 32:
-        fmt = f"<{n_frames * n_channels}f"
-        samples = list(struct.unpack(fmt, audio_data))
-    elif audio_format == 1 and bits_per_sample == 16:
-        fmt = f"<{n_frames * n_channels}h"
-        samples = [s / 32768.0 for s in struct.unpack(fmt, audio_data)]
-    elif audio_format == 1 and bits_per_sample == 24:
-        samples = [int.from_bytes(audio_data[i:i+3], "little", signed=True) / 8388608.0
-                   for i in range(0, len(audio_data), 3)]
-    elif audio_format == 1 and bits_per_sample == 32:
-        fmt = f"<{n_frames * n_channels}i"
-        samples = [s / 2147483648.0 for s in struct.unpack(fmt, audio_data)]
-    else:
-        raise ValueError(f"Unsupported WAV format: {audio_format}/{bits_per_sample}bit")
-    # De-interleave
-    channels = [[] for _ in range(n_channels)]
-    for i, s in enumerate(samples):
-        channels[i % n_channels].append(s)
-    return {
-        "audio_format": audio_format, "n_channels": n_channels,
-        "sample_rate": sample_rate, "bits_per_sample": bits_per_sample,
-        "n_frames": n_frames, "channels": channels,
-    }
-
-
-def _compute_lufs(channels: list, sample_rate: int) -> dict:
-    """Compute ITU-R BS.1770-4 integrated LUFS and true peak from de-interleaved float channels.
-
-    Returns dict with: lufs_integrated, true_peak_db, max_sample, blocks_measured, gated_blocks.
-    """
-    import math
-    n_channels = len(channels)
-    n_frames = len(channels[0]) if channels else 0
-    # K-weighting biquad coefficients (computed from sample_rate)
-    f0, G, Q = 1681.974450955533, 3.9998432737, 0.7081754356
-    K = math.tan(math.pi * f0 / sample_rate)
-    Vh, Vb = 10 ** (G / 20.0), 10 ** (G / 40.0)
-    a0_ = 1.0 + K / Q + K * K
-    s_b0, s_b1, s_b2 = (Vh + Vb * K / Q + K * K) / a0_, 2.0 * (K * K - Vh) / a0_, (Vh - Vb * K / Q + K * K) / a0_
-    s_a1, s_a2 = 2.0 * (K * K - 1.0) / a0_, (1.0 - K / Q + K * K) / a0_
-    f0r, Qr = 38.1354708761, 0.5003270373
-    Kr = math.tan(math.pi * f0r / sample_rate)
-    ar0 = 1.0 + Kr / Qr + Kr * Kr
-    r_b0, r_b1, r_b2 = 1.0 / ar0, -2.0 / ar0, 1.0 / ar0
-    r_a1, r_a2 = 2.0 * (Kr * Kr - 1.0) / ar0, (1.0 - Kr / Qr + Kr * Kr) / ar0
-
-    def _biquad(data, b0, b1, b2, a1, a2):
-        out = [0.0] * len(data)
-        x1 = x2 = y1 = y2 = 0.0
-        for i in range(len(data)):
-            x = data[i]
-            y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
-            out[i] = y
-            x2, x1, y2, y1 = x1, x, y1, y
-        return out
-
-    k_weighted = [_biquad(_biquad(ch, s_b0, s_b1, s_b2, s_a1, s_a2), r_b0, r_b1, r_b2, r_a1, r_a2)
-                  for ch in channels]
-    block_size = int(0.4 * sample_rate)
-    hop_size = int(0.1 * sample_rate)
-    if block_size == 0 or hop_size == 0:
-        raise ValueError(f"Sample rate too low: {sample_rate}")
-    ch_weights = [1.0] * n_channels
-    for i in range(2, n_channels):
-        ch_weights[i] = 1.41
-    blocks_ms, pos = [], 0
-    while pos + block_size <= n_frames:
-        block_ms = sum(ch_weights[c] * sum(s * s for s in k_weighted[c][pos:pos + block_size]) / block_size
-                       for c in range(n_channels))
-        blocks_ms.append(block_ms)
-        pos += hop_size
-    if not blocks_ms:
-        raise ValueError("Not enough samples for LUFS measurement")
-    abs_gate_ms = 10 ** ((-70.0 + 0.691) / 10.0)
-    gated_blocks = [ms for ms in blocks_ms if ms > abs_gate_ms]
-    if not gated_blocks:
-        raise ValueError("All blocks below absolute gate (-70 LUFS)")
-    mean_ms = sum(gated_blocks) / len(gated_blocks)
-    rel_gate_ms = 10 ** ((10 * math.log10(mean_ms) - 0.691 - 10) / 10.0)
-    rel_gated = [ms for ms in gated_blocks if ms > rel_gate_ms]
-    final_ms = sum(rel_gated) / len(rel_gated) if rel_gated else mean_ms
-    lufs = -0.691 + 10 * math.log10(final_ms)
-    max_sample = max(max(abs(s) for s in ch) for ch in channels)
-    true_peak_db = 20 * math.log10(max_sample) if max_sample > 0 else -float("inf")
-    return {
-        "lufs_integrated": round(lufs, 1),
-        "true_peak_db": round(true_peak_db, 2),
-        "max_sample": round(max_sample, 6),
-        "blocks_measured": len(blocks_ms),
-        "gated_blocks": len(gated_blocks),
-    }
-
 
 bridge = HeadlessDawBridge()
 def cleanup():
     try: asyncio.run(bridge.stop())
     except Exception: pass
 atexit.register(cleanup)
-
-def _ok(data=None) -> str:
-    d = {"success": True, **(data or {})}
-    d["success"] = True  # ensure success is always True
-    return json.dumps(d)
-def _err(msg: str) -> str:
-    return json.dumps({"error": msg})
-def _wrap_eval(result) -> str:
-    if isinstance(result, dict) and "error" in result: return json.dumps(result)
-    return json.dumps(result)
-
-def _unwrap_eval(s) -> any:
-    """Parse a JSON string from _wrap_eval back to dict/list."""
-    if isinstance(s, str):
-        try: return json.loads(s)
-        except (json.JSONDecodeError, ValueError): return s
-    return s
-
-def _safe_filename(name: str) -> str:
-    """Sanitize a filename: strip quotes/backslashes, remove extension, prevent path traversal."""
-    safe = name.replace('"', '').replace("'", '').replace('\\', '/')
-    # Strip common audio extensions (case-insensitive)
-    for ext in ('.wav', '.mp3', '.flac', '.dawproject'):
-        if safe.lower().endswith(ext):
-            safe = safe[:-len(ext)]
-    # Prevent path traversal: only allow basename
-    safe = os.path.basename(safe)
-    # Remove any remaining path separators
-    safe = safe.replace('/', '').replace('\\', '')
-    return safe or "output"
-
-def _safe_path(export_dir: str, filename: str, ext: str = "wav") -> str:
-    """Build a safe file path inside export_dir, preventing path traversal."""
-    safe = _safe_filename(filename)
-    path = os.path.join(export_dir, f"{safe}.{ext}")
-    # Verify the resolved path is inside export_dir
-    if not os.path.abspath(path).startswith(os.path.abspath(export_dir)):
-        path = os.path.join(export_dir, f"output.{ext}")
-    return path
-
-def _clamp_script_param(value: float, mapping: str, min_val: float, max_val: float) -> tuple:
-    """Clamp a script parameter value based on its mapping type.
-    
-    Mirrors the JS-side clamping in set_script_param.
-    Returns (clamped_value, was_clamped).
-    """
-    original = value
-    if mapping == "bool":
-        result = 1 if value >= 0.5 else 0
-    elif mapping == "int":
-        result = round(value)
-        result = max(min_val, min(max_val, result))
-    else:  # unipolar, linear, exp
-        result = max(min_val, min(max_val, value))
-    return (float(result), result != original)
 
 @mcp.tool()
 async def mcp_opendaw_get_project_state() -> str:
@@ -13202,6 +12886,33 @@ async def mcp_opendaw_load_effect_preset(filepath: str, unit_index: int = -1) ->
     if isinstance(result, dict) and result.get("error"):
         return _json.dumps(result)
     return _json.dumps(result, indent=2) if isinstance(result, dict) else _json.dumps({"success": True, "result": result})
+
+
+class OpendawServer:
+    """Facade class for framework integrations (LangChain, AutoGen, CrewAI).
+
+    Provides `bridge` (HeadlessDawBridge instance) and all `mcp_opendaw_*` tool
+    functions as callable methods, so framework wrappers can use a single object.
+
+    Usage:
+        server = OpendawServer()
+        await server.bridge.start()
+        result = await server.mcp_opendaw_set_bpm(bpm=120)
+    """
+
+    def __init__(self, daw_url: str | None = None):
+        if daw_url:
+            import os as _os
+            _os.environ["OPENDAW_URL"] = daw_url
+        self.bridge = bridge
+
+    def __getattr__(self, name: str):
+        """Delegate mcp_opendaw_* calls to the module-level functions."""
+        if name.startswith("mcp_opendaw_"):
+            fn = globals().get(name)
+            if fn is not None:
+                return fn
+        raise AttributeError(f"'OpendawServer' has no attribute '{name}'")
 
 
 def main():

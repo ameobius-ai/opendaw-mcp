@@ -1,5 +1,37 @@
 # Changelog
 
+## v1.16.0 (2026-07-05)
+
+- **Modular architecture** — infrastructure extracted from 13K-line `server.py` into `opendaw_mcp/` package:
+  - `constants.py` — lookup tables (TIDAL_RATE_MAP, DELAY_SYNC_MAP, WAVESHAPER_FUNCS, REVAMP_SECTIONS)
+  - `bridge.py` — `HeadlessDawBridge` class (Playwright bridge, DAW_HELPERS injection)
+  - `utils.py` — pure-Python helpers (`_parse_wav`, `_compute_lufs`, `_ok`, `_err`, `_safe_filename`, `_safe_path`, `_clamp_script_param`)
+  - `__init__.py` — public API, all symbols re-exported for backward compat
+- **`OpendawServer` facade** — class providing `bridge` + all `mcp_opendaw_*` tools as methods. Framework wrappers (LangChain, AutoGen, CrewAI) now work via this single interface.
+- **server.py: 13244 → 12955 lines** (infrastructure moved to package modules)
+- **0 regressions** — 93 unit tests pass, ruff clean, all framework wrappers functional, 263 MCP tools intact
+
+## v1.15.2 (2026-07-04)
+
+- **CrewAI toolkit** — `opendaw_mcp/crewai_tools.py` wraps 27 tools for CrewAI. Custom `OpendawCrewAITool` class, category filtering, shared server instance.
+- **GitHub Discussions seeded** — 5 discussions: release announcement, 3 FAQ (bridge, GPU, MCP clients), genre showcase
+- **33 examples total** (added `crewai_integration.py`)
+
+## v1.15.1 (2026-07-04)
+
+- **AutoGen toolkit** — `opendaw_mcp/autogen_tools.py` wraps 27 tools for Microsoft AutoGen. Category filtering, shared server instance.
+- **Framework integration docs page** — LangChain + AutoGen + MCP direct + Hermes, with comparison table
+- **32 examples total** (added `autogen_integration.py`)
+
+## v1.15.0 (2026-07-04)
+
+- **LangChain toolkit** — `opendaw_mcp/langchain_tools.py` wraps 30+ tools as LangChain `StructuredTool` objects. Category filtering, auto bridge start. Use with any LangChain agent.
+- **Docs site** — mkdocs-material at https://ameobius.github.io/opendaw-mcp/ — 21 pages, dark mode, search, auto-deploy via GitHub Actions
+- **PR template** — structured checklist for contributors
+- **PyPI metadata** — Documentation, Issues, Changelog URLs pointing to docs site
+- **dev.to article** — "Controlling a DAW with AI Agents via MCP" (in `promotion/`)
+- **32 examples total** (added `langchain_integration.py`, `autogen_integration.py`)
+
 ## v1.14.4 (2026-07-04)
 
 - **Final 2 genre examples (E2E verified)**: `genre_lofi.py` (82 BPM, swung drums, jazzy ii-V-I, warm) and `genre_trap.py` (145 BPM, fast hi-hat rolls, gliding 808, dark minor). **All 8 genres from the skill now covered with E2E examples.** 30 examples total.
