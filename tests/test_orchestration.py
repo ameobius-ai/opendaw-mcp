@@ -3163,3 +3163,90 @@ class TestClaveGeneration:
         assert 0 <= 76 <= 127
         assert not (0 <= 128 <= 127)
         assert not (0 <= -1 <= 127)
+
+
+class TestEuclideanRhythm:
+    """Tests for create_euclidean_rhythm and BJK algorithm"""
+
+    def _euclidean(self, k, n):
+        """Pure Python BJK for testing"""
+        if k == 0: return [0] * n
+        if k == n: return [1] * n
+        a = [[1] for _ in range(k)]
+        b = [[0] for _ in range(n - k)]
+        while len(b) > 1:
+            m = min(len(a), len(b))
+            for i in range(m):
+                a[i] = a[i] + b.pop()
+            new_a = []
+            new_b = []
+            for g in a:
+                if g[0] == 1: new_a.append(g)
+                else: new_b.append(g)
+            a = new_a
+            b = b + new_b
+        result = []
+        for g in a + b:
+            result.extend(g)
+        return result
+
+    def test_tresillo(self):
+        p = self._euclidean(3, 8)
+        assert sum(p) == 3 and len(p) == 8
+        assert p == [1, 0, 0, 1, 0, 0, 1, 0]
+
+    def test_cinquillo(self):
+        p = self._euclidean(5, 8)
+        assert sum(p) == 5 and len(p) == 8
+
+    def test_samba(self):
+        p = self._euclidean(7, 16)
+        assert sum(p) == 7 and len(p) == 16
+
+    def test_all_ones(self):
+        p = self._euclidean(4, 4)
+        assert p == [1, 1, 1, 1]
+
+    def test_all_zeros(self):
+        p = self._euclidean(0, 8)
+        assert p == [0, 0, 0, 0, 0, 0, 0, 0]
+
+    def test_rotation(self):
+        p = self._euclidean(3, 8)
+        rotated = p[1:] + [p[0]]
+        assert rotated[0] == 0  # moved first element to end
+
+    def test_even_distribution(self):
+        """E(2,4) should be maximally even: 1010"""
+        p = self._euclidean(2, 4)
+        assert p == [1, 0, 1, 0]
+
+    def test_prime_steps(self):
+        """E(3,7) — 7 is prime, should still work"""
+        p = self._euclidean(3, 7)
+        assert sum(p) == 3 and len(p) == 7
+
+    def test_dense_rhythm(self):
+        """E(7,8) — mostly hits"""
+        p = self._euclidean(7, 8)
+        assert sum(p) == 7 and len(p) == 8
+
+    def test_aksak(self):
+        """E(4,9) — Balkan asymmetric rhythm"""
+        p = self._euclidean(4, 9)
+        assert sum(p) == 4 and len(p) == 9
+
+    def test_bembé(self):
+        """E(7,12) — West African"""
+        p = self._euclidean(7, 12)
+        assert sum(p) == 7 and len(p) == 12
+
+    def test_step_duration_calculation(self):
+        steps = 8
+        step_duration = 4.0 / steps
+        assert step_duration == 0.5  # 8th notes in 4/4
+
+    def test_pattern_string(self):
+        p = self._euclidean(3, 8)
+        pattern_str = "".join(str(int(x)) for x in p)
+        assert pattern_str == "10010010"

@@ -20671,3 +20671,134 @@ async def mcp_opendaw_create_clave(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_euclidean_rhythm(
+    onsets: int = 3,
+    steps: int = 8,
+    rotation: int = 0,
+    bars: int = 1,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    pitch: int = 60,
+    velocity: float = 0.8,
+    duration: float = 0.25,
+) -> str:
+    """Create a Euclidean rhythm — distributes k onsets across n steps as evenly as possible.
+
+    The Euclidean algorithm (BJK algorithm) generates most of the world's classic rhythms:
+      E(3,8)  = tresillo (Cuban, Arabic, 3-3-2)
+      E(5,8)  = cinquillo (Cuban)
+      E(7,16) = samba, rumba
+      E(7,12) = bembé (West African)
+      E(2,5)  = tresillo variant
+      E(4,9)  = Aksak (Balkan)
+      E(3,7)  = Persian/Arabic
+
+    onsets: Number of hits (k). 1-32.
+    steps: Total number of steps (n). 2-64. Must be >= onsets.
+    rotation: Rotate the pattern clockwise by N steps. 0 = no rotation.
+    bars: Number of bars to repeat. Each step = one (4/steps)th of a bar.
+    pitch: MIDI pitch for all hits.
+    velocity: Velocity 0-1. Accents (first onset of each group) get +0.15.
+    duration: Note duration in beats.
+
+    Returns notes created, pattern as binary string (1=hit, 0=rest), and Euclidean notation E(k,n).
+
+    Example:
+      create_euclidean_rhythm(onsets=3, steps=8, track_index=0)  # tresillo
+      create_euclidean_rhythm(onsets=7, steps=16, pitch=38, track_index=1)  # samba
+    """
+    if onsets < 1 or onsets > 32:
+        return "Error: onsets must be 1-32"
+    if steps < 2 or steps > 64:
+        return "Error: steps must be 2-64"
+    if onsets > steps:
+        return "Error: onsets must be <= steps"
+    if rotation < 0 or rotation >= steps:
+        return "Error: rotation must be 0 to steps-1"
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= pitch <= 127):
+        return "Error: pitch must be 0-127"
+
+    # BJK Euclidean algorithm
+    pattern = _euclidean_bjk(onsets, steps)
+
+    # rotate
+    for _ in range(rotation):
+        pattern = pattern[1:] + [pattern[0]]
+
+    # convert to notes
+    step_duration = 4.0 / steps  # each step is fraction of a 4/4 bar
+
+    all_notes = []
+    accent_vel = min(1.0, velocity + 0.15)
+    for bar in range(bars):
+        for s in range(steps):
+            idx = s + bar * steps
+            if pattern[s]:
+                beat = start_beat + idx * step_duration
+                # accent: first hit in each bar
+                vel = accent_vel if s == 0 else velocity
+                all_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat, 4),
+                    "duration": duration,
+                    "velocity": round(vel, 3),
+                })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    pattern_str = "".join(str(int(x)) for x in pattern)
+
+    try:
+        data = json.loads(result_str)
+        data["euclidean"] = True
+        data["notation"] = f"E({onsets},{steps})"
+        data["pattern"] = pattern_str
+        data["onsets"] = onsets
+        data["steps"] = steps
+        data["rotation"] = rotation
+        data["bars"] = bars
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+def _euclidean_bjk(k, n):
+    """Björklund's algorithm — distribute k ones in n positions as evenly as possible."""
+    if k == 0:
+        return [0] * n
+    if k == n:
+        return [1] * n
+
+    a = [[1] for _ in range(k)]
+    b = [[0] for _ in range(n - k)]
+
+    while len(b) > 1:
+        m = min(len(a), len(b))
+        for i in range(m):
+            a[i] = a[i] + b.pop()
+        # rebuild a and b: a stays, remaining b are extras
+        # reclassify: groups starting with 1 are "a", groups starting with 0 are "b"
+        new_a = []
+        new_b = []
+        for g in a:
+            if g[0] == 1:
+                new_a.append(g)
+            else:
+                new_b.append(g)
+        a = new_a
+        b = b + new_b
+
+    result = []
+    for g in a + b:
+        result.extend(g)
+    return result

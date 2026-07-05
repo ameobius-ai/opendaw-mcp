@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.106.0 (2026-07-05)
+
+- **`create_euclidean_rhythm` orchestration tool (313 MCP tools)** — Euclidean rhythm generator: Björklund's algorithm distributes k onsets across n steps maximally evenly. Generates most of the world's classic rhythms: E(3,8)=tresillo, E(5,8)=cinquillo, E(7,16)=samba, E(7,12)=bembé, E(4,9)=Aksak, E(3,7)=Persian. Rotation shifts pattern clockwise. Accents on first onset per bar. Returns pattern as binary string and E(k,n) notation. 313 MCP tools, 56 orchestration
+- **1041 unit tests** (+13)
+
 ## v1.105.0 (2026-07-05)
 
 - **`werkstatt_grain_delay.js` DSP script (85 DSP, 67 Werkstatt)** — grain delay: Hann-windowed grains read from delay buffer with independent pitch shift (0.25x-4x), scatter (randomized read position jitter), reverse playback probability, equal-power pan, damped feedback. Grain rate controls spawn density, grain size controls window length. Grain cap at 80 for stability. Output Portal / GRM Tools / Sugar Bytes Effectrix style. 10 params (delay/grain_size/grain_rate/pitch/scatter/pan/reverse/feedback/mix/output). 85 DSP scripts, 67 Werkstatt

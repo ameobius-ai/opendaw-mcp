@@ -361,6 +361,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_stutter` — Stutter edit: rapid rhythmic repetitions with evolving rate (accelerate/decelerate/ping_pong/random), 5 accent patterns, 5 velocity ramps, gate, pitch jitter. Unlike create_chop (equal segments) — rate changes over time. BT/Imogen Heap/Deadmau5 stutter technique.
 - `create_cross_rhythm` — Cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar into n+m parts), cross-rhythm gives each voice its own period in beats. Voices cycle independently, only realign at LCM of all periods. 2-6 voices, velocity attenuation. African cross-rhythms, Steve Reich, Talking Heads.
 - `create_clave` — Afro-Cuban clave pattern: 5-note rhythmic skeleton across 2 bars. 6 clave types (son 3-2, son 2-3, rumba 3-2, rumba 2-3, bossa nova, 6/8). Direction (3-2 or 2-3) determines feel. All other rhythms align to clave.
+- `create_euclidean_rhythm` — Euclidean rhythm: distributes k onsets across n steps maximally evenly via Björklund's algorithm. Generates world rhythms: E(3,8)=tresillo, E(5,8)=cinquillo, E(7,16)=samba, E(7,12)=bembé, E(4,9)=Aksak. Rotation shifts pattern.
 - `create_bordun` — Continuously sustained drone chord as a textural layer. Open fifths, octaves, or custom intervals. Retrigger every N bars or one continuous note. Bagpipes, tanpura, hurdy-gurdy, ambient drone, folk.
 - `create_hocket` — Single melodic line split between 2-4 voices. Three split modes: alternate (round-robin), pairs, phrase. Each voice plays only part of the melody. Medieval polyphony, African mbira, Balinese gamelan, Steve Reich.
 - `create_isorhythm` — Repeating rhythm (talea) × repeating pitch (color) as independent cycles. Phase shift when lengths differ, realign at LCM. Medieval motets (Machaut), Messiaen, Boulez. Distinct from ostinato.
@@ -383,7 +384,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 312 tools**
+**Total: 313 tools**
 
 ## DSP Scripts (scripts/) — 85 scripts
 

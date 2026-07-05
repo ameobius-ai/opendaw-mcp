@@ -66,6 +66,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 53. `create_phase` — Steve Reich phase shifting: 2-4 voices play same pattern, one gradually shifts in time. 3 drift directions, phase_rate, phase_amount with reset (minimalism)
 54. `create_cross_rhythm` — cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar), cross-rhythm gives each voice its own period. Voices realign at LCM. 2-6 voices (African, Steve Reich, Talking Heads)
 55. `create_clave` — Afro-Cuban clave: 5-note rhythmic skeleton across 2 bars. 6 types (son/rumba/bossa/6-8), direction 3-2 or 2-3. All rhythms align to clave
+56. `create_euclidean_rhythm` — Euclidean rhythm: BJK algorithm distributes k onsets across n steps maximally evenly. E(3,8)=tresillo, E(7,16)=samba, E(7,12)=bembé. Rotation, accents, bars
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
