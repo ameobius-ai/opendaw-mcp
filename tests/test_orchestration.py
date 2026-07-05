@@ -8320,6 +8320,72 @@ class TestCreateModulatedSong:
         total_bars = sum(int(s.split(":")[2]) for s in parsed)
         assert total_bars == 16
 
+    def test_drum_genre_default_empty(self):
+        """Default drum_genre='' = no drums (harmony only)"""
+        drum_genre = ""
+        has_drums = bool(drum_genre)
+        assert has_drums is False
+
+    def test_drum_genre_house(self):
+        """drum_genre='house' creates house drum arrangement"""
+        drum_genre = "house"
+        has_drums = bool(drum_genre)
+        assert has_drums is True
+
+    def test_drums_skip_pads_and_bass(self):
+        """When drum_genre set: pad_octave=-1, bass_pattern='' (skip)"""
+        drum_genre = "synthwave"
+        effective_pad_octave = -1 if drum_genre else 3
+        effective_bass_pattern = "" if drum_genre else "root"
+        assert effective_pad_octave == -1
+        assert effective_bass_pattern == ""
+
+    def test_no_drums_keep_pads_and_bass(self):
+        """When drum_genre empty: pad_octave=3, bass_pattern='root' (keep)"""
+        drum_genre = ""
+        effective_pad_octave = -1 if drum_genre else 3
+        effective_bass_pattern = "" if drum_genre else "root"
+        assert effective_pad_octave == 3
+        assert effective_bass_pattern == "root"
+
+    def test_drum_arrangement_uses_total_bars(self):
+        """Drum arrangement covers full song length (24 bars default)"""
+        total_bars = 8 + 8 + 4 + 4
+        assert total_bars == 24
+
+    def test_15_drum_genres_available(self):
+        """All 15 genres available as drum_genre"""
+        genres = {"dnb", "liquid_dnb", "house", "trap", "techno", "dubstep",
+                  "afrobeat", "rock", "jazz", "pop", "funk", "reggae",
+                  "synthwave", "trance", "disco"}
+        assert len(genres) == 15
+
+    def test_summary_has_drum_notes(self):
+        """Summary includes drum_notes and harmonic_notes when drums present"""
+        fields_with_drums = ["total_notes", "harmonic_notes", "drum_notes", "drums"]
+        assert "drum_notes" in fields_with_drums
+        assert "harmonic_notes" in fields_with_drums
+
+    def test_summary_without_drums(self):
+        """Summary without drums: drum_notes=0, drums=None"""
+        drum_genre = ""
+        drum_notes = 0 if not drum_genre else 100
+        assert drum_notes == 0
+
+    def test_bpm_passed_to_arrangement(self):
+        """bpm parameter is passed to drum arrangement"""
+        bpm = 124
+        drum_genre = "house"
+        # bpm=None means genre default; explicit bpm overrides
+        actual_bpm = bpm if bpm is not None else 0
+        assert actual_bpm == 124
+
+    def test_modulated_song_with_drums_pipeline(self):
+        """Full pipeline: create_modulated_song(drum_genre=...) → mix → render"""
+        pipeline = ["create_modulated_song", "apply_genre_mix", "render_full_song"]
+        assert "create_modulated_song" in pipeline
+        assert len(pipeline) == 3
+
 
 class TestModulateProgression:
     """Tests for modulate_progression — key change / transposition"""

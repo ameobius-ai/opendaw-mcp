@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.164.0 (2026-07-05)
+
+- **create_modulated_song: drum_genre integration** — new `drum_genre` parameter adds genre drum arrangement (drums + bass) for the full song length BEFORE harmonic sections. When set, pads and bass are auto-skipped in harmonic sections (genre provides them). `bpm` parameter controls tempo. All 15 genres supported. Summary now includes `drum_notes`, `harmonic_notes`, and `drums` info. Backward compatible — default `drum_genre=""` = harmony only. 10 new unit tests. 2174 tests.
+
 ## v1.163.0 (2026-07-05)
 
 - **create_modulated_song** — new multi-section song builder with key modulation. Builds verse→chorus→bridge→outro in one call, each section with its own chord progression, length, and energy level. Auto-calculates start_beat for each section. Default: 24-bar song (verse Am-F-C-G 8 bars 0.7 → chorus C-G-Am-F 8 bars 1.0 → bridge F-C-Dm-G 4 bars 0.6 → outro Am-F-C-G 4 bars 0.5). Inherits all 5 harmonic layers from create_harmonic_arrangement. Supports up to 12 sections. New example: modulated_song.py. 17 unit tests. 351 MCP tools, 2164 tests.

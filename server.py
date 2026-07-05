@@ -27712,6 +27712,8 @@ async def mcp_opendaw_create_modulated_song(
     counter_melody_pattern: str = "",
     unit_index: int = 0,
     velocity: float = 0.7,
+    drum_genre: str = "",
+    bpm: float = None,
 ) -> str:
     """Build a multi-section song with key modulation between sections — one call.
 
@@ -27738,15 +27740,29 @@ async def mcp_opendaw_create_modulated_song(
       Same as create_harmonic_arrangement. Applied to all sections.
       Use "" to skip any layer.
 
+    drum_genre: If set (e.g. "house", "dnb", "synthwave"), creates a genre
+      drum arrangement for the full song length BEFORE harmonic layers.
+      When drum_genre is set, pads and bass are automatically skipped in
+      harmonic sections (genre arrangement provides them). Default "" = no
+      drums (harmony only). Valid: dnb, liquid_dnb, house, trap, techno,
+      dubstep, afrobeat, rock, jazz, pop, funk, reggae, synthwave, trance, disco.
+
+    bpm: Tempo for drum arrangement (None = genre default). Only used when
+      drum_genre is set.
+
     Example:
-      # Default 4-section modulated song
+      # Default 4-section modulated song (harmony only)
       create_modulated_song()
 
-      # Simple verse-chorus with modulation
-      create_modulated_song("verse:Em-G-D-C:8:0.7,chorus:G-D-Em-C:8:1.0")
+      # With house drums
+      create_modulated_song(drum_genre="house", bpm=124)
 
-      # Full quintet with counter-melody
-      create_modulated_song(counter_melody_pattern="contrary")
+      # With synthwave drums + counter-melody
+      create_modulated_song(drum_genre="synthwave", counter_melody_pattern="contrary")
+
+      # Simple verse-chorus with DnB drums
+      create_modulated_song("verse:Em-G-D-C:8:0.7,chorus:G-D-Em-C:8:1.0",
+          drum_genre="dnb")
     """
     # Parse sections
     parsed_sections = []
@@ -27786,6 +27802,52 @@ async def mcp_opendaw_create_modulated_song(
     if len(parsed_sections) > 12:
         return "Error: maximum 12 sections per song"
 
+    total_bars = sum(s["bars"] for s in parsed_sections)
+    drum_info = None
+
+    # Step 0: Drum arrangement (optional)
+    if drum_genre:
+        arrangement_fns = {
+            "dnb": mcp_opendaw_create_dnb_arrangement,
+            "liquid_dnb": mcp_opendaw_create_liquid_dnb_arrangement,
+            "house": mcp_opendaw_create_house_arrangement,
+            "trap": mcp_opendaw_create_trap_arrangement,
+            "techno": mcp_opendaw_create_techno_arrangement,
+            "dubstep": mcp_opendaw_create_dubstep_arrangement,
+            "afrobeat": mcp_opendaw_create_afrobeat_arrangement,
+            "rock": mcp_opendaw_create_rock_arrangement,
+            "jazz": mcp_opendaw_create_jazz_arrangement,
+            "pop": mcp_opendaw_create_pop_arrangement,
+            "funk": mcp_opendaw_create_funk_arrangement,
+            "reggae": mcp_opendaw_create_reggae_arrangement,
+            "synthwave": mcp_opendaw_create_synthwave_arrangement,
+            "trance": mcp_opendaw_create_trance_arrangement,
+            "disco": mcp_opendaw_create_disco_arrangement,
+        }
+        if drum_genre not in arrangement_fns:
+            return f"Error: unknown drum_genre '{drum_genre}'. Valid: {list(arrangement_fns.keys())}"
+
+        try:
+            arr_fn = arrangement_fns[drum_genre]
+            arr_result = await arr_fn(
+                bpm=bpm if bpm is not None else 0,
+                bars=total_bars,
+                unit_index=unit_index,
+            )
+            arr_data = json.loads(arr_result)
+            drum_notes = arr_data.get("total_notes", 0)
+            drum_info = {
+                "genre": drum_genre,
+                "bpm": arr_data.get("bpm", bpm),
+                "notes": drum_notes,
+            }
+        except Exception as e:
+            drum_info = {"genre": drum_genre, "error": str(e)}
+
+    # When drums are present, skip pads and bass (genre arrangement has them)
+    effective_pad_octave = -1 if drum_genre else 3
+    effective_bass_pattern = "" if drum_genre else bass_pattern
+
     section_results = []
     total_notes = 0
     current_beat = 0.0
@@ -27800,10 +27862,10 @@ async def mcp_opendaw_create_modulated_song(
 
         r = await mcp_opendaw_create_harmonic_arrangement(
             progression=sec["progression"],
-            pad_octave=3,
+            pad_octave=effective_pad_octave,
             arp_pattern=arp_pattern,
             arp_octave=4,
-            bass_pattern=bass_pattern,
+            bass_pattern=effective_bass_pattern,
             bass_octave=2,
             melody_pattern=melody_pattern,
             melody_octave=5,
@@ -27839,6 +27901,7 @@ async def mcp_opendaw_create_modulated_song(
         current_beat += sec["bars"] * 4  # 4 beats per bar
 
     total_bars = sum(s["bars"] for s in parsed_sections)
+    drum_notes = drum_info.get("notes", 0) if drum_info else 0
 
     return json.dumps({
         "modulated_song": True,
@@ -27846,7 +27909,10 @@ async def mcp_opendaw_create_modulated_song(
         "section_count": len(parsed_sections),
         "total_bars": total_bars,
         "total_beats": current_beat,
-        "total_notes": total_notes,
+        "total_notes": total_notes + drum_notes,
+        "harmonic_notes": total_notes,
+        "drum_notes": drum_notes,
+        "drums": drum_info,
         "layers_used": sorted(layers_summary),
         "section_details": section_results,
         "unit_index": unit_index,
