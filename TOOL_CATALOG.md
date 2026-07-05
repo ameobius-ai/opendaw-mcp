@@ -359,9 +359,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 283 tools**
 
-## DSP Scripts (scripts/) — 31 scripts
+## DSP Scripts (scripts/) — 32 scripts
 
-### Werkstatt (Audio Effects) — 20 scripts
+### Werkstatt (Audio Effects) — 21 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_coldfold.js` — Wavefolding + bitcrush (drive, fold, crush, slew, mix)
 - `werkstatt_chorus.js` — Stereo chorus (rate, depth, delay, feedback)
@@ -382,6 +382,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_noisegate.js` — Noise gate (threshold, attack, hold, release, range)
 - `werkstatt_tremolo.js` — Tremolo (rate, depth, shape sine→square, phase)
 - `werkstatt_stereo_delay.js` — Stereo delay with ping-pong (time_l, time_r, feedback, tone, mix, pingpong)
+- `werkstatt_overdrive.js` — Asymmetric soft-clip overdrive (drive, tone, level, bias, dry)
 
 ### Apparat (Instruments) — 5 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

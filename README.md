@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **283** MCP tools | **55** Python examples (8 genre templates) |
-| **31** DSP scripts | **10** agent skills |
+| **32** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **241** unit + **11** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.23.2 (2026-07-05)
+
+- **`werkstatt_overdrive.js`** — asymmetric soft-clip overdrive (tube-like). 5 params: drive, tone, level, bias, dry. Asymmetric clipping = even harmonics = warmth. Pre-HP filter removes mud, post-LP tone control, dry blend for parallel overdrive
+- **32 DSP scripts** (21 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params with correct defaults, set_param works (drive 0.4→0.8, dry 0→0.3)
+- ruff clean, CI green
 
 ### v1.23.1 (2026-07-05)
 

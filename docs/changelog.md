@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.23.2 (2026-07-05)
+
+- **`werkstatt_overdrive.js`** — asymmetric soft-clip overdrive. 5 params: drive, tone, level, bias, dry. Even harmonics for warmth, dry blend for parallel
+- **32 DSP scripts** (21 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 5 params, set_param works
+
 ## v1.23.1 (2026-07-05)
 
 - **`werkstatt_stereo_delay.js`** — stereo delay with ping-pong, feedback, tone filter. 6 params. Fills delay gap in DSP library
