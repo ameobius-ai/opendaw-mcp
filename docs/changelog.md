@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.227.0 (2026-07-05)
+
+### Added
+- `displace_rhythm` — Rhythmic displacement: shift all notes by a fixed offset in beats. Two modes: "shift" (add offset, negative=pushed/early, positive=laid-back/late, clamps to 0, auto-extends region) and "circular" (rotate pattern within region bounds, wraps around — creates new patterns from same material). Default offset 0.0625 (1/16 note). Range -4.0 to 4.0 beats. Offset=0 returns no-op. Converts to PPQN internally. Reports per-track notes_modified, offset, mode. 13 unit tests. **402 MCP tools**, 2878 unit tests
+
 ## v1.226.0 (2026-07-05)
 
 ### Added

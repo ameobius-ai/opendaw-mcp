@@ -18109,6 +18109,161 @@ async def mcp_opendaw_time_warp_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_displace_rhythm(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    offset: float = 0.0625,
+    mode: str = "shift",
+) -> str:
+    """Displace all notes in a region by a fixed rhythmic offset — laid-back,
+    push, or circular rotation feel.
+
+    Rhythmic displacement shifts notes in time without changing their pitch
+    or duration. This is one of the most expressive production techniques:
+
+    - **Laid-back** (offset=0.0625 = 1/16 late): drums sit behind the beat,
+      creating a relaxed, hip-hop/R&B feel (J Dilla, Questlove).
+    - **Pushed** (offset=-0.0625 = 1/16 early): notes anticipate the beat,
+      creating urgency and energy (rock, punk, certain jazz).
+    - **On-top** (offset=0): reset any displacement back to original grid.
+
+    Two modes:
+    - "shift" — add offset to every note's position. Notes can move past
+      the region boundary (region duration auto-extends). Negative offset
+      moves notes earlier; notes before position 0 are clamped to 0.
+    - "circular" — rotate the pattern by offset. Notes that go past the
+      region end wrap around to the beginning. This creates entirely new
+      patterns from the same material — a 1/16 rotation of a straight 16th
+      hi-hat pattern creates an off-beat pattern. The region length is
+      preserved.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    region_index: Region index (-1 = all regions on the track).
+    offset: Displacement in beats. Positive = later (laid-back), negative =
+      earlier (pushed). Common values: 0.0625 (1/16), 0.125 (1/8),
+      0.03125 (1/32), 0.25 (1/4). Range -4.0 to 4.0.
+    mode: "shift" (add offset to position, region may extend) or "circular"
+      (rotate within region bounds, region length preserved).
+
+    Returns per-track note counts and displacement stats.
+
+    Example:
+      # J Dilla laid-back drums — 1/16 note late
+      displace_rhythm(unit_index=0, track_index=0, offset=0.0625, mode="shift")
+
+      # Urgent pushed melody — 1/32 early
+      displace_rhythm(unit_index=0, track_index=3, offset=-0.03125, mode="shift")
+
+      # Circular rotation — new pattern from same notes
+      displace_rhythm(unit_index=0, track_index=0, offset=0.125, mode="circular")
+    """
+    if not (-4.0 <= offset <= 4.0):
+        return "Error: offset must be -4.0 to 4.0 beats"
+    if mode not in ("shift", "circular"):
+        return f"Error: mode must be 'shift' or 'circular', got '{mode}'"
+    if offset == 0:
+        return json.dumps({"success": True, "offset": 0, "mode": mode,
+                           "tracks_processed": 0, "message": "offset=0, no displacement needed"})
+
+    offset_ppqn = round(offset * 960)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const offsetPpqn = {offset_ppqn};
+        const mode = "{mode}";
+
+        const allUnits = h.allAUBoxes();
+        const trackResults = [];
+
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+                    if (noteEvents.length === 0) continue;
+
+                    const regionStart = region.position ? region.position.getValue() : 0;
+                    const regionDur = region.duration ? region.duration.getValue() : 0;
+
+                    let modified = 0;
+                    let maxNewPos = 0;
+
+                    h.modify(() => {{
+                        for (const n of noteEvents) {{
+                            const origPos = n.box.position.getValue();
+                            let newPos;
+
+                            if (mode === "circular") {{
+                                // Rotate within region bounds
+                                const relPos = origPos - regionStart;
+                                const rotated = ((relPos + offsetPpqn) % regionDur + regionDur) % regionDur;
+                                newPos = regionStart + Math.round(rotated);
+                            }} else {{
+                                // Shift: add offset, clamp to 0
+                                newPos = Math.max(0, Math.round(origPos + offsetPpqn));
+                            }}
+
+                            n.box.position.setValue(newPos);
+                            maxNewPos = Math.max(maxNewPos, newPos);
+                            modified++;
+                        }}
+
+                        // In shift mode, extend region if notes went past the end
+                        if (mode === "shift" && maxNewPos > regionStart + regionDur) {{
+                            const newDur = maxNewPos - regionStart + 240; // +1 beat tail
+                            region.duration.setValue(newDur);
+                            if (region.loopDuration) {{
+                                region.loopDuration.setValue(newDur);
+                            }}
+                        }}
+                    }});
+
+                    trackResults.push({{
+                        unit: u,
+                        track: t,
+                        notes_modified: modified,
+                        offset_beats: {offset},
+                        offset_ppqn: offsetPpqn,
+                        mode: mode,
+                        region_duration: mode === "circular" ? regionDur :
+                            (maxNewPos > regionStart + regionDur ? maxNewPos - regionStart + 240 : regionDur),
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            offset_beats: {offset},
+            offset_ppqn: offsetPpqn,
+            mode: mode,
+            tracks_processed: trackResults.length,
+            per_track: trackResults,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_force_scale_notes(
     unit_index: int = -1,
     track_index: int = -1,

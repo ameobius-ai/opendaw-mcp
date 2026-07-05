@@ -13242,3 +13242,166 @@ class TestReharmonizeProgression:
                         return
         assert False, "default not found"
 
+
+class TestDisplaceRhythm:
+    """Tests for displace_rhythm — rhythmic displacement / circular rotation"""
+
+    def test_tool_signature_exists(self):
+        """displace_rhythm is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_displace_rhythm" in tool_names
+
+    def test_has_offset_and_mode_params(self):
+        """Has offset (beats) and mode (shift/circular) params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                arg_names = [a.arg for a in node.args.args]
+                assert "offset" in arg_names
+                assert "mode" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_supports_two_modes(self):
+        """Supports 'shift' and 'circular' modes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert '"shift"' in source or "'shift'" in source
+                assert '"circular"' in source or "'circular'" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_offset_range(self):
+        """Validates offset is within -4.0 to 4.0 beats"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "-4.0" in source
+                assert "4.0" in source
+                assert "Error" in source
+                return
+        assert False, "function not found"
+
+    def test_default_offset_is_sixteenth(self):
+        """Default offset is 0.0625 (1/16 note) — most common displacement"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "offset" and isinstance(d, ast.Constant):
+                        assert d.value == 0.0625
+                        return
+        assert False, "default not found"
+
+    def test_default_mode_is_shift(self):
+        """Default mode is 'shift' (most intuitive)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "mode" and isinstance(d, ast.Constant):
+                        assert d.value == "shift"
+                        return
+        assert False, "default not found"
+
+    def test_offset_zero_returns_immediately(self):
+        """offset=0 returns early with no-op message"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "offset == 0" in source
+                assert "no displacement" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_bridge_evaluate(self):
+        """Uses bridge.evaluate for DAW interaction"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "bridge.evaluate" in source
+                return
+        assert False, "function not found"
+
+    def test_circular_mode_wraps_around(self):
+        """Circular mode uses modulo arithmetic for wrapping"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "% regionDur" in source or "% regionDur)" in source
+                return
+        assert False, "function not found"
+
+    def test_shift_mode_clamps_to_zero(self):
+        """Shift mode clamps negative positions to 0"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "Math.max(0" in source
+                return
+        assert False, "function not found"
+
+    def test_converts_offset_to_ppqn(self):
+        """Converts beat offset to PPQN (× 960)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "960" in source
+                assert "offset_ppqn" in source
+                return
+        assert False, "function not found"
+
+    def test_reports_per_track_stats(self):
+        """Reports per_track stats with notes_modified, offset, mode"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "tracks_processed" in source
+                assert "per_track" in source
+                assert "notes_modified" in source
+                return
+        assert False, "function not found"
+
+    def test_shift_mode_extends_region(self):
+        """Shift mode extends region duration if notes go past the end"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_displace_rhythm":
+                source = ast.unparse(node)
+                assert "region.duration.setValue" in source
+                return
+        assert False, "function not found"
+
