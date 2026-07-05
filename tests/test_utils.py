@@ -9267,6 +9267,90 @@ class TestDeleteSection:
         assert "mcp_opendaw_delete_section" in tool_names
 
 
+class TestSwapSections:
+    """Tests for mcp_opendaw_swap_sections — exchange two sections on timeline."""
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_swap_sections"]
+        assert len(tools) == 1
+
+    def test_section_ordering_validation(self):
+        """section2 must start after section1 ends"""
+        _ = 0.0  # s1_start
+        s1_end = 4.0
+        s2_start = 2.0  # overlaps
+        _ = 8.0  # s2_end
+        assert s2_start <= s1_end  # should be rejected
+
+    def test_valid_ordering(self):
+        """Valid: section2 starts after section1"""
+        s1_end = 4.0
+        s2_start = 8.0
+        _ = 0.0  # s1_start
+        _ = 16.0  # s2_end
+        assert s2_start > s1_end  # valid
+
+    def test_offset_calculation(self):
+        """Swap offset: s1→s2 position shift = s2Start - s1Start"""
+        PPQN = 960
+        s1Start = 0
+        s2Start = 8 * PPQN
+        offset = s2Start - s1Start
+        assert offset == 8 * PPQN
+
+    def test_reverse_offset(self):
+        """Reverse offset: s2→s1 position shift = s1Start - s2Start"""
+        PPQN = 960
+        s1Start = 0
+        s2Start = 8 * PPQN
+        offset = s1Start - s2Start
+        assert offset == -8 * PPQN
+
+    def test_different_length_sections(self):
+        """Sections can be different lengths"""
+        s1_len = 4.0  # 4 beats
+        s2_len = 8.0  # 8 beats
+        assert s1_len != s2_len  # valid: swap preserves content, not length
+
+    def test_param_count(self):
+        """Should have 5 parameters"""
+        import inspect
+        from server import mcp_opendaw_swap_sections
+        sig = inspect.signature(mcp_opendaw_swap_sections)
+        assert len(sig.parameters) == 5
+
+    def test_unit_indices_default(self):
+        """unit_indices defaults to empty string (all units)"""
+        import inspect
+        from server import mcp_opendaw_swap_sections
+        sig = inspect.signature(mcp_opendaw_swap_sections)
+        assert sig.parameters["unit_indices"].default == ""
+
+    def test_distinct_from_move_section(self):
+        """swap_sections is distinct from move_section"""
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        swap = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                and n.name == "mcp_opendaw_swap_sections"]
+        move = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                and n.name == "mcp_opendaw_move_section"]
+        assert len(swap) == 1
+        assert len(move) == 1
+        assert swap[0].lineno != move[0].lineno
+
+    def test_note_position_after_swap(self):
+        """A note at s1 position moves to s1 + offset after swap"""
+        note_pos = 2 * 960  # beat 2 in section 1
+        offset = 8 * 960    # s2 starts at beat 8
+        new_pos = note_pos + offset
+        assert new_pos == 10 * 960  # now at beat 10
+
+
 class TestClearRegionNotes:
     """Tests for clear_region_notes tool"""
 

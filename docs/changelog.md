@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.251.0 (2026-07-06)
+
+### Added
+- `swap_sections` — Swap two sections on the timeline — exchange positions. Song structure experimentation: chorus↔verse, bridge↔solo. Handles different-length sections, preserves content. Collect-delete-recreate pattern.
+
 ## v1.250.0 (2026-07-06)
 
 ### Added

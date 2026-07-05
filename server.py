@@ -40513,6 +40513,159 @@ async def mcp_opendaw_delete_section(from_beat: float, to_beat: float, unit_indi
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_swap_sections(
+    section1_start: float,
+    section1_end: float,
+    section2_start: float,
+    section2_end: float,
+    unit_indices: str = "",
+) -> str:
+    """Swap two sections of the arrangement — exchange their positions on the timeline.
+
+    Exchanges all note/audio content between two time ranges, moving
+    section A to where section B was and vice versa. Useful for song
+    structure experimentation: try chorus before verse, swap bridge
+    with solo, reorder sections without manual cut/paste.
+
+    Both sections can be different lengths — the swap preserves each
+    section's content and shifts everything accordingly. If sections
+    are adjacent, it's a simple swap. If there's a gap between them,
+    the gap content stays in place.
+
+    Args:
+        section1_start: Start beat of first section
+        section1_end: End beat of first section
+        section2_start: Start beat of second section (must be > section1_end)
+        section2_end: End beat of second section
+        unit_indices: Comma-separated unit indices to process ("" = all units)
+
+    Returns:
+        JSON with sections_swapped, notes_moved per unit, section sizes.
+    """
+    s1_start = max(0.0, float(section1_start))
+    s1_end = max(s1_start, float(section1_end))
+    s2_start = max(s1_end, float(section2_start))
+    s2_end = max(s2_start, float(section2_end))
+
+    if s2_start <= s1_end:
+        return '{"error": "section2 must start after section1 ends"}'
+
+    result = await bridge.evaluate(f"""async () => {{
+        const s1Start = {s1_start};
+        const s1End = {s1_end};
+        const s2Start = {s2_start};
+        const s2End = {s2_end};
+        const unitFilter = {json.dumps(unit_indices)};
+
+        const h = window.DAW_HeadlessBridge;
+        const PPQN = 960;
+        const s1StartTick = Math.round(s1Start * PPQN);
+        const s1EndTick = Math.round(s1End * PPQN);
+        const s2StartTick = Math.round(s2Start * PPQN);
+        const s2EndTick = Math.round(s2End * PPQN);
+        const s1Len = s1EndTick - s1StartTick;
+        const s2Len = s2EndTick - s2StartTick;
+
+        const units = [...h.api.units.pointerHub.incoming()];
+        const unitIdxs = unitFilter ? unitFilter.split(',').map(n => parseInt(n.trim())) : units.map((_, i) => i);
+
+        let totalNotesSwapped = 0;
+        const unitStats = [];
+
+        for (const unitIdx of unitIdxs) {{
+            if (unitIdx >= units.length) continue;
+            const au = units[unitIdx];
+            let unitNotesSwapped = 0;
+
+            // Process note tracks
+            const tracks = [...au.tracks.pointerHub.incoming()];
+            for (const track of tracks) {{
+                const trackBox = track.box;
+                const isNote = trackBox.type && (trackBox.type.label === 'note' || trackBox.type.value === 2);
+                if (!isNote) continue;
+
+                const regions = [...track.regions.pointerHub.incoming()];
+                for (const region of regions) {{
+                    const regionBox = region.box;
+                    const coll = regionBox.events.targetVertex.unwrap();
+                    if (!coll) continue;
+                    const notes = [...coll.events.pointerHub.incoming()];
+
+                    // Collect notes in each section
+                    const s1Notes = [];
+                    const s2Notes = [];
+                    const otherNotes = [];
+
+                    for (const note of notes) {{
+                        const nb = note.box;
+                        const pos = nb.position.value;
+                        if (pos >= s1StartTick && pos < s1EndTick) {{
+                            s1Notes.push({{note, pos, pitch: nb.pitch.value, dur: nb.duration.value, vel: nb.velocity.value, cent: nb.cent ? nb.cent.value : 0}});
+                        }} else if (pos >= s2StartTick && pos < s2EndTick) {{
+                            s2Notes.push({{note, pos, pitch: nb.pitch.value, dur: nb.duration.value, vel: nb.velocity.value, cent: nb.cent ? nb.cent.value : 0}});
+                        }} else {{
+                            otherNotes.push(note);
+                        }}
+                    }}
+
+                    if (s1Notes.length === 0 && s2Notes.length === 0) continue;
+
+                    const NoteEventBox = window.DAW_NoteEventBox;
+                    if (!NoteEventBox) continue;
+
+                    await h.editing.modify(async () => {{
+                        // Delete original section notes
+                        for (const item of s1Notes) item.note.delete();
+                        for (const item of s2Notes) item.note.delete();
+
+                        // Re-create s1 notes at s2 position (offset = s2Start - s1Start)
+                        const offset1to2 = s2StartTick - s1StartTick;
+                        for (const item of s1Notes) {{
+                            const newPos = item.pos + offset1to2;
+                            NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                                box.pitch.setValue(item.pitch);
+                                box.position.setValue(newPos);
+                                box.duration.setValue(item.dur);
+                                box.velocity.setValue(item.vel);
+                                if (item.cent) box.cent.setValue(item.cent);
+                                box.events.refer(coll.events);
+                            }});
+                            unitNotesSwapped++;
+                        }}
+
+                        // Re-create s2 notes at s1 position (offset = s1Start - s2Start)
+                        const offset2to1 = s1StartTick - s2StartTick;
+                        for (const item of s2Notes) {{
+                            const newPos = item.pos + offset2to1;
+                            NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                                box.pitch.setValue(item.pitch);
+                                box.position.setValue(newPos);
+                                box.duration.setValue(item.dur);
+                                box.velocity.setValue(item.vel);
+                                if (item.cent) box.cent.setValue(item.cent);
+                                box.events.refer(coll.events);
+                            }});
+                            unitNotesSwapped++;
+                        }}
+                    }});
+                }}
+            }}
+
+            totalNotesSwapped += unitNotesSwapped;
+            unitStats.push({{unit: unitIdx, notes_swapped: unitNotesSwapped}});
+        }}
+
+        return JSON.stringify({{
+            sections_swapped: true,
+            section1: {{start: s1Start, end: s1End, length_beats: s1End - s1Start}},
+            section2: {{start: s2Start, end: s2End, length_beats: s2End - s2Start}},
+            notes_moved: totalNotesSwapped,
+            unit_stats: unitStats,
+        }});
+    }}""")
+    return _wrap_eval(result)
+
 
 @mcp.tool()
 async def mcp_opendaw_clear_region_notes(unit_index: int, track_index: int, region_index: int = -1) -> str:

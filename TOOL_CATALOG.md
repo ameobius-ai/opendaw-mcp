@@ -493,6 +493,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apply_velocity_pattern` — Cyclic velocity accent pattern on existing notes. JSON array of multipliers cycled across notes. 2 modes: cycle (repeat) and stretch (distribute). The groove tool — replaces manual per-note velocity editing.
 - `accent_beats` — Beat-aware velocity accents by position. 6 patterns: 4/4 (downbeat), backbeat (2+4), 3/4 waltz, 6/8 compound, off_beat (syncopated), four_on_floor (house). Interpolates for 16th notes. Unlike velocity_pattern (note index), this uses absolute beat position. Use for natural drum/bass dynamics.
 - `move_section` — Move all regions in a beat range to a new position. Cut-and-paste for arrangement restructuring. Collect-then-move pattern avoids index invalidation. Pairs with duplicate_section.
+- `swap_sections` — Swap two sections on the timeline — exchange their positions. Song structure experimentation: try chorus before verse, swap bridge with solo. Handles different-length sections, preserves content. Collect-delete-recreate pattern per region.
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 

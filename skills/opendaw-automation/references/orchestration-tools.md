@@ -173,6 +173,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 160. `create_midi_echo` — MIDI echo with decaying velocity: 4 feedback modes (linear/exponential/constant/reverse), pitch shift per repeat, dest_track for separate echo
 161. `apply_velocity_lfo` — periodic velocity modulation: 5 waveforms (sine/triangle/saw/square/random), rate (cycles/beat), depth, phase, center velocity
 162. `create_ratchet` — ratchet (accelerando repeat): 4 modes (accelerate/decelerate/constant/exponential), changing subdivision rate, velocity_decay, pitch_drift
+163. `swap_sections` — swap two sections on timeline: exchange positions, song structure experimentation, handles different-length sections
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
