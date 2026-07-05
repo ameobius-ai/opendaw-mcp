@@ -31984,6 +31984,303 @@ async def mcp_opendaw_add_passing_tones(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_add_suspension(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    scale: str = "major",
+    root: str = "C",
+    resolution: str = "down",
+    suspension_offset: int = 2,
+    preparation_beats: float = 0.5,
+    suspension_velocity: float = 0.75,
+    resolution_velocity: float = 0.65,
+    cross_track: int = -1,
+) -> str:
+    """Add suspension-resolutions to existing notes.
+
+    A suspension is a non-chord tone technique where a note from the
+    previous chord is held over (suspended) into the next chord on a
+    strong beat, creating dissonance, then resolves by step (usually
+    downward) to a chord tone.
+
+    Structure: Preparation (held note) → Suspension (dissonance on
+    strong beat) → Resolution (step down/up to chord tone).
+
+    This tool finds notes on strong beats (downbeats) and creates a
+    suspension before them: a preparatory note a step above (or below)
+    the target, held into the strong beat, then resolving to the
+    target note.
+
+    This is one of the most expressive devices in Western music —
+    Bach chorales, jazz ballads, film scores all rely on suspensions
+    for emotional tension-release.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        scale: Scale for resolution step ("major", "minor", "dorian",
+               "phrygian", "lydian", "mixolydian", "locrian",
+               "harmonic_minor", "melodic_minor", "chromatic")
+        root: Root note for scale
+        resolution: Resolution direction —
+            "down": resolve downward by step (classic 4-3, 9-8, 7-6 suspension)
+            "up": resolve upward by step (rare, retardation)
+            "both": alternate down/up per note
+        suspension_offset: Semitone offset of suspension from target
+            (1-7, default 2 = step above for down resolution).
+            The suspension is placed this many semitones above (for
+            "down" resolution) or below (for "up" resolution) the
+            target note, then snaps to nearest scale tone.
+        preparation_beats: Duration of the preparation note in beats
+            (0.25-2.0, default 0.5 = eighth note before strong beat).
+        suspension_velocity: Velocity of suspension note (0-1,
+            default 0.75 — slightly accented, it is on a strong beat).
+        resolution_velocity: Velocity of resolution note (0-1,
+            default 0.65 — resolution is typically softer).
+        cross_track: If >= 0, place suspensions on this track index
+            instead of source track (preserves original melody).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const scaleName = "{scale}";
+        const rootNote = "{root}";
+        const resMode = "{resolution}";
+        const suspOffset = Math.max(1, Math.min(7, {suspension_offset}));
+        const prepBeats = Math.max(0.25, Math.min(2, {preparation_beats}));
+        const suspVel = Math.max(0.01, Math.min(1, {suspension_velocity}));
+        const resVel = Math.max(0.01, Math.min(1, {resolution_velocity}));
+        const crossTrack = {cross_track};
+
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{"error": "Invalid root: " + rootNote}};
+        if (!scaleMap[scaleName]) return {{"error": "Invalid scale: " + scaleName}};
+
+        function isInScale(pitch) {{
+            const intervals = scaleMap[scaleName];
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            return intervals.includes(rel);
+        }}
+
+        function nearestScaleTone(pitch) {{
+            if (isInScale(pitch)) return pitch;
+            for (let offset = 1; offset <= 6; offset++) {{
+                if (isInScale(pitch + offset)) return pitch + offset;
+                if (isInScale(pitch - offset)) return pitch - offset;
+            }}
+            return pitch;
+        }}
+
+        function getScaleStep(pitch, direction) {{
+            if (direction > 0) {{
+                for (let p = pitch + 1; p <= 127; p++) {{
+                    if (isInScale(p)) return p;
+                }}
+            }} else {{
+                for (let p = pitch - 1; p >= 0; p--) {{
+                    if (isInScale(p)) return p;
+                }}
+            }}
+            return pitch;
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length < 2) return {{"error": "Need at least 2 notes for suspensions"}};
+
+        // Read and sort by position
+        const noteData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        // Find notes on strong beats (integer beat positions)
+        const suspensions = [];
+        const beatTicks = Quarter; // 1 beat = 1 quarter note
+
+        for (let i = 1; i < noteData.length; i++) {{
+            const note = noteData[i];
+            const beatPos = note.pos / beatTicks;
+            const isStrongBeat = Math.abs(beatPos - Math.round(beatPos)) < 0.01;
+
+            if (!isStrongBeat) continue;
+
+            // Determine resolution direction
+            let resDir;
+            if (resMode === "down") {{
+                resDir = -1;
+            }} else if (resMode === "up") {{
+                resDir = 1;
+            }} else {{ // both
+                resDir = i % 2 === 0 ? -1 : 1;
+            }}
+
+            // Suspension pitch: offset from target in opposite direction of resolution
+            const suspPitchRaw = note.pitch + (-resDir) * suspOffset;
+            const suspPitch = nearestScaleTone(Math.max(0, Math.min(127, suspPitchRaw)));
+
+            // Preparation: note before the suspension
+            const prepDur = Math.round(prepBeats * Quarter);
+            const suspPos = note.pos; // suspension on the strong beat
+            const prepPos = suspPos - prepDur;
+
+            // Check there is room for preparation
+            if (prepPos < 0) continue;
+            const prevNote = noteData[i - 1];
+            if (prevNote.pos + prevNote.dur > prepPos) continue; // no room
+
+            // Resolution note: step from suspension towards target
+            const resPitch = getScaleStep(suspPitch, resDir);
+            // Target note stays as-is (it is the resolution)
+
+            suspensions.push({{
+                prep_pos: prepPos,
+                prep_dur: prepDur,
+                prep_pitch: suspPitch,
+                prep_vel: suspVel * 0.9, // preparation slightly softer
+                susp_pos: suspPos,
+                susp_dur: Math.max(1, Math.round(note.dur * 0.5)), // suspension half of original
+                susp_pitch: suspPitch,
+                susp_vel: suspVel,
+                res_pos: suspPos + Math.max(1, Math.round(note.dur * 0.5)),
+                res_dur: Math.max(1, note.dur - Math.round(note.dur * 0.5)),
+                res_pitch: note.pitch,
+                res_vel: resVel,
+                target_pitch: note.pitch,
+                susp_pitch_actual: suspPitch,
+                res_dir: resDir,
+            }});
+        }}
+
+        if (suspensions.length === 0) {{
+            return {{
+                success: true,
+                suspensions_added: 0,
+                message: "No suitable strong-beat notes found for suspensions",
+            }};
+        }}
+
+        // Determine destination
+        let destCollection = collection;
+        if (crossTrack >= 0 && crossTrack < noteTracks.length) {{
+            const destTrack = noteTracks[crossTrack];
+            const destRegions = h.regionBoxes(destTrack);
+            if (destRegions.length > 0) {{
+                try {{
+                    const v = destRegions[0].events.targetVertex.unwrap();
+                    destCollection = v.box || v;
+                }} catch(e) {{}}
+            }}
+        }}
+
+        // Create suspension notes
+        const editing = h.editing;
+        let created = 0;
+        const createdDetails = [];
+
+        await editing.modify(async () => {{
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            for (const s of suspensions) {{
+                // Create preparation note
+                try {{
+                    if (NoteEventBox && bg && uuidGen) {{
+                        await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                            box.position.setValue(s.prep_pos);
+                            box.duration.setValue(s.prep_dur);
+                            box.pitch.setValue(s.prep_pitch);
+                            box.velocity.setValue(s.prep_vel);
+                            if (destCollection && destCollection.events) {{
+                                box.events.refer(destCollection.events);
+                            }}
+                        }});
+                        created++;
+                    }}
+                }} catch(e) {{}}
+
+                // Create suspension note (overlaps with where original note was)
+                try {{
+                    if (NoteEventBox && bg && uuidGen) {{
+                        await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                            box.position.setValue(s.susp_pos);
+                            box.duration.setValue(s.susp_dur);
+                            box.pitch.setValue(s.susp_pitch);
+                            box.velocity.setValue(s.susp_vel);
+                            if (destCollection && destCollection.events) {{
+                                box.events.refer(destCollection.events);
+                            }}
+                        }});
+                        created++;
+                    }}
+                }} catch(e) {{}}
+
+                if (createdDetails.length < 10) {{
+                    createdDetails.push({{
+                        beat: Math.round(s.susp_pos / Quarter * 100) / 100,
+                        susp_pitch: s.susp_pitch_actual,
+                        target_pitch: s.target_pitch,
+                        resolution: resDir > 0 ? "up" : "down",
+                    }});
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            scale: scaleName,
+            root: rootNote,
+            resolution: resMode,
+            suspension_offset: suspOffset,
+            suspensions_added: suspensions.length,
+            notes_created: created,
+            cross_track: crossTrack >= 0,
+            details: createdDetails,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 

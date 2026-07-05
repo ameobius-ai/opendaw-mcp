@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.270.0 (2026-07-06)
+
+### Added
+- `add_suspension` — Add suspension-resolutions to existing notes on strong beats. Creates preparation → suspension → resolution structure (classic 4-3, 9-8, 7-6 suspensions). 10 scales, 3 resolution modes (down/up/both). suspension_offset controls interval, preparation_beats controls prep duration. Optional cross_track. Bach chorales, jazz ballads, film scores.
+
 ## v1.269.0 (2026-07-06)
 
 ### Added
