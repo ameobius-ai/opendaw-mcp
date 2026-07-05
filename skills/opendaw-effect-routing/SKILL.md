@@ -327,7 +327,7 @@ await mcp_opendaw_automation_sweep(unit_index, parameter_name, start_beat, end_b
 | Maximizer | ✅ | Auto on Output unit |
 
 ## Related skills
-- `opendaw-automation` — 421 MCP tools full API reference + pitfalls
+- `opendaw-automation` — 422 MCP tools full API reference + pitfalls
 - `opendaw-track-architecture` — tracks, regions, clips, notes, tempo, markers
 - `opendaw-sound-design` — instruments + scriptable DSP (Werkstatt/Apparat/Spielwerk)
 - `adaptive-mix-mastering` — full mix→master pipeline with decision points

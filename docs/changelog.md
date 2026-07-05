@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.247.0 (2026-07-06)
+
+### Added
+- `quantize_velocities` — Snap note velocities to discrete stepped levels (MPC 16-level mode, uniform velocity, stepped dynamics). 2-128 levels, 4 modes (snap/floor/ceil/round_random), min/max velocity range, level distribution histogram.
+
 ## v1.246.0 (2026-07-06)
 
 ### Added

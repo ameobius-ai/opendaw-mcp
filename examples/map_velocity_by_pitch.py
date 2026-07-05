@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server import (
     mcp_opendaw_map_velocity_by_pitch,
-    mcp_opendaw_scale_velocity,
 )
 
 

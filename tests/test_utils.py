@@ -15983,6 +15983,103 @@ class TestBalanceTrackVelocities:
         assert len(presets) == 6
 
 
+class TestQuantizeVelocities:
+    """Unit tests for quantize_velocities — snap velocities to discrete levels."""
+
+    def _snap_velocity(self, vel, levels, min_v=0.0, max_v=1.0, mode="snap"):
+        """Pure-Python reimplementation of the JS snap logic."""
+        step = (max_v - min_v) / (levels - 1)
+        t = (vel - min_v) / (max_v - min_v)
+        t = max(0.0, min(1.0, t))
+        float_level = t * (levels - 1)
+        if mode == "snap":
+            new_v = min_v + round(float_level) * step
+        elif mode == "floor":
+            new_v = min_v + int(float_level // 1) * step
+        elif mode == "ceil":
+            import math
+            new_v = min_v + math.ceil(float_level) * step
+        else:
+            new_v = min_v + round(float_level) * step
+        return max(0.0, min(1.0, new_v))
+
+    def test_2_levels_on_off(self):
+        """2 levels = binary on/off (0.0 or 1.0)"""
+        assert abs(self._snap_velocity(0.3, 2) - 0.0) < 0.01
+        assert abs(self._snap_velocity(0.6, 2) - 1.0) < 0.01
+
+    def test_4_levels_pp_p_mf_f(self):
+        """4 levels = pp/p/mf/f dynamics"""
+        v = self._snap_velocity(0.1, 4)
+        assert v < 0.34  # snaps to 0.0 or 0.333
+        v = self._snap_velocity(0.5, 4)
+        assert abs(v - 0.667) < 0.01 or abs(v - 0.333) < 0.01
+
+    def test_16_levels_mpc(self):
+        """16 levels = MPC classic"""
+        v = self._snap_velocity(0.5, 16)
+        # 0.5 -> round(7.5) = 8 -> 8/15 = 0.533
+        assert abs(v - 0.533) < 0.01
+
+    def test_snap_mode_rounds_nearest(self):
+        """snap mode rounds to nearest level"""
+        v = self._snap_velocity(0.07, 4)  # near level 0
+        assert abs(v - 0.0) < 0.01
+        v = self._snap_velocity(0.20, 4)  # near level 1 (0.333)
+        assert abs(v - 0.333) < 0.01
+
+    def test_floor_mode_rounds_down(self):
+        """floor mode always rounds down"""
+        v = self._snap_velocity(0.9, 4, mode="floor")
+        assert abs(v - 0.667) < 0.01  # floor(2.7) = 2 -> 2/3
+
+    def test_ceil_mode_rounds_up(self):
+        """ceil mode always rounds up"""
+        v = self._snap_velocity(0.1, 4, mode="ceil")
+        assert abs(v - 0.333) < 0.01  # ceil(0.3) = 1 -> 1/3
+
+    def test_min_max_range(self):
+        """velocities quantized within min/max range"""
+        v = self._snap_velocity(0.3, 5, min_v=0.2, max_v=0.8)
+        # range 0.6, 4 steps of 0.15: 0.2, 0.35, 0.5, 0.65, 0.8
+        # 0.3 -> (0.3-0.2)/0.6 = 0.167 -> *4 = 0.667 -> round = 1 -> 0.35
+        assert abs(v - 0.35) < 0.01
+
+    def test_clamping_below_min(self):
+        """velocity below min snaps to min"""
+        v = self._snap_velocity(0.0, 4, min_v=0.2, max_v=0.8)
+        assert abs(v - 0.2) < 0.01
+
+    def test_clamping_above_max(self):
+        """velocity above max snaps to max"""
+        v = self._snap_velocity(1.0, 4, min_v=0.2, max_v=0.8)
+        assert abs(v - 0.8) < 0.01
+
+    def test_levels_clamped(self):
+        """levels should be clamped to 2-128"""
+        assert max(2, min(128, 1)) == 2
+        assert max(2, min(128, 200)) == 128
+
+    def test_mode_validation(self):
+        """unknown mode defaults to snap"""
+        mode = "invalid"
+        mode = mode if mode in ("snap", "floor", "ceil", "round_random") else "snap"
+        assert mode == "snap"
+
+    def test_level_distribution(self):
+        """simulates level distribution across 8 notes"""
+        velocities = [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0]
+        levels = 4
+        dist = [0] * levels
+        for v in velocities:
+            snapped = self._snap_velocity(v, levels)
+            step = 1.0 / (levels - 1)
+            idx = round(snapped / step)
+            if 0 <= idx < levels:
+                dist[idx] += 1
+        assert sum(dist) == 8
+
+
 class TestCreateMidiEcho:
     """Tests for mcp_opendaw_create_midi_echo — MIDI echo with decaying velocity"""
 

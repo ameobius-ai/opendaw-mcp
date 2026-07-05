@@ -167,8 +167,9 @@ Orchestration tools solve this by combining multiple low-level operations into a
 154. `detect_scale_from_notes` — scale detection from MIDI: 15 scales × 12 roots via Pearson correlation, returns best match + 5 alternatives + confidence
 155. `analyze_harmonic_rhythm` — chord change rate analysis: chord timeline, harmonic rhythm rate (fast/medium/slow), stable/active sections, modulation detection
 156. `map_velocity_by_pitch` — pitch-based velocity mapping: 4 modes (higher_quieter/lower_quieter/bell_curve/inverse_bell), intensity control, per-octave stats
-157. `balance_track_velocities` — cross-track velocity balance: 5 presets (mix_balanced/drums_forward/vocal_forward/pads_quiet/bass_heavy) + custom mode
-158. `create_midi_echo` — MIDI echo with decaying velocity: 4 feedback modes (linear/exponential/constant/reverse), pitch shift per repeat, dest_track for separate echo
+157. `quantize_velocities` — snap velocities to discrete levels: MPC 16-level, 2-128 steps, 4 modes (snap/floor/ceil/round_random), level distribution
+158. `balance_track_velocities` — cross-track velocity balance: 5 presets (mix_balanced/drums_forward/vocal_forward/pads_quiet/bass_heavy) + custom mode
+159. `create_midi_echo` — MIDI echo with decaying velocity: 4 feedback modes (linear/exponential/constant/reverse), pitch shift per repeat, dest_track for separate echo
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

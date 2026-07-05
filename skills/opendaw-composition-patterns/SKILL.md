@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 83 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.246.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 83 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.247.0"
 ---
 
 # openDAW Composition Patterns
@@ -96,6 +96,7 @@ What do you want to create?
 ├── Rhythm analysis → extract_rhythm (onset grid, syncopation, swing, IOI)
 ├── Rhythm apply → apply_rhythm_pattern (stamp pattern onto notes, inverse of extract)
 ├── Pitch-based dynamics → map_velocity_by_pitch (higher_quieter/lower_quieter/bell_curve)
+├── Velocity quantize → quantize_velocities (MPC 16-level, stepped dynamics, 2-128 levels)
 ├── Cross-track balance → balance_track_velocities (5 presets, MIDI mix leveling)
 ├── MIDI echo → create_midi_echo (decaying repeats, pitch shift, 4 feedback modes)
 │

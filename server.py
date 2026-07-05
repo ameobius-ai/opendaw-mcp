@@ -18648,6 +18648,153 @@ async def mcp_opendaw_map_velocity_by_pitch(
 
 
 @mcp.tool()
+async def mcp_opendaw_quantize_velocities(
+    unit_index: int,
+    track_index: int,
+    levels: int = 16,
+    mode: str = "snap",
+    min_velocity: float = 0.0,
+    max_velocity: float = 1.0,
+    region_index: int = -1,
+) -> str:
+    """Quantize note velocities to discrete stepped levels.
+
+    Snaps each note's velocity to the nearest of N evenly-spaced levels,
+    like MPC 16-level mode or stepped dynamics. Great for creating
+    uniform, robotic feel (techno, industrial) or restoring clean
+    velocity tiers from humanized performance data.
+
+    Args:
+        unit_index: Audio unit index (from list_tracks)
+        track_index: Note track index within the unit
+        levels: Number of velocity steps (2-128). 2 = on/off, 4 = pp/p/mf/f,
+                8 = classical dynamics, 16 = MPC classic, 32 = fine control.
+        mode: "snap" = nearest level, "floor" = round down to level,
+              "ceil" = round up to level, "round_random" = probabilistic
+              round (coins flip for half-values)
+        min_velocity: Floor for the quantized range (0.0-1.0)
+        max_velocity: Ceiling for the quantized range (0.0-1.0)
+        region_index: Specific region to process (-1 = all regions)
+
+    Returns:
+        JSON with per-region stats: notes_processed, velocity distribution
+        across levels, original avg, new avg, changes count.
+    """
+    levels = max(2, min(128, int(levels)))
+    mode = mode if mode in ("snap", "floor", "ceil", "round_random") else "snap"
+    min_velocity = max(0.0, min(1.0, float(min_velocity)))
+    max_velocity = max(min_velocity, min(1.0, float(max_velocity)))
+
+    result = await bridge.evaluate(f"""async () => {{
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const levels = {levels};
+        const qMode = {json.dumps(mode)};
+        const minVel = {min_velocity};
+        const maxVel = {max_velocity};
+        const regionIdx = {region_index};
+
+        const h = window.DAW_HeadlessBridge;
+        const units = [...h.api.units.pointerHub.incoming()];
+        if (unitIdx >= units.length) return JSON.stringify({{"error": "unit out of range"}});
+        const au = units[unitIdx];
+        const tracks = [...au.tracks.pointerHub.incoming()];
+        if (trackIdx >= tracks.length) return JSON.stringify({{"error": "track out of range"}});
+        const track = tracks[trackIdx];
+        const trackBox = track.box;
+        const isNote = trackBox.type && (trackBox.type.label === 'note' || trackBox.type.value === 2);
+        if (!isNote) return JSON.stringify({{"error": "track is not a note track"}});
+
+        const regions = [...track.regions.pointerHub.incoming()];
+        const regionsToProcess = regionIdx >= 0 ? [regions[regionIdx]].filter(Boolean) : regions;
+        if (regionsToProcess.length === 0) return JSON.stringify({{"error": "no regions found"}});
+
+        const stepSize = (maxVel - minVel) / (levels - 1);
+        const levelDist = new Array(levels).fill(0);
+        let totalProcessed = 0;
+        let totalChanges = 0;
+        let origVelSum = 0;
+        let newVelSum = 0;
+        const regionStats = [];
+
+        for (const region of regionsToProcess) {{
+            const regionBox = region.box;
+            const coll = regionBox.events.targetVertex.unwrap();
+            if (!coll) continue;
+            const notes = [...coll.events.pointerHub.incoming()];
+            let regionProcessed = 0;
+            let regionChanges = 0;
+            let regionOrigSum = 0;
+            let regionNewSum = 0;
+
+            await h.editing.modify(async () => {{
+                for (const note of notes) {{
+                    const noteBox = note.box;
+                    const velField = noteBox.velocity;
+                    const origVel = velField.value;
+                    regionOrigSum += origVel;
+                    origVelSum += origVel;
+
+                    let newVel;
+                    const t = (origVel - minVel) / (maxVel - minVel);
+                    const clampedT = Math.max(0, Math.min(1, t));
+                    const floatLevel = clampedT * (levels - 1);
+
+                    if (qMode === "snap") {{
+                        newVel = minVel + Math.round(floatLevel) * stepSize;
+                    }} else if (qMode === "floor") {{
+                        newVel = minVel + Math.floor(floatLevel) * stepSize;
+                    }} else if (qMode === "ceil") {{
+                        newVel = minVel + Math.ceil(floatLevel) * stepSize;
+                    }} else if (qMode === "round_random") {{
+                        const floorL = Math.floor(floatLevel);
+                        const frac = floatLevel - floorL;
+                        const randL = Math.random() < frac ? floorL + 1 : floorL;
+                        newVel = minVel + randL * stepSize;
+                    }}
+
+                    newVel = Math.max(0, Math.min(1, newVel));
+                    if (Math.abs(newVel - origVel) > 0.0001) {{
+                        velField.setValue(newVel);
+                        totalChanges++;
+                        regionChanges++;
+                    }}
+                    const levelIdx = Math.round((newVel - minVel) / stepSize);
+                    if (levelIdx >= 0 && levelIdx < levels) levelDist[levelIdx]++;
+                    totalProcessed++;
+                    regionProcessed++;
+                    regionNewSum += newVel;
+                    newVelSum += newVel;
+                }}
+            }});
+
+            regionStats.push({{
+                notes: regionProcessed,
+                changes: regionChanges,
+                original_avg: Math.round((regionOrigSum / Math.max(1, regionProcessed)) * 1000) / 1000,
+                new_avg: Math.round((regionNewSum / Math.max(1, regionProcessed)) * 1000) / 1000,
+            }});
+        }}
+
+        return JSON.stringify({{
+            levels: levels,
+            mode: qMode,
+            min_velocity: minVel,
+            max_velocity: maxVel,
+            step_size: Math.round(stepSize * 10000) / 10000,
+            notes_processed: totalProcessed,
+            velocity_changes: totalChanges,
+            original_avg: Math.round((origVelSum / Math.max(1, totalProcessed)) * 1000) / 1000,
+            new_avg: Math.round((newVelSum / Math.max(1, totalProcessed)) * 1000) / 1000,
+            level_distribution: levelDist,
+            regions_processed: regionsToProcess.length,
+            region_stats: regionStats,
+        }});
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_balance_track_velocities(
     unit_index: int,
     track_indices: str,
