@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.96.0 (2026-07-05)
+
+- **`werkstatt_bass_enhancer.js` DSP script** — psychoacoustic bass enhancer (MaxxBass / Renaissance Bass style): isolates bass band via LPF, full-wave rectification generates sub-harmonic content, LPF smoothing extracts sub fundamental, HPF removes DC. Brain perceives lower fundamental even on small speakers/headphones. Envelope follower with attack/release, harmonic saturation via tanh for bass presence, band replacement (HPF dry + enhanced bass). 8 params (freq/sub_level/direct_level/harmonics/attack/release/mix/output). 78 DSP scripts
+- **903 unit tests** (+14), E2E 8/8
+
 ## v1.95.0 (2026-07-05)
 
 - **`werkstatt_freq_shifter.js` DSP script** — SSB frequency shifter: single-sideband modulation via Hilbert transform (allpass pair for 90° phase difference) + complex carrier oscillator. Shifts all frequencies by fixed Hz amount (not ratio like pitch_shift), breaking harmonic relationships for that classic Buchla/banana synth inharmonic sound. Upper/lower sideband selection via direction param, feedback for spiraling shifts. 5 params (shift/direction/feedback/mix/output). 77 DSP scripts

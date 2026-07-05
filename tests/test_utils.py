@@ -4057,3 +4057,90 @@ class TestGatedReverbDSP:
     def test_process_method(self):
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
+
+
+class TestBassEnhancerDSP:
+    """Unit tests for werkstatt_bass_enhancer.js — psychoacoustic bass enhancer"""
+
+    SCRIPT = "werkstatt_bass_enhancer.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt bass_enhancer" in code, "Missing @werkstatt bass_enhancer header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_freq_param(self):
+        params = self._parse_params(self._read_script())
+        f = [p for p in params if p["name"] == "freq"][0]
+        assert f["default"] == 80 and f["min"] == 40 and f["max"] == 200
+
+    def test_sub_level_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "sub_level"][0]
+        assert s["default"] == 0.5
+
+    def test_harmonics_param(self):
+        params = self._parse_params(self._read_script())
+        h = [p for p in params if p["name"] == "harmonics"][0]
+        assert h["default"] == 0.3
+
+    def test_bass_isolation_lpf(self):
+        code = self._read_script()
+        assert "lpState" in code, "Missing LPF state for bass isolation"
+        assert "alphaLp" in code, "Missing LPF coefficient"
+
+    def test_full_wave_rectification(self):
+        code = self._read_script()
+        assert "Math.abs" in code, "Missing full-wave rectification"
+        assert "rectL" in code or "rectR" in code, "Missing rectified signal"
+
+    def test_sub_harmonic_extraction(self):
+        code = self._read_script()
+        assert "subLp" in code, "Missing sub-harmonic LPF"
+        assert "rectSmooth" in code, "Missing rectified signal smoothing"
+
+    def test_dc_removal_hpf(self):
+        code = self._read_script()
+        assert "hpState" in code, "Missing HPF for DC removal"
+        assert "alphaHp" in code, "Missing HPF coefficient"
+
+    def test_envelope_follower(self):
+        code = self._read_script()
+        assert "this.env" in code, "Missing envelope follower"
+        assert "atkCoef" in code and "relCoef" in code, "Missing attack/release coefficients"
+
+    def test_harmonic_saturation(self):
+        code = self._read_script()
+        assert "tanh" in code, "Missing harmonic saturation (tanh)"
+        assert "harmL" in code or "harmR" in code, "Missing harmonic signal"
+
+    def test_band_replacement(self):
+        code = self._read_script()
+        assert "hpDryL" in code or "hpDryR" in code, "Missing high-passed dry (band replacement)"
+        assert "enhancedL" in code or "enhancedR" in code, "Missing enhanced bass output"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
