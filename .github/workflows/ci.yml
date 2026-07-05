@@ -26,7 +26,7 @@ jobs:
           tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]
           count = len(tools)
           print(f'MCP tools found: {count}')
-          assert count >= 271, f'Expected at least 271 tools, got {count}'
+          assert count >= 274, f'Expected at least 274 tools, got {count}'
           print('Tool count verification passed!')
           "
       - name: Validate DSP scripts exist and syntax
@@ -51,7 +51,7 @@ jobs:
           import asyncio
           tools = asyncio.run(mcp.list_tools())
           print(f'Registered MCP tools: {len(tools)}')
-          assert len(tools) >= 271, f'Expected >=271 registered tools, got {len(tools)}'
+          assert len(tools) >= 274, f'Expected >=274 registered tools, got {len(tools)}'
           tool_names = {t.name for t in tools}
           for required in ['mcp_opendaw_get_project_info', 'mcp_opendaw_create_synth_track', 'mcp_opendaw_add_effect', 'mcp_opendaw_export_mix', 'mcp_opendaw_transport']:
               assert required in tool_names, f'Missing required tool: {required}'

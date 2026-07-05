@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **271** MCP tools | **43** Python examples (8 genre templates) |
+| **274** MCP tools | **43** Python examples (8 genre templates) |
 | **27** DSP scripts | **9** agent skills |
 | **3** framework wrappers | **150** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -499,6 +499,14 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.18.0 (2026-07-05)
+
+- **`create_drum_fill`** — drum fills/transitions: 5 types (build, break, roll, crash, tom), adjustable density and bar length
+- **`create_ostinato`** — repeating melodic/rhythmic pattern as foundation layer, scale-based, 1-16 repeats
+- **`create_crescendo`** — crescendo/decrescendo on existing notes, 3 curves (linear, exp, log)
+- E2E verified: drum_fill (build+roll), ostinato (C minor ×4), crescendo (exp 0.2→0.9)
+- **274 MCP tools**, **17 orchestration tools**, ruff clean, CI green
 
 ### v1.17.0 (2026-07-05)
 

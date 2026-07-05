@@ -14035,6 +14035,346 @@ async def mcp_opendaw_load_effect_preset(filepath: str, unit_index: int = -1) ->
     return _json.dumps(result, indent=2) if isinstance(result, dict) else _json.dumps({"success": True, "result": result})
 
 
+@mcp.tool()
+async def mcp_opendaw_create_drum_fill(unit_index: int = -1, fill_type: str = "build", bars: int = 1, start_beat: float = 0, density: str = "medium") -> str:
+    """Create a drum fill or transition pattern — one call replaces 10-30 note creations.
+
+    Generates rhythmic fills between song sections with increasing/decreasing density.
+    Useful for transitions: verse→chorus, breakdown→drop, outro buildup.
+
+    fill_type: Type of fill:
+      - "build" — density increases toward end (leading into a drop/chorus)
+      - "break" — density decreases (winding down after a section)
+      - "roll" — sustained snare/tom roll with accents
+      - "crash" — crash + sparse hits for impact
+      - "tom" — descending tom pattern
+
+    bars: Length in bars (1-4). Each bar = 4 beats = 16 sixteenth steps.
+    start_beat: Position in beats where the fill begins.
+    density: Note density — "sparse", "medium", "dense".
+
+    unit_index: AU index with a note track (-1 = find first AU with note tracks).
+
+    Returns notes created per lane and total.
+    """
+    if fill_type not in ("build", "break", "roll", "crash", "tom"):
+        return "Error: fill_type must be one of: build, break, roll, crash, tom"
+    if bars < 1 or bars > 4:
+        return "Error: bars must be 1-4"
+    if density not in ("sparse", "medium", "dense"):
+        return "Error: density must be sparse, medium, or dense"
+
+    # Generate fill patterns in Python
+    import random
+    rng = random.Random(hash(fill_type + density) & 0xFFFFFFFF)
+
+    total_steps = bars * 16
+    kick, snare, hihat, perc = [], [], [], []
+
+    density_factor = {"sparse": 0.15, "medium": 0.35, "dense": 0.6}[density]
+
+    if fill_type == "build":
+        # Increasing density — start sparse, end busy
+        for i in range(total_steps):
+            progress = i / total_steps
+            local_density = density_factor * (0.3 + 0.7 * progress)
+            # hihat gets busier
+            if rng.random() < local_density:
+                hihat.append(i)
+            # kick builds up at the end
+            if progress > 0.6 and rng.random() < local_density * 0.6:
+                kick.append(i)
+            # snare: last bar gets roll-ish
+            if progress > 0.5 and rng.random() < local_density * 0.5:
+                snare.append(i)
+            # final crash
+            if i == total_steps - 1:
+                kick.append(i)
+
+    elif fill_type == "break":
+        # Decreasing density — start busy, end sparse
+        for i in range(total_steps):
+            progress = i / total_steps
+            local_density = density_factor * (0.9 - 0.6 * progress)
+            if rng.random() < local_density:
+                hihat.append(i)
+            if progress < 0.4 and rng.random() < local_density * 0.5:
+                kick.append(i)
+            if rng.random() < local_density * 0.3:
+                snare.append(i)
+
+    elif fill_type == "roll":
+        # Sustained snare roll with accents
+        for i in range(total_steps):
+            snare.append(i)
+            # accents every 4 steps
+            if i % 4 == 0:
+                kick.append(i)
+            # hihat sparse
+            if i % 8 == 0:
+                hihat.append(i)
+        # Crash at end
+        kick.append(total_steps - 1)
+
+    elif fill_type == "crash":
+        # Impact: crash + sparse hits
+        kick.append(0)  # initial crash
+        kick.append(total_steps - 1)  # final crash
+        for i in range(total_steps):
+            if rng.random() < density_factor * 0.2:
+                perc.append(i)
+
+    elif fill_type == "tom":
+        # Descending tom pattern — uses perc lane for toms
+        tom_spacing = max(2, int(8 / (bars + 1)))
+        for i in range(0, total_steps, tom_spacing):
+            perc.append(i)
+            if i % (tom_spacing * 2) == 0:
+                kick.append(i)
+        # Fill remaining with hihat
+        for i in range(total_steps):
+            if rng.random() < density_factor * 0.3:
+                hihat.append(i)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+        const Sixteenth = Quarter / 4;
+
+        const unitIdx = {unit_index};
+        const startBeat = {start_beat};
+        const totalSteps = {total_steps};
+        const kickSteps = {json.dumps(kick)};
+        const snareSteps = {json.dumps(snare)};
+        const hihatSteps = {json.dumps(hihat)};
+        const percSteps = {json.dumps(perc)};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if (unitIdx >= 0 && unitIdx < allUnits.length) {{
+            targetAU = allUnits[unitIdx];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[0];
+        const lanePitches = {{kick: 36, snare: 38, hihat: 42, perc: 47}};
+        let totalNotes = 0;
+        const laneCounts = {{}};
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.max(totalSteps * Sixteenth, 4 * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Fill");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            const lanes = [
+                {{name: "kick", steps: kickSteps, pitch: 36}},
+                {{name: "snare", steps: snareSteps, pitch: 38}},
+                {{name: "hihat", steps: hihatSteps, pitch: 42}},
+                {{name: "perc", steps: percSteps, pitch: 47}},
+            ];
+
+            for (const lane of lanes) {{
+                let count = 0;
+                for (const stepIdx of lane.steps) {{
+                    // Accent: first and last step get higher velocity
+                    let vel = 0.75;
+                    if (stepIdx === 0 || stepIdx === totalSteps - 1) vel = 1.0;
+                    else if (stepIdx % 4 === 0) vel = 0.9;
+                    NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                        box.position.setValue(startPos + Math.round(stepIdx * Sixteenth));
+                        box.duration.setValue(Math.round(Sixteenth * 0.8));
+                        box.velocity.setValue(vel);
+                        box.pitch.setValue(lane.pitch);
+                        box.chance.setValue(100);
+                        box.cent.setValue(0);
+                        box.events.refer(collBox.events);
+                    }});
+                    count++;
+                    totalNotes++;
+                }}
+                laneCounts[lane.name] = count;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            lanes: laneCounts,
+            fill_type: "{fill_type}",
+            bars: {bars},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_ostinato(scale: str, root: str, pattern: str, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, repeats: int = 4, octave: int = 4, velocity: float = 0.7) -> str:
+    """Create an ostinato — a repeating melodic/rhythmic pattern as a foundation layer.
+
+    Ostinatos are short patterns (2-8 notes) that repeat throughout a section,
+    providing a rhythmic/harmonic anchor. Common in minimalism, electronic, and film music.
+
+    scale: Scale type (major, minor, dorian, phrygian, etc. — 14 types from music_theory).
+    root: Root note name (C, C#, D, ... B).
+    pattern: Scale degrees as space-separated numbers (1-7, 0=rest):
+      "1 5 3 5" — repeating i-v-iii-v pattern
+      "1 3 5 6 5 3" — longer melodic cell
+    repeats: Number of times to repeat the pattern (1-16).
+    octave: Starting octave (1-7, default 4).
+    velocity: Note velocity 0-1.
+
+    Returns total notes created and pattern info.
+    """
+    from opendaw_mcp.music_theory import parse_melody_pattern
+
+    if repeats < 1 or repeats > 16:
+        return "Error: repeats must be 1-16"
+
+    # Parse pattern once to get the base notes
+    try:
+        base_notes = parse_melody_pattern(pattern, root, scale, octave, velocity, 0.25, 0)
+    except Exception as e:
+        return f"Error parsing pattern: {e}"
+
+    if not base_notes:
+        return "Error: pattern produced no notes"
+
+    # Repeat the pattern, offsetting start positions
+    pattern_beats = max(n["start"] + n["duration"] for n in base_notes)
+    all_notes = []
+    for rep in range(repeats):
+        for note in base_notes:
+            all_notes.append({
+                "pitch": note["pitch"],
+                "start": start_beat + rep * pattern_beats + note["start"],
+                "duration": note["duration"],
+                "velocity": note["velocity"],
+            })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    import json as _json
+    try:
+        data = _json.loads(result_str)
+        data["ostinato"] = True
+        data["pattern"] = pattern
+        data["repeats"] = repeats
+        data["scale"] = scale
+        data["root"] = root
+        return _json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_crescendo(unit_index: int, track_index: int, region_index: int = -1, start_velocity: float = 0.2, end_velocity: float = 1.0, curve: str = "linear") -> str:
+    """Apply a crescendo or decrescendo to existing notes in a region.
+
+    Gradually changes note velocities from start_velocity to end_velocity across
+    all notes in the region. Useful for building tension or fading out.
+
+    unit_index: AU index.
+    track_index: Track index.
+    region_index: Region index (-1 = first region).
+    start_velocity: Starting velocity 0-1 (low = quiet beginning).
+    end_velocity: Ending velocity 0-1 (high = loud end).
+    curve: "linear", "exp" (exponential, starts slow), "log" (logarithmic, starts fast).
+
+    Returns number of notes modified and velocity range applied.
+    """
+    if curve not in ("linear", "exp", "log"):
+        return "Error: curve must be linear, exp, or log"
+    if start_velocity < 0 or start_velocity > 1 or end_velocity < 0 or end_velocity > 1:
+        return "Error: velocities must be 0-1"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const startVel = {start_velocity};
+        const endVel = {end_velocity};
+        const curve = "{curve}";
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const tracks = h.trackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+        const track = tracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regionIdx2 = regionIdx < 0 ? 0 : regionIdx;
+        if (regionIdx2 >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regionIdx2];
+
+        const eventsField = region.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const noteEvents = [...collBox.events.pointerHub.incoming()];
+        if (noteEvents.length === 0) return {{error: "No notes in region"}};
+
+        // Sort by position for natural crescendo order
+        noteEvents.sort((a, b) => a.box.position.getValue() - b.box.position.getValue());
+
+        let modified = 0;
+        const n = noteEvents.length;
+        h.modify(() => {{
+            for (let i = 0; i < n; i++) {{
+                let t = n > 1 ? i / (n - 1) : 0;
+                let vel;
+                if (curve === "exp") {{
+                    vel = startVel + (endVel - startVel) * (t * t);
+                }} else if (curve === "log") {{
+                    vel = startVel + (endVel - startVel) * Math.sqrt(t);
+                }} else {{
+                    vel = startVel + (endVel - startVel) * t;
+                }}
+                noteEvents[i].box.velocity.setValue(Math.max(0, Math.min(1, vel)));
+                modified++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_modified: modified,
+            start_velocity: startVel,
+            end_velocity: endVel,
+            curve: curve,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 class OpendawServer:
     """Facade class for framework integrations (LangChain, AutoGen, CrewAI).
 
@@ -14067,7 +14407,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.13.0 — 262 MCP tools")
+            print("opendaw-mcp 1.18.0 — 274 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -14077,7 +14417,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 262 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 274 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")

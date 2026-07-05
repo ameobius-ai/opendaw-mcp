@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-271 MCP tools for headless openDAW control via Playwright bridge.
+274 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -327,7 +327,7 @@
 - `save_effect_preset` — Encode an audio effect chain as a .opb preset bundle (ZIP: meta.json + preset.odp). Uses PresetEncoder.encodeEffects. Shareable, drag-and-drop into openDAW.
 - `load_effect_preset` — Load a .opb preset file and decode it via PresetDecoder into a project skeleton. Returns imported unit count.
 
-## Orchestration Tools (14)
+## Orchestration Tools (17)
 High-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 - `create_notes_batch` — Create multiple MIDI notes from a JSON array in one call. Replaces 10-50 create_note calls.
@@ -339,13 +339,16 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `humanize_notes` — Add human-like velocity, timing, duration variation and swing to existing notes. Seeded PRNG for reproducibility. Makes programmed MIDI feel less robotic.
 - `create_harmony` — Generate harmony parts from existing notes. Diatonic (thirds/fifths/sixths) and chromatic (octave/fifth/fourth/major-minor third) intervals. Up/down direction. Auto-creates target track.
 - `create_counterpoint` — Generate counter-melody in contrary motion. Mirrors melody around center pitch. Adjustable interval. Auto-creates target track.
+- `create_drum_fill` — Generate drum fills/transitions with 5 types (build, break, roll, crash, tom). Adjustable density and bar length. One call replaces 10-30 note creations.
+- `create_ostinato` — Create a repeating melodic/rhythmic pattern as a foundation layer. Scale-based, 1-16 repeats. Common in minimalism, electronic, and film music.
+- `create_crescendo` — Apply crescendo/decrescendo to existing notes. Linear, exponential, or logarithmic velocity curves. One call modifies all notes in a region.
 - `add_mastering_chain` — Add EQ + Compressor + Maximizer to the output bus with genre-style presets (balanced/warm/loud/transparent).
 - `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient/coldwave/hiphop) — synth, drums, bass, chords, BPM in one call.
 - `create_song_structure` — Create arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list. Enables agents to reason about song form.
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 271 tools**
+**Total: 274 tools**
 
 ## DSP Scripts (scripts/) — 27 scripts
 
