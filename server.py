@@ -20687,6 +20687,208 @@ async def mcp_opendaw_extract_motifs(
 
 
 @mcp.tool()
+async def mcp_opendaw_analyze_melody(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+) -> str:
+    """Analyze melodic content — contour, intervals, direction, climax.
+
+    Returns a detailed melodic analysis of notes in a region:
+    - Contour profile: direction (up/down/static) for each consecutive interval
+    - Interval histogram: count of each interval size (semitones)
+    - Step vs leap ratio: percentage of steps (≤2 semitones) vs leaps (>2)
+    - Direction changes: how often melody changes direction
+    - Climax: highest pitch and its position
+    - Nadir: lowest pitch and its position
+    - Phrase analysis: groups by rests (gaps > 1 beat) into phrases
+    - Contour shape classification: ascending/descending/arch/v_shape/wave/static
+    - Melodic range: semitone span between lowest and highest
+    - Average interval size
+
+    Useful for:
+    - Understanding a melody before variation/reharmonization
+    - Comparing melodies (which is more jagged, which more stepwise?)
+    - Identifying climax placement (is the high point early, middle, late?)
+    - Feeding analysis to create_motif_variations
+    - Evaluating AI-generated melodies for contour interest
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region (-1 = first region).
+
+    Returns analysis object.
+
+    Example:
+      analysis = analyze_melody(0, 3)
+      # contour_shape, climax_position, step_leap_ratio, interval_histogram
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const Quarter = h.ppqn.Quarter;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+
+        const notes = h.eventBoxes(collection);
+        if (notes.length === 0) return {{error: "No notes in region"}};
+        if (notes.length === 1) return {{
+            success: true,
+            note_count: 1,
+            contour_shape: "single_note",
+            message: "Only one note — no melodic contour to analyze"
+        }};
+
+        const regionPos = region.position.getValue();
+
+        // Sort notes by position
+        const sorted = notes.map(n => ({{
+            pitch: n.pitch.getValue(),
+            pos: (regionPos + n.position.getValue()) / Quarter,
+            dur: n.duration.getValue() / Quarter,
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        // Build intervals
+        const intervals = [];
+        const contourProfile = [];
+        for (let i = 1; i < sorted.length; i++) {{
+            const interval = sorted[i].pitch - sorted[i-1].pitch;
+            intervals.push(interval);
+            if (interval > 0) contourProfile.push("up");
+            else if (interval < 0) contourProfile.push("down");
+            else contourProfile.push("static");
+        }}
+
+        // Interval histogram (semitone → count)
+        const intervalHist = {{}};
+        for (const iv of intervals) {{
+            const key = String(iv);
+            intervalHist[key] = (intervalHist[key] || 0) + 1;
+        }}
+
+        // Step vs leap
+        const steps = intervals.filter(i => Math.abs(i) <= 2).length;
+        const leaps = intervals.filter(i => Math.abs(i) > 2).length;
+        const stepRatio = intervals.length > 0 ? steps / intervals.length : 0;
+        const leapRatio = intervals.length > 0 ? leaps / intervals.length : 0;
+
+        // Direction changes
+        let dirChanges = 0;
+        for (let i = 1; i < intervals.length; i++) {{
+            const prevDir = Math.sign(intervals[i-1]);
+            const currDir = Math.sign(intervals[i]);
+            if (prevDir !== 0 && currDir !== 0 && prevDir !== currDir) dirChanges++;
+        }}
+
+        // Climax and nadir
+        let climaxIdx = 0, nadirIdx = 0;
+        for (let i = 1; i < sorted.length; i++) {{
+            if (sorted[i].pitch > sorted[climaxIdx].pitch) climaxIdx = i;
+            if (sorted[i].pitch < sorted[nadirIdx].pitch) nadirIdx = i;
+        }}
+        const climax = {{
+            pitch: sorted[climaxIdx].pitch,
+            position_beats: Math.round(sorted[climaxIdx].pos * 1000) / 1000,
+            note_index: climaxIdx,
+        }};
+        const nadir = {{
+            pitch: sorted[nadirIdx].pitch,
+            position_beats: Math.round(sorted[nadirIdx].pos * 1000) / 1000,
+            note_index: nadirIdx,
+        }};
+
+        // Climax position (0=start, 0.5=middle, 1=end)
+        const climaxPosition = sorted.length > 1 ? climaxIdx / (sorted.length - 1) : 0;
+
+        // Contour shape classification
+        let contourShape = "static";
+        if (intervals.length > 0) {{
+            const allUp = intervals.every(i => i >= 0) && intervals.some(i => i > 0);
+            const allDown = intervals.every(i => i <= 0) && intervals.some(i => i < 0);
+            if (allUp) contourShape = "ascending";
+            else if (allDown) contourShape = "descending";
+            else {{
+                // Check arch (up then down) or v_shape (down then up)
+                const half = Math.floor(intervals.length / 2);
+                const firstHalfSum = intervals.slice(0, half).reduce((a, b) => a + b, 0);
+                const secondHalfSum = intervals.slice(half).reduce((a, b) => a + b, 0);
+                if (firstHalfSum > 0 && secondHalfSum < 0) contourShape = "arch";
+                else if (firstHalfSum < 0 && secondHalfSum > 0) contourShape = "v_shape";
+                else contourShape = "wave";
+            }}
+        }}
+
+        // Phrase analysis (group by gaps > 1 beat)
+        const phrases = [];
+        let currentPhrase = [sorted[0]];
+        for (let i = 1; i < sorted.length; i++) {{
+            const gap = sorted[i].pos - (sorted[i-1].pos + sorted[i-1].dur);
+            if (gap > 1.0) {{
+                phrases.push(currentPhrase);
+                currentPhrase = [sorted[i]];
+            }} else {{
+                currentPhrase.push(sorted[i]);
+            }}
+        }}
+        phrases.push(currentPhrase);
+
+        // Average interval
+        const avgInterval = intervals.length > 0
+            ? intervals.reduce((a, b) => a + Math.abs(b), 0) / intervals.length
+            : 0;
+
+        // Melodic range
+        const range = sorted[climaxIdx].pitch - sorted[nadirIdx].pitch;
+
+        // Build interval histogram sorted by size
+        const histEntries = Object.entries(intervalHist)
+            .map(([k, v]) => ({{ interval: parseInt(k), count: v }}))
+            .sort((a, b) => a.interval - b.interval);
+
+        return {{
+            success: true,
+            note_count: sorted.length,
+            contour_shape: contourShape,
+            contour_profile: contourProfile,
+            interval_histogram: histEntries,
+            step_count: steps,
+            leap_count: leaps,
+            step_ratio: Math.round(stepRatio * 1000) / 1000,
+            leap_ratio: Math.round(leapRatio * 1000) / 1000,
+            direction_changes: dirChanges,
+            climax: climax,
+            nadir: nadir,
+            climax_position: Math.round(climaxPosition * 1000) / 1000,
+            melodic_range_semitones: range,
+            average_interval_semitones: Math.round(avgInterval * 1000) / 1000,
+            phrase_count: phrases.length,
+            phrase_lengths: phrases.map(p => p.length),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_analyze_song_structure(
     unit_index: int = -1,
     bars_per_segment: int = 4,

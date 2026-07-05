@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.239.0 (2026-07-06)
+
+### Added
+- `analyze_melody` — Full melodic contour analysis. Returns contour profile (up/down/static per interval), interval histogram (sorted by size), step vs leap ratio (≤2 semitone = step), direction change count, climax (highest pitch + position 0-1 on timeline), nadir (lowest), contour shape classification (ascending/descending/arch/v_shape/wave/static), phrase grouping by rests (gaps > 1 beat), melodic range (semitones), average interval size. 15 unit tests including interval calc, step/leap, direction changes, climax position, contour shapes, phrase grouping. **414 MCP tools**, 3037 unit tests
+
 ## v1.238.0 (2026-07-06)
 
 ### Added

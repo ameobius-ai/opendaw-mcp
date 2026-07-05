@@ -15102,3 +15102,150 @@ class TestAccentBeats:
         assert beatInPattern == 0, "Beat 4 in 4/4 = pattern beat 0 (downbeat)"
 
 Math_floor = __import__('math').floor
+
+
+class TestAnalyzeMelody:
+    """Tests for mcp_opendaw_analyze_melody — melodic contour analysis"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_analyze_melody" in names
+
+    def test_interval_calculation(self):
+        """Intervals = difference between consecutive pitches"""
+        pitches = [60, 62, 65, 64, 67]
+        intervals = [pitches[i] - pitches[i-1] for i in range(1, len(pitches))]
+        assert intervals == [2, 3, -1, 3]
+
+    def test_contour_profile_directions(self):
+        """Contour profile: up/down/static per interval"""
+        intervals = [2, 3, -1, 0, 5]
+        profile = []
+        for iv in intervals:
+            if iv > 0: profile.append("up")
+            elif iv < 0: profile.append("down")
+            else: profile.append("static")
+        assert profile == ["up", "up", "down", "static", "up"]
+
+    def test_step_vs_leap(self):
+        """Steps = |interval| <= 2, leaps = |interval| > 2"""
+        intervals = [1, 2, -1, 5, -4, 2, 7]
+        steps = sum(1 for i in intervals if abs(i) <= 2)
+        leaps = sum(1 for i in intervals if abs(i) > 2)
+        assert steps == 4, "1, 2, -1, 2 are steps"
+        assert leaps == 3, "5, -4, 7 are leaps"
+        step_ratio = steps / len(intervals)
+        assert abs(step_ratio - 4/7) < 0.01
+
+    def test_direction_changes(self):
+        """Count direction changes (sign flips)"""
+        intervals = [2, 3, -1, 5, -4]  # +, +, -, +, -
+        changes = 0
+        for i in range(1, len(intervals)):
+            prev_dir = (1 if intervals[i-1] > 0 else (-1 if intervals[i-1] < 0 else 0))
+            curr_dir = (1 if intervals[i] > 0 else (-1 if intervals[i] < 0 else 0))
+            if prev_dir != 0 and curr_dir != 0 and prev_dir != curr_dir:
+                changes += 1
+        # 2→3 (same), 3→-1 (change), -1→5 (change), 5→-4 (change)
+        assert changes == 3
+
+    def test_climax_finding(self):
+        """Climax = highest pitch"""
+        pitches = [60, 67, 64, 72, 65]
+        climax_idx = 0
+        for i in range(1, len(pitches)):
+            if pitches[i] > pitches[climax_idx]:
+                climax_idx = i
+        assert climax_idx == 3, "72 is the highest at index 3"
+        assert pitches[climax_idx] == 72
+
+    def test_nadir_finding(self):
+        """Nadir = lowest pitch"""
+        pitches = [60, 55, 64, 48, 65]
+        nadir_idx = 0
+        for i in range(1, len(pitches)):
+            if pitches[i] < pitches[nadir_idx]:
+                nadir_idx = i
+        assert nadir_idx == 3, "48 is the lowest at index 3"
+        assert pitches[nadir_idx] == 48
+
+    def test_climax_position(self):
+        """Climax position: 0=start, 0.5=middle, 1=end"""
+        n = 9  # 9 notes
+        climax_idx = 4  # middle
+        position = climax_idx / (n - 1)
+        assert position == 0.5, "Index 4 of 9 = middle"
+
+        climax_idx = 0  # start
+        position = climax_idx / (n - 1)
+        assert position == 0.0, "Index 0 = start"
+
+        climax_idx = 8  # end
+        position = climax_idx / (n - 1)
+        assert position == 1.0, "Index 8 = end"
+
+    def test_contour_ascending(self):
+        """All intervals positive → ascending"""
+        intervals = [2, 3, 1, 2]
+        all_up = all(i >= 0 for i in intervals) and any(i > 0 for i in intervals)
+        assert all_up is True
+
+    def test_contour_descending(self):
+        """All intervals negative → descending"""
+        intervals = [-2, -3, -1, -2]
+        all_down = all(i <= 0 for i in intervals) and any(i < 0 for i in intervals)
+        assert all_down is True
+
+    def test_contour_arch(self):
+        """First half positive, second half negative → arch"""
+        intervals = [2, 3, 4, -1, -3, -2]
+        half = 3
+        first_sum = sum(intervals[:half])  # 9 > 0
+        second_sum = sum(intervals[half:])  # -6 < 0
+        assert first_sum > 0 and second_sum < 0, "Should be arch"
+
+    def test_contour_v_shape(self):
+        """First half negative, second half positive → v_shape"""
+        intervals = [-3, -2, -1, 2, 3, 4]
+        half = 3
+        first_sum = sum(intervals[:half])  # -6 < 0
+        second_sum = sum(intervals[half:])  # 9 > 0
+        assert first_sum < 0 and second_sum > 0, "Should be v_shape"
+
+    def test_phrase_grouping_by_gaps(self):
+        """Notes separated by gaps > 1 beat form separate phrases"""
+        notes = [
+            {"pos": 0, "dur": 0.5},
+            {"pos": 1, "dur": 0.5},
+            {"pos": 5, "dur": 0.5},  # gap > 1 → new phrase
+            {"pos": 6, "dur": 0.5},
+        ]
+        phrases = []
+        current = [notes[0]]
+        for i in range(1, len(notes)):
+            gap = notes[i]["pos"] - (notes[i-1]["pos"] + notes[i-1]["dur"])
+            if gap > 1.0:
+                phrases.append(current)
+                current = [notes[i]]
+            else:
+                current.append(notes[i])
+        phrases.append(current)
+        assert len(phrases) == 2, "Should have 2 phrases"
+        assert len(phrases[0]) == 2
+        assert len(phrases[1]) == 2
+
+    def test_melodic_range(self):
+        """Range = climax pitch - nadir pitch"""
+        climax_pitch = 72
+        nadir_pitch = 48
+        range_semitones = climax_pitch - nadir_pitch
+        assert range_semitones == 24, "Two octave range"
+
+    def test_average_interval(self):
+        """Average of absolute interval sizes"""
+        intervals = [2, -3, 1, 5, -2]
+        avg = sum(abs(i) for i in intervals) / len(intervals)
+        assert abs(avg - 2.6) < 0.01

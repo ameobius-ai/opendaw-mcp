@@ -472,7 +472,7 @@ await mcp_opendaw_add_mastering_chain(target_lufs=-16, style="transparent")  # a
 - `opendaw-sound-design` — instruments + DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain
 - `suno-to-opendaw` — Suno→stems→openDAW E2E
-- `opendaw-automation` — 413 MCP tools full API reference
+- `opendaw-automation` — 414 MCP tools full API reference
 
 ## Multi-Track Arrangement Tools (14 genres)
 
