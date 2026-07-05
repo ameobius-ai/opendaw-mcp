@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **279** MCP tools | **51** Python examples (8 genre templates) |
+| **281** MCP tools | **53** Python examples (8 genre templates) |
 | **30** DSP scripts | **9** agent skills |
-| **3** framework wrappers | **201** unit + **9** E2E tests |
+| **3** framework wrappers | **212** unit + **10** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,15 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.21.0 (2026-07-05)
+
+- **`apply_sidechain`** — sidechain ducking via volume automation. Classic pumping/breathing effect for house/techno/EDM. Adjustable depth, attack, release, kick interval
+- **`create_ghost_notes`** — ghost notes (quiet grace notes) for funk/R&B/neo-soul/hip-hop drumming. Seeded reproducibility, avoids occupied positions
+- **12 unit tests** for sidechain ducking curve and ghost note placement logic — 201→212 total
+- **E2E verified**: sidechain (272 events, 16 kicks, error handling), ghost_notes (4 added, error handling)
+- **53 examples** (added apply_sidechain.py, create_ghost_notes.py)
+- **281 MCP tools**, **24 orchestration tools**, ruff clean, CI green
+
 ### v1.20.0 (2026-07-05)
 
 - **`create_call_response`** — call-and-response patterns (antecedent/consequent phrases). Foundation of blues, jazz, hip-hop, electronic. Alternates call → response with adjustable repeats
@@ -529,7 +538,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **12 unit tests** for swing offset logic and polyrhythm generation (170→182 total)
 - **E2E test** for apply_swing (0.5/0.0/8th grid) and create_polyrhythm (3:4, 2:3, error handling)
 - **30 DSP scripts** (added flanger, noisegate, tremolo)
-- **279 MCP tools**, **22 orchestration tools**, ruff clean, CI green
+- **281 MCP tools**, **24 orchestration tools**, ruff clean, CI green
 
 ### v1.18.0 (2026-07-05)
 

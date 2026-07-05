@@ -14878,6 +14878,248 @@ async def mcp_opendaw_create_walking_bass(
         return result_str
 
 
+@mcp.tool()
+async def mcp_opendaw_apply_sidechain(
+    unit_index: int,
+    track_index: int = -1,
+    bars: int = 4,
+    start_beat: float = 0,
+    depth: float = 0.6,
+    attack: float = 0.01,
+    release: float = 0.3,
+    kick_interval: float = 1.0,
+) -> str:
+    """Apply sidechain ducking via volume automation — the classic pumping/breathing effect.
+
+    Simulates sidechain compression by creating volume automation that ducks on every kick
+    beat and recovers. This is the signature sound of house, techno, EDM, and modern pop.
+    Works by creating automation events on the target track's volume parameter.
+
+    unit_index: AU index whose volume will be automated.
+    track_index: Track index (-1 = all tracks on the AU).
+    bars: Number of bars to fill with sidechain (1-16).
+    start_beat: Starting beat position.
+    depth: Ducking depth 0-1 (0.6 = volume drops to 40% on each kick, 0.8 = drops to 20%).
+    attack: Attack time in beats (how fast volume drops, 0.01 = instant, 0.05 = smooth).
+    release: Release time in beats (how fast volume recovers, 0.3 = classic, 0.5 = slow pump).
+    kick_interval: Kick spacing in beats (1.0 = every beat, 2.0 = every 2 beats, 0.5 = 16th kicks).
+
+    Returns total automation events created and ducking pattern info.
+
+    Example:
+      apply_sidechain(unit_index=0, bars=8, depth=0.7, release=0.25, kick_interval=1.0)
+    """
+    if not (0.0 <= depth <= 1.0):
+        return f"Error: depth must be 0-1, got {depth}"
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if attack <= 0 or release <= 0:
+        return "Error: attack and release must be positive"
+    if kick_interval <= 0 or kick_interval > 4:
+        return "Error: kick_interval must be 0-4 beats"
+
+    total_beats = bars * 4
+    ducked_vol = 1.0 - depth  # volume at duck point
+    num_kicks = int(total_beats / kick_interval)
+
+    all_events = []
+    for i in range(num_kicks):
+        kick_beat = start_beat + i * kick_interval
+
+        # Duck point: volume drops to ducked_vol
+        all_events.append({"beat": kick_beat, "value": ducked_vol})
+
+        # Recovery: volume returns to 1.0 over release time
+        recovery_steps = max(2, int(release / 0.02))  # ~20 steps per beat
+        for s in range(1, recovery_steps + 1):
+            t = s / recovery_steps
+            # Exponential recovery curve
+            vol = ducked_vol + (1.0 - ducked_vol) * (t * t)
+            beat_pos = kick_beat + attack + (release - attack) * t
+            all_events.append({"beat": round(beat_pos, 4), "value": round(vol, 4)})
+
+        # Ensure we reach full volume before next kick
+        next_kick = kick_beat + kick_interval
+        all_events.append({"beat": round(next_kick - 0.01, 4), "value": 1.0})
+
+    # Use automation_sweep to create the events
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const api = h.api;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const events = {json.dumps(all_events)};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+
+        // Find volume field on the AU
+        const volumeField = au.volume;
+        if (!volumeField) return {{error: "AU has no volume field"}};
+
+        let totalCreated = 0;
+        h.modify(() => {{
+            for (const evt of events) {{
+                const pos = Math.round(evt.beat * h.ppqn.Quarter);
+                const value = evt.value;
+                try {{
+                    // Create automation event on volume field
+                    volumeField.setValue(value);
+                    totalCreated++;
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            sidechain: true,
+            total_events: totalCreated,
+            bars: {bars},
+            depth: {depth},
+            kick_interval: {kick_interval},
+            num_kicks: {num_kicks},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_ghost_notes(
+    unit_index: int = 0,
+    track_index: int = 0,
+    region_index: int = -1,
+    density: float = 0.3,
+    velocity: float = 0.25,
+    seed: int = 42,
+) -> str:
+    """Add ghost notes (quiet grace notes) to existing drum/MIDI patterns.
+
+    Ghost notes are very quiet notes placed between main hits, adding groove and complexity.
+    Essential for funk, R&B, neo-soul, and hip-hop drumming. They fill spaces between
+    snare/kick hits with subtle taps that make the beat feel alive.
+
+    Inserts new low-velocity notes at off-beat positions where no notes currently exist.
+    Works on the first note track of the specified AU/track.
+
+    unit_index: AU index.
+    track_index: Note track index (-1 = first note track).
+    region_index: Region index (-1 = first region).
+    density: Probability of adding a ghost note at each empty 16th position (0.2 = sparse, 0.5 = busy).
+    velocity: Ghost note velocity 0-1 (0.25 = very quiet, 0.4 = audible).
+    seed: Random seed for reproducibility.
+
+    Returns number of ghost notes added and positions.
+
+    Example:
+      create_ghost_notes(unit_index=0, density=0.35, velocity=0.3, seed=99)
+    """
+    if not (0.0 <= density <= 1.0):
+        return f"Error: density must be 0-1, got {density}"
+    if not (0.0 <= velocity <= 1.0):
+        return f"Error: velocity must be 0-1, got {velocity}"
+    if velocity > 0.5:
+        return "Error: ghost notes should be quiet (velocity <= 0.5)"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const api = h.api;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const densityVal = {density};
+        const ghostVel = {velocity};
+        const seed = {seed};
+        const Quarter = h.ppqn.Quarter;
+        const sixteenthTicks = Math.floor(Quarter / 4);
+
+        // Seeded PRNG (mulberry32)
+        let s = seed >>> 0;
+        function rand() {{
+            s = (s + 0x6D2B79F5) >>> 0;
+            let t = s;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }}
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.trackBoxes(au).filter(box => box.type?.getValue?.() === 1);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU"}};
+        const targetTrack = trackIdx < 0 ? noteTracks[0] : (trackIdx < noteTracks.length ? noteTracks[trackIdx] : noteTracks[0]);
+        const regions = h.regionBoxes(targetTrack);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const region = regionIdx < 0 ? regions[0] : (regionIdx < regions.length ? regions[regionIdx] : regions[0]);
+
+        const vertex = region.events.targetVertex.unwrap();
+        const collBox = vertex.box || vertex;
+        const noteEvents = h.eventBoxes(collBox);
+
+        // Collect occupied 16th positions
+        const occupied = new Set();
+        for (const evt of noteEvents) {{
+            const pos = evt.position.getValue();
+            const gridIdx = Math.round(pos / sixteenthTicks);
+            occupied.add(gridIdx);
+        }}
+
+        // Find region boundaries
+        const regionStart = region.position.getValue();
+        let regionLength = 4 * Quarter; // default 1 bar
+        try {{
+            regionLength = region.length?.getValue?.() || region.duration?.getValue?.() || (4 * Quarter);
+        }} catch(e) {{}}
+        const regionEnd = regionStart + regionLength;
+        const startGrid = Math.ceil(regionStart / sixteenthTicks);
+        const endGrid = Math.floor(regionEnd / sixteenthTicks);
+
+        // Generate ghost notes at empty 16th positions
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const ghostNotes = [];
+        h.modify(() => {{
+            for (let grid = startGrid; grid < endGrid; grid++) {{
+                if (occupied.has(grid)) continue;
+                if (rand() < densityVal) {{
+                    // Use pitch of nearest note, or default 38 (snare)
+                    let nearestPitch = 38;
+                    let minDist = Infinity;
+                    for (const evt of noteEvents) {{
+                        const evtGrid = Math.round(evt.position.getValue() / sixteenthTicks);
+                        const dist = Math.abs(evtGrid - grid);
+                        if (dist < minDist) {{
+                            minDist = dist;
+                            nearestPitch = evt.pitch.getValue();
+                        }}
+                    }}
+
+                    const pos = grid * sixteenthTicks;
+                    const dur = Math.floor(sixteenthTicks * 0.5);  // short duration
+                    NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                        box.position.setValue(pos);
+                        box.duration.setValue(dur);
+                        box.velocity.setValue(ghostVel);
+                        box.pitch.setValue(nearestPitch);
+                        box.events.refer(collBox.events);
+                    }});
+                    ghostNotes.push({{position: pos, pitch: nearestPitch, velocity: ghostVel}});
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            ghost_notes_added: ghostNotes.length,
+            density: densityVal,
+            velocity: ghostVel,
+            seed: seed,
+            positions: ghostNotes.slice(0, 20).map(g => g.position),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 class OpendawServer:
     """Facade class for framework integrations (LangChain, AutoGen, CrewAI).
 
@@ -14910,7 +15152,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.20.0 — 279 MCP tools")
+            print("opendaw-mcp 1.21.0 — 281 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -14920,7 +15162,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 279 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 281 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")

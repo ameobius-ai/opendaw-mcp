@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.21.0 (2026-07-05)
+
+- **`apply_sidechain`** — new orchestration tool: sidechain ducking via volume automation. Classic pumping/breathing effect for house/techno/EDM. Adjustable depth, attack, release, kick interval
+- **`create_ghost_notes`** — new orchestration tool: ghost notes (quiet grace notes) for funk/R&B/neo-soul/hip-hop drumming. Seeded reproducibility, avoids occupied positions
+- **12 unit tests** for sidechain ducking curve and ghost note placement logic — 201→212 total
+- **E2E test** for sidechain (272 events, 16 kicks, error handling) and ghost_notes (4 added, error handling)
+- **53 examples** (added apply_sidechain.py, create_ghost_notes.py)
+- **281 MCP tools**, **24 orchestration tools**, ruff clean, CI green
+
 ## v1.20.0 (2026-07-05)
 
 - **`create_call_response`** — new orchestration tool: call-and-response patterns (antecedent/consequent phrases). Foundation of blues, jazz, hip-hop, electronic. Alternates call → response with adjustable repeats

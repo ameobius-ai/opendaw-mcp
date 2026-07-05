@@ -555,3 +555,121 @@ class TestWalkingBassGeneration:
         # All pitches should be in octave 2 range (36 ± 12)
         for n in notes:
             assert 24 <= n["pitch"] <= 60, f"Pitch {n['pitch']} out of bass range"
+
+
+class TestSidechainDucking:
+    """Test the sidechain ducking curve math of apply_sidechain."""
+
+    def _generate_events(self, bars: int, depth: float, attack: float, release: float, kick_interval: float = 1.0):
+        """Replicate sidechain event generation."""
+        total_beats = bars * 4
+        ducked_vol = 1.0 - depth
+        num_kicks = int(total_beats / kick_interval)
+
+        events = []
+        for i in range(num_kicks):
+            kick_beat = i * kick_interval
+            events.append({"beat": kick_beat, "value": ducked_vol})
+
+            recovery_steps = max(2, int(release / 0.02))
+            for s in range(1, recovery_steps + 1):
+                t = s / recovery_steps
+                vol = ducked_vol + (1.0 - ducked_vol) * (t * t)
+                beat_pos = kick_beat + attack + (release - attack) * t
+                events.append({"beat": round(beat_pos, 4), "value": round(vol, 4)})
+
+            next_kick = kick_beat + kick_interval
+            events.append({"beat": round(next_kick - 0.01, 4), "value": 1.0})
+
+        return events
+
+    def test_duck_point_is_lowest(self):
+        events = self._generate_events(1, 0.6, 0.01, 0.3)
+        duck_values = [e["value"] for e in events if e["beat"] == 0.0]
+        assert duck_values[0] == pytest.approx(0.4)  # 1.0 - 0.6
+
+    def test_recovers_to_full_volume(self):
+        events = self._generate_events(1, 0.6, 0.01, 0.3)
+        # Last event before next kick should be 1.0
+        pre_kick = [e for e in events if e["beat"] < 1.0]
+        assert pre_kick[-1]["value"] == pytest.approx(1.0)
+
+    def test_more_events_with_longer_release(self):
+        short = self._generate_events(1, 0.6, 0.01, 0.1)
+        long_rel = self._generate_events(1, 0.6, 0.01, 0.5)
+        assert len(long_rel) > len(short)
+
+    def test_more_bars_more_kicks(self):
+        one_bar = self._generate_events(1, 0.6, 0.01, 0.3)
+        four_bar = self._generate_events(4, 0.6, 0.01, 0.3)
+        # 4 bars should have ~4x more duck events
+        one_ducks = len([e for e in one_bar if e["value"] == pytest.approx(0.4)])
+        four_ducks = len([e for e in four_bar if e["value"] == pytest.approx(0.4)])
+        assert four_ducks == one_ducks * 4
+
+    def test_kick_interval_doubles(self):
+        every_beat = self._generate_events(1, 0.6, 0.01, 0.3, 1.0)
+        every_2 = self._generate_events(1, 0.6, 0.01, 0.3, 2.0)
+        beat_ducks = len([e for e in every_beat if e["value"] == pytest.approx(0.4)])
+        two_ducks = len([e for e in every_2 if e["value"] == pytest.approx(0.4)])
+        assert beat_ducks == 4  # 4 beats in 1 bar
+        assert two_ducks == 2   # 2 kicks at interval 2.0
+
+    def test_depth_affects_duck_volume(self):
+        shallow = self._generate_events(1, 0.3, 0.01, 0.3)
+        deep = self._generate_events(1, 0.8, 0.01, 0.3)
+        shallow_duck = [e for e in shallow if e["beat"] == 0.0][0]["value"]
+        deep_duck = [e for e in deep if e["beat"] == 0.0][0]["value"]
+        assert shallow_duck > deep_duck  # less depth = higher duck volume
+
+
+class TestGhostNotesLogic:
+    """Test the ghost note placement logic of create_ghost_notes."""
+
+    def _generate_ghost_positions(self, occupied_grids: list[int], region_length: int, density: float, seed: int = 42):
+        """Replicate ghost note position generation."""
+        import random
+        rng = random.Random(seed)
+        occupied_set = set(occupied_grids)
+        ghost_positions = []
+
+        for grid in range(0, region_length):
+            if grid in occupied_set:
+                continue
+            if rng.random() < density:
+                ghost_positions.append(grid)
+
+        return ghost_positions
+
+    def test_ghosts_avoid_occupied(self):
+        occupied = [0, 4, 8, 12]  # kick on every beat
+        ghosts = self._generate_ghost_positions(occupied, 16, 0.5, seed=42)
+        for g in ghosts:
+            assert g not in occupied, f"Ghost at {g} overlaps with occupied position"
+
+    def test_density_affects_count(self):
+        occupied = [0, 4, 8, 12]
+        sparse = self._generate_ghost_positions(occupied, 16, 0.1, seed=42)
+        dense = self._generate_ghost_positions(occupied, 16, 0.6, seed=42)
+        assert len(dense) > len(sparse)
+
+    def test_reproducible_with_same_seed(self):
+        occupied = [0, 8]
+        g1 = self._generate_ghost_positions(occupied, 16, 0.4, seed=99)
+        g2 = self._generate_ghost_positions(occupied, 16, 0.4, seed=99)
+        assert g1 == g2
+
+    def test_different_seed_different_result(self):
+        occupied = [0, 8]
+        g1 = self._generate_ghost_positions(occupied, 16, 0.4, seed=42)
+        g2 = self._generate_ghost_positions(occupied, 16, 0.4, seed=77)
+        assert g1 != g2
+
+    def test_empty_pattern_gets_ghosts(self):
+        ghosts = self._generate_ghost_positions([], 16, 0.5, seed=42)
+        assert len(ghosts) > 0, "Empty pattern should get ghost notes"
+
+    def test_fully_occupied_no_ghosts(self):
+        occupied = list(range(16))  # every 16th has a note
+        ghosts = self._generate_ghost_positions(occupied, 16, 0.5, seed=42)
+        assert len(ghosts) == 0, "Fully occupied pattern should get 0 ghosts"
