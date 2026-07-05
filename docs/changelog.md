@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.102.0 (2026-07-05)
+
+- **`werkstatt_multiband_saturator.js` DSP script (83 DSP, 65 Werkstatt)** — multiband saturator: LR4 Linkwitz-Riley crossover splits into 3 bands, each with independent drive and saturation character (tape=tanh warm, tube=asymmetric soft clip even harmonics, transistor=hard cubic odd harmonics). Per-band drive 1..10x gain into saturation curve. Band summation + dry/wet mix. FabFilter Saturn / iZotope Trash style. 10 params (crossover1/crossover2/low_drive/mid_drive/high_drive/low_char/mid_char/high_char/output/mix). 83 DSP scripts, 65 Werkstatt
+- **986 unit tests** (+15), E2E 8/8
+
 ## v1.101.0 (2026-07-05)
 
 - **`werkstatt_modal_resonator.js` DSP script (82 DSP, 64 Werkstatt)** — modal synthesis resonator bank: parallel bandpass biquad filters tuned to modal frequency ratios of real materials (marimba bar, bell, circular plate, string, wine glass). 5 material presets with published frequency ratios. Inharmonicity parameter stretches upper modes quadratically (B coefficient). Per-mode Q derived from T60 decay time. Brightness controls high-mode amplitude rolloff. Stereo processing with independent biquad state per channel. 7 params (material/fundamental/decay/brightness/inharmonicity/mix/output). 82 DSP scripts, 64 Werkstatt

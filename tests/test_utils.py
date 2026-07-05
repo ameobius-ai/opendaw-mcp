@@ -4503,3 +4503,100 @@ class TestModalResonatorDSP:
     def test_freq_guard(self):
         code = self._read_script()
         assert "sr * 0.45" in code, "Missing Nyquist frequency guard"
+
+
+class TestMultibandSaturatorDSP:
+    """Unit tests for werkstatt_multiband_saturator.js — multiband saturation"""
+
+    SCRIPT = "werkstatt_multiband_saturator.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt multiband_saturator" in code, "Missing header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_crossover_params(self):
+        params = self._parse_params(self._read_script())
+        c1 = [p for p in params if p["name"] == "crossover1"][0]
+        c2 = [p for p in params if p["name"] == "crossover2"][0]
+        assert c1["type"] == "exp" and c2["type"] == "exp"
+        assert c1["default"] == 200 and c2["default"] == 2500
+
+    def test_per_band_drive(self):
+        params = self._parse_params(self._read_script())
+        for name in ["low_drive", "mid_drive", "high_drive"]:
+            d = [p for p in params if p["name"] == name][0]
+            assert d["min"] == 0 and d["max"] == 1 and d["type"] == "linear"
+
+    def test_per_band_character(self):
+        params = self._parse_params(self._read_script())
+        for name in ["low_char", "mid_char", "high_char"]:
+            c = [p for p in params if p["name"] == name][0]
+            assert c["min"] == 0 and c["max"] == 2 and c["type"] == "int"
+
+    def test_lr4_crossover(self):
+        code = self._read_script()
+        assert "_lp4" in code, "Missing 4-pole cascade for LR4"
+        assert "z1" in code and "z2" in code and "z3" in code and "z4" in code, "Missing 4 stages of state"
+        assert "crossover" in code, "Missing crossover reference"
+
+    def test_three_band_split(self):
+        code = self._read_script()
+        assert "lowL" in code and "midL" in code and "highL" in code, "Missing 3-band split"
+        assert "sL - lowL" in code, "Missing highpass via subtraction"
+        assert "hpL1 - midL" in code, "Missing high band extraction"
+
+    def test_saturation_characters(self):
+        code = self._read_script()
+        assert "tape" in code, "Missing tape character"
+        assert "tube" in code, "Missing tube character"
+        assert "transistor" in code, "Missing transistor character"
+        assert "tanh" in code, "Missing tanh saturation"
+
+    def test_tube_asymmetric(self):
+        code = self._read_script()
+        assert "asymmetric" in code, "Missing asymmetric tube clip"
+        assert "1 + x * 2" in code, "Missing positive half expansion"
+        assert "1 - x * 1.5" in code, "Missing negative half expansion"
+
+    def test_drive_scaling(self):
+        code = self._read_script()
+        assert "1 + drive * 9" in code, "Missing drive scaling (1..10x)"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "dry" in code and "wet" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "Math.pow(10" in code, "Missing dB-to-linear output gain"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_stereo(self):
+        code = self._read_script()
+        assert "satLowL" in code and "satLowR" in code, "Missing stereo saturation"
+        assert "satHighL" in code and "satHighR" in code, "Missing stereo high band"
+
+    def test_band_summation(self):
+        code = self._read_script()
+        assert "satLowL + satMidL + satHighL" in code, "Missing band summation"
