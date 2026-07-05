@@ -13405,3 +13405,166 @@ class TestDisplaceRhythm:
                 return
         assert False, "function not found"
 
+
+class TestThinNotes:
+    """Tests for thin_notes — note density reduction"""
+
+    def test_tool_signature_exists(self):
+        """thin_notes is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_thin_notes" in tool_names
+
+    def test_has_strategy_param(self):
+        """Has strategy param with 3 options"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "strategy" in arg_names
+                source = ast.unparse(node)
+                assert "interval" in source
+                assert "velocity_threshold" in source
+                assert "random" in source
+                return
+        assert False, "function not found"
+
+    def test_has_interval_param(self):
+        """Has interval param for 'interval' strategy"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "interval" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_velocity_threshold_param(self):
+        """Has velocity_threshold param for 'velocity_threshold' strategy"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "velocity_threshold" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_random_chance_param(self):
+        """Has random_chance param for 'random' strategy"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "random_chance" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_preserve_strong_beats(self):
+        """Has preserve_strong_beats param"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "preserve_strong_beats" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_validates_strategy(self):
+        """Validates strategy against allowed set"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                source = ast.unparse(node)
+                assert "valid_strategies" in source
+                assert "Error" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_interval_range(self):
+        """Validates interval is 2-16"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                source = ast.unparse(node)
+                assert "2 <= interval" in source or "interval <= 16" in source
+                return
+        assert False, "function not found"
+
+    def test_default_strategy_is_interval(self):
+        """Default strategy is 'interval' (most predictable)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "strategy" and isinstance(d, ast.Constant):
+                        assert d.value == "interval"
+                        return
+        assert False, "default not found"
+
+    def test_default_interval_is_2(self):
+        """Default interval is 2 (halve note density)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "interval" and isinstance(d, ast.Constant):
+                        assert d.value == 2
+                        return
+        assert False, "default not found"
+
+    def test_reports_original_removed_remaining(self):
+        """Reports original_count, removed, remaining per track"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                source = ast.unparse(node)
+                assert "original_count" in source
+                assert "removed" in source
+                assert "remaining" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_bridge_evaluate(self):
+        """Uses bridge.evaluate for DAW interaction"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                source = ast.unparse(node)
+                assert "bridge.evaluate" in source
+                return
+        assert False, "function not found"
+
+    def test_preserve_strong_beats_logic(self):
+        """Preserve strong beats uses beat 1 and 3 (PPQN 0 and 1920)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_thin_notes":
+                source = ast.unparse(node)
+                assert "strongBeats" in source
+                assert "2 * Quarter" in source  # beat 3 = 2*960 = 1920
+                return
+        assert False, "function not found"
+

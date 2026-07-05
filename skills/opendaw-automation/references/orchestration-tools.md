@@ -150,6 +150,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 137. `create_voice_led_progression` — chord pads with smooth voice leading: re-voices each chord for minimal voice movement, common tones stationary, reports per-chord movement stats, voice_range constrains spread
 138. `reharmonize_progression` — chord substitution / reharmonization: 5 techniques (tritone_sub, secondary_dominant, diatonic_sub, modal_interchange, passing_dim), intensity control, target_chord for selective substitution, returns reharmonized progression + explanations
 139. `displace_rhythm` — rhythmic displacement: shift notes by fixed offset (laid-back/pushed), two modes: shift (add offset, auto-extends region) and circular (rotate pattern within region — new patterns from same material), default 1/16 note, range -4 to 4 beats
+140. `thin_notes` — note density reduction: 3 strategies (interval=keep every Nth, velocity_threshold=remove ghost notes, random=probabilistic removal), preserve_strong_beats keeps beat 1 and 3
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

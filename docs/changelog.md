@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.228.0 (2026-07-05)
+
+### Added
+- `thin_notes` — Note density reduction: selectively removes notes to clean up cluttered MIDI. 3 strategies: "interval" (keep every Nth note sorted by position, 2=halve, 3=third), "velocity_threshold" (remove notes below velocity threshold — ghost note cleanup after AI transcription), "random" (probabilistic removal for organic variation). preserve_strong_beats option keeps notes on beat 1 and 3 regardless of strategy. Reports original_count, removed, remaining per track. 13 unit tests. **403 MCP tools**, 2891 unit tests
+
 ## v1.227.0 (2026-07-05)
 
 ### Added

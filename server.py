@@ -18264,6 +18264,186 @@ async def mcp_opendaw_displace_rhythm(
 
 
 @mcp.tool()
+async def mcp_opendaw_thin_notes(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    strategy: str = "interval",
+    interval: int = 2,
+    velocity_threshold: float = 0.3,
+    random_chance: float = 0.3,
+    preserve_strong_beats: bool = True,
+) -> str:
+    """Thin out notes in a region — reduce note density for cleaner patterns.
+
+    After AI generation, transcription, or dense arrangement, MIDI can be
+    cluttered with too many notes. This tool selectively removes notes to
+    clean up the pattern while preserving musical intent.
+
+    Three strategies:
+    - "interval" — keep every Nth note (sorted by position). interval=2 keeps
+      every 2nd note, interval=3 keeps every 3rd. Creates space.
+    - "velocity_threshold" — remove notes below a velocity threshold.
+      Cleans up ghost notes from transcription or AI generation.
+    - "random" — probabilistic removal. random_chance=0.3 means 30% of notes
+      are removed at random. Creates organic variation.
+
+    preserve_strong_beats: When True, notes on strong beats (beat 1 and 3
+      in 4/4) are never removed, regardless of strategy. This maintains the
+      rhythmic foundation while thinning fills and embellishments.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    region_index: Region index (-1 = all regions on the track).
+    strategy: "interval", "velocity_threshold", or "random".
+    interval: For "interval" strategy — keep every Nth note (2=halve, 3=third).
+      Must be 2-16.
+    velocity_threshold: For "velocity_threshold" strategy — remove notes with
+      velocity below this value (0.0-1.0, default 0.3).
+    random_chance: For "random" strategy — probability of removing each note
+      (0.0-1.0, default 0.3 = 30% removed).
+    preserve_strong_beats: Keep notes on beat 1 and 3 (0 and 1920 PPQN in 4/4).
+
+    Returns per-track original count, removed count, remaining count.
+
+    Example:
+      # Halve note density — keep every 2nd note
+      thin_notes(unit_index=0, track_index=0, strategy="interval", interval=2)
+
+      # Remove ghost notes below velocity 0.25
+      thin_notes(unit_index=0, track_index=0, strategy="velocity_threshold",
+                 velocity_threshold=0.25)
+
+      # Random 40% thinning for organic variation
+      thin_notes(unit_index=0, track_index=0, strategy="random",
+                 random_chance=0.4)
+    """
+    valid_strategies = ("interval", "velocity_threshold", "random")
+    if strategy not in valid_strategies:
+        return f"Error: strategy must be one of {list(valid_strategies)}, got '{strategy}'"
+    if strategy == "interval" and not (2 <= interval <= 16):
+        return "Error: interval must be 2-16 for 'interval' strategy"
+    if strategy == "velocity_threshold" and not (0.0 <= velocity_threshold <= 1.0):
+        return "Error: velocity_threshold must be 0.0-1.0"
+    if strategy == "random" and not (0.0 < random_chance < 1.0):
+        return "Error: random_chance must be 0.0-1.0 (exclusive)"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const strategy = "{strategy}";
+        const intervalN = {interval};
+        const velThresh = {velocity_threshold};
+        const randChance = {random_chance};
+        const preserveStrong = {str(preserve_strong_beats).lower()};
+        const Quarter = 960;
+        const strongBeats = [0, 2 * Quarter]; // beat 1 and 3
+
+        const allUnits = h.allAUBoxes();
+        const trackResults = [];
+
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+                    if (noteEvents.length === 0) continue;
+
+                    const regionStart = region.position ? region.position.getValue() : 0;
+                    const originalCount = noteEvents.length;
+
+                    // Sort by position for interval strategy
+                    const sorted = noteEvents.slice().sort((a, b) => {{
+                        return a.box.position.getValue() - b.box.position.getValue();
+                    }});
+
+                    // Determine which notes to remove
+                    const toRemove = new Set();
+
+                    if (strategy === "interval") {{
+                        for (let i = 0; i < sorted.length; i++) {{
+                            if (i % intervalN !== 0) {{
+                                const pos = sorted[i].box.position.getValue() - regionStart;
+                                if (!preserveStrong || !strongBeats.some(sb => Math.abs(pos % (4 * Quarter) - sb) < 10)) {{
+                                    toRemove.add(sorted[i]);
+                                }}
+                            }}
+                        }}
+                    }} else if (strategy === "velocity_threshold") {{
+                        for (const n of noteEvents) {{
+                            const vel = n.box.velocity.getValue();
+                            const pos = n.box.position.getValue() - regionStart;
+                            if (vel < velThresh) {{
+                                if (!preserveStrong || !strongBeats.some(sb => Math.abs(pos % (4 * Quarter) - sb) < 10)) {{
+                                    toRemove.add(n);
+                                }}
+                            }}
+                        }}
+                    }} else if (strategy === "random") {{
+                        for (const n of noteEvents) {{
+                            const pos = n.box.position.getValue() - regionStart;
+                            if (Math.random() < randChance) {{
+                                if (!preserveStrong || !strongBeats.some(sb => Math.abs(pos % (4 * Quarter) - sb) < 10)) {{
+                                    toRemove.add(n);
+                                }}
+                            }}
+                        }}
+                    }}
+
+                    // Execute removals
+                    let removedCount = 0;
+                    h.modify(() => {{
+                        for (const n of toRemove) {{
+                            const pos = n.box.position.getValue();
+                            // Detach from collection
+                            if (n.box.events && n.box.events.targetVertex) {{
+                                n.box.events.targetVertex.detach();
+                            }}
+                            removedCount++;
+                        }}
+                    }});
+
+                    trackResults.push({{
+                        unit: u,
+                        track: t,
+                        original_count: originalCount,
+                        removed: removedCount,
+                        remaining: originalCount - removedCount,
+                        strategy: strategy,
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            strategy: strategy,
+            tracks_processed: trackResults.length,
+            per_track: trackResults,
+            total_removed: trackResults.reduce((s, r) => s + r.removed, 0),
+            total_remaining: trackResults.reduce((s, r) => s + r.remaining, 0),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_force_scale_notes(
     unit_index: int = -1,
     track_index: int = -1,
