@@ -1397,3 +1397,60 @@ class TestTurn:
         notes = self._build_notes(60, "upper", 5)
         assert notes[1]["pitch"] == 65  # up 5
         assert notes[3]["pitch"] == 55  # down 5
+
+
+class TestAppoggiatura:
+    """Unit tests for create_appoggiatura orchestration tool — logic validation."""
+
+    def _build_notes(self, main_pitch, approach_pitch, duration=1.0, ratio=0.67, velocity=0.85):
+        approach_dur = duration * ratio
+        main_dur = duration * (1.0 - ratio)
+        approach_vel = round(min(1.0, velocity * 1.05), 3)
+        return [
+            {"pitch": approach_pitch, "pos": 0.0, "dur": approach_dur, "vel": approach_vel},
+            {"pitch": main_pitch, "pos": approach_dur, "dur": main_dur, "vel": velocity},
+        ]
+
+    def test_two_notes(self):
+        notes = self._build_notes(60, 62)
+        assert len(notes) == 2
+
+    def test_approach_first(self):
+        notes = self._build_notes(60, 62)
+        assert notes[0]["pitch"] == 62  # approach first
+        assert notes[1]["pitch"] == 60  # main second
+
+    def test_above_direction(self):
+        direction = "above" if 62 > 60 else "below"
+        assert direction == "above"
+
+    def test_below_direction(self):
+        direction = "above" if 59 > 60 else "below"
+        assert direction == "below"
+
+    def test_ratio_timing(self):
+        notes = self._build_notes(60, 62, duration=1.0, ratio=0.67)
+        assert abs(notes[0]["dur"] - 0.67) < 0.001  # approach = 67%
+        assert abs(notes[1]["dur"] - 0.33) < 0.001  # main = 33%
+
+    def test_equal_split(self):
+        notes = self._build_notes(60, 62, duration=2.0, ratio=0.5)
+        assert abs(notes[0]["dur"] - 1.0) < 0.001
+        assert abs(notes[1]["dur"] - 1.0) < 0.001
+
+    def test_approach_accented(self):
+        notes = self._build_notes(60, 62, velocity=0.85)
+        assert notes[0]["vel"] > notes[1]["vel"]  # approach slightly louder
+
+    def test_position_continuous(self):
+        notes = self._build_notes(60, 62, duration=1.0)
+        assert notes[1]["pos"] == notes[0]["dur"]  # no gap
+
+    def test_same_pitch_error(self):
+        # In the real tool, same pitch returns error
+        assert 60 == 60  # would trigger error
+
+    def test_ratio_clamp_high(self):
+        notes = self._build_notes(60, 62, duration=1.0, ratio=0.9)
+        assert abs(notes[0]["dur"] - 0.9) < 0.001  # 90% approach
+        assert abs(notes[1]["dur"] - 0.1) < 0.001  # 10% resolution

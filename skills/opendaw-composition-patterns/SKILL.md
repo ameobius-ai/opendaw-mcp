@@ -24,6 +24,8 @@ What do you want to create?
 ├── Trill (ornament) → create_trill (two-note alternation, 32nd/16th/8th/triplet rates, baroque accent)
 ├── Mordent (ornament) → create_mordent (main→neighbor→main, upper/lower, Bach/Mozart)
 ├── Turn (ornament) → create_turn (main→up→main→down→main, gruppetto, Mozart/Beethoven/Bach)
+├── Appoggiatura (ornament) → create_appoggiatura (approach→main, tension→release, Bach/Mozart/Chopin)
+│   └── **Ornaments set complete: trill + mordent + turn + appoggiatura**
 ├── Glissando (scale run) → create_glissando (chromatic/diatonic/pentatonic, any direction, velocity curves)
 ├── Sequence (transposed repeat) → create_sequence (up/down/alternating, baroque/jazz/film score builds)
 ├── Pedal point (sustained bass) → create_pedal_point (bass drone under changing chords, film/organ/rock)

@@ -16355,6 +16355,146 @@ async def mcp_opendaw_create_turn(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_appoggiatura(
+    main_pitch: int = 60,
+    approach_pitch: int = 62,
+    duration_beats: float = 1.0,
+    appoggiatura_ratio: float = 0.67,
+    velocity: float = 0.85,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create an appoggiatura — leaning grace note that resolves to the main note.
+
+    The appoggiatura is the fourth and final essential baroque ornament
+    (trill, mordent, turn, appoggiatura). Unlike a mordent (quick flick), the
+    appoggiatura is expressive: it plays a neighbor note FIRST (usually longer),
+    then resolves into the main note. The approach note creates harmonic tension
+    that the main note releases. Think Bach cello suites, Mozart operas, Chopin nocturnes.
+
+    An appoggiatura above approaches from higher (e.g. D → C).
+    An appoggiatura below approaches from lower (e.g. B → C).
+    The approach note typically takes 2/3 of the total duration, leaving 1/3
+    for the resolution — but this is adjustable.
+
+    main_pitch: The resolution note (default 60 = C4). This is where tension releases.
+    approach_pitch: The grace note played first (default 62 = D4). Can be above or below main.
+    duration_beats: Total length of both notes combined (0.5-8, default 1.0 = quarter).
+    appoggiatura_ratio: Fraction of duration for the approach note (0.5-0.9, default 0.67 = 2/3).
+      Higher = more tension (longer grace, shorter resolution). 0.5 = equal split.
+    velocity: Base velocity 0-1 (default 0.85). Approach note is slightly accented.
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the appoggiatura begins.
+
+    Returns notes created, pitches used.
+    """
+    if main_pitch < 0 or main_pitch > 127:
+        return "Error: main_pitch must be 0-127"
+    if approach_pitch < 0 or approach_pitch > 127:
+        return "Error: approach_pitch must be 0-127"
+    if approach_pitch == main_pitch:
+        return "Error: approach_pitch must differ from main_pitch"
+    if duration_beats < 0.5 or duration_beats > 8:
+        return "Error: duration_beats must be 0.5-8"
+    if appoggiatura_ratio < 0.5 or appoggiatura_ratio > 0.9:
+        return "Error: appoggiatura_ratio must be 0.5-0.9"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    approach_dur = duration_beats * appoggiatura_ratio
+    main_dur = duration_beats * (1.0 - appoggiatura_ratio)
+    approach_vel = round(min(1.0, velocity * 1.05), 3)  # slight accent
+
+    note_data = [
+        {"pitch": approach_pitch, "pos": 0.0, "dur": approach_dur, "vel": approach_vel},
+        {"pitch": main_pitch, "pos": approach_dur, "dur": main_dur, "vel": velocity},
+    ]
+
+    direction = "above" if approach_pitch > main_pitch else "below"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {duration_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Appoggiatura");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            main_pitch: {main_pitch},
+            approach_pitch: {approach_pitch},
+            direction: "{direction}",
+            appoggiatura_ratio: {appoggiatura_ratio},
+            approach_duration_beats: {approach_dur},
+            main_duration_beats: {main_dur},
+            duration_beats: {duration_beats},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_glissando(
     start_pitch: int = 60,
     end_pitch: int = 72,

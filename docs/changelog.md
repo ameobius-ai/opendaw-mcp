@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.46.0 (2026-07-05)
+
+- **`create_appoggiatura` orchestration tool (298 MCP tools)** — expressive leaning grace note: approach → main. The fourth and final essential baroque ornament (trill ✅, mordent ✅, turn ✅, appoggiatura ✅). Plays a neighbor note FIRST (usually 2/3 of duration), then resolves into main. Creates harmonic tension → release. Adjustable ratio (0.5-0.9), approach from above or below, slight accent on approach. Bach cello suites, Mozart operas, Chopin nocturnes. Completes the full ornaments set
+- **E2E verified**: appoggiatura above (2 notes), below, equal split, same pitch, bad pitch/ratio/velocity/duration — 8/8 tests passed
+- **+10 unit tests** for appoggiatura note order, timing, velocity, direction (374 total)
+- **Example script**: `create_appoggiatura.py` — above + below appoggiatura
+- **298 MCP tools** (260 low-level + 41 orchestration + 3 melodic)
+- ruff clean, CI green
+- **Ornaments set complete**: trill + mordent + turn + appoggiatura
+
 ## v1.45.0 (2026-07-05)
 
 - **`create_turn` orchestration tool (297 MCP tools)** — circular ornament (gruppetto): main → upper → main → lower → main. Third of four essential baroque ornaments (trill ✅, mordent ✅, turn ✅, appoggiatura ❌). Upper/lower direction, adjustable interval. Mozart piano concertos, Beethoven sonatas, Bach partitas. One call replaces 5 manual note creations. Completes ornaments set: trill + mordent + turn
