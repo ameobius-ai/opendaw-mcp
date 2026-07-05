@@ -509,9 +509,9 @@ process(io, block) {
 }
 ```
 
-## Example Scripts (84 in library)
+## Example Scripts (85 in library)
 
-### Werkstatt (66 audio effects)
+### Werkstatt (67 audio effects)
 
 | Script | Pattern | Key technique |
 |--------|---------|---------------|
@@ -530,6 +530,7 @@ process(io, block) {
 | `werkstatt_modal_resonator.js` | Modal resonator | parallel bandpass biquads at modal frequency ratios, 5 materials, inharmonicity stretch |
 | `werkstatt_multiband_saturator.js` | Multiband saturator | LR4 crossover 3-band + per-band drive + 3 saturation characters (tape/tube/transistor) |
 | `werkstatt_vinyl.js` | Vinyl simulator | crackle/pops via LCG envelopes + surface noise + wow/flutter pitch wobble + wear HF rolloff |
+| `werkstatt_grain_delay.js` | Grain delay | Hann-windowed grains from delay buffer + pitch shift + scatter + reverse + pan + feedback |
 | `werkstatt_gated_reverb.js` | Gated reverb | Schroeder plate + envelope-followed gate on dry input → hard tail cutoff, 80s drum sound |
 | `werkstatt_reverse_delay.js` | Reverse delay | reads delay buffer backwards + fade ramps at boundaries + damped feedback for cascading reverse repeats |
 | `werkstatt_freq_shifter.js` | Frequency shifter (SSB) | Hilbert transform allpass pair + complex carrier oscillator → shifts all frequencies by fixed Hz, breaks harmonic ratios |

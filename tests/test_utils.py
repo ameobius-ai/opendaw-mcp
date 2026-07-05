@@ -4695,3 +4695,98 @@ class TestVinylDSP:
     def test_stereo_processing(self):
         code = self._read_script()
         assert "wetL" in code and "wetR" in code, "Missing stereo processing"
+
+
+class TestGrainDelayDSP:
+    """Unit tests for werkstatt_grain_delay.js — granular delay"""
+
+    SCRIPT = "werkstatt_grain_delay.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt grain_delay" in code, "Missing @werkstatt grain_delay header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_delay_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "delay"][0]
+        assert d["type"] == "exp" and d["default"] == 150
+
+    def test_grain_params(self):
+        params = self._parse_params(self._read_script())
+        gs = [p for p in params if p["name"] == "grain_size"][0]
+        gr = [p for p in params if p["name"] == "grain_rate"][0]
+        assert gs["type"] == "exp" and gr["type"] == "exp"
+
+    def test_pitch_param(self):
+        params = self._parse_params(self._read_script())
+        p = [p for p in params if p["name"] == "pitch"][0]
+        assert p["default"] == 1 and p["type"] == "exp"
+        assert p["min"] == 0.25 and p["max"] == 4
+
+    def test_scatter_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "scatter"][0]
+        assert s["min"] == 0 and s["max"] == 1
+
+    def test_reverse_param(self):
+        params = self._parse_params(self._read_script())
+        r = [p for p in params if p["name"] == "reverse"][0]
+        assert r["min"] == 0 and r["max"] == 1
+
+    def test_feedback_param(self):
+        params = self._parse_params(self._read_script())
+        f = [p for p in params if p["name"] == "feedback"][0]
+        assert f["max"] == 0.9  # capped below 1 for stability
+
+    def test_grain_spawn(self):
+        code = self._read_script()
+        assert "_spawnGrain" in code, "Missing grain spawn method"
+        assert "_grains.push" in code, "Missing grain push to array"
+        assert "grainInterval" in code, "Missing grain interval calculation"
+
+    def test_hann_window(self):
+        code = self._read_script()
+        assert "_hann" in code, "Missing Hann window function"
+        assert "Math.cos(2 * Math.PI" in code, "Missing cosine in Hann window"
+
+    def test_grain_read(self):
+        code = self._read_script()
+        assert "readPos" in code, "Missing grain read position"
+        assert "grainLen" in code, "Missing grain length"
+        assert "bufReadPos" in code, "Missing buffer read position calculation"
+
+    def test_fractional_read(self):
+        code = self._read_script()
+        assert "frac" in code, "Missing fractional interpolation"
+        assert "idx2" in code, "Missing second index for interpolation"
+
+    def test_grain_cleanup(self):
+        code = self._read_script()
+        assert "splice" in code, "Missing grain removal when expired"
+        assert "readPos >= grain.grainLen" in code, "Missing grain expiry check"
+
+    def test_grain_cap(self):
+        code = self._read_script()
+        assert "slice(-80)" in code or "80" in code, "Missing grain count cap"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "dry" in code and "wet" in code, "Missing dry/wet mix"

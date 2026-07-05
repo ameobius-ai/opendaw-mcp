@@ -385,9 +385,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 312 tools**
 
-## DSP Scripts (scripts/) — 84 scripts
+## DSP Scripts (scripts/) — 85 scripts
 
-### Werkstatt (Audio Effects) — 66 scripts
+### Werkstatt (Audio Effects) — 67 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -451,6 +451,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_modal_resonator.js` — Modal synthesis resonator bank (5 materials: marimba/bell/plate/string/glass, parallel bandpass biquads at modal frequency ratios, inharmonicity stretch, T60-based Q, brightness rolloff, stereo)
 - `werkstatt_multiband_saturator.js` — Multiband saturator (LR4 crossover 3-band, per-band drive + character: tape/tube/transistor, asymmetric tube clip, band summation, dry/wet)
 - `werkstatt_vinyl.js` — Vinyl simulator (crackle/pops via LCG-triggered envelopes, surface noise, wow/flutter pitch wobble via fractional delay, wear high-freq rolloff)
+- `werkstatt_grain_delay.js` — Grain delay (Hann-windowed grains read from delay buffer with pitch shift, scatter, reverse, pan, feedback)
 
 ### Apparat (Instruments) — 8 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

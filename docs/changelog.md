@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.105.0 (2026-07-05)
+
+- **`werkstatt_grain_delay.js` DSP script (85 DSP, 67 Werkstatt)** — grain delay: Hann-windowed grains read from delay buffer with independent pitch shift (0.25x-4x), scatter (randomized read position jitter), reverse playback probability, equal-power pan, damped feedback. Grain rate controls spawn density, grain size controls window length. Grain cap at 80 for stability. Output Portal / GRM Tools / Sugar Bytes Effectrix style. 10 params (delay/grain_size/grain_rate/pitch/scatter/pan/reverse/feedback/mix/output). 85 DSP scripts, 67 Werkstatt
+- **1028 unit tests** (+15), E2E 8/8
+
 ## v1.104.0 (2026-07-05)
 
 - **`werkstatt_vinyl.js` DSP script (84 DSP, 66 Werkstatt)** — vinyl record simulator: crackle/pops via LCG-triggered exponential envelopes with randomized intervals, continuous surface noise, wow/flutter pitch wobble via fractional delay buffer (0.8Hz wow + 6.5Hz flutter), wear high-frequency rolloff via one-pole LP. 8 params (age/dust/wear/wow/flutter/noise/mix/output). Lo-fi hip-hop, ambient texture, vintage aesthetic. 84 DSP scripts, 66 Werkstatt
