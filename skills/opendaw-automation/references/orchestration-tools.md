@@ -6,11 +6,11 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.23.3, 283 total)
+## Tools Added (v1.10.0, 255 total → v1.32.0, 284 total)
 
-26 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+27 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
-### Full orchestration tool list (v1.23.3)
+### Full orchestration tool list (v1.32.0)
 1. `create_notes_batch` — batch note creation from JSON
 2. `create_drum_pattern` — step-sequencer drum notation
 3. `create_chord_progression` — scale-aware chord sequences
@@ -37,6 +37,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 24. `create_ghost_notes` — quiet grace notes for groove
 25. `apply_velocity_curve` — deterministic velocity envelope (ramp/arc/trough/power)
 26. `apply_articulation` — staccato/legato/tenuto/accent
+27. `create_riser` — ascending pitch sweep for build-up transitions (linear/exp/log curves)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
@@ -120,7 +121,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## CI Threshold
 
-CI assertion updated: `assert count >= 283` (was 258, 260, 263, etc.). AST count verified via `python3 -c "import ast; ..."`. The AST counts ALL async functions including non-tool helpers (`start`, `stop`, `evaluate`), so the threshold should be set to the exact `mcp_opendaw_` prefix count. Use the prefix filter for accurate count: `[n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]`.
+CI assertion updated: `assert count >= 284` (was 258, 260, 263, 283, etc.). AST count verified via `python3 -c "import ast; ..."`. The AST counts ALL async functions including non-tool helpers (`start`, `stop`, `evaluate`), so the threshold should be set to the exact `mcp_opendaw_` prefix count. Use the prefix filter for accurate count: `[n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]`.
 
 ## Runtime Pitfalls (discovered during end-to-end testing)
 

@@ -16,6 +16,7 @@ What do you want to create?
 │
 ├── Drum pattern → create_drum_pattern (step-sequencer notation, x/o/.)
 ├── Drum fill/transition → create_drum_fill (build/break/roll/crash/tom)
+├── Riser (build-up sweep) → create_riser (ascending pitch, exp/linear/log curves)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │
@@ -80,8 +81,9 @@ What do you want to create?
 ### Drum & bass (BPM 170-180)
 1. `create_genre_track("dnb")` → base track
 2. `create_drum_fill(fill_type="roll", bars=2, density="dense")` → build-up
-3. `create_polyrhythm(3, 4, bars=2)` → cross-rhythm layer
-4. `add_mastering_chain("loud")` → loud
+3. `create_riser(start_pitch=36, end_pitch=84, steps=32, curve="exp", length_beats=4)` → ascending pitch sweep before drop
+4. `create_polyrhythm(3, 4, bars=2)` → cross-rhythm layer
+5. `add_mastering_chain("loud")` → loud
 
 ### Ambient (BPM 60-80)
 1. `create_genre_track("ambient")` → base track
