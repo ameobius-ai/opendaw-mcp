@@ -14236,6 +14236,137 @@ async def mcp_opendaw_create_drum_fill(unit_index: int = -1, fill_type: str = "b
 
 
 @mcp.tool()
+async def mcp_opendaw_create_riser(unit_index: int = -1, track_index: int = 0, start_beat: float = 0, length_beats: float = 4, start_pitch: int = 36, end_pitch: int = 84, steps: int = 32, curve: str = "exp", velocity: float = 0.7) -> str:
+    """Create a riser — ascending pitch sweep for build-up transitions.
+
+    Generates a sequence of notes with ascending pitch from start_pitch to end_pitch
+    over the specified length. Velocity ramps up proportionally. Useful for:
+    - Build-ups before a drop/chorus
+    - Transition between sections
+    - Tension creation
+
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the riser begins.
+    length_beats: Duration of the riser in beats (1-16).
+    start_pitch: Starting MIDI pitch (default 36 = C2).
+    end_pitch: Ending MIDI pitch (default 84 = C6).
+    steps: Number of notes in the sweep (8-128, default 32 = sixteenths over 4 beats).
+    curve: Pitch curve — "linear" (even), "exp" (slow start, fast end), "log" (fast start, slow end).
+    velocity: Base velocity (0-1, ramped proportionally with pitch).
+
+    Returns notes created and pitch range.
+    """
+    if length_beats < 0.25 or length_beats > 16:
+        return "Error: length_beats must be 0.25-16"
+    if start_pitch < 0 or start_pitch > 127:
+        return "Error: start_pitch must be 0-127"
+    if end_pitch < 0 or end_pitch > 127:
+        return "Error: end_pitch must be 0-127"
+    if steps < 4 or steps > 128:
+        return "Error: steps must be 4-128"
+    if curve not in ("linear", "exp", "log"):
+        return "Error: curve must be linear, exp, or log"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    note_data = []
+    for i in range(steps):
+        progress = i / max(1, steps - 1)
+        if curve == "exp":
+            t = progress * progress
+        elif curve == "log":
+            t = 1 - (1 - progress) * (1 - progress)
+        else:
+            t = progress
+        pitch = round(start_pitch + (end_pitch - start_pitch) * t)
+        pos = start_beat + progress * length_beats
+        vel = velocity * (0.3 + 0.7 * progress)
+        note_data.append({"pitch": pitch, "pos": pos, "vel": vel})
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const noteData = {json.dumps(note_data)};
+        const lengthBeats = {length_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if (unitIdx >= 0 && unitIdx < allUnits.length) {{
+            targetAU = allUnits[unitIdx];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min(trackIdx, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(lengthBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+            const stepDur = Math.max(1, Math.round(regionDur / noteData.length));
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Riser");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (let i = 0; i < noteData.length; i++) {{
+                const nd = noteData[i];
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(stepDur);
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            start_pitch: {start_pitch},
+            end_pitch: {end_pitch},
+            steps: {steps},
+            curve: "{curve}",
+            length_beats: {length_beats},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ostinato(scale: str, root: str, pattern: str, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, repeats: int = 4, octave: int = 4, velocity: float = 0.7) -> str:
     """Create an ostinato — a repeating melodic/rhythmic pattern as a foundation layer.
 

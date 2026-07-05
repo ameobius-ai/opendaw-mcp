@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-283-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-284-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-41-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-272%20unit%20%2B%2014%20E2E-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-272%20unit%20%2B%2015%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -16,7 +16,7 @@
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
-**283 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**284 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.32.0 (2026-07-05)
+
+- **`create_riser` orchestration tool (284 MCP tools)** — ascending pitch sweep for build-up transitions. 3 curves (linear, exp, log). Adjustable pitch range (MIDI 0-127), step count (8-128), length (0.25-16 beats). Velocity ramps up proportionally. One call replaces 10-50 manual note creations. Essential for: build-ups before drops, section transitions, tension creation
+- **E2E verified**: 32 notes, pitch 36→84, exp curve ascending, linear curve 16 notes, error handling
+- **284 MCP tools** (254 low-level + 27 orchestration + 3 melodic)
+- ruff clean, CI green
 
 ### v1.31.0 (2026-07-05)
 

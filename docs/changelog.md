@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.32.0 (2026-07-05)
+
+- **`create_riser` orchestration tool (284 MCP tools)** — ascending pitch sweep for build-up transitions. 3 curves (linear, exp, log). Adjustable pitch range (MIDI 0-127), step count (8-128), length (0.25-16 beats). Velocity ramps up proportionally. One call replaces 10-50 manual note creations. Essential for: build-ups before drops, section transitions, tension creation
+- **E2E verified**: 32 notes, pitch 36→84, exp curve ascending, linear curve 16 notes, error handling
+- **284 MCP tools** (254 low-level + 27 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.31.0 (2026-07-05)
 
 - **`werkstatt_stereowidth.js`** — M/S stereo width processor. 5 params: width (0=mono, 0.5=neutral, 1.5=wide), lowTrim (mono bass below crossover), lowFreq (50-500Hz crossover), mix, output. M/S encode → width scaling on side → low-freq trim → M/S decode. Essential for mastering: wide highs, mono bass
