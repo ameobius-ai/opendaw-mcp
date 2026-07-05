@@ -19300,5 +19300,257 @@ async def mcp_opendaw_create_fugue(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_two_hand_piano(
+    chords: str,
+    left_hand: str = "arpeggio_up",
+    right_hand: str = "chord_tones",
+    melody_pitches: str = "",
+    bass_octave: int = 2,
+    chord_octave: int = 3,
+    melody_octave: int = 5,
+    chord_duration: float = 4,
+    arpeggio_rate: float = 0.5,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    velocity: float = 0.7,
+) -> str:
+    """Create a two-hand piano arrangement — left hand accompaniment + right hand melody.
+
+    The fundamental piano pattern: left hand plays accompaniment (Alberti bass,
+    arpeggios, block chords, or bass+chord), right hand plays melody or chord
+    tones. Unlike create_chord_progression (block chords only) or create_melody
+    (single line), this combines both hands into one coherent arrangement.
+
+    chords: JSON array of chord specs, same format as create_chord_progression.
+      Example: '[["C","maj7"],["A","min7"],["D","min7"],["G","dom7"]]'
+    left_hand: Accompaniment pattern for left hand:
+      "block" — full chord sustained for chord_duration
+      "arpeggio_up" — ascending arpeggio (root-third-fifth-octave)
+      "arpeggio_down" — descending arpeggio
+      "arpeggio_updown" — ascending then descending
+      "alberti" — classic Alberti bass (root-third-fifth-third)
+      "bass_chord" — bass note on beat 1, chord for remaining beats
+    right_hand: Right hand pattern:
+      "chord_tones" — top note of each chord as sustained melody
+      "arpeggio" — arpeggiated chord in right hand (higher octave)
+      "melody" — custom melody from melody_pitches parameter
+    melody_pitches: Comma-separated MIDI pitches for right hand melody
+      (only used when right_hand="melody"). Spans entire progression evenly.
+    bass_octave: MIDI octave for bass notes (2 = C2=36).
+    chord_octave: MIDI octave for left hand chords (3 = C3=48).
+    melody_octave: MIDI octave for right hand (5 = C5=72).
+    chord_duration: Length of each chord in beats (4 = one bar at 4/4).
+    arpeggio_rate: Duration of each arpeggio note in beats (0.5 = eighth notes).
+    unit_index: AU index with a note track.
+    track_index: Note track index within the AU.
+    start_beat: Where the arrangement starts (0 = bar 1).
+    velocity: Base velocity 0-1 (left hand slightly quieter).
+
+    Returns notes created, left/right hand voicings, and chord count.
+    """
+    import json as _json
+    try:
+        chord_list = _json.loads(chords)
+        if not isinstance(chord_list, list) or len(chord_list) == 0:
+            return "Error: chords must be a non-empty JSON array"
+    except _json.JSONDecodeError as e:
+        return f"Error parsing chords JSON: {e}"
+
+    valid_left = ("block", "arpeggio_up", "arpeggio_down", "arpeggio_updown", "alberti", "bass_chord")
+    if left_hand not in valid_left:
+        return f"Error: left_hand must be one of: {', '.join(valid_left)}"
+    valid_right = ("chord_tones", "arpeggio", "melody")
+    if right_hand not in valid_right:
+        return f"Error: right_hand must be one of: {', '.join(valid_right)}"
+    if not 0 < velocity <= 1:
+        return "Error: velocity must be 0-1"
+    if chord_duration < 1 or chord_duration > 32:
+        return "Error: chord_duration must be 1-32"
+    if arpeggio_rate < 0.0625 or arpeggio_rate > 2:
+        return "Error: arpeggio_rate must be 0.0625-2"
+    if not 0 <= bass_octave <= 7:
+        return "Error: bass_octave must be 0-7"
+    if not 0 <= chord_octave <= 7:
+        return "Error: chord_octave must be 0-7"
+    if not 0 <= melody_octave <= 7:
+        return "Error: melody_octave must be 0-7"
+
+    melody_notes = []
+    if melody_pitches and right_hand == "melody":
+        try:
+            melody_notes = [int(p.strip()) for p in melody_pitches.split(",")]
+        except ValueError:
+            return "Error: melody_pitches must be comma-separated integers"
+        if not all(0 <= p <= 127 for p in melody_notes):
+            return "Error: melody pitches must be 0-127"
+
+    note_list = []
+    left_voicings = []
+    right_voicings = []
+
+    for ci, chord_spec in enumerate(chord_list):
+        if len(chord_spec) < 2:
+            return f"Error: chord {ci} must have [root, type]"
+        root_name = chord_spec[0]
+        chord_type = chord_spec[1]
+        if root_name not in NOTE_TO_PITCH:
+            return f"Error: unknown root '{root_name}'"
+        if chord_type not in CHORD_INTERVALS:
+            return f"Error: unknown chord type '{chord_type}'. Valid: {list(CHORD_INTERVALS.keys())}"
+
+        root_pc = NOTE_TO_PITCH[root_name]
+        intervals = CHORD_INTERVALS[chord_type]
+        chord_start = start_beat + ci * chord_duration
+        bass_pitch = (bass_octave + 1) * 12 + root_pc
+        lh_chord = [(chord_octave + 1) * 12 + root_pc + iv for iv in intervals]
+
+        # --- Left hand ---
+        if left_hand == "block":
+            for p in lh_chord:
+                note_list.append({"pitch": p, "start": chord_start, "duration": chord_duration, "velocity": velocity * 0.9, "hand": "L"})
+            left_voicings.append({"chord": ci, "pattern": "block", "pitches": lh_chord})
+
+        elif left_hand == "bass_chord":
+            note_list.append({"pitch": bass_pitch, "start": chord_start, "duration": 1.0, "velocity": velocity, "hand": "L"})
+            for p in lh_chord:
+                note_list.append({"pitch": p, "start": chord_start + 1, "duration": chord_duration - 1, "velocity": velocity * 0.8, "hand": "L"})
+            left_voicings.append({"chord": ci, "pattern": "bass_chord", "pitches": [bass_pitch] + lh_chord})
+
+        else:
+            # Arpeggio patterns: build tone sequence
+            arpeggio_tones = [bass_pitch] + lh_chord + [lh_chord[0] + 12]
+            seen = set()
+            arpeggio_tones = [p for p in arpeggio_tones if not (p in seen or seen.add(p))]
+
+            steps_per_chord = int(chord_duration / arpeggio_rate)
+            pos = chord_start
+
+            for s in range(steps_per_chord):
+                if left_hand == "arpeggio_up":
+                    idx = s % len(arpeggio_tones)
+                elif left_hand == "arpeggio_down":
+                    idx = len(arpeggio_tones) - 1 - (s % len(arpeggio_tones))
+                elif left_hand == "arpeggio_updown":
+                    cycle_len = max(2, 2 * len(arpeggio_tones) - 2)
+                    idx_in = s % cycle_len
+                    idx = idx_in if idx_in < len(arpeggio_tones) else cycle_len - idx_in
+                elif left_hand == "alberti":
+                    alberti_order = [0, 1, 2, 1] if len(arpeggio_tones) >= 3 else [0, 1, 0, 1]
+                    idx = alberti_order[s % len(alberti_order)]
+                    if idx >= len(arpeggio_tones):
+                        idx = 0
+                else:
+                    idx = 0
+
+                note_list.append({"pitch": arpeggio_tones[idx], "start": pos, "duration": arpeggio_rate * 0.9, "velocity": velocity * 0.85, "hand": "L"})
+                pos += arpeggio_rate
+
+            left_voicings.append({"chord": ci, "pattern": left_hand, "pitches": arpeggio_tones})
+
+        # --- Right hand ---
+        if right_hand == "chord_tones":
+            top_note = (melody_octave + 1) * 12 + root_pc + intervals[-1]
+            note_list.append({"pitch": top_note, "start": chord_start, "duration": chord_duration, "velocity": velocity, "hand": "R"})
+            right_voicings.append({"chord": ci, "pattern": "chord_tones", "pitches": [top_note]})
+
+        elif right_hand == "arpeggio":
+            rh_tones = [(melody_octave + 1) * 12 + root_pc + iv for iv in intervals]
+            steps_per_chord = int(chord_duration / arpeggio_rate)
+            pos = chord_start
+            for s in range(steps_per_chord):
+                note_list.append({"pitch": rh_tones[s % len(rh_tones)], "start": pos, "duration": arpeggio_rate * 0.9, "velocity": velocity, "hand": "R"})
+                pos += arpeggio_rate
+            right_voicings.append({"chord": ci, "pattern": "arpeggio", "pitches": rh_tones})
+
+    # Right hand melody spans entire progression (outside chord loop)
+    if right_hand == "melody" and melody_notes:
+        total_beats = len(chord_list) * chord_duration
+        mel_step = total_beats / len(melody_notes)
+        for mi, mp in enumerate(melody_notes):
+            note_list.append({"pitch": mp, "start": start_beat + mi * mel_step, "duration": mel_step * 0.9, "velocity": velocity, "hand": "R"})
+        right_voicings.append({"pattern": "melody", "pitches": melody_notes})
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const notes = {json.dumps(note_list)};
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const trackBox = noteTracks[trackIdx];
+        let createdCount = 0;
+
+        h.modify(() => {{
+            const existing = h.regionBoxes(trackBox);
+            let regionBox = null;
+            if (existing.length > 0) {{
+                regionBox = existing[0];
+            }} else {{
+                let maxEnd = 0;
+                for (const n of notes) maxEnd = Math.max(maxEnd, Math.round((n.start + n.duration) * Quarter));
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Two-Hand Piano");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            const regionStart = regionBox.position.getValue();
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of notes) {{
+                const pos = Math.max(0, Math.round(n.start * Quarter) - regionStart);
+                const dur = Math.round(n.duration * Quarter);
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(dur);
+                    box.velocity.setValue(n.velocity);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+            const maxEnd = Math.max(...notes.map(n => Math.round((n.start + n.duration) * Quarter)));
+            if (maxEnd > regionBox.duration.getValue()) {{
+                regionBox.duration.setValue(maxEnd);
+                regionBox.loopDuration.setValue(maxEnd);
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: createdCount,
+            chords: {len(chord_list)},
+            left_hand: "{left_hand}",
+            right_hand: "{right_hand}",
+            left_voicings: {json.dumps(left_voicings)},
+            right_voicings: {json.dumps(right_voicings)},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()

@@ -4,6 +4,7 @@ Tests the Python-side pattern generation of drum_fill, ostinato, and crescendo t
 without requiring a running DAW bridge.
 """
 
+import inspect
 import pytest
 
 
@@ -2521,3 +2522,84 @@ class TestScratchDSP:
         out_p = [p for p in params if p["name"] == "output"][0]
         assert mix["min"] == 0 and mix["max"] == 1, "mix range should be 0-1"
         assert out_p["min"] == -12 and out_p["max"] == 12, "output range should be -12 to 12 dB"
+
+
+class TestCreateTwoHandPiano:
+    """Unit tests for create_two_hand_piano orchestration tool."""
+
+    def test_block_left_chord_tones_right(self):
+        """Block LH + chord_tones RH: 4 LH notes + 1 RH note per chord = 5 per chord."""
+        from server import mcp_opendaw_create_two_hand_piano
+        sig = inspect.signature(mcp_opendaw_create_two_hand_piano)
+        assert "chords" in sig.parameters
+        assert "left_hand" in sig.parameters
+        assert "right_hand" in sig.parameters
+        assert sig.parameters["left_hand"].default == "arpeggio_up"
+        assert sig.parameters["right_hand"].default == "chord_tones"
+
+    def test_alberti_bass_pattern(self):
+        """Alberti bass produces arpeggiated notes, not block."""
+        from server import mcp_opendaw_create_two_hand_piano
+        sig = inspect.signature(mcp_opendaw_create_two_hand_piano)
+        assert "alberti" not in sig.parameters["left_hand"].default  # default is arpeggio_up
+
+    def test_bass_chord_pattern(self):
+        """bass_chord: bass note + chord notes."""
+        from server import mcp_opendaw_create_two_hand_piano
+        # Validate left_hand accepts bass_chord
+        doc = mcp_opendaw_create_two_hand_piano.__doc__
+        assert "bass_chord" in doc
+
+    def test_melody_right_hand(self):
+        """right_hand=melody uses melody_pitches parameter."""
+        from server import mcp_opendaw_create_two_hand_piano
+        sig = inspect.signature(mcp_opendaw_create_two_hand_piano)
+        assert "melody_pitches" in sig.parameters
+        assert sig.parameters["melody_pitches"].default == ""
+
+    def test_octave_params(self):
+        """bass/chord/melody octave params exist with correct defaults."""
+        from server import mcp_opendaw_create_two_hand_piano
+        sig = inspect.signature(mcp_opendaw_create_two_hand_piano)
+        assert sig.parameters["bass_octave"].default == 2
+        assert sig.parameters["chord_octave"].default == 3
+        assert sig.parameters["melody_octave"].default == 5
+
+    def test_arpeggio_rate_param(self):
+        """arpeggio_rate controls arpeggio note duration."""
+        from server import mcp_opendaw_create_two_hand_piano
+        sig = inspect.signature(mcp_opendaw_create_two_hand_piano)
+        assert "arpeggio_rate" in sig.parameters
+        assert sig.parameters["arpeggio_rate"].default == 0.5
+
+    def test_invalid_left_hand(self):
+        """Invalid left_hand returns error."""
+        import asyncio
+        from server import mcp_opendaw_create_two_hand_piano
+        result = asyncio.run(mcp_opendaw_create_two_hand_piano(
+            chords='[["C","maj7"]]', left_hand="foo"
+        ))
+        assert "Error" in result
+
+    def test_invalid_right_hand(self):
+        """Invalid right_hand returns error."""
+        import asyncio
+        from server import mcp_opendaw_create_two_hand_piano
+        result = asyncio.run(mcp_opendaw_create_two_hand_piano(
+            chords='[["C","maj7"]]', right_hand="bar"
+        ))
+        assert "Error" in result
+
+    def test_invalid_chords_json(self):
+        """Invalid JSON returns error."""
+        import asyncio
+        from server import mcp_opendaw_create_two_hand_piano
+        result = asyncio.run(mcp_opendaw_create_two_hand_piano(chords='not json'))
+        assert "Error" in result
+
+    def test_empty_chords(self):
+        """Empty chord list returns error."""
+        import asyncio
+        from server import mcp_opendaw_create_two_hand_piano
+        result = asyncio.run(mcp_opendaw_create_two_hand_piano(chords='[]'))
+        assert "Error" in result

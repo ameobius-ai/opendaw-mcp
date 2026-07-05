@@ -8,7 +8,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## Tools Added (v1.10.0, 255 total → v1.32.0, 284 total)
 
-48 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+49 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
 ### Full orchestration tool list (v1.70.0)
 1. `create_notes_batch` — batch note creation from JSON
@@ -59,6 +59,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 46. `create_canon` — same melody in 2-6 voices with delayed entry + transposition (Pachelbel/rounds/fugues)
 47. `create_chorale` — 4-voice SATB chorale with voice-leading rules (nearest chord tone, parallel fifth detection, S/A/T/B range clamping, Bach/vocal/strings)
 48. `create_fugue` — polyphonic fugue with subject, tonal/real answer, optional countersubject, stretto (voice alternation, 2-5 voices, Bach WTC/Art of Fugue)
+49. `create_two_hand_piano` — two-hand piano arrangement: left hand accompaniment (block/arpeggio/Alberti/bass+chord) + right hand (chord tones/arpeggio/melody). Separate octaves, adjustable arpeggio rate (piano ballads, jazz comping, lofi piano)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

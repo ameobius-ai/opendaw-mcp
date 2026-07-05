@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **305** MCP tools | **89** Python examples (8 genre templates) |
+| **306** MCP tools | **89** Python examples (8 genre templates) |
 | **58** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **615** unit + E2E tests |
+| **3** framework wrappers | **625** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.71.0 (2026-07-05)
+
+- **`create_two_hand_piano` orchestration tool** — two-hand piano arrangement generator. Left hand: 6 accompaniment patterns (block chords, arpeggio up/down/up-down, Alberti bass, bass+chord). Right hand: chord tones, arpeggiated chords, or custom melody. Separate bass/chord/melody octaves, adjustable arpeggio rate. Unlike create_chord_progression (block chords only) or create_melody (single line), this combines both hands into one coherent piano arrangement. Essential for: piano ballads, jazz comping, classical accompaniment, lofi piano, singer-songwriter patterns. 49 orchestration tools → 49
+- **306 MCP tools** (49 orchestration)
+- **625 unit tests** (+10), E2E 8/8
 
 ### v1.70.0 (2026-07-05)
 

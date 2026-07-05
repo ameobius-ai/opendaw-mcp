@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.71.0 (2026-07-05)
+
+- **`create_two_hand_piano` orchestration tool** — two-hand piano arrangement. Left hand: block/arpeggio up/down/updown/Alberti bass/bass+chord. Right hand: chord tones/arpeggio/melody. Separate bass/chord/melody octaves, adjustable arpeggio rate. Piano ballads, jazz comping, classical accompaniment, lofi piano
+- **306 MCP tools** (49 orchestration)
+- **625 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.70.0 (2026-07-05)
 
 - **`create_fugue` orchestration tool** — polyphonic fugue with subject, tonal/real answer, countersubject, stretto. Voice alternation, velocity decay. 2-5 voices, 2-32 note subject. Bach WTC/Art of Fugue style

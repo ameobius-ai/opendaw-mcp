@@ -27,7 +27,6 @@ def main():
         from server import mcp_opendaw_create_synth_track, mcp_opendaw_create_fugue
 
         async def run():
-            import asyncio
             from server import bridge as global_bridge
             bridge = global_bridge
             await bridge.start()
@@ -55,12 +54,12 @@ def main():
             # 3. Check 24 notes (3 voices × 8 subject)
             if "24" in r2s:
                 print("  ✅ test 3: 24 notes (3 × 8)"); passed += 1
-            else: print(f"  ❌ test 3: expected 24 notes"); failed += 1
+            else: print("  ❌ test 3: expected 24 notes"); failed += 1
 
             # 4. Check answer_type in output
             if "tonal" in r2s:
                 print("  ✅ test 4: tonal answer type"); passed += 1
-            else: print(f"  ❌ test 4: no tonal in output"); failed += 1
+            else: print("  ❌ test 4: no tonal in output"); failed += 1
 
             # 5. Fugue with countersubject
             r5 = await mcp_opendaw_create_fugue(
@@ -71,13 +70,13 @@ def main():
             )
             r5s = str(r5)
             if "success" in r5s.lower() or "total_notes" in r5s.lower():
-                print(f"  ✅ test 5: fugue with countersubject"); passed += 1
+                print("  ✅ test 5: fugue with countersubject"); passed += 1
             else: print(f"  ❌ test 5: {r5s[:200]}"); failed += 1
 
             # 6. Check 48 notes (3 × (8+8))
             if "48" in r5s:
                 print("  ✅ test 6: 48 notes with countersubject"); passed += 1
-            else: print(f"  ❌ test 6: expected 48 notes"); failed += 1
+            else: print("  ❌ test 6: expected 48 notes"); failed += 1
 
             # 7. Stretto mode
             r7 = await mcp_opendaw_create_fugue(
@@ -94,7 +93,7 @@ def main():
             r8 = await mcp_opendaw_create_fugue(subject="abc")
             if "Error" in str(r8):
                 print("  ✅ test 8: invalid subject rejected"); passed += 1
-            else: print(f"  ❌ test 8: should reject invalid subject"); failed += 1
+            else: print("  ❌ test 8: should reject invalid subject"); failed += 1
 
             await bridge.stop()
             print(f"\n{'='*40}")
