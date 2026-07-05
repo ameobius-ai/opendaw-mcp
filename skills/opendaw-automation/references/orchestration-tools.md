@@ -215,6 +215,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 202. `create_metric_modulation` — metric modulation: note-value equivalence tempo change, 12 note values, ratio "N:M", optional time signature
 203. `create_additive_rhythm` — additive rhythm: unequal groupings within a bar ("3+2+2" etc.), 4 note values, 5 pitch modes, accent placement, velocity decay
 204. `shift_mode` — modal transformation: shift notes from one scale to another preserving tonic, 14 scales, only changed degrees move
+205. `set_note_cents` — deterministic microtonal pitch control: 7 targeting modes (all/pitch/beats/indices/alternating/gradient/scale_degree), -100 to +100 cents
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

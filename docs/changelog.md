@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.280.0 (2026-07-06)
+
+### Added
+- `set_note_cents` — deterministic microtonal pitch control. Set specific cent offsets on targeted notes: all/pitch/beats/indices/alternating/gradient/scale_degree modes. Piano honky-tonk, quarter-tone, just intonation, Arabic maqam, synth drift, MIDI chorus. Unlike humanize_pitch (random), deterministic and pattern-based. -100 to +100 cents.
+
 ## v1.279.0 (2026-07-06)
 
 ### Added

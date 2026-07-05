@@ -35135,6 +35135,249 @@ async def mcp_opendaw_shift_mode(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_set_note_cents(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    cents: float = 0.0,
+    mode: str = "all",
+    target_pitch: str = "",
+    beat_positions: str = "",
+    note_indices: str = "",
+    direction: str = "up",
+    scale: str = "",
+    root_note: str = "C",
+) -> str:
+    """Set detune (cents) on notes — deterministic microtonal pitch control.
+
+    Unlike humanize_pitch (random cents), this tool applies SPECIFIC cent
+    offsets to targeted notes. This enables:
+
+    - **Piano honky-tonk**: detune alternate notes by +8/-8 cents
+    - **Quarter-tone scales**: +50 cents on selected pitches
+    - **Sympathetic resonance**: subtle +3 cents on sustained notes
+    - **Just intonation corrections**: -2 cents on major thirds, +14 on fifths
+    - **Arabic maqam**: quarter tones between semitones
+    - **Synth drift**: gradual cent increase across a sequence
+    - **Chorus effect (MIDI)**: duplicate track detuned +7 cents
+
+    Modes:
+    - "all": Apply to all notes in the region(s)
+    - "pitch": Apply only to notes matching target_pitch (e.g. "60" or "C4")
+    - "beats": Apply at specific beat positions (comma-separated, e.g. "0,4,8")
+    - "indices": Apply to specific note indices (comma-separated, e.g. "0,2,4")
+    - "alternating": Alternate +cents and -cents on consecutive notes
+    - "gradient": Linearly increase cents from 0 to target across all notes
+    - "scale_degree": Apply to notes on specific scale degrees
+      (requires scale + root_note + target_pitch as degree numbers)
+
+    Args:
+        unit_index: AU index (-1 = all AUs).
+        track_index: Note track index (-1 = all note tracks).
+        region_index: Region index (-1 = all regions on track).
+        cents: Cent offset to apply (-100 to +100). 100 cents = 1 semitone.
+        mode: Targeting mode (see above).
+        target_pitch: For "pitch" mode: MIDI note number (e.g. "60") or note
+            name (e.g. "C4"). For "scale_degree" mode: comma-separated degree
+            numbers (e.g. "3,7" = apply to 3rd and 7th degrees).
+        beat_positions: For "beats" mode: comma-separated beat positions.
+        note_indices: For "indices" mode: comma-separated note indices.
+        direction: "up" (positive cents) or "down" (negative cents). For
+            alternating mode, this sets the first note's direction.
+        scale: For "scale_degree" mode: scale name (major, minor, dorian, etc.).
+        root_note: For "scale_degree" mode: root note name.
+
+    Returns notes modified, per-mode details, and average cents applied.
+    """
+    if not (-100.0 <= cents <= 100.0):
+        return f"Error: cents must be -100 to +100, got {cents}"
+    if mode not in ("all", "pitch", "beats", "indices", "alternating", "gradient", "scale_degree"):
+        return f"Error: mode must be all/pitch/beats/indices/alternating/gradient/scale_degree, got '{mode}'"
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+
+    # Parse target pitch for "pitch" mode
+    target_pcs = set()
+    if mode == "pitch" and target_pitch:
+        for tp in target_pitch.split(","):
+            tp = tp.strip()
+            if tp.isdigit():
+                target_pcs.add(int(tp) % 12)
+            else:
+                # Parse note name like "C4" or "Eb"
+                pc = NOTE_NAMES.get(tp.rstrip("0123456789").replace("b", "").replace("#", "#"), -1)
+                if tp.startswith("b") or "b" in tp:
+                    pc = (pc - 1) % 12 if pc >= 0 else -1
+                if pc >= 0:
+                    target_pcs.add(pc)
+
+    # Parse beat positions
+    target_beats = set()
+    if mode == "beats" and beat_positions:
+        for bp in beat_positions.split(","):
+            try:
+                target_beats.add(round(float(bp.strip()), 2))
+            except ValueError:
+                pass
+
+    # Parse note indices
+    target_indices = set()
+    if mode == "indices" and note_indices:
+        for ni in note_indices.split(","):
+            try:
+                target_indices.add(int(ni.strip()))
+            except ValueError:
+                pass
+
+    # Parse scale degrees
+    target_degrees = set()
+    if mode == "scale_degree" and target_pitch:
+        for d in target_pitch.split(","):
+            try:
+                target_degrees.add(int(d.strip()))
+            except ValueError:
+                pass
+
+    # Compute effective cents based on direction
+    if direction == "down" and mode != "alternating" and mode != "gradient":
+        effective_cents = -abs(cents)
+    else:
+        effective_cents = cents
+
+    target_pcs_json = json.dumps(list(target_pcs))
+    target_beats_json = json.dumps(list(target_beats))
+    target_indices_json = json.dumps(list(target_indices))
+    target_degrees_json = json.dumps(list(target_degrees))
+    _ = (target_pcs_json, target_beats_json, target_indices_json, target_degrees_json, effective_cents)
+
+    # For scale_degree mode, build the scale pitch classes
+    scale_pcs_json = "[]"
+    if mode == "scale_degree" and scale:
+        from opendaw_mcp.music_theory import SCALE_INTERVALS
+        root_num = NOTE_NAMES.get(root_note, 0)
+        intervals = SCALE_INTERVALS.get(scale, [])
+        scale_pcs = []
+        for i, iv in enumerate(sorted(intervals)):
+            if (i + 1) in target_degrees:
+                scale_pcs.append((root_num + iv) % 12)
+        scale_pcs_json = json.dumps(scale_pcs)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const mode = "{mode}";
+        const effectiveCents = {effective_cents};
+        const direction = "{direction}";
+
+        const targetPcs = new Set({target_pcs_json});
+        const targetBeats = new Set({target_beats_json});
+        const targetIndices = new Set({target_indices_json});
+        const scalePcs = new Set({scale_pcs_json});
+
+        const allUnits = h.allAUBoxes();
+        const unitIndices = {unit_index} < 0
+            ? allUnits.map((_, i) => i)
+            : [{unit_index}];
+
+        let totalModified = 0;
+        const centValues = [];
+        let noteCounter = 0;
+
+        for (const unitIdx of unitIndices) {{
+            if (unitIdx < 0 || unitIdx >= allUnits.length) continue;
+            const au = allUnits[unitIdx];
+            const noteTracks = h.noteTrackBoxes(au);
+            const trackIndices = {track_index} < 0
+                ? noteTracks.map((_, i) => i)
+                : [{track_index}];
+
+            for (const trackIdx of trackIndices) {{
+                if (trackIdx < 0 || trackIdx >= noteTracks.length) continue;
+                const trackBox = noteTracks[trackIdx];
+                const regions = h.regionBoxes(trackBox);
+                const regionIndices = {region_index} < 0
+                    ? regions.map((_, i) => i)
+                    : [{region_index}];
+
+                for (const regIdx of regionIndices) {{
+                    if (regIdx < 0 || regIdx >= regions.length) continue;
+                    const region = regions[regIdx];
+                    let collection = null;
+                    try {{
+                        const vertex = region.events.targetVertex.unwrap();
+                        collection = vertex.box || vertex;
+                    }} catch(e) {{ continue; }}
+                    if (!collection || !collection.events) continue;
+
+                    const notes = h.eventBoxes(collection);
+                    const regionPos = region.position.getValue();
+                    noteCounter = 0;
+
+                    h.modify(() => {{
+                        for (let i = 0; i < notes.length; i++) {{
+                            const n = notes[i];
+                            const pitch = n.pitch.getValue();
+                            const pc = ((pitch % 12) + 12) % 12;
+                            const absTick = regionPos + n.position.getValue();
+                            const beatPos = Math.round(absTick / Quarter * 100) / 100;
+
+                            let shouldApply = false;
+                            let appliedCents = effectiveCents;
+
+                            if (mode === "all") {{
+                                shouldApply = true;
+                            }} else if (mode === "pitch") {{
+                                shouldApply = targetPcs.has(pc);
+                            }} else if (mode === "beats") {{
+                                shouldApply = targetBeats.has(beatPos);
+                            }} else if (mode === "indices") {{
+                                shouldApply = targetIndices.has(noteCounter);
+                            }} else if (mode === "alternating") {{
+                                shouldApply = true;
+                                appliedCents = noteCounter % 2 === 0
+                                    ? Math.abs(effectiveCents)
+                                    : -Math.abs(effectiveCents);
+                            }} else if (mode === "gradient") {{
+                                shouldApply = true;
+                                const frac = notes.length > 1 ? noteCounter / (notes.length - 1) : 0;
+                                appliedCents = Math.round(effectiveCents * frac * 100) / 100;
+                            }} else if (mode === "scale_degree") {{
+                                shouldApply = scalePcs.has(pc);
+                            }}
+
+                            if (shouldApply && n.cent) {{
+                                n.cent.setValue(appliedCents);
+                                totalModified++;
+                                centValues.push(appliedCents);
+                            }}
+                            noteCounter++;
+                        }}
+                    }});
+                }}
+            }}
+        }}
+
+        const avgCents = centValues.length > 0
+            ? Math.round(centValues.reduce((a, b) => a + b, 0) / centValues.length * 100) / 100
+            : 0;
+
+        return {{
+            success: true,
+            mode: "{mode}",
+            cents_requested: {cents},
+            direction: "{direction}",
+            notes_modified: totalModified,
+            notes_scanned: noteCounter,
+            average_cents_applied: avgCents,
+            scale: "{scale}" || null,
+            root_note: "{root_note}" || null,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
 
