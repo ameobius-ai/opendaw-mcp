@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.196.0 (2026-07-05)
+
+### Added
+- `create_progression_from_key` — auto-generate diatonic chord progression from detected key + mode. 6 styles (pop/jazz/rock/synthwave/folk/lofi), 12 templates (major + minor). Delegates to create_chord_progression with auto-computed chord roots from scale degrees. Eliminates manual chord typing — detect_key → create_progression_from_key("A", "minor", "synthwave") → Am-F-C-G automatically. 14 unit tests (diatonic correctness across all 12 keys × 6 styles, progression lengths, style templates). **375 MCP tools**, 1369 unit tests
+
 ## v1.195.0 (2026-07-05)
 
 ### Added

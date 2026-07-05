@@ -12475,6 +12475,108 @@ Returns the total notes created and chord voicings used.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_create_progression_from_key(key: str, mode: str = "major", style: str = "pop", unit_index: int = 0, track_index: int = 0, start_beat: float = 0, chord_duration: float = 4) -> str:
+    """Auto-generate a diatonic chord progression from a detected key — no manual chord typing.
+
+    Takes key + mode (from detect_key output) and generates a genre-appropriate
+    diatonic progression using scale degrees. Eliminates the need to manually
+    write [["Am","min"],["F","maj"]...] — just pass key="A", mode="minor".
+
+    key: Root note name (C, C#, D, D#, E, F, F#, G, G#, A, A#, B).
+    mode: "major" or "minor" (natural minor scale).
+    style: Progression style:
+      - "pop" — I-V-vi-IV (major) / i-VI-III-VII (minor) — "four chords of pop"
+      - "jazz" — ii-V-I (major) / ii-V-i (minor) — jazz turnaround
+      - "rock" — I-IV-V (major) / i-iv-V (minor) — blues/rock
+      - "synthwave" — i-VI-III-VII (minor) — synthwave/emotional
+      - "folk" — I-IV-vi-V (major) / i-iv-VII-III (minor) — folk/americana
+      - "lofi" — ii-V-i (minor) or I-vi-IV-V (major) — lofi/jazzy
+    unit_index: AU index with a note track.
+    track_index: Note track index within the AU.
+    start_beat: Where the progression starts (0 = bar 1).
+    chord_duration: Length of each chord in beats (4 = one bar at 4/4).
+
+    Returns: notes_created, chords, voicings, progression (chord names), key, mode.
+
+    Pipeline: detect_key("track.wav") → {key: "A", mode: "minor"} →
+              create_progression_from_key("A", "minor", "synthwave") →
+              create_harmonic_arrangement("Am-F-C-G")
+    """
+    if key not in NOTE_TO_PITCH:
+        return f"Error: unknown key '{key}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if mode not in ("major", "minor"):
+        return "Error: mode must be 'major' or 'minor'"
+    if style not in ("pop", "jazz", "rock", "synthwave", "folk", "lofi"):
+        return "Error: style must be pop, jazz, rock, synthwave, folk, or lofi"
+
+    # Diatonic chord qualities by scale degree
+    # Major: I-maj, ii-min, iii-min, IV-maj, V-maj (or dom7), vi-min, vii-dim
+    # Minor: i-min, ii-dim, III-maj, iv-min, V-maj, VI-maj, VII-maj
+    _MAJOR_DEGREES = {0: "maj", 1: "min", 2: "min", 3: "maj", 4: "dom7", 5: "min", 6: "dim"}
+    _MINOR_DEGREES = {0: "min", 1: "dim", 2: "maj", 3: "min", 4: "dom7", 5: "maj", 6: "maj"}
+
+    # Scale intervals for roman numeral → semitone offset
+    _MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11]
+    _MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10]
+
+    # Progression templates: (degree_indices, style_name)
+    _PROGRESSIONS = {
+        ("major", "pop"):        [0, 4, 5, 3],      # I-V-vi-IV
+        ("major", "jazz"):       [1, 4, 0],          # ii-V-I
+        ("major", "rock"):       [0, 3, 4],          # I-IV-V
+        ("major", "synthwave"):  [0, 5, 2, 6],       # I-vi-iii-VII (borrowed)
+        ("major", "folk"):       [0, 3, 5, 4],       # I-IV-vi-V
+        ("major", "lofi"):       [0, 5, 3, 4],       # I-vi-IV-V
+        ("minor", "pop"):        [0, 5, 2, 6],       # i-VI-III-VII
+        ("minor", "jazz"):       [1, 4, 0],          # ii-V-i
+        ("minor", "rock"):       [0, 3, 4],          # i-iv-V
+        ("minor", "synthwave"):  [0, 5, 2, 6],       # i-VI-III-VII
+        ("minor", "folk"):       [0, 3, 6, 2],       # i-iv-VII-III
+        ("minor", "lofi"):       [1, 4, 0],          # ii-V-i
+    }
+
+    degrees = _PROGRESSIONS.get((mode, style))
+    if degrees is None:
+        return f"Error: no progression template for mode={mode}, style={style}"
+
+    scale = _MAJOR_SCALE if mode == "major" else _MINOR_SCALE
+    qualities = _MAJOR_DEGREES if mode == "major" else _MINOR_DEGREES
+
+    key_pc = NOTE_TO_PITCH[key]
+
+    # Build chord list for create_chord_progression format: [["C","min"],...]
+    chord_list = []
+    progression_names = []
+    for deg in degrees:
+        root_pc = (key_pc + scale[deg]) % 12
+        # Find note name from pitch class
+        _PC_TO_NAME = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
+                       6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"}
+        root_name = _PC_TO_NAME[root_pc]
+        chord_type = qualities[deg]
+        chord_list.append([root_name, chord_type])
+        progression_names.append(f"{root_name}{chord_type}")
+
+    # Now delegate to create_chord_progression
+    chords_json = json.dumps(chord_list)
+    result = await mcp_opendaw_create_chord_progression(
+        chords_json, unit_index, track_index, start_beat, chord_duration
+    )
+
+    # Augment result with progression metadata
+    try:
+        parsed = json.loads(result)
+        if isinstance(parsed, dict):
+            parsed["key"] = key
+            parsed["mode"] = mode
+            parsed["style"] = style
+            parsed["progression"] = progression_names
+            return json.dumps(parsed)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return result
+
+@mcp.tool()
 async def mcp_opendaw_create_melody(scale: str, root: str, pattern: str, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, octave: int = 4, velocity: float = 0.75) -> str:
     """Create a melody from a scale and rhythmic pattern — one call instead of 10-30 create_note calls.
 

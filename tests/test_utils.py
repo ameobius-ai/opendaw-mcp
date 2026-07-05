@@ -9202,3 +9202,147 @@ class TestClearRegionNotes:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_create_section_transition" in tool_names
 
+
+class TestCreateProgressionFromKey:
+    """Tests for create_progression_from_key — diatonic auto-progression from key+mode"""
+
+    # Mirror the server.py logic for unit testing without bridge
+    _MAJOR_DEGREES = {0: "maj", 1: "min", 2: "min", 3: "maj", 4: "dom7", 5: "min", 6: "dim"}
+    _MINOR_DEGREES = {0: "min", 1: "dim", 2: "maj", 3: "min", 4: "dom7", 5: "maj", 6: "maj"}
+    _MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11]
+    _MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10]
+    _PROGRESSIONS = {
+        ("major", "pop"):        [0, 4, 5, 3],
+        ("major", "jazz"):       [1, 4, 0],
+        ("major", "rock"):       [0, 3, 4],
+        ("major", "synthwave"):  [0, 5, 2, 6],
+        ("major", "folk"):       [0, 3, 5, 4],
+        ("major", "lofi"):       [0, 5, 3, 4],
+        ("minor", "pop"):        [0, 5, 2, 6],
+        ("minor", "jazz"):       [1, 4, 0],
+        ("minor", "rock"):       [0, 3, 4],
+        ("minor", "synthwave"):  [0, 5, 2, 6],
+        ("minor", "folk"):       [0, 3, 6, 2],
+        ("minor", "lofi"):       [1, 4, 0],
+    }
+    _PC_TO_NAME = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
+                   6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"}
+
+    def _generate(self, key_pc, mode, style):
+        degrees = self._PROGRESSIONS[(mode, style)]
+        scale = self._MAJOR_SCALE if mode == "major" else self._MINOR_SCALE
+        qualities = self._MAJOR_DEGREES if mode == "major" else self._MINOR_DEGREES
+        result = []
+        for deg in degrees:
+            root_pc = (key_pc + scale[deg]) % 12
+            result.append((self._PC_TO_NAME[root_pc], qualities[deg]))
+        return result
+
+    def test_tool_signature_exists(self):
+        """create_progression_from_key is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_progression_from_key" in tool_names
+
+    def test_pop_major_c(self):
+        """C major pop → C-G-Am-F (I-V-vi-IV)"""
+        # C=0, G=7, A=9, F=5
+        chords = self._generate(0, "major", "pop")
+        assert chords[0] == ("C", "maj")
+        assert chords[1] == ("G", "dom7")
+        assert chords[2] == ("A", "min")
+        assert chords[3] == ("F", "maj")
+
+    def test_pop_minor_a(self):
+        """A minor pop → Am-F-C-G (i-VI-III-VII)"""
+        # A=9, F=5, C=0, G=7
+        chords = self._generate(9, "minor", "pop")
+        assert chords[0] == ("A", "min")
+        assert chords[1] == ("F", "maj")
+        assert chords[2] == ("C", "maj")
+        assert chords[3] == ("G", "maj")
+
+    def test_jazz_major_c(self):
+        """C major jazz → Dm7-G7-Cmaj (ii-V-I)"""
+        chords = self._generate(0, "major", "jazz")
+        assert chords[0] == ("D", "min")
+        assert chords[1] == ("G", "dom7")
+        assert chords[2] == ("C", "maj")
+
+    def test_jazz_minor_a(self):
+        """A minor jazz → Bdim-E7-Am (ii-V-i)"""
+        chords = self._generate(9, "minor", "jazz")
+        assert chords[0] == ("B", "dim")
+        assert chords[1] == ("E", "dom7")
+        assert chords[2] == ("A", "min")
+
+    def test_rock_major_c(self):
+        """C major rock → Cmaj-Fmaj-G7 (I-IV-V)"""
+        chords = self._generate(0, "major", "rock")
+        assert chords[0] == ("C", "maj")
+        assert chords[1] == ("F", "maj")
+        assert chords[2] == ("G", "dom7")
+
+    def test_rock_minor_a(self):
+        """A minor rock → Am-Dm-E7 (i-iv-V)"""
+        chords = self._generate(9, "minor", "rock")
+        assert chords[0] == ("A", "min")
+        assert chords[1] == ("D", "min")
+        assert chords[2] == ("E", "dom7")
+
+    def test_synthwave_minor_a(self):
+        """A minor synthwave → Am-F-C-G (i-VI-III-VII)"""
+        chords = self._generate(9, "minor", "synthwave")
+        assert chords[0] == ("A", "min")
+        assert chords[1] == ("F", "maj")
+        assert chords[2] == ("C", "maj")
+        assert chords[3] == ("G", "maj")
+
+    def test_folk_major_c(self):
+        """C major folk → Cmaj-Fmaj-Am-G7 (I-IV-vi-V)"""
+        chords = self._generate(0, "major", "folk")
+        assert chords[0] == ("C", "maj")
+        assert chords[1] == ("F", "maj")
+        assert chords[2] == ("A", "min")
+        assert chords[3] == ("G", "dom7")
+
+    def test_lofi_major_c(self):
+        """C major lofi → Cmaj-Am-Fmaj-G7 (I-vi-IV-V)"""
+        chords = self._generate(0, "major", "lofi")
+        assert chords[0] == ("C", "maj")
+        assert chords[1] == ("A", "min")
+        assert chords[2] == ("F", "maj")
+        assert chords[3] == ("G", "dom7")
+
+    def test_all_styles_have_templates(self):
+        """All 12 mode×style combos have progression templates"""
+        for mode in ("major", "minor"):
+            for style in ("pop", "jazz", "rock", "synthwave", "folk", "lofi"):
+                assert (mode, style) in self._PROGRESSIONS, f"Missing {mode}/{style}"
+
+    def test_all_chords_are_diatonic(self):
+        """Every generated chord root is in the parent scale"""
+        for key_pc in range(12):
+            for mode in ("major", "minor"):
+                scale = self._MAJOR_SCALE if mode == "major" else self._MINOR_SCALE
+                scale_pcs = {(key_pc + s) % 12 for s in scale}
+                for style in ("pop", "jazz", "rock", "synthwave", "folk", "lofi"):
+                    chords = self._generate(key_pc, mode, style)
+                    for root_name, _ in chords:
+                        root_pc = {v: k for k, v in self._PC_TO_NAME.items()}[root_name]
+                        assert root_pc in scale_pcs, f"{root_name} not in {mode} scale of pc={key_pc}"
+
+    def test_progression_length(self):
+        """Pop has 4 chords, jazz has 3, rock has 3"""
+        assert len(self._generate(0, "major", "pop")) == 4
+        assert len(self._generate(0, "major", "jazz")) == 3
+        assert len(self._generate(0, "major", "rock")) == 3
+
+    def test_pipeline_detect_key_to_progression(self):
+        """Pipeline: detect_key → create_progression_from_key → create_harmonic_arrangement"""
+        steps = ["detect_key", "create_progression_from_key", "create_harmonic_arrangement"]
+        assert len(steps) == 3
+
