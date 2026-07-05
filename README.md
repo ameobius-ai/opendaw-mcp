@@ -27,8 +27,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **302** MCP tools | **76** Python examples (8 genre templates) |
-| **46** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **302** unit + **27** E2E tests |
+| **47** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **312** unit + **28** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,14 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.56.0 (2026-07-05)
+
+- **`werkstatt_tape_delay.js` DSP script** — tape delay with wow (0.5 Hz slow pitch drift) and flutter (15 Hz fast pitch wobble) modulating the delay time, plus saturation in the feedback path for graceful repeat degradation. Fractional delay read for smooth modulation. 6 params: time, feedback, wow, flutter, saturation, mix. Classic for dub, guitar slapback, ambient wash. Completes delay family: stereo ✅ tape ✅
+- **47 DSP scripts** (34 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 6 params, time/feedback/wow/flutter set
+- **Example script**: `werkstatt_tape_delay.py` — dub, slapback, ambient wash presets
+- ruff clean, CI green
 
 ### v1.55.0 (2026-07-05)
 

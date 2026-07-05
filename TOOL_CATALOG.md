@@ -381,6 +381,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 ### Werkstatt (Audio Effects) — 22 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
+- `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_tube_saturator.js` — Tube saturator (even harmonics, asymmetrical bias, warmth, tone, output, mix)
 - `werkstatt_spring_reverb.js` — Spring reverb (dispersive, boing transient, tension, damp, mix)
 - `werkstatt_bitcrusher.js` — Standalone bitcrusher (bits 1-16, rate reduction, drive, DC offset, mix)

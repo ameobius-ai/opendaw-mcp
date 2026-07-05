@@ -1,8 +1,8 @@
 # DSP Scripts
 
-46 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+47 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 33 scripts
+## Werkstatt (Audio Effects) — 34 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -39,6 +39,7 @@
 | `werkstatt_bitcrusher.js` | Standalone bitcrusher (quantize + rate reduce) | bits, rate, drive, offset, mix |
 | `werkstatt_spring_reverb.js` | Spring reverb (dispersive, boing) | decay, damp, tension, boing, mix |
 | `werkstatt_tube_saturator.js` | Tube/valve saturator (even harmonics, bias) | drive, warmth, bias, tone, output, mix |
+| `werkstatt_tape_delay.js` | Tape delay (wow/flutter, feedback saturation) | time, feedback, wow, flutter, saturation, mix |
 
 ## Apparat (Instruments) — 7 scripts
 

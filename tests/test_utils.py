@@ -2204,3 +2204,98 @@ class TestTubeSaturatorDSP:
         code = self._read_script()
         assert "warmth" in code, "Missing warmth control for even/odd harmonic blend"
         assert "even" in code and "odd" in code, "Missing even/odd harmonic separation"
+
+
+class TestTapeDelayDSP:
+    """Unit tests for werkstatt_tape_delay.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_tape_delay.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt tape_delay" in code, "Missing @werkstatt tape_delay header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 6, f"Expected 6 params, got {len(params)}"
+
+    def test_time_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        time = [p for p in params if p["name"] == "time"][0]
+        assert time["min"] > 0
+        assert time["max"] == 1
+
+    def test_feedback_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        fb = [p for p in params if p["name"] == "feedback"][0]
+        assert fb["min"] == 0
+        assert fb["max"] <= 0.95
+
+    def test_wow_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        wow = [p for p in params if p["name"] == "wow"][0]
+        assert wow["min"] == 0
+        assert wow["max"] == 1
+
+    def test_flutter_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        flutter = [p for p in params if p["name"] == "flutter"][0]
+        assert flutter["min"] == 0
+        assert flutter["max"] == 1
+
+    def test_saturation_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        sat = [p for p in params if p["name"] == "saturation"][0]
+        assert sat["min"] == 0
+        assert sat["max"] == 1
+
+    def test_mix_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mix = [p for p in params if p["name"] == "mix"][0]
+        assert mix["min"] == 0
+        assert mix["max"] == 1
+
+    def test_delay_buffers(self):
+        code = self._read_script()
+        assert "Float32Array" in code, "Missing delay buffers"
+        assert "this.bufL" in code or "this.bufR" in code, "Missing stereo delay buffers"
+
+    def test_wow_flutter_lfos(self):
+        code = self._read_script()
+        assert "wowPhase" in code, "Missing wow LFO phase"
+        assert "flutterPhase" in code, "Missing flutter LFO phase"
+        assert "Math.sin" in code, "Missing sine LFO"
+
+    def test_fractional_delay_read(self):
+        code = self._read_script()
+        assert "frac" in code, "Missing fractional delay interpolation"
+        assert "idx0" in code or "idx1" in code, "Missing delay buffer index interpolation"
+
+    def test_feedback_saturation(self):
+        code = self._read_script()
+        assert "tanh" in code, "Missing saturation in feedback path (tanh)"
+        assert "_tapeSat" in code or "tapeSat" in code, "Missing tape saturation function"
