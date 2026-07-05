@@ -480,3 +480,157 @@ def _detect_key(channels: list, sample_rate: int) -> dict:
         "alternatives": alternatives,
         "chroma": [round(c, 6) for c in chroma_norm],
     }
+
+
+def _transcribe_drums(channels: list, sample_rate: int, bpm: float = None,
+                       sensitivity: float = 1.5, min_gap: float = 0.03) -> dict:
+    """Transcribe drum onsets from audio into MIDI notes.
+
+    Pure Python drum transcription:
+    1. Split into 3 frequency bands (kick <250Hz, snare 250-2500Hz, hat >2500Hz)
+    2. Per-band onset detection (energy spike above local average)
+    3. Classify: kick (low-band onset dominant), snare (mid-band), hat (high-band)
+    4. Estimate velocity from onset amplitude
+    5. Convert onset times to beat positions (if bpm provided)
+
+    Returns dict with: notes (list of {pitch, start_beat, start_sec, duration,
+    velocity, drum_type}), bpm, onset_count, duration_seconds.
+    MIDI pitches: kick=36, snare=38, hat=42.
+    """
+    if not channels or not channels[0]:
+        return {"notes": [], "bpm": bpm or 120.0, "onset_count": 0, "duration_seconds": 0.0}
+
+    n_frames = len(channels[0])
+    duration = n_frames / sample_rate
+    n_ch = len(channels)
+
+    # Mix to mono
+    mono = []
+    for i in range(n_frames):
+        s = sum(channels[c][i] for c in range(n_ch)) / n_ch
+        mono.append(s)
+
+    # Band-split via simple IIR filters
+    # Kick: lowpass ~250 Hz (one-pole)
+    # Snare: bandpass 250-2500 Hz (lowpass + highpass cascade)
+    # Hat: highpass ~2500 Hz (one-pole HPF)
+
+    def _one_pole_lp(data, cutoff):
+        """One-pole lowpass: y[n] = y[n-1] + a*(x[n] - y[n-1])"""
+        dt = 1.0 / sample_rate
+        a = dt / (dt + 1.0 / (2 * 3.14159 * cutoff))
+        out = [0.0] * len(data)
+        out[0] = data[0] * a
+        for i in range(1, len(data)):
+            out[i] = out[i - 1] + a * (data[i] - out[i - 1])
+        return out
+
+    def _one_pole_hp(data, cutoff):
+        """One-pole highpass: y[n] = a*(y[n-1] + x[n] - x[n-1])"""
+        dt = 1.0 / sample_rate
+        a = dt / (dt + 1.0 / (2 * 3.14159 * cutoff))
+        out = [0.0] * len(data)
+        for i in range(1, len(data)):
+            out[i] = a * (out[i - 1] + data[i] - data[i - 1])
+        return out
+
+    kick_band = _one_pole_lp(mono, 250)
+    snare_lp = _one_pole_lp(mono, 2500)
+    snare_band = _one_pole_hp(snare_lp, 250)
+    hat_band = _one_pole_hp(mono, 2500)
+
+    # Energy envelope per band (512-sample windows ~12ms at 44.1kHz)
+    win_size = 512
+    n_windows = n_frames // win_size
+    if n_windows < 8:
+        return {"notes": [], "bpm": bpm or 120.0, "onset_count": 0, "duration_seconds": duration}
+
+    def _energy_envelope(data):
+        env = []
+        for w in range(n_windows):
+            start = w * win_size
+            e = sum(data[start + j] ** 2 for j in range(win_size)) / win_size
+            env.append(e)
+        return env
+
+    kick_env = _energy_envelope(kick_band)
+    snare_env = _energy_envelope(snare_band)
+    hat_env = _energy_envelope(hat_band)
+
+    # Onset detection per band
+    def _detect_onsets(env, local_window_size):
+        onsets = []
+        local_window = max(4, local_window_size)
+        for i in range(2, n_windows - 1):
+            lo = max(0, i - local_window)
+            hi = min(n_windows, i + local_window)
+            local_avg = sum(env[lo:hi]) / max(1, hi - lo)
+            # Onset: energy spike above local average AND rising
+            if (env[i] > local_avg * sensitivity and
+                    env[i] > env[i - 1] and env[i] > env[i - 2]):
+                onset_time = i * win_size / sample_rate
+                onset_amp = env[i] / (local_avg + 1e-10)
+                onsets.append((onset_time, onset_amp))
+        return onsets
+
+    kick_onsets = _detect_onsets(kick_env, n_windows // 80)
+    snare_onsets = _detect_onsets(snare_env, n_windows // 80)
+    hat_onsets = _detect_onsets(hat_env, n_windows // 100)
+
+    # Merge onsets with minimum gap to avoid duplicates
+    # Build note list with pitch classification
+    notes = []
+    drum_pitch = {"kick": 36, "snare": 38, "hat": 42}
+    drum_dur = {"kick": 0.15, "snare": 0.12, "hat": 0.04}
+    all_onsets = []
+
+    for t, amp in kick_onsets:
+        all_onsets.append((t, amp, "kick"))
+    for t, amp in snare_onsets:
+        all_onsets.append((t, amp, "snare"))
+    for t, amp in hat_onsets:
+        all_onsets.append((t, amp, "hat"))
+
+    # Sort by time
+    all_onsets.sort(key=lambda x: x[0])
+
+    # Deduplicate: merge near-simultaneous onsets of same type
+    filtered = []
+    last_time_by_type = {"kick": -1, "snare": -1, "hat": -1}
+    for t, amp, dtype in all_onsets:
+        if t - last_time_by_type[dtype] >= min_gap:
+            filtered.append((t, amp, dtype))
+            last_time_by_type[dtype] = t
+
+    # Normalize amplitudes to velocity 0-1
+    max_amp = max((a for _, a, _ in filtered), default=1.0)
+    if max_amp < 1e-10:
+        max_amp = 1.0
+
+    # Convert to notes
+    actual_bpm = bpm if bpm and bpm > 0 else 120.0
+    beats_per_sec = actual_bpm / 60.0
+
+    for t, amp, dtype in filtered:
+        vel = min(1.0, amp / max_amp)
+        start_beat = t * beats_per_sec
+        notes.append({
+            "pitch": drum_pitch[dtype],
+            "start_beat": round(start_beat, 4),
+            "start_sec": round(t, 4),
+            "duration": drum_dur[dtype],
+            "velocity": round(vel, 3),
+            "drum_type": dtype,
+        })
+
+    return {
+        "notes": notes,
+        "bpm": actual_bpm,
+        "onset_count": len(notes),
+        "duration_seconds": round(duration, 2),
+        "band_counts": {
+            "kick": sum(1 for n in notes if n["drum_type"] == "kick"),
+            "snare": sum(1 for n in notes if n["drum_type"] == "snare"),
+            "hat": sum(1 for n in notes if n["drum_type"] == "hat"),
+        },
+    }

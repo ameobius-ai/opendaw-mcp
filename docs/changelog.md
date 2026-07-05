@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.203.0 (2026-07-05)
+
+### Added
+- `transcribe_drums` — **new capability**, audio-to-MIDI drum transcription. Converts WAV drum recordings into MIDI notes using band-split onset detection (kick <250Hz, snare 250-2500Hz, hat >2500Hz). One-pole IIR filters for band splitting, energy envelope per band, onset detection via local average threshold, velocity from amplitude, beat conversion from BPM. Auto-detects BPM if not provided. Pipeline: download_audio → transcribe_drums → edit/quantize in DAW. 11 unit tests (kick/snare/hat detection, beat conversion, velocity range, MIDI pitches, band counts, auto-BPM). **380 MCP tools**, 2625 unit tests
+
 ## v1.202.0 (2026-07-05)
 
 ### Added

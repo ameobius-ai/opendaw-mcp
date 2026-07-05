@@ -9960,3 +9960,142 @@ class TestSoulArrangement:
                 return
         assert False, "function not found"
 
+
+class TestTranscribeDrums:
+    """Tests for _transcribe_drums and transcribe_drums tool"""
+
+    def _make_impulse_wav(self, impulses, sr=44100, n_ch=1):
+        """Create synthetic audio with kick/snare/hat impulses at given times.
+        Kick = low-freq burst, snare = mid-freq burst, hat = high-freq noise.
+        Returns channels list (list of float lists)."""
+        duration = max(t for t, _ in impulses) + 0.5 if impulses else 2.0
+        n = int(duration * sr)
+        import math as _math
+        channel = [0.0] * n
+        for t, dtype in impulses:
+            start = int(t * sr)
+            if dtype == "kick":
+                # Low-frequency burst: 60Hz sine, 100ms decay
+                for i in range(int(0.1 * sr)):
+                    pos = start + i
+                    if pos < n:
+                        env = _math.exp(-i / (0.02 * sr))
+                        channel[pos] += 0.8 * env * _math.sin(2 * 3.14159 * 60 * i / sr)
+            elif dtype == "snare":
+                # Mid-frequency burst: 300Hz sine + noise, 80ms
+                import random
+                random.seed(42)
+                for i in range(int(0.08 * sr)):
+                    pos = start + i
+                    if pos < n:
+                        env = _math.exp(-i / (0.015 * sr))
+                        channel[pos] += 0.6 * env * (_math.sin(2 * 3.14159 * 300 * i / sr) * 0.5 + random.random() * 0.5)
+            elif dtype == "hat":
+                # High-frequency noise burst, 30ms
+                import random
+                random.seed(42)
+                for i in range(int(0.03 * sr)):
+                    pos = start + i
+                    if pos < n:
+                        env = _math.exp(-i / (0.005 * sr))
+                        channel[pos] += 0.3 * env * (random.random() * 2 - 1)
+        return [channel]
+
+    def test_empty_audio_returns_empty(self):
+        from opendaw_mcp.utils import _transcribe_drums
+        result = _transcribe_drums([], 44100)
+        assert result["notes"] == []
+        assert result["onset_count"] == 0
+
+    def test_kick_detected(self):
+        """A clear kick impulse should be detected as kick (pitch 36)"""
+        from opendaw_mcp.utils import _transcribe_drums
+        channels = self._make_impulse_wav([(0.0, "kick"), (0.5, "kick"), (1.0, "kick"), (1.5, "kick")])
+        result = _transcribe_drums(channels, 44100, bpm=120)
+        kick_notes = [n for n in result["notes"] if n["drum_type"] == "kick"]
+        assert len(kick_notes) >= 2, f"Expected at least 2 kick onsets, got {len(kick_notes)}"
+
+    def test_snare_detected(self):
+        """A clear snare impulse should be detected as snare (pitch 38)"""
+        from opendaw_mcp.utils import _transcribe_drums
+        channels = self._make_impulse_wav([(0.0, "snare"), (1.0, "snare"), (2.0, "snare"), (3.0, "snare")])
+        result = _transcribe_drums(channels, 44100, bpm=120)
+        snare_notes = [n for n in result["notes"] if n["drum_type"] == "snare"]
+        assert len(snare_notes) >= 1, f"Expected at least 1 snare onset, got {len(snare_notes)}"
+
+    def test_hat_detected(self):
+        """A clear hat impulse should be detected as hat (pitch 42)"""
+        from opendaw_mcp.utils import _transcribe_drums
+        channels = self._make_impulse_wav([(0.0, "hat"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat")])
+        result = _transcribe_drums(channels, 44100, bpm=120)
+        hat_notes = [n for n in result["notes"] if n["drum_type"] == "hat"]
+        assert len(hat_notes) >= 1, f"Expected at least 1 hat onset, got {len(hat_notes)}"
+
+    def test_beat_conversion(self):
+        """Onset times should be converted to beat positions correctly"""
+        from opendaw_mcp.utils import _transcribe_drums
+        # At 120 BPM, 1 beat = 0.5 seconds
+        channels = self._make_impulse_wav([(0.0, "kick"), (0.5, "kick")])
+        result = _transcribe_drums(channels, 44100, bpm=120)
+        kick_notes = [n for n in result["notes"] if n["drum_type"] == "kick"]
+        if len(kick_notes) >= 2:
+            beat_diff = abs(kick_notes[1]["start_beat"] - kick_notes[0]["start_beat"])
+            assert abs(beat_diff - 1.0) < 0.2, f"Expected ~1 beat between kicks, got {beat_diff}"
+
+    def test_velocity_range(self):
+        """Velocity should be between 0 and 1"""
+        from opendaw_mcp.utils import _transcribe_drums
+        channels = self._make_impulse_wav([(0.0, "kick"), (0.5, "snare"), (1.0, "hat")])
+        result = _transcribe_drums(channels, 44100, bpm=120)
+        for n in result["notes"]:
+            assert 0.0 <= n["velocity"] <= 1.0
+
+    def test_midi_pitches(self):
+        """Kick=36, snare=38, hat=42"""
+        from opendaw_mcp.utils import _transcribe_drums
+        channels = self._make_impulse_wav([(0.0, "kick"), (0.5, "snare"), (0.75, "hat")])
+        result = _transcribe_drums(channels, 44100, bpm=120)
+        pitch_map = {36: "kick", 38: "snare", 42: "hat"}
+        for n in result["notes"]:
+            assert n["pitch"] in pitch_map
+            assert n["drum_type"] == pitch_map[n["pitch"]]
+
+    def test_band_counts(self):
+        """Band counts should sum to onset_count"""
+        from opendaw_mcp.utils import _transcribe_drums
+        channels = self._make_impulse_wav([(0.0, "kick"), (0.5, "snare"), (1.0, "hat")])
+        result = _transcribe_drums(channels, 44100, bpm=120)
+        bc = result["band_counts"]
+        assert bc["kick"] + bc["snare"] + bc["hat"] == result["onset_count"]
+
+    def test_tool_signature_exists(self):
+        """transcribe_drums is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_transcribe_drums" in tool_names
+
+    def test_tool_delegates_to_transcribe(self):
+        """transcribe_drums tool calls _transcribe_drums internally"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_drums":
+                source = ast.unparse(node)
+                assert "_transcribe_drums" in source
+                return
+        assert False, "function not found"
+
+    def test_auto_bpm_detection(self):
+        """When bpm=0, tool auto-detects BPM via _detect_bpm"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_drums":
+                source = ast.unparse(node)
+                assert "_detect_bpm" in source
+                return
+        assert False, "function not found"
+

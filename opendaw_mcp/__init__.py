@@ -28,6 +28,7 @@ from .utils import (
     _clamp_script_param,
     _detect_bpm,
     _detect_key,
+    _transcribe_drums,
 )
 from .music_theory import (
     NOTE_TO_PITCH,
@@ -60,6 +61,7 @@ __all__ = [
     "_clamp_script_param",
     "_detect_bpm",
     "_detect_key",
+    "_transcribe_drums",
     "NOTE_TO_PITCH",
     "CHORD_INTERVALS",
     "SCALE_INTERVALS",

@@ -41,6 +41,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _clamp_script_param,
     _detect_bpm,
     _detect_key,
+    _transcribe_drums,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -6285,6 +6286,115 @@ async def mcp_opendaw_analyze_track(filename: str) -> str:
         })
     except Exception as e:
         return _err(f"Track analysis error: {e}")
+
+@mcp.tool()
+async def mcp_opendaw_transcribe_drums(
+    filename: str,
+    bpm: float = 0,
+    sensitivity: float = 1.5,
+    unit_index: int = 0,
+    track_index: int = 0,
+) -> str:
+    """Transcribe drum onsets from an audio file into MIDI notes on a DAW track.
+
+    Audio-to-MIDI drum transcription — converts a drum recording (or any audio
+    with percussive content) into MIDI notes. Pure Python, no external deps.
+
+    Pipeline:
+    1. Parse WAV file
+    2. Split into 3 frequency bands (kick <250Hz, snare 250-2500Hz, hat >2500Hz)
+    3. Per-band onset detection (energy spike above local average)
+    4. Classify each onset: kick (pitch 36), snare (38), hat (42)
+    5. Estimate velocity from onset amplitude
+    6. Convert onset times to beat positions (if bpm provided)
+    7. Create MIDI notes on the specified track via create_notes_batch
+
+    Use cases:
+    - Extract a drum groove from a Suno track → reuse as MIDI pattern
+    - Transcribe a real drum recording → edit/quantize in DAW
+    - Replace original drums with a different instrument
+
+    filename: WAV file name (in exports dir) or absolute path.
+    bpm: Tempo for beat conversion (0 = auto-detect via detect_bpm first).
+    sensitivity: Onset detection threshold (1.0=more sensitive, 2.0=less, default 1.5).
+    unit_index: AU index with note tracks.
+    track_index: Track to place transcribed notes.
+
+    Returns: notes created, onset count, band counts (kick/snare/hat), bpm, duration.
+
+    Example:
+      # Transcribe a drum loop from a downloaded Suno track
+      result = transcribe_drums("suno_track.wav", bpm=120)
+      # Auto-detect BPM first
+      result = transcribe_drums("drum_loop.wav")  # bpm=0 → auto-detect
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        channels = wav["channels"]
+        sr = wav["sample_rate"]
+
+        # Auto-detect BPM if not provided
+        actual_bpm = bpm
+        if not bpm or bpm <= 0:
+            bpm_result = _detect_bpm(channels, sr)
+            actual_bpm = bpm_result["bpm"]
+
+        # Transcribe drums
+        result = _transcribe_drums(channels, sr, bpm=actual_bpm, sensitivity=sensitivity)
+
+        if not result["notes"]:
+            return json.dumps({
+                "success": True,
+                "notes_created": 0,
+                "bpm": actual_bpm,
+                "duration_seconds": result["duration_seconds"],
+                "message": "No drum onsets detected — try lowering sensitivity"
+            })
+
+        # Convert to DAW note format and create on track
+        daw_notes = []
+        for n in result["notes"]:
+            daw_notes.append({
+                "pitch": n["pitch"],
+                "start": n["start_beat"],
+                "duration": n["duration"],
+                "velocity": n["velocity"],
+            })
+
+        notes_result = await mcp_opendaw_create_notes_batch(
+            json.dumps(daw_notes), unit_index, track_index)
+
+        try:
+            notes_data = json.loads(notes_result)
+        except Exception:
+            notes_data = {"raw": notes_result}
+
+        return json.dumps({
+            "success": True,
+            "notes_created": len(daw_notes),
+            "bpm": actual_bpm,
+            "onset_count": result["onset_count"],
+            "band_counts": result["band_counts"],
+            "duration_seconds": result["duration_seconds"],
+            "track_index": track_index,
+            "unit_index": unit_index,
+            "notes_result": notes_data.get("notes_created", len(daw_notes)),
+        })
+    except Exception as e:
+        return _err(f"Drum transcription error: {e}")
 
 @mcp.tool()
 async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: int = 3) -> str:
