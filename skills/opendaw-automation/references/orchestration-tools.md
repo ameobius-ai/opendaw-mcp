@@ -172,6 +172,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 159. `balance_track_velocities` — cross-track velocity balance: 5 presets (mix_balanced/drums_forward/vocal_forward/pads_quiet/bass_heavy) + custom mode
 160. `create_midi_echo` — MIDI echo with decaying velocity: 4 feedback modes (linear/exponential/constant/reverse), pitch shift per repeat, dest_track for separate echo
 161. `apply_velocity_lfo` — periodic velocity modulation: 5 waveforms (sine/triangle/saw/square/random), rate (cycles/beat), depth, phase, center velocity
+162. `create_ratchet` — ratchet (accelerando repeat): 4 modes (accelerate/decelerate/constant/exponential), changing subdivision rate, velocity_decay, pitch_drift
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

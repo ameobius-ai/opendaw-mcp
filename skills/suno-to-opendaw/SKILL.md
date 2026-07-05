@@ -494,7 +494,7 @@ async def suno_to_opendaw_full(suno_url: str):
 - `opendaw-track-architecture` — tracks, regions, clips, notes, tempo
 - `opendaw-sound-design` — instruments + scriptable DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain, render
-- `opendaw-automation` — 424 MCP tools full API reference
+- `opendaw-automation` — 425 MCP tools full API reference
 
 ## Tooling
 

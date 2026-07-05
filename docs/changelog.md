@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.250.0 (2026-07-06)
+
+### Added
+- `create_ratchet` — Ratchet (accelerando repeat) — repeated notes with changing subdivision rate. 4 modes (accelerate/decelerate/constant/exponential), max 2-64 notes/beat, velocity_decay, pitch_drift. Bach cadences, electronic build-ups, drum fills.
+
 ## v1.249.0 (2026-07-06)
 
 ### Added

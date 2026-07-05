@@ -19310,6 +19310,191 @@ async def mcp_opendaw_create_midi_echo(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_ratchet(
+    unit_index: int,
+    track_index: int,
+    pitch: int = 60,
+    start_beat: float = 0.0,
+    length_beats: float = 2.0,
+    subdivisions: str = "accelerate",
+    max_subdivisions: int = 8,
+    velocity: float = 0.7,
+    velocity_decay: float = 0.0,
+    pitch_drift: int = 0,
+    region_index: int = -1,
+) -> str:
+    """Create a ratchet — repeated notes with changing subdivision rate.
+
+    A ratchet (also called "accelerando repeat" or "Bach ratchet") is a
+    series of repeated notes where the spacing between notes gradually
+    decreases (accelerate) or increases (decelerate), creating a sense
+    of acceleration or deceleration. Used extensively in Baroque music
+    (Bach cadences), electronic build-ups, and drum fills.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        pitch: MIDI pitch for all ratchet notes (0-127)
+        start_beat: Start position in beats
+        length_beats: Total length in beats
+        subdivisions: Subdivision mode —
+            "accelerate" = start slow, get faster (16th→32nd→64th)
+            "decelerate" = start fast, get slower (64th→32nd→16th)
+            "constant" = even subdivision (no change, like a roll)
+            "exponential" = exponential acceleration
+        max_subdivisions: Maximum notes per beat at the fastest point
+                          (4=16th, 8=32nd, 16=64th, 32=128th)
+        velocity: Base velocity (0-1)
+        velocity_decay: Velocity reduction per note (0=uniform, 0.02=gradual fade)
+        pitch_drift: Semitones to drift per note (0=same pitch, 1=ascending chromatic,
+                     -1=descending, 12=ascending octaves)
+        region_index: Target region (-1 = auto-create/append)
+
+    Returns:
+        JSON with notes_created, pitch, subdivision_points, total_beats.
+    """
+    pitch = max(0, min(127, int(pitch)))
+    max_subdivisions = max(2, min(64, int(max_subdivisions)))
+    velocity = max(0.0, min(1.0, float(velocity)))
+    velocity_decay = max(0.0, min(0.5, float(velocity_decay)))
+    subdivisions = subdivisions if subdivisions in ("accelerate", "decelerate", "constant", "exponential") else "accelerate"
+    length_beats = max(0.1, float(length_beats))
+    start_beat = max(0.0, float(start_beat))
+    pitch_drift = int(pitch_drift)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const basePitch = {pitch};
+        const startBeat = {start_beat};
+        const lengthBeats = {length_beats};
+        const subMode = {json.dumps(subdivisions)};
+        const maxSubs = {max_subdivisions};
+        const baseVel = {velocity};
+        const velDecay = {velocity_decay};
+        const pitchDrift = {pitch_drift};
+        const regionIdx = {region_index};
+
+        const h = window.DAW_HeadlessBridge;
+        const units = [...h.api.units.pointerHub.incoming()];
+        if (unitIdx >= units.length) return JSON.stringify({{"error": "unit out of range"}});
+        const au = units[unitIdx];
+        const tracks = [...au.tracks.pointerHub.incoming()];
+        if (trackIdx >= tracks.length) return JSON.stringify({{"error": "track out of range"}});
+        const track = tracks[trackIdx];
+
+        const PPQN = 960;
+        const startPos = Math.round(startBeat * PPQN);
+        const totalTicks = Math.round(lengthBeats * PPQN);
+
+        // Generate subdivision schedule
+        // We'll create notes at variable spacing
+        const notePositions = [];
+        let currentTick = 0;
+        let noteIdx = 0;
+        const minSubs = 2; // start at 8th notes (2 per beat)
+
+        while (currentTick < totalTicks) {{
+            const progress = currentTick / totalTicks;
+            let subsPerBeat;
+
+            if (subMode === "accelerate") {{
+                // Start at minSubs, accelerate to maxSubs linearly
+                subsPerBeat = minSubs + (maxSubs - minSubs) * progress;
+            }} else if (subMode === "decelerate") {{
+                // Start at maxSubs, decelerate to minSubs
+                subsPerBeat = maxSubs - (maxSubs - minSubs) * progress;
+            }} else if (subMode === "exponential") {{
+                // Exponential acceleration
+                const expProg = Math.pow(progress, 2);
+                subsPerBeat = minSubs + (maxSubs - minSubs) * expProg;
+            }} else {{
+                // Constant
+                subsPerBeat = maxSubs / 2 + minSubs / 2;
+            }}
+
+            const tickSpacing = Math.round(PPQN / subsPerBeat);
+            currentTick += tickSpacing;
+            if (currentTick >= totalTicks) break;
+            notePositions.push(currentTick);
+            noteIdx++;
+        }}
+
+        // Find or create region
+        const regions = [...track.regions.pointerHub.incoming()];
+        let coll;
+        let regionBox;
+        if (regionIdx >= 0 && regionIdx < regions.length) {{
+            regionBox = regions[regionIdx].box;
+            coll = regionBox.events.targetVertex.unwrap();
+        }} else if (regions.length > 0) {{
+            regionBox = regions[regions.length - 1].box;
+            coll = regionBox.events.targetVertex.unwrap();
+        }}
+
+        let notesCreated = 0;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        if (!NoteEventBox) return JSON.stringify({{"error": "DAW_NoteEventBox not available"}});
+
+        await h.editing.modify(async () => {{
+            for (let i = 0; i < notePositions.length; i++) {{
+                const pos = startPos + notePositions[i];
+                const notePitch = Math.max(0, Math.min(127, basePitch + Math.round(pitchDrift * i)));
+                const vel = Math.max(0, Math.min(1, baseVel - velDecay * i));
+                const dur = Math.min(PPQN / 4, notePositions[i + 1] - notePositions[i] || 120);
+
+                if (coll) {{
+                    NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                        box.pitch.setValue(notePitch);
+                        box.position.setValue(pos);
+                        box.duration.setValue(dur);
+                        box.velocity.setValue(vel);
+                        box.events.refer(coll.events);
+                    }});
+                }}
+                notesCreated++;
+            }}
+
+            // Extend region if needed
+            if (regionBox) {{
+                const lastPos = startPos + (notePositions[notePositions.length - 1] || 0) + PPQN;
+                const currentDur = regionBox.duration.value || 0;
+                if (lastPos > currentDur) {{
+                    regionBox.duration.setValue(lastPos);
+                    if (regionBox.loopDuration) regionBox.loopDuration.setValue(lastPos);
+                }}
+            }}
+        }});
+
+        // Compute subdivision points for reporting
+        const subPoints = [];
+        const numSamples = Math.min(5, notePositions.length);
+        for (let i = 0; i < numSamples; i++) {{
+            const idx = Math.floor(i * notePositions.length / numSamples);
+            const nextIdx = Math.min(idx + 1, notePositions.length - 1);
+            if (nextIdx > idx) {{
+                const spacing = notePositions[nextIdx] - notePositions[idx];
+                const subs = Math.round(PPQN / spacing * 10) / 10;
+                subPoints.push({{beat: Math.round(notePositions[idx] / PPQN * 100) / 100, subs_per_beat: subs}});
+            }}
+        }}
+
+        return JSON.stringify({{
+            notes_created: notesCreated,
+            pitch: basePitch,
+            subdivisions: subMode,
+            max_subdivisions: maxSubs,
+            length_beats: lengthBeats,
+            pitch_drift: pitchDrift,
+            velocity: baseVel,
+            velocity_decay: velDecay,
+            subdivision_points: subPoints,
+        }});
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_scale_durations(
     unit_index: int,
     track_index: int,

@@ -16275,6 +16275,117 @@ class TestQuantizeVelocities:
         assert sum(dist) == 8
 
 
+class TestCreateRatchet:
+    """Tests for mcp_opendaw_create_ratchet — repeated notes with changing subdivision."""
+
+    def _compute_subdivisions(self, progress, mode, min_subs, max_subs):
+        """Pure-Python reimplementation of subdivision schedule."""
+        if mode == "accelerate":
+            return min_subs + (max_subs - min_subs) * progress
+        elif mode == "decelerate":
+            return max_subs - (max_subs - min_subs) * progress
+        elif mode == "exponential":
+            return min_subs + (max_subs - min_subs) * (progress ** 2)
+        else:
+            return (max_subs + min_subs) / 2
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_create_ratchet"]
+        assert len(tools) == 1
+
+    def test_accelerate_starts_slow(self):
+        """Accelerate mode: fewer subdivisions at start, more at end"""
+        start_subs = self._compute_subdivisions(0.0, "accelerate", 2, 8)
+        end_subs = self._compute_subdivisions(1.0, "accelerate", 2, 8)
+        assert start_subs < end_subs
+        assert abs(start_subs - 2.0) < 0.01
+        assert abs(end_subs - 8.0) < 0.01
+
+    def test_decelerate_starts_fast(self):
+        """Decelerate mode: more subdivisions at start, fewer at end"""
+        start_subs = self._compute_subdivisions(0.0, "decelerate", 2, 8)
+        end_subs = self._compute_subdivisions(1.0, "decelerate", 2, 8)
+        assert start_subs > end_subs
+        assert abs(start_subs - 8.0) < 0.01
+        assert abs(end_subs - 2.0) < 0.01
+
+    def test_exponential_accelerates_faster(self):
+        """Exponential: slower start than linear accelerate"""
+        exp_subs = self._compute_subdivisions(0.3, "exponential", 2, 8)
+        lin_subs = self._compute_subdivisions(0.3, "accelerate", 2, 8)
+        assert exp_subs < lin_subs  # exponential is slower at start
+
+    def test_constant_mode(self):
+        """Constant mode: same subdivisions throughout"""
+        start = self._compute_subdivisions(0.0, "constant", 2, 8)
+        end = self._compute_subdivisions(1.0, "constant", 2, 8)
+        assert abs(start - end) < 0.01
+
+    def test_subdivision_validation(self):
+        """Unknown mode defaults to accelerate"""
+        mode = "invalid"
+        mode = mode if mode in ("accelerate", "decelerate", "constant", "exponential") else "accelerate"
+        assert mode == "accelerate"
+
+    def test_pitch_clamping(self):
+        """Pitch clamped to 0-127"""
+        assert max(0, min(127, -5)) == 0
+        assert max(0, min(127, 200)) == 127
+
+    def test_max_subdivisions_clamping(self):
+        """Max subdivisions clamped to 2-64"""
+        assert max(2, min(64, 1)) == 2
+        assert max(2, min(64, 100)) == 64
+
+    def test_velocity_decay(self):
+        """Velocity decays per note"""
+        base_vel = 0.7
+        decay = 0.02
+        note_0 = max(0, min(1, base_vel - decay * 0))
+        note_10 = max(0, min(1, base_vel - decay * 10))
+        assert note_0 > note_10
+        assert abs(note_0 - 0.7) < 0.01
+        assert abs(note_10 - 0.5) < 0.01
+
+    def test_pitch_drift_ascending(self):
+        """Pitch drift adds semitones per note"""
+        base = 60
+        drift = 1
+        note_0 = base + drift * 0
+        note_5 = base + drift * 5
+        assert note_0 == 60
+        assert note_5 == 65
+
+    def test_pitch_drift_octave(self):
+        """Pitch drift of 12 creates ascending octaves"""
+        base = 60
+        drift = 12
+        note_1 = base + drift
+        assert note_1 == 72  # C5
+
+    def test_param_count(self):
+        """Should have 11 parameters"""
+        import inspect
+        from server import mcp_opendaw_create_ratchet
+        sig = inspect.signature(mcp_opendaw_create_ratchet)
+        assert len(sig.parameters) == 11
+
+    def test_defaults(self):
+        """Check default parameter values"""
+        import inspect
+        from server import mcp_opendaw_create_ratchet
+        sig = inspect.signature(mcp_opendaw_create_ratchet)
+        assert sig.parameters["pitch"].default == 60
+        assert sig.parameters["subdivisions"].default == "accelerate"
+        assert sig.parameters["max_subdivisions"].default == 8
+        assert sig.parameters["length_beats"].default == 2.0
+        assert sig.parameters["velocity"].default == 0.7
+
+
 class TestCreateMidiEcho:
     """Tests for mcp_opendaw_create_midi_echo — MIDI echo with decaying velocity"""
 

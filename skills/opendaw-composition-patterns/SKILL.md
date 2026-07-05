@@ -100,6 +100,7 @@ What do you want to create?
 ├── Velocity LFO → apply_velocity_lfo (sine/triangle/saw/square/random, cyclic pumping)
 ├── Cross-track balance → balance_track_velocities (5 presets, MIDI mix leveling)
 ├── MIDI echo → create_midi_echo (decaying repeats, pitch shift, 4 feedback modes)
+├── Ratchet → create_ratchet (accelerando/decelerando repeat, Bach cadences, build-ups)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
