@@ -26058,36 +26058,54 @@ async def mcp_opendaw_create_full_genre_pipeline(
     bars: int = 8,
     root: str = None,
     master_lufs: float = -14,
+    progression: str = "",
+    add_counter_melody: bool = False,
 ) -> str:
     """Create a complete genre track from zero to render-ready in one call.
 
-    Full pipeline: setup tracks → arrangement → genre mix → mastering chain.
+    Full pipeline: setup tracks → arrangement → harmonic layers (optional) →
+    genre mix → mastering chain.
     One call replaces 5-10 individual tool calls with correct parameters.
 
     Steps performed:
     1. Set BPM to genre-appropriate default
     2. Create a synth track + 4 note tracks
-    3. Create 32-bar regions on all tracks
-    4. Call the genre arrangement (notes across all tracks)
-    5. Apply genre-specific mix (compressor, EQ, saturation, reverb per track)
-    6. Apply sidechain (for electronic genres)
-    7. Add mastering chain (genre-appropriate LUFS target)
+    3. Create regions on all tracks
+    4. Call the genre arrangement (rhythm across all tracks)
+    5. If progression provided: add harmonic layers (arp + melody on top
+       of genre rhythm; pads/bass skipped since genre already has them)
+    6. Apply genre-specific mix (compressor, EQ, saturation, reverb per track)
+    7. Apply sidechain (for electronic genres)
+    8. Add mastering chain (genre-appropriate LUFS target)
 
     After this call, the project is ready for export_audio / render.
 
-    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae, synthwave, trance, disco
+    genre: One of: dnb, liquid_dnb, house, trap, techno, dubstep, afrobeat,
+        rock, jazz, pop, funk, reggae, synthwave, trance, disco
     bpm: Override tempo (None = genre default).
     bars: Arrangement length (default 8, pop min 16).
     root: Override key (None = genre default).
     master_lufs: Mastering target (-14 Spotify, -10 loud, -16 Apple).
+    progression: Chord progression string (e.g. "Am-F-C-G"). If non-empty,
+        adds arp + melody harmonic layers on top of the genre rhythm.
+        Pads and bass are skipped (genre arrangement already has them).
+        Default "" = no harmonic layers (rhythm only).
+    add_counter_melody: If True and progression is set, also adds a
+        counter-melody layer (contrary motion). Default False.
 
-    Returns complete pipeline status: tracks created, notes per track, effects added, mastering chain.
+    Returns complete pipeline status: tracks created, notes per track,
+    effects added, mastering chain, harmonic layers.
 
     Example:
       # Full DnB track in one call
       create_full_genre_pipeline("dnb")
       # Custom techno
       create_full_genre_pipeline("techno", bpm=135, bars=16, master_lufs=-10)
+      # House with harmonic layers
+      create_full_genre_pipeline("house", progression="Fm-Db-Ab-Eb")
+      # Synthwave with full harmonic quintet
+      create_full_genre_pipeline("synthwave", progression="Am-F-C-G",
+          add_counter_melody=True)
     """
     # Genre defaults
     defaults = {
@@ -26190,7 +26208,38 @@ async def mcp_opendaw_create_full_genre_pipeline(
     except Exception as e:
         pipeline_steps.append({"step": "arrangement", "error": str(e)})
 
-    # Step 4: Genre mix
+    # Step 4b: Harmonic layers (optional — if progression provided)
+    if progression:
+        try:
+            # Skip pads (pad_octave=-1) and bass (bass_pattern="") since
+            # the genre arrangement already provides them
+            cm_pattern = "contrary" if add_counter_melody else ""
+            harm_result = await mcp_opendaw_create_harmonic_arrangement(
+                progression,
+                pad_octave=-1,       # skip — genre has pads/bass
+                bass_pattern="",     # skip — genre has bass
+                arp_pattern="up",
+                melody_pattern="chord_tones",
+                counter_melody_pattern=cm_pattern,
+                bars_per_chord=max(1, bars // 4),
+                velocity=0.7,
+                unit_index=unit_index,
+            )
+            harm_data = json.loads(harm_result)
+            harm_notes = harm_data.get("total_notes", 0)
+            harm_layers = harm_data.get("layers", [])
+            pipeline_steps.append({
+                "step": "harmonic_layers",
+                "progression": progression,
+                "layers": harm_layers,
+                "notes_added": harm_notes,
+                "counter_melody": add_counter_melody,
+                "status": "ok",
+            })
+        except Exception as e:
+            pipeline_steps.append({"step": "harmonic_layers", "error": str(e)})
+
+    # Step 5: Genre mix
     try:
         mix_result = await mcp_opendaw_apply_genre_mix(
             genre, unit_index=unit_index, num_tracks=num_tracks,
@@ -26229,11 +26278,14 @@ async def mcp_opendaw_create_full_genre_pipeline(
     # Summary
     total_notes = 0
     effects = 0
+    harmonic_notes = 0
     for step in pipeline_steps:
         if step.get("step") == "arrangement":
             total_notes = step.get("total_notes", 0)
         if step.get("step") == "genre_mix":
             effects = step.get("effects_added", 0)
+        if step.get("step") == "harmonic_layers":
+            harmonic_notes = step.get("notes_added", 0)
 
     return json.dumps({
         "full_pipeline": True,
@@ -26243,7 +26295,10 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "bars": bars,
         "unit_index": unit_index,
         "tracks": num_tracks,
-        "total_notes": total_notes,
+        "total_notes": total_notes + harmonic_notes,
+        "rhythm_notes": total_notes,
+        "harmonic_notes": harmonic_notes,
+        "progression": progression or None,
         "effects_added": effects,
         "master_style": master_style,
         "master_lufs": master_lufs,

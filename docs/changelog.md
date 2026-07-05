@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.161.0 (2026-07-05)
+
+- **create_full_genre_pipeline: harmonic layers integration** — new `progression` parameter adds arp + melody harmonic layers on top of genre rhythm. Pads and bass skipped (genre arrangement already provides them). `add_counter_melody` flag (default False) optionally adds contrary-motion counter-melody. `bars_per_chord` auto-calculated as `bars // 4`. Pipeline summary now includes `rhythm_notes`, `harmonic_notes`, and `progression` fields. Backward compatible — default `progression=""` = rhythm only. 8 new unit tests. 2131 tests.
+
 ## v1.160.0 (2026-07-05)
 
 - **create_harmonic_arrangement: counter-melody integrated** — 5th layer (counter-melody) now built into the one-call harmonic arrangement. New params: `counter_melody_pattern` (contrary/oblique/parallel_third/parallel_sixth/call_response, default ""=skip) and `counter_melody_octave` (default 4). Track auto-routing: counter-melody placed on track 3+layers_before (3 if no arp/melody, 4 if one, 5 if both). Velocity auto-scaled to 0.6x (supportive, below melody 0.75x). Backward compatible — default counter_melody_pattern="" skips. Example `harmonic_quintet.py` updated to one-call. 2123 tests.

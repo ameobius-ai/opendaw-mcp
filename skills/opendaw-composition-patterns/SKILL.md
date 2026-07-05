@@ -94,7 +94,7 @@ What do you want to create?
 ├── Melody from progression → create_melody_from_progression ("Am-F-C-G", 5 melody patterns)
 ├── Harmonic arrangement → create_harmonic_arrangement ("Am-F-C-G", all 4 layers in one call)
 ├── Counter-melody → create_counter_melody_from_progression ("Am-F-C-G", 5 contrapuntal patterns)
-├── Full pipeline → create_full_genre_pipeline (14 genres: zero-to-render in one call)
+├── Full pipeline → create_full_genre_pipeline (15 genres, optional harmonic layers via progression param)
 └── Render entire song → render_full_song (auto-detect length, export WAV)
 ```
 

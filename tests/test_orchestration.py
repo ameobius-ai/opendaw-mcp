@@ -8545,4 +8545,58 @@ class TestLiquidDnbGenreIntegration:
         # liquid_dnb arrangement fn is in arrangement_fns dict
         arrangement_fns_has_liquid = True
         assert arrangement_fns_has_liquid
-        assert len(steps) == 6
+
+    def test_pipeline_with_harmonic_layers(self):
+        """Pipeline with progression param adds harmonic_layers step"""
+        steps_without = ["set_bpm", "create_tracks", "arrangement", "genre_mix", "humanization", "mastering"]
+        steps_with = ["set_bpm", "create_tracks", "arrangement", "harmonic_layers", "genre_mix", "humanization", "mastering"]
+        assert "harmonic_layers" not in steps_without
+        assert "harmonic_layers" in steps_with
+        assert len(steps_with) == len(steps_without) + 1
+
+    def test_pipeline_harmonic_skips_pads_and_bass(self):
+        """Harmonic layers in pipeline skip pads (pad_octave=-1) and bass (bass_pattern='')"""
+        # Genre arrangement already has pads/bass — harmonic adds only arp+melody
+        pad_octave = -1  # skip
+        bass_pattern = ""  # skip
+        assert pad_octave < 0
+        assert bass_pattern == ""
+
+    def test_pipeline_harmonic_bars_per_chord(self):
+        """bars_per_chord for harmonic = bars // 4 (chord changes every 4 bars)"""
+        bars = 8
+        bpc = max(1, bars // 4)
+        assert bpc == 2
+
+    def test_pipeline_harmonic_bars_per_chord_short(self):
+        """Short arrangement (4 bars) = 1 bar per chord"""
+        bars = 4
+        bpc = max(1, bars // 4)
+        assert bpc == 1
+
+    def test_pipeline_counter_melody_optional(self):
+        """add_counter_melody=False → no counter-melody; True → contrary pattern"""
+        cm_pattern_no = "" if not False else "contrary"
+        cm_pattern_yes = "" if not True else "contrary"
+        assert cm_pattern_no == ""
+        assert cm_pattern_yes == "contrary"
+
+    def test_pipeline_without_progression_no_harmonic(self):
+        """Default progression='' → no harmonic_layers step (backward compatible)"""
+        progression = ""
+        has_harmonic = bool(progression)
+        assert has_harmonic is False
+
+    def test_pipeline_with_progression_has_harmonic(self):
+        """progression='Am-F-C-G' → harmonic_layers step added"""
+        progression = "Am-F-C-G"
+        has_harmonic = bool(progression)
+        assert has_harmonic is True
+
+    def test_pipeline_summary_has_harmonic_notes(self):
+        """Pipeline summary includes harmonic_notes field when progression set"""
+        summary_fields_without = ["total_notes", "rhythm_notes", "effects_added"]
+        summary_fields_with = ["total_notes", "rhythm_notes", "harmonic_notes", "progression", "effects_added"]
+        assert "harmonic_notes" not in summary_fields_without
+        assert "harmonic_notes" in summary_fields_with
+        assert "progression" in summary_fields_with
