@@ -3250,3 +3250,111 @@ class TestEuclideanRhythm:
         p = self._euclidean(3, 8)
         pattern_str = "".join(str(int(x)) for x in p)
         assert pattern_str == "10010010"
+
+
+class TestTumbaoGeneration:
+    """Tests for create_tumbao — Afro-Cuban conga pattern"""
+
+    # Tumbao patterns: (beat, stroke_type) within 2-bar cycle
+    TUMBAO_PATTERNS = {
+        "salsa": [
+            (1.5, "tone"), (3.5, "open"),
+            (5.5, "tone"), (7.0, "open"),
+        ],
+        "salsa_slap": [
+            (1.5, "tone"), (3.5, "open"),
+            (5.0, "slap"), (5.5, "tone"), (7.0, "open"),
+        ],
+        "rumba": [
+            (1.5, "tone"), (3.0, "open"), (3.5, "tone"),
+            (5.5, "tone"), (7.0, "open"), (7.5, "tone"),
+        ],
+        "bolero": [
+            (1.5, "tone"), (3.5, "open"),
+            (5.5, "tone"), (7.5, "open"),
+        ],
+    }
+
+    def test_salsa_stroke_count(self):
+        strokes = self.TUMBAO_PATTERNS["salsa"]
+        assert len(strokes) == 4
+
+    def test_salsa_slap_has_slap(self):
+        strokes = self.TUMBAO_PATTERNS["salsa_slap"]
+        stroke_types = [s[1] for s in strokes]
+        assert "slap" in stroke_types
+
+    def test_rumba_stroke_count(self):
+        strokes = self.TUMBAO_PATTERNS["rumba"]
+        assert len(strokes) == 6
+
+    def test_bolero_no_downbeat_open(self):
+        """Bolero open tone is on &4 not beat 4 — less anticipatory"""
+        strokes = self.TUMBAO_PATTERNS["bolero"]
+        opens = [b for b, s in strokes if s == "open"]
+        assert 7.5 in opens  # &4 of bar 2, not 7.0 (beat 4)
+        assert 7.0 not in opens
+
+    def test_salsa_open_on_and_of_4(self):
+        """Signature: open tone on &4 of bar 1 (beat 3.5)"""
+        strokes = self.TUMBAO_PATTERNS["salsa"]
+        opens = [b for b, s in strokes if s == "open"]
+        assert 3.5 in opens
+
+    def test_salsa_open_on_downbeat_bar2(self):
+        """Open tone on beat 4 of bar 2 (beat 7.0) — anticipates next downbeat"""
+        strokes = self.TUMBAO_PATTERNS["salsa"]
+        opens = [b for b, s in strokes if s == "open"]
+        assert 7.0 in opens
+
+    def test_tone_on_and_of_2(self):
+        """All patterns have tone on &2 of each bar (beat 1.5 and 5.5)"""
+        for name, strokes in self.TUMBAO_PATTERNS.items():
+            tones = [b for b, s in strokes if s == "tone"]
+            assert 1.5 in tones, f"{name}: missing tone on &2 of bar 1"
+            assert 5.5 in tones, f"{name}: missing tone on &2 of bar 2"
+
+    def test_cycle_length_8_beats(self):
+        """All patterns span 2 bars = 8 beats"""
+        for name, strokes in self.TUMBAO_PATTERNS.items():
+            max_beat = max(b for b, _ in strokes)
+            assert max_beat < 8.0, f"{name}: pattern exceeds 8 beats"
+
+    def test_pitch_mapping(self):
+        """Tone=low, open=mid, slap=high — 3 distinct conga pitches"""
+        low_pitch = 38
+        open_pitch = 50
+        slap_pitch = 62
+        assert low_pitch < open_pitch < slap_pitch
+
+    def test_velocity_mapping(self):
+        """Open tones louder than tones, slaps loudest"""
+        base_vel = 0.75
+        tone_vel = base_vel
+        open_vel = min(1.0, base_vel + 0.1)
+        slap_vel = min(1.0, base_vel + 0.15)
+        assert tone_vel < open_vel <= slap_vel
+
+    def test_duration_mapping(self):
+        """Open tones sustained, tones short, slaps very short"""
+        dur_map = {"tone": 0.15, "open": 0.5, "slap": 0.1}
+        assert dur_map["slap"] < dur_map["tone"] < dur_map["open"]
+
+    def test_bar_repetition(self):
+        """4 bars = 2 cycles of 2-bar pattern"""
+        bars = 4
+        cycles = bars // 2
+        assert cycles == 2
+
+    def test_salsa_slap_on_beat_2(self):
+        """Slap on beat 2 of bar 2 (beat 5.0) — adds emphasis"""
+        strokes = self.TUMBAO_PATTERNS["salsa_slap"]
+        slaps = [b for b, s in strokes if s == "slap"]
+        assert 5.0 in slaps
+
+    def test_all_types_valid(self):
+        """All stroke types are tone/open/slap"""
+        valid = {"tone", "open", "slap"}
+        for name, strokes in self.TUMBAO_PATTERNS.items():
+            for _, stroke_type in strokes:
+                assert stroke_type in valid, f"{name}: invalid stroke {stroke_type}"

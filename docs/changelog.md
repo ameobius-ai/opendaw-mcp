@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.110.0 (2026-07-05)
+
+- **`create_tumbao` orchestration tool (314 MCP tools)** — Afro-Cuban tumbao (conga) pattern: the rhythmic foundation of salsa alongside clave. 4 variants: salsa (standard), salsa_slap (with slap on beat 2), rumba (guaguancó, more open tones), bolero (sparse, less anticipatory). 3 stroke types mapped to 3 conga pitches: tone (closed, low), open (resonant, mid), slap (sharp, high). Open tone on &4 anticipates downbeat — the tumbao signature. 57 orchestration tools. 314 MCP tools
+- **1171 unit tests** (+14)
+
 ## v1.109.0 (2026-07-05)
 
 - **`werkstatt_harmonic_tremolo.js` DSP script (88 DSP, 70 Werkstatt)** — harmonic tremolo: Fender '60s effect. LR4 Linkwitz-Riley crossover splits signal into low/high bands, dual LFO modulates each band's gain in antiphase. Unlike regular tremolo (amplitude up/down), harmonic tremolo rocks between bass and treble — spectral modulation, not amplitude. Shape blends sine→square for choppy vintage feel. Phase offset controls antiphase depth. 7 params (rate/depth/crossover/shape/phase_offset/mix/output). Khruangbin, Magic Sam, Fender Vibrolux style. 88 DSP scripts, 70 Werkstatt

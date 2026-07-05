@@ -20802,3 +20802,114 @@ def _euclidean_bjk(k, n):
     for g in a + b:
         result.extend(g)
     return result
+
+
+@mcp.tool()
+async def mcp_opendaw_create_tumbao(
+    tumbao_type: str = "salsa",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    low_pitch: int = 38,
+    open_pitch: int = 50,
+    slap_pitch: int = 62,
+    velocity: float = 0.75,
+) -> str:
+    """Create an Afro-Cuban tumbao (conga) pattern — the rhythmic foundation of salsa.
+
+    The tumbao is played on congas and interacts with the clave to create the
+    Afro-Cuban groove. The pattern features open tones (resonant, sustained),
+    closed tones (muffled, short), and slaps (sharp, percussive). The open tone
+    on the "and of 4" is the signature — it anticipates the downbeat.
+
+    tumbao_type:
+      "salsa"     — Standard salsa tumbao. 2-bar pattern:
+                     Bar 1: tone on &2, open on &4
+                     Bar 2: tone on &2, open on 4 (downbeat)
+      "salsa_slap" — Salsa with slap on beat 2 of bar 2
+      "rumba"     — Rumba tumbao (guaguancó). Simpler, more open tones.
+      "bolero"    — Bolero tumbao. Slower feel, fewer strokes.
+
+    bars: Pattern length (2 = one tumbao cycle, repeat for longer).
+    low_pitch: MIDI pitch for closed tones (low conga).
+    open_pitch: MIDI pitch for open tones (mid conga).
+    slap_pitch: MIDI pitch for slaps (high conga).
+    velocity: Base velocity 0-1. Open tones +0.1, slaps +0.15.
+
+    Returns notes created, tumbao type, and stroke breakdown.
+
+    Example:
+      create_tumbao(tumbao_type="salsa", track_index=0)
+      create_tumbao(tumbao_type="salsa_slap", track_index=1, bars=4)
+    """
+    tumbao_type = tumbao_type.strip().lower().replace(" ", "_")
+    valid_types = ["salsa", "salsa_slap", "rumba", "bolero"]
+    if tumbao_type not in valid_types:
+        return f"Error: unknown tumbao_type '{tumbao_type}'. Valid: {', '.join(valid_types)}"
+
+    if bars < 2 or bars > 16:
+        return "Error: bars must be 2-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    for p in (low_pitch, open_pitch, slap_pitch):
+        if not (0 <= p <= 127):
+            return "Error: all pitches must be 0-127"
+
+    # Tumbao patterns: (beat_position, stroke_type)
+    # stroke_type: "tone" (closed), "open", "slap"
+    # Beat positions within a 2-bar cycle (8 beats)
+    patterns = {
+        "salsa": [
+            (1.5, "tone"), (3.5, "open"),      # bar 1: &2 tone, &4 open
+            (5.5, "tone"), (7.0, "open"),      # bar 2: &2 tone, beat 4 open
+        ],
+        "salsa_slap": [
+            (1.5, "tone"), (3.5, "open"),      # bar 1: &2 tone, &4 open
+            (5.0, "slap"), (5.5, "tone"), (7.0, "open"),  # bar 2: slap on 2, &2 tone, 4 open
+        ],
+        "rumba": [
+            (1.5, "tone"), (3.0, "open"), (3.5, "tone"),  # bar 1: &2 tone, 3 open, &4 tone
+            (5.5, "tone"), (7.0, "open"), (7.5, "tone"),  # bar 2: &2 tone, 4 open, &4 tone
+        ],
+        "bolero": [
+            (1.5, "tone"), (3.5, "open"),      # bar 1: sparse
+            (5.5, "tone"), (7.5, "open"),      # bar 2: sparse, no downbeat open
+        ],
+    }
+
+    strokes = patterns[tumbao_type]
+    cycle_len = 8.0  # 2 bars of 4/4
+
+    pitch_map = {"tone": low_pitch, "open": open_pitch, "slap": slap_pitch}
+    vel_map = {"tone": velocity, "open": min(1.0, velocity + 0.1), "slap": min(1.0, velocity + 0.15)}
+    dur_map = {"tone": 0.15, "open": 0.5, "slap": 0.1}
+
+    all_notes = []
+    cycles = bars // 2
+    stroke_counts = {"tone": 0, "open": 0, "slap": 0}
+
+    for c in range(cycles):
+        offset = c * cycle_len
+        for beat, stroke_type in strokes:
+            all_notes.append({
+                "pitch": pitch_map[stroke_type],
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[stroke_type] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["tumbao"] = True
+        data["tumbao_type"] = tumbao_type
+        data["strokes"] = stroke_counts
+        data["cycles"] = cycles
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

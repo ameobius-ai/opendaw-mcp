@@ -384,7 +384,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 313 tools**
+**Total: 314 tools**
 
 ## DSP Scripts (scripts/) — 88 scripts
 
