@@ -23273,3 +23273,277 @@ async def mcp_opendaw_create_rock_arrangement(
         "keys_type": "major_triad_pads",
         "harmony": "I_IV_V_blues_based",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_jazz_arrangement(
+    bpm: float = 120,
+    bars: int = 8,
+    root: str = "F",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    piano_track: int = 2,
+    horn_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.75,
+) -> str:
+    """Create a full jazz arrangement — swing drums + walking bass + comping piano + horn across 4 tracks.
+
+    Jazz with swing feel and ii-V-I harmony — fundamentally different from all other arrangements:
+    - Track 0: Drums — swing ride pattern (spang-a-lang), brush snare ghost notes,
+                     comping on bass drum. The signature jazz ride cymbal pattern
+                     with swung 8th notes — the triplet feel that defines jazz.
+    - Track 1: Bass — walking bass: quarter notes that walk through the chord
+                     changes using chord tones and approach notes. ii-V-I aware,
+                     creating smooth voice leading through the changes.
+    - Track 2: Piano — comping: syncopated chord stabs using shell voicings
+                     (root + third + seventh) and rootless voicings. Frequent
+                     rests — comping is about space as much as notes.
+    - Track 3: Horn — lead melody: a simple bluesy head over the changes,
+                     using blue notes (flatted thirds and fifths) and swing.
+
+    At 120 BPM (default), this creates a medium-up swing feel. The ii-V-I
+    progression is the fundamental jazz chord change — every other genre uses
+    different harmony. Swing 8ths (triplet feel) is the rhythmic signature
+    that separates jazz from all straight-time genres.
+
+    bpm: Tempo (60-200, default 120 = medium swing).
+    bars: Arrangement length (4-32, default 8). Jazz benefits from longer forms.
+    root: Root note (F is a classic jazz key — great for horns).
+    octave: MIDI octave for bass (2 = F2=41, standard jazz bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / piano_track / horn_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_jazz_arrangement(bpm=120, root="F", bars=8)
+      create_jazz_arrangement(bpm=180, root="Bb", bars=12)
+    """
+    if not (50 <= bpm <= 220):
+        return "Error: bpm must be 50-220"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    piano_base = (octave + 3) * 12 + root_pc  # piano 2 octaves above bass
+    horn_base = (octave + 4) * 12 + root_pc   # horn 3 octaves above bass
+
+    # ii-V-I chord changes in F (2-bar cycle, 2 bars per key center)
+    # ii = Dm7 (root +2 from F = D), V = G7 (root +7 from F = G), I = Fmaj7
+    # In semitone offsets from root: ii = +2, V = +7, I = 0
+    # Each chord = 1 bar, pattern: ii(1 bar) → V(1 bar) → I(2 bars) per 4-bar cycle
+    # Compressed to 2-bar cycle: ii(0.5 bar) → V(0.5 bar) → I(1 bar)
+    # Actually, let's do proper 4-bar ii-V-I: ii(1) → V(1) → I(1) → I(1)
+    # But for 2-bar cycle: ii(1 bar=4 beats) → V(1 bar=4 beats) = turnaround
+    # Then I(1 bar) → I(1 bar) = resolution. So 4-bar cycle.
+    chord_changes = [
+        (0, 2, "ii"),    # Dm7 — 1 bar
+        (4, 7, "V"),     # G7 — 1 bar
+        (8, 0, "I"),     # Fmaj7 — 1 bar
+        (12, 0, "I"),    # Fmaj7 — 1 bar (resolution)
+        (16, 2, "ii"),   # Dm7
+        (20, 7, "V"),    # G7
+        (24, 0, "I"),    # Fmaj7
+        (28, 7, "V"),    # G7 (turnaround back to I)
+    ]
+
+    # --- DRUMS: swing ride pattern (2-bar cycle) ---
+    # Spang-a-lang: ride on beat 1, swung 8th on beat 2, ride on beat 3, swung 8th on beat 4
+    # Swung 8th = 2/3 of the triplet — notated as 0.66 (not 0.5)
+    # Ghost snare on swung 8ths, bass drum comping sporadically
+    drum_pattern = [
+        # Bar 1 — spang-a-lang
+        (0.0, "ride"), (0.66, "ride"), (1.0, "ride"), (1.66, "ride"),
+        (2.0, "ride"), (2.66, "ride"), (3.0, "ride"), (3.66, "ride"),
+        # Ghost snare on the "a" of each beat
+        (0.66, "ghost_snare"), (1.66, "ghost_snare"),
+        (2.66, "ghost_snare"), (3.66, "ghost_snare"),
+        # Bass drum comping
+        (1.0, "bd"), (3.0, "bd"),
+        # Bar 2 — with feathered bass drum
+        (4.0, "ride"), (4.66, "ride"), (5.0, "ride"), (5.66, "ride"),
+        (6.0, "ride"), (6.66, "ride"), (7.0, "ride"), (7.66, "ride"),
+        (4.66, "ghost_snare"), (5.66, "ghost_snare"),
+        (6.66, "ghost_snare"), (7.66, "ghost_snare"),
+        (4.5, "bd"), (6.0, "bd"),
+    ]
+    ride_p, ghost_snare_p, bd_p = 51, 38, 36
+    drum_pitch_map = {"ride": ride_p, "ghost_snare": ghost_snare_p, "bd": bd_p}
+    drum_vel_map = {
+        "ride": max(0.0, velocity - 0.05),
+        "ghost_snare": max(0.0, velocity - 0.35),  # very quiet ghost
+        "bd": max(0.0, velocity - 0.3),  # feathered bass drum
+    }
+    drum_dur_map = {"ride": 0.3, "ghost_snare": 0.05, "bd": 0.15}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: walking bass (2-bar cycle) ---
+    # Quarter notes walking through ii-V-I changes
+    # Uses chord tones (root, third, fifth, seventh) and approach notes
+    # ii (Dm7): D, F, A, C (root, min3, fifth, min7)
+    # V (G7): G, B, D, F (root, maj3, fifth, min7) — or approach: Ab → G
+    # I (Fmaj7): F, A, C, E (root, maj3, fifth, maj7)
+    bass_walks = {
+        2: [0, 3, 7, 10],    # Dm7: root, min3, fifth, min7 (relative to D)
+        7: [0, 4, 7, 10],    # G7: root, maj3, fifth, min7 (relative to G)
+        0: [0, 4, 7, 11],    # Fmaj7: root, maj3, fifth, maj7 (relative to F)
+    }
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for bar_start, chord_root, _ in chord_changes:
+            if bar_start >= 8:
+                break
+            bar_off = off + bar_start
+            walk = bass_walks.get(chord_root, [0, 4, 7, 11])
+            for i, interval in enumerate(walk):
+                bass_notes.append({
+                    "pitch": bass_base + chord_root + interval,
+                    "start": round(bar_off + i * 1.0, 4),
+                    "duration": 0.9,
+                    "velocity": round(velocity * 0.85, 3),
+                })
+
+    # --- PIANO: comping — syncopated shell voicings (2-bar cycle) ---
+    # Shell voicings: root + third + seventh (3 notes, no fifth)
+    # Comping = syncopated stabs with space between
+    # ii (Dm7): D + F + C (root + min3 + min7)
+    # V (G7): G + B + F (root + maj3 + min7)
+    # I (Fmaj7): F + A + E (root + maj3 + maj7)
+    piano_voicings = {
+        2: [0, 3, 10],    # Dm7 shell
+        7: [0, 4, 10],    # G7 shell
+        0: [0, 4, 11],    # Fmaj7 shell
+    }
+    # Comping rhythms: off-beat stabs (charlie parker style)
+    comp_rhythms = [
+        (0.5, 0.4), (1.5, 0.3), (2.5, 0.4), (3.33, 0.3),
+        (4.5, 0.4), (5.66, 0.3), (6.5, 0.4), (7.33, 0.3),
+    ]
+    piano_notes = []
+    piano_cycle = 8.0
+    piano_cycles = bars // 2
+    for c in range(piano_cycles):
+        off = c * piano_cycle
+        for bar_start, chord_root, _ in chord_changes:
+            if bar_start >= 8:
+                break
+            bar_off = off + bar_start
+            voicing = piano_voicings.get(chord_root, [0, 4, 11])
+            # Pick 1-2 comping spots per bar
+            for comp_beat, comp_dur in comp_rhythms:
+                local_beat = comp_beat % 4.0  # within bar
+                if local_beat < 4.0:
+                    for interval in voicing:
+                        piano_notes.append({
+                            "pitch": piano_base + chord_root + interval,
+                            "start": round(bar_off + local_beat, 4),
+                            "duration": comp_dur,
+                            "velocity": round(velocity * 0.55, 3),  # comping is subtle
+                        })
+
+    # --- HORN: bluesy head over changes (2-bar cycle) ---
+    # Simple bluesy melody using blue notes (flatted third, flatted fifth)
+    # Phrasing follows the ii-V-I changes
+    horn_pattern = [
+        # ii bar: bluesy phrase on Dm7
+        (0.0, 2 + 10, 0.5, 0.9),    # C over Dm7 (7th)
+        (0.66, 2 + 3, 0.5, 0.8),    # F (min3 of Dm)
+        (1.5, 2 + 7, 0.5, 0.85),    # A (fifth of Dm)
+        # V bar: tension phrase on G7
+        (4.0, 7 + 10, 0.5, 0.9),    # F over G7 (7th)
+        (4.66, 7 + 4, 0.5, 0.8),    # B (maj3 of G)
+        (5.5, 7 + 13, 0.5, 0.85),   # C# approaching D (chromatic approach)
+        # I bar: resolution on Fmaj7
+        (8.0, 0 + 0, 1.0, 0.9),     # F (root) — resolution
+        (9.0, 0 + 4, 0.5, 0.75),    # A (maj3)
+        (9.66, 0 + 11, 0.5, 0.7),   # E (maj7) — jazzy tension
+        # I bar: melodic continuation
+        (12.0, 0 + 7, 0.5, 0.8),    # C (fifth)
+        (12.66, 0 + 12, 0.5, 0.75), # F octave
+        (13.5, 0 + 4, 1.0, 0.7),    # A — held
+    ]
+    # Filter to 2-bar cycle
+    horn_notes = []
+    horn_cycle = 8.0
+    horn_cycles = bars // 2
+    for c in range(horn_cycles):
+        off = c * horn_cycle
+        for beat, abs_pitch, dur, vm in horn_pattern:
+            if beat < 8.0:  # within 2-bar cycle
+                horn_notes.append({
+                    "pitch": horn_base + abs_pitch,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm * 0.6, 3),  # horn moderate volume
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    piano_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(piano_notes), unit_index, piano_track)
+    horn_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(horn_notes), unit_index, horn_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        piano_data = json.loads(piano_result)
+    except Exception:
+        piano_data = {"raw": piano_result}
+    try:
+        horn_data = json.loads(horn_result)
+    except Exception:
+        horn_data = {"raw": horn_result}
+
+    return json.dumps({
+        "jazz_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "piano": {"track": piano_track, "notes": len(piano_notes), "result": piano_data.get("notes_created", len(piano_notes))},
+            "horn": {"track": horn_track, "notes": len(horn_notes), "result": horn_data.get("notes_created", len(horn_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(piano_notes) + len(horn_notes),
+        "drum_pattern": "swing_ride_spang_a_lang",
+        "bass_pattern": "walking_ii_V_I",
+        "piano_type": "shell_voicing_comping",
+        "horn_type": "bluesy_head",
+        "harmony": "ii_V_I_jazz",
+    }, indent=2)

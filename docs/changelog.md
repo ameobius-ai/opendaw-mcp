@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.136.0 (2026-07-05)
+
+- **`create_jazz_arrangement` orchestration tool (329 MCP tools)** — eighth multi-track genre arrangement. Jazz with ii-V-I harmony and swing feel across 4 tracks: drums (swing ride spang-a-lang — ride on every beat + swung 8th at 0.66, ghost snare comping, feathered bass drum), bass (walking bass — quarter notes through ii-V-I using chord tones root/third/fifth/seventh, min7 on ii and V, maj7 on I, smooth voice leading), piano (comping — shell voicings root+third+seventh, syncopated off-beat stabs with space between), horn (bluesy head — melodic line following ii-V-I changes, blue notes, swing 8th phrasing at 0.66). ii-V-I is the fundamental jazz chord change — every other genre uses different harmony. Swing 8ths (triplet feel at 0.66) is the rhythmic signature separating jazz from all straight-time genres. F default (classic jazz key for horns). 50-220 BPM, default 120 (medium swing). 4-32 bars. Third organic 4-track arrangement. 72 orchestration tools. 329 MCP tools
+- **1681 unit tests** (+21)
+
 ## v1.135.0 (2026-07-05)
 
 - **`create_rock_arrangement` orchestration tool (328 MCP tools)** — seventh multi-track genre arrangement. Classic rock with blues-based I-IV-V harmony across 4 tracks: drums (rock beat — kick on 1&3, snare on 2&4, crash on downbeat, tom fill at bar transition), bass (root-fifth walking bassline locking with kick drum, octave walks between changes), guitar (power chords — root+fifth, no third, ambiguous major/minor, with palm-muted downstrokes), keys (major triad pads — root+major third+fifth, sustained, adding the third that guitar omits). Blues form: I-I-IV-I-V-IV-I-V (8-bar compressed). E default (most common rock guitar key — open strings). 80-180 BPM, default 120. 4-16 bars. Second organic 4-track arrangement. 71 orchestration tools. 328 MCP tools

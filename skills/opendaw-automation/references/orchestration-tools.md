@@ -84,6 +84,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 71. `create_dubstep_arrangement` — Fifth multi-track arrangement: dubstep (drums+bass+lead). Half-time at 140 BPM (kick on 1, snare on 3), wobble bass (sustained root + octave/fifth stabs), minor arpeggio lead. G minor default. 130-155 BPM
 72. `create_afrobeat_arrangement` — Sixth multi-track arrangement: afrobeat (drums+bass+horns+guitar). First non-electronic, first 4-track. Polyrhythmic drums (12/8 feel), ostinato bass, call-and-response horns, off-beat chanka guitar. F minor default. 95-135 BPM. Min 8 bars
 73. `create_rock_arrangement` — Seventh multi-track arrangement: rock (drums+bass+guitar+keys). Blues-based I-IV-V, rock beat (kick 1&3, snare 2&4), power chords (root+fifth), major triad keys. E default. 80-180 BPM
+74. `create_jazz_arrangement` — Eighth multi-track arrangement: jazz (drums+bass+piano+horn). Swing ride (spang-a-lang), walking bass (ii-V-I), shell voicing comping, bluesy horn head. F default. 50-220 BPM
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

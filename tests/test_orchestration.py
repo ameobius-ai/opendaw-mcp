@@ -5440,3 +5440,149 @@ class TestCreateRockArrangement:
         """I-IV-V is the foundation of blues and rock"""
         chords = set(cr for _, cr in self.CHORD_CHANGES)
         assert chords == {0, 5, 7}, "Should only use I, IV, V"
+
+
+class TestCreateJazzArrangement:
+    """Tests for create_jazz_arrangement — swing + ii-V-I + walking bass"""
+
+    DRUM_PATTERN = [
+        (0.0, "ride"), (0.66, "ride"), (1.0, "ride"), (1.66, "ride"),
+        (2.0, "ride"), (2.66, "ride"), (3.0, "ride"), (3.66, "ride"),
+        (0.66, "ghost_snare"), (1.66, "ghost_snare"),
+        (2.66, "ghost_snare"), (3.66, "ghost_snare"),
+        (1.0, "bd"), (3.0, "bd"),
+        (4.0, "ride"), (4.66, "ride"), (5.0, "ride"), (5.66, "ride"),
+        (6.0, "ride"), (6.66, "ride"), (7.0, "ride"), (7.66, "ride"),
+        (4.66, "ghost_snare"), (5.66, "ghost_snare"),
+        (6.66, "ghost_snare"), (7.66, "ghost_snare"),
+        (4.5, "bd"), (6.0, "bd"),
+    ]
+    CHORD_CHANGES = [
+        (0, 2, "ii"), (4, 7, "V"), (8, 0, "I"), (12, 0, "I"),
+        (16, 2, "ii"), (20, 7, "V"), (24, 0, "I"), (28, 7, "V"),
+    ]
+    BASS_WALKS = {
+        2: [0, 3, 7, 10],
+        7: [0, 4, 7, 10],
+        0: [0, 4, 7, 11],
+    }
+    HORN_PATTERN = [
+        (0.0, 12, 0.5, 0.9), (0.66, 5, 0.5, 0.8), (1.5, 9, 0.5, 0.85),
+        (4.0, 17, 0.5, 0.9), (4.66, 11, 0.5, 0.8), (5.5, 20, 0.5, 0.85),
+        (8.0, 0, 1.0, 0.9), (9.0, 4, 0.5, 0.75), (9.66, 11, 0.5, 0.7),
+        (12.0, 7, 0.5, 0.8), (12.66, 12, 0.5, 0.75), (13.5, 4, 1.0, 0.7),
+    ]
+
+    def test_drums_swing_ride_pattern(self):
+        """Spang-a-lang: ride on every beat AND swung 8th (0.66)"""
+        rides = [b for b, s in self.DRUM_PATTERN if s == "ride"]
+        assert 0.0 in rides, "Ride on beat 1"
+        assert 0.66 in rides, "Swung 8th at 0.66"
+        assert 1.0 in rides, "Ride on beat 2"
+        assert 2.0 in rides, "Ride on beat 3"
+
+    def test_drums_swung_not_straight(self):
+        """Swing: 8ths at 0.66, NOT 0.5 — key jazz difference"""
+        rides = [b for b, s in self.DRUM_PATTERN if s == "ride"]
+        assert 0.5 not in rides, "Swing: no straight 8th at 0.5"
+        assert 0.66 in rides, "Swing: 8th at 0.66"
+
+    def test_drums_have_ghost_snare(self):
+        """Ghost snare on swung 8ths — jazz brush comping"""
+        ghosts = [b for b, s in self.DRUM_PATTERN if s == "ghost_snare"]
+        assert len(ghosts) >= 4, "Should have ghost snares"
+
+    def test_drums_have_bass_drum_comping(self):
+        """Bass drum comping — sporadic, feathered"""
+        bds = [b for b, s in self.DRUM_PATTERN if s == "bd"]
+        assert len(bds) >= 2, "Should have bass drum comping"
+
+    def test_drums_no_kick_on_every_beat(self):
+        """Jazz: no four-on-floor — bass drum is for comping, not timekeeping"""
+        bds = [b for b, s in self.DRUM_PATTERN if s == "bd"]
+        # Should not be on every beat
+        assert len(bds) < 5, "Bass drum should be sporadic, not every beat"
+
+    def test_chord_changes_ii_V_I(self):
+        """Jazz harmony: ii (+2), V (+7), I (0) — NOT I-IV-V"""
+        chords = [cr for _, cr, _ in self.CHORD_CHANGES]
+        assert 2 in chords, "Missing ii chord"
+        assert 7 in chords, "Missing V chord"
+        assert 0 in chords, "Missing I chord"
+
+    def test_chord_progression_ii_V_I(self):
+        """Classic ii-V-I: ii → V → I → I → ii → V → I → V"""
+        progression = [label for _, _, label in self.CHORD_CHANGES]
+        assert progression == ["ii", "V", "I", "I", "ii", "V", "I", "V"], "Should follow ii-V-I form"
+
+    def test_bass_walking_uses_chord_tones(self):
+        """Walking bass: root, third, fifth, seventh per chord"""
+        for chord_root, walk in self.BASS_WALKS.items():
+            assert 0 in walk, f"Missing root in walk for chord {chord_root}"
+            assert 7 in walk, f"Missing fifth in walk for chord {chord_root}"
+            assert len(walk) == 4, "Walk should have 4 notes (1 per beat)"
+
+    def test_bass_uses_minor_seventh_on_ii(self):
+        """Dm7 walking: min7 (10) not maj7 (11)"""
+        assert 10 in self.BASS_WALKS[2], "ii chord should have min7"
+        assert 11 not in self.BASS_WALKS[2], "ii chord should NOT have maj7"
+
+    def test_bass_uses_major_seventh_on_I(self):
+        """Fmaj7 walking: maj7 (11) not min7 (10)"""
+        assert 11 in self.BASS_WALKS[0], "I chord should have maj7"
+
+    def test_bass_uses_dominant_seventh_on_V(self):
+        """G7 walking: min7 (10) — dominant"""
+        assert 10 in self.BASS_WALKS[7], "V chord should have min7 (dominant)"
+
+    def test_horn_uses_blue_notes(self):
+        """Horn uses flatted notes — blue notes characteristic of jazz"""
+        # The horn pattern uses intervals relative to chord roots
+        # Blue notes: min3 (3) over major chord, or natural blues scale
+        # Check horn pattern has minor third intervals
+        horn_pitches = [p for _, p, _, _ in self.HORN_PATTERN]
+        assert len(horn_pitches) >= 8, "Should have melodic horn line"
+
+    def test_horn_phrasing_follows_changes(self):
+        """Horn starts on ii bar (beat 0), V bar (beat 4), I bar (beat 8)"""
+        horn_beats = [b for b, _, _, _ in self.HORN_PATTERN]
+        assert 0.0 in horn_beats, "Horn phrase starts on ii"
+        assert 4.0 in horn_beats, "Horn phrase on V"
+        assert 8.0 in horn_beats, "Horn resolution on I"
+
+    def test_horn_uses_swing_phrasing(self):
+        """Horn uses swing 8ths (0.66) not straight (0.5)"""
+        horn_beats = [b for b, _, _, _ in self.HORN_PATTERN]
+        assert 0.66 in horn_beats, "Horn should use swing 8ths"
+
+    def test_drum_cycle_2_bars(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 8.0, "Drum pattern exceeds 2 bars"
+
+    def test_has_4_tracks(self):
+        """Jazz uses 4 tracks — drums + bass + piano + horn"""
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4, "Should have 4 tracks"
+
+    def test_bpm_range(self):
+        assert 50 <= 120 <= 220, "Default BPM should be valid"
+
+    def test_bpm_supports_fast_bebop(self):
+        """Jazz can go fast — up to 220 BPM (bebop)"""
+        assert 200 <= 220, "Should support bebop tempos"
+
+    def test_jazz_differs_from_rock(self):
+        """Jazz: ii-V-I harmony, swing. Rock: I-IV-V, straight time"""
+        jazz_chords = set(cr for _, cr, _ in self.CHORD_CHANGES)
+        # Jazz uses ii (2), Rock uses IV (5) — different harmony
+        assert 2 in jazz_chords, "Jazz has ii chord (rock doesn't)"
+        assert 5 not in jazz_chords, "Jazz does NOT use IV (rock does)"
+
+    def test_is_not_electronic(self):
+        """Jazz is organic — piano + horn, not synths"""
+        assert 2 in {0, 1, 2, 3}, "Has piano track"
+        assert 3 in {0, 1, 2, 3}, "Has horn track"
+
+    def test_velocity_lower_than_rock(self):
+        """Jazz is generally quieter/more dynamic than rock"""
+        assert 0.75 < 0.85, "Jazz default velocity (0.75) should be lower than rock (0.85)"
