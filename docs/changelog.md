@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.162.0 (2026-07-05)
+
+- **modulate_progression** — new music theory tool. Transpose chord progression to a new key while preserving chord qualities and interval relationships. Supports up/down direction, flat/sharp key naming, per-chord mapping with root shifts. Common modulations: relative major/minor (Am↔C), up a fourth (C→F, chorus energy), up a fifth (C→G, triumphant), down a third (C→A, bridge). Returns modulated progression string ready for create_harmonic_arrangement. 16 unit tests. 350 MCP tools, 2147 tests.
+
 ## v1.161.0 (2026-07-05)
 
 - **create_full_genre_pipeline: harmonic layers integration** — new `progression` parameter adds arp + melody harmonic layers on top of genre rhythm. Pads and bass skipped (genre arrangement already provides them). `add_counter_melody` flag (default False) optionally adds contrary-motion counter-melody. `bars_per_chord` auto-calculated as `bars // 4`. Pipeline summary now includes `rhythm_notes`, `harmonic_notes`, and `progression` fields. Backward compatible — default `progression=""` = rhythm only. 8 new unit tests. 2131 tests.

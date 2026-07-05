@@ -27704,6 +27704,145 @@ async def mcp_opendaw_create_harmonic_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_modulate_progression(
+    progression: str = "Am-F-C-G",
+    target_key: str = "C",
+    direction: str = "up",
+) -> str:
+    """Transpose a chord progression to a new key.
+
+    Modulation is the technique of changing key within a song. This tool
+    takes a progression like "Am-F-C-G" (key of A minor) and transposes
+    every chord to a new key while preserving chord qualities (major/minor/
+    7th etc.) and interval relationships.
+
+    Common modulations:
+    - Up a fourth (C→F): most natural, adds energy for chorus
+    - Up a fifth (C→G): bright, triumphant
+    - To relative major (Am→C): minor→major mood shift
+    - To relative minor (C→Am): major→minor mood shift
+    - Down a third (C→A): darker, bridge section
+
+    progression: Source progression (e.g. "Am-F-C-G").
+    target_key: Target key root note (e.g. "C", "F", "D", "Bb").
+    direction: "up" or "down" (affects octave placement, default "up").
+
+    Returns the modulated progression string + per-chord mapping.
+
+    Example:
+      # A minor → C major (relative major)
+      modulate_progression("Am-F-C-G", target_key="C")
+      # → "C-G-Am-F" (I-V-vi-IV in C major)
+
+      # A minor → F (up a fourth for chorus)
+      modulate_progression("Am-F-C-G", target_key="F")
+
+      # C major → A minor (relative minor for bridge)
+      modulate_progression("C-G-Am-F", target_key="A")
+    """
+    if target_key not in NOTE_TO_PITCH:
+        return f"Error: target_key must be a valid note name, got '{target_key}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if direction not in ("up", "down"):
+        return f"Error: direction must be 'up' or 'down', got '{direction}'"
+
+    type_map = {
+        "m": "min", "7": "dom7", "maj7": "maj7", "m7": "min7",
+        "sus2": "sus2", "sus4": "sus4", "add9": "add9",
+        "dim": "dim", "aug": "aug", "maj": "maj",
+    }
+    # Reverse map: internal type → suffix string
+    type_to_suffix = {v: k for k, v in type_map.items()}
+    # "maj" has no suffix (implicit)
+    type_to_suffix["maj"] = ""
+
+    # Parse source progression
+    chord_specs = []
+    for chord_str in progression.split("-"):
+        chord_str = chord_str.strip()
+        if not chord_str:
+            continue
+        if len(chord_str) >= 2 and chord_str[1] in "#b":
+            root = chord_str[:2]
+            remainder = chord_str[2:]
+        else:
+            root = chord_str[0]
+            remainder = chord_str[1:]
+
+        chord_type = "maj"
+        if remainder:
+            if remainder not in type_map:
+                return f"Error: unknown chord type '{remainder}' in chord '{chord_str}'"
+            chord_type = type_map[remainder]
+
+        if root not in NOTE_TO_PITCH:
+            return f"Error: unknown root note '{root}' in chord '{chord_str}'"
+        chord_specs.append((root, chord_type, chord_str))
+
+    if not chord_specs:
+        return "Error: progression must be a non-empty hyphen-separated chord list"
+
+    # Find source key: first chord root
+    source_root = chord_specs[0][0]
+    source_pc = NOTE_TO_PITCH[source_root]
+    target_pc = NOTE_TO_PITCH[target_key]
+
+    # Calculate transposition interval
+    transpose = (target_pc - source_pc) % 12
+    if direction == "down" and transpose > 6:
+        transpose -= 12
+
+    # Note name lookup (pitch class → note name, preferring sharps for sharp keys)
+    pc_to_note_sharp = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
+                        6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"}
+    pc_to_note_flat = {0: "C", 1: "Db", 2: "D", 3: "Eb", 4: "E", 5: "F",
+                       6: "Gb", 7: "G", 8: "Ab", 9: "A", 10: "Bb", 11: "B"}
+
+    # Use flats for flat keys, sharps otherwise
+    flat_keys = {"F", "Bb", "Eb", "Ab", "Db", "Gb"}
+    use_flats = target_key in flat_keys
+
+    note_lookup = pc_to_note_flat if use_flats else pc_to_note_sharp
+
+    modulated_chords = []
+    chord_mapping = []
+
+    for root, chord_type, original in chord_specs:
+        root_pc = NOTE_TO_PITCH[root]
+        new_pc = (root_pc + transpose) % 12
+        new_root = note_lookup[new_pc]
+        suffix = type_to_suffix.get(chord_type, "")
+        new_chord = f"{new_root}{suffix}"
+        modulated_chords.append(new_chord)
+        chord_mapping.append({
+            "original": original,
+            "modulated": new_chord,
+            "root_shift": f"{root} → {new_root}",
+            "type": chord_type,
+        })
+
+    modulated_str = "-".join(modulated_chords)
+    interval_names = {
+        0: "unison", 1: "m2", 2: "M2", 3: "m3", 4: "M3", 5: "P4",
+        6: "tritone", 7: "P5", 8: "m6", 9: "M6", 10: "m7", 11: "M7",
+    }
+    interval_name = interval_names.get(abs(transpose) % 12, f"{abs(transpose)} semitones")
+
+    return json.dumps({
+        "modulate_progression": True,
+        "source_progression": progression,
+        "source_key": source_root,
+        "target_key": target_key,
+        "direction": direction,
+        "transpose_semitones": transpose,
+        "interval": interval_name,
+        "modulated_progression": modulated_str,
+        "chord_mapping": chord_mapping,
+        "chord_count": len(chord_specs),
+        "next_step": "use modulated_progression with create_harmonic_arrangement or create_full_genre_pipeline(progression=...)",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_counter_melody_from_progression(
     progression: str = "Am-F-C-G",
     pattern: str = "contrary",

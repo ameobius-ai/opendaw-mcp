@@ -92,8 +92,9 @@ What do you want to create?
 ├── Arpeggiated progression → create_arpeggiated_progression ("Am-F-C-G", 5 arp patterns)
 ├── Bass from progression → create_bass_from_progression ("Am-F-C-G", 6 bass patterns)
 ├── Melody from progression → create_melody_from_progression ("Am-F-C-G", 5 melody patterns)
-├── Harmonic arrangement → create_harmonic_arrangement ("Am-F-C-G", all 4 layers in one call)
+├── Harmonic arrangement → create_harmonic_arrangement ("Am-F-C-G", all 5 layers in one call)
 ├── Counter-melody → create_counter_melody_from_progression ("Am-F-C-G", 5 contrapuntal patterns)
+├── Modulation → modulate_progression ("Am-F-C-G", target_key="C") — key change for bridge/chorus
 ├── Full pipeline → create_full_genre_pipeline (15 genres, optional harmonic layers via progression param)
 └── Render entire song → render_full_song (auto-detect length, export WAV)
 ```

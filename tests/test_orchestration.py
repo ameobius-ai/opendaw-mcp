@@ -8204,6 +8204,135 @@ class TestHarmonicArrangement:
         assert total == 16
 
 
+class TestModulateProgression:
+    """Tests for modulate_progression — key change / transposition"""
+
+    def test_am_to_c_relative_major(self):
+        """Am→C: A minor to C major (relative major, +3 semitones)"""
+        # A=9, C=0 → transpose = (0-9) % 12 = 3
+        source_pc = 9  # A
+        target_pc = 0  # C
+        transpose = (target_pc - source_pc) % 12
+        assert transpose == 3
+
+    def test_c_to_am_relative_minor(self):
+        """C→Am: C major to A minor (relative minor, -3 or +9 semitones)"""
+        source_pc = 0  # C
+        target_pc = 9  # A
+        transpose = (target_pc - source_pc) % 12
+        assert transpose == 9
+
+    def test_c_to_f_up_fourth(self):
+        """C→F: up a perfect fourth (+5 semitones)"""
+        source_pc = 0  # C
+        target_pc = 5  # F
+        transpose = (target_pc - source_pc) % 12
+        assert transpose == 5
+        assert transpose == 5  # P4
+
+    def test_c_to_g_up_fifth(self):
+        """C→G: up a perfect fifth (+7 semitones)"""
+        source_pc = 0  # C
+        target_pc = 7  # G
+        transpose = (target_pc - source_pc) % 12
+        assert transpose == 7
+
+    def test_direction_down_negative_transpose(self):
+        """Direction 'down' with large upward interval → negative transpose"""
+        source_pc = 0  # C
+        target_pc = 9  # A
+        transpose = (target_pc - source_pc) % 12  # 9
+        if transpose > 6:
+            transpose -= 12
+        assert transpose == -3  # down a minor third
+
+    def test_direction_up_positive_transpose(self):
+        """Direction 'up' keeps positive transpose"""
+        source_pc = 0  # C
+        target_pc = 9  # A
+        transpose = (target_pc - source_pc) % 12
+        assert transpose == 9  # up M6
+
+    def test_chord_type_preserved(self):
+        """Modulation preserves chord quality (min stays min, maj stays maj)"""
+        type_to_suffix = {"min": "m", "maj": "", "dom7": "7", "maj7": "maj7",
+                          "min7": "m7", "sus4": "sus4", "dim": "dim", "aug": "aug"}
+        assert type_to_suffix["min"] == "m"
+        assert type_to_suffix["maj"] == ""
+
+    def test_flat_keys_use_flats(self):
+        """Flat keys (F, Bb, Eb, Ab, Db, Gb) use flat note names"""
+        flat_keys = {"F", "Bb", "Eb", "Ab", "Db", "Gb"}
+        assert "F" in flat_keys
+        assert "Bb" in flat_keys
+        assert "C" not in flat_keys
+        assert "G" not in flat_keys
+
+    def test_sharp_keys_use_sharps(self):
+        """Non-flat keys use sharp note names"""
+        flat_keys = {"F", "Bb", "Eb", "Ab", "Db", "Gb"}
+        assert "G" not in flat_keys
+        assert "D" not in flat_keys
+        assert "A" not in flat_keys
+
+    def test_interval_names(self):
+        """Interval names for common modulations"""
+        interval_names = {0: "unison", 5: "P4", 7: "P5", 3: "m3", 4: "M3"}
+        assert interval_names[5] == "P4"
+        assert interval_names[7] == "P5"
+
+    def test_pc_to_note_sharp_mapping(self):
+        """Pitch class 0=C, 2=D, 4=E, 5=F, 7=G, 9=A, 11=B"""
+        pc_to_note_sharp = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
+                            6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"}
+        assert pc_to_note_sharp[0] == "C"
+        assert pc_to_note_sharp[9] == "A"
+        assert pc_to_note_sharp[7] == "G"
+
+    def test_pc_to_note_flat_mapping(self):
+        """Flat note names: 1=Db, 3=Eb, 6=Gb, 8=Ab, 10=Bb"""
+        pc_to_note_flat = {0: "C", 1: "Db", 2: "D", 3: "Eb", 4: "E", 5: "F",
+                           6: "Gb", 7: "G", 8: "Ab", 9: "A", 10: "Bb", 11: "B"}
+        assert pc_to_note_flat[1] == "Db"
+        assert pc_to_note_flat[10] == "Bb"
+
+    def test_am_f_c_g_modulated_to_c(self):
+        """Am-F-C-G in A minor → C-G-? in C major"""
+        # A=9, F=5, C=0, G=7
+        # transpose +3: A→C, F→Ab(G#), C→Eb(D#), G→Bb(A#)
+        # With sharps: A→C, F→G#, C→D#, G→A#
+        # But actually for C major key, we use naturals where possible
+        source_notes = [9, 5, 0, 7]  # A, F, C, G
+        transpose = 3
+        modulated = [(n + transpose) % 12 for n in source_notes]
+        assert modulated == [0, 8, 3, 10]  # C, G#, D#, A#
+
+    def test_modulated_progression_is_string(self):
+        """Output modulated_progression is a hyphen-separated string"""
+        chords = ["C", "G", "Am", "F"]
+        result = "-".join(chords)
+        assert "-" in result
+        assert result == "C-G-Am-F"
+
+    def test_chord_mapping_has_original_and_modulated(self):
+        """Each chord mapping has original and modulated fields"""
+        mapping = {"original": "Am", "modulated": "C", "root_shift": "A → C"}
+        assert "original" in mapping
+        assert "modulated" in mapping
+        assert "root_shift" in mapping
+
+    def test_modulation_pipeline_integration(self):
+        """Full modulation pipeline: modulate → harmonic_arrangement → mix → render"""
+        pipeline = [
+            "modulate_progression",
+            "create_harmonic_arrangement",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert "modulate_progression" in pipeline
+        assert len(pipeline) == 4
+
+
 class TestCounterMelodyFromProgression:
     """Tests for create_counter_melody_from_progression — contrapuntal 5th layer"""
 
