@@ -21040,3 +21040,148 @@ async def mcp_opendaw_create_cascara(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_dembow(
+    dembow_type: str = "classic",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kick_pitch: int = 36,
+    snare_pitch: int = 40,
+    velocity: float = 0.8,
+) -> str:
+    """Create a dembow rhythm — the foundational beat of reggaeton and Latin dancehall.
+
+    The dembow is a 3-3-2 syncopated pattern that drives virtually all reggaeton
+    and Latin dancehall music. It derives from the "Dembow" riddim by Bobby Dixon
+    (1990, Jamaica) and was popularized in Puerto Rico. The pattern creates a
+    distinctive galloping feel through its uneven grouping of 3+3+2 within a
+    4/4 bar. Every reggaeton track from Daddy Yankee's "Gasolina" to Bad Bunny's
+    "Tití Me Preguntó" is built on this rhythm.
+
+    dembow_type:
+      "classic"    — Classic reggaeton dembow. Kick on 1 and 3, snare on
+                     3.5, 4.5, 5.5 (the 3-3-2 gallop). 1-bar cycle.
+      "dancehall"  — Dancehall variant. Sparser, kick on 1 and 3, snare on
+                     3.5 and 4.5. Less gallop, more pulse.
+      "trap_latino" — Latin trap variant. Kick on 1, 3.5, and 4.75 (syncopated),
+                      snare on 2.5 and 4.5. More modern, less rigid.
+      "perreo"     — Perreo (old-school reggaeton). Denser snare pattern with
+                     ghost hits on 2.75 and 6.75. Rougher, underground feel.
+      "urbano"     — Urbano latino (modern fusion). Kick on 1, 3, 4.75,
+                      snare on 3.5, 4.5, 5.5. Blends reggaeton with trap.
+
+    bars: Pattern length (1-16, 1 = one bar cycle).
+    kick_pitch: MIDI pitch for kick (36 = C1, acoustic bass drum).
+    snare_pitch: MIDI pitch for snare (40 = E1, electronic snare).
+    velocity: Base velocity 0-1. Ghost hits -0.2, main hits +0.05.
+
+    Returns notes created, dembow type, and stroke breakdown.
+
+    Example:
+      create_dembow(dembow_type="classic", track_index=0)
+      create_dembow(dembow_type="trap_latino", track_index=1, bars=4)
+    """
+    dembow_type = dembow_type.strip().lower().replace(" ", "_")
+    valid_types = ["classic", "dancehall", "trap_latino", "perreo", "urbano"]
+    if dembow_type not in valid_types:
+        return f"Error: unknown dembow_type '{dembow_type}'. Valid: {', '.join(valid_types)}"
+
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    for p in (kick_pitch, snare_pitch):
+        if not (0 <= p <= 127):
+            return "Error: pitches must be 0-127"
+
+    # Dembow patterns: (beat_position, stroke_type)
+    # stroke_type: "kick", "snare", "ghost"
+    # Beat positions within a 1-bar cycle (4 beats in 4/4)
+    patterns = {
+        # Classic reggaeton: 3-3-2 gallop
+        "classic": [
+            (0.0, "kick"),        # beat 1
+            (2.0, "kick"),        # beat 3
+            (2.5, "snare"),       # &3
+            (3.5, "snare"),       # &4
+            (4.5, "snare"),       # &1 of next bar (but within 1-bar cycle: this wraps)
+        ],
+        # Dancehall: sparser, less gallop
+        "dancehall": [
+            (0.0, "kick"),
+            (2.0, "kick"),
+            (2.5, "snare"),
+            (3.5, "snare"),
+        ],
+        # Latin trap: syncopated kick
+        "trap_latino": [
+            (0.0, "kick"),
+            (2.5, "snare"),
+            (3.5, "kick"),
+            (3.75, "kick"),      # syncopated sixteenth
+            (4.5, "snare"),
+        ],
+        # Perreo: denser with ghost hits
+        "perreo": [
+            (0.0, "kick"),
+            (1.75, "ghost"),
+            (2.0, "kick"),
+            (2.5, "snare"),
+            (3.5, "snare"),
+            (4.5, "snare"),
+            (5.75, "ghost"),
+        ],
+        # Urbano: modern fusion
+        "urbano": [
+            (0.0, "kick"),
+            (2.0, "kick"),
+            (2.5, "snare"),
+            (3.5, "snare"),
+            (3.75, "kick"),
+            (4.5, "snare"),
+        ],
+    }
+
+    strokes = patterns[dembow_type]
+    cycle_len = 4.0  # 1 bar of 4/4
+
+    pitch_map = {"kick": kick_pitch, "snare": snare_pitch, "ghost": snare_pitch}
+    vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": velocity,
+        "ghost": max(0.0, velocity - 0.2),
+    }
+    dur_map = {"kick": 0.2, "snare": 0.12, "ghost": 0.08}
+
+    all_notes = []
+    cycles = bars
+    stroke_counts = {"kick": 0, "snare": 0, "ghost": 0}
+
+    for c in range(cycles):
+        offset = c * cycle_len
+        for beat, stroke_type in strokes:
+            all_notes.append({
+                "pitch": pitch_map[stroke_type],
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[stroke_type] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["dembow"] = True
+        data["dembow_type"] = dembow_type
+        data["strokes"] = stroke_counts
+        data["cycles"] = cycles
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

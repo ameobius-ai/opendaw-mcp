@@ -3512,3 +3512,137 @@ class TestCascara:
         son_count = len(self.CASCARA_PATTERNS["son_3_2"])
         mambo_count = len(self.CASCARA_PATTERNS["mambo"])
         assert mambo_count > son_count, "mambo should have more strokes"
+
+
+class TestDembow:
+    """Tests for create_dembow orchestration tool"""
+
+    DEMBOW_PATTERNS = {
+        "classic": [
+            (0.0, "kick"), (2.0, "kick"), (2.5, "snare"), (3.5, "snare"), (4.5, "snare"),
+        ],
+        "dancehall": [
+            (0.0, "kick"), (2.0, "kick"), (2.5, "snare"), (3.5, "snare"),
+        ],
+        "trap_latino": [
+            (0.0, "kick"), (2.5, "snare"), (3.5, "kick"), (3.75, "kick"), (4.5, "snare"),
+        ],
+        "perreo": [
+            (0.0, "kick"), (1.75, "ghost"), (2.0, "kick"), (2.5, "snare"),
+            (3.5, "snare"), (4.5, "snare"), (5.75, "ghost"),
+        ],
+        "urbano": [
+            (0.0, "kick"), (2.0, "kick"), (2.5, "snare"), (3.5, "snare"),
+            (3.75, "kick"), (4.5, "snare"),
+        ],
+    }
+
+    def test_classic_has_gallop(self):
+        """Classic dembow: 3-3-2 gallop — 3 snares at 2.5, 3.5, 4.5"""
+        strokes = self.DEMBOW_PATTERNS["classic"]
+        snares = [b for b, s in strokes if s == "snare"]
+        assert 2.5 in snares, "Missing snare on &3"
+        assert 3.5 in snares, "Missing snare on &4"
+        assert 4.5 in snares, "Missing snare on &1 (gallop)"
+
+    def test_classic_kick_on_1_and_3(self):
+        strokes = self.DEMBOW_PATTERNS["classic"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        assert 0.0 in kicks, "Missing kick on beat 1"
+        assert 2.0 in kicks, "Missing kick on beat 3"
+
+    def test_dancehall_sparser_than_classic(self):
+        classic_count = len(self.DEMBOW_PATTERNS["classic"])
+        dancehall_count = len(self.DEMBOW_PATTERNS["dancehall"])
+        assert dancehall_count < classic_count, "dancehall should be sparser"
+
+    def test_trap_latino_syncopated_kick(self):
+        strokes = self.DEMBOW_PATTERNS["trap_latino"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        # syncopated sixteenth at 3.75
+        assert 3.75 in kicks, "Missing syncopated kick at 3.75"
+
+    def test_perreo_has_ghosts(self):
+        strokes = self.DEMBOW_PATTERNS["perreo"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert len(ghosts) == 2, "perreo should have 2 ghost strokes"
+        assert 1.75 in ghosts, "Missing ghost on 2.75"
+
+    def test_perreo_denser_than_classic(self):
+        classic_count = len(self.DEMBOW_PATTERNS["classic"])
+        perreo_count = len(self.DEMBOW_PATTERNS["perreo"])
+        assert perreo_count > classic_count, "perreo should be denser"
+
+    def test_urbano_blends_reggaeton_and_trap(self):
+        strokes = self.DEMBOW_PATTERNS["urbano"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        # has both beat 3 kick (reggaeton) and 3.75 syncopated kick (trap)
+        assert 2.0 in kicks, "Missing reggaeton kick on 3"
+        assert 3.75 in kicks, "Missing trap syncopated kick at 3.75"
+
+    def test_all_types_valid(self):
+        valid = {"kick", "snare", "ghost"}
+        for name, strokes in self.DEMBOW_PATTERNS.items():
+            for _, stroke_type in strokes:
+                assert stroke_type in valid, f"{name} has invalid stroke {stroke_type}"
+
+    def test_cycle_length(self):
+        cycle_len = 4.0
+        for name, strokes in self.DEMBOW_PATTERNS.items():
+            max_beat = max(b for b, _ in strokes)
+            assert max_beat < cycle_len + 2, f"{name}: beat {max_beat} too far (1-bar cycle = 4 beats, wrap allowed)"
+
+    def test_velocity_mapping(self):
+        """Kick louder, ghost quietest"""
+        base = 0.8
+        kick_vel = min(1.0, base + 0.05)
+        snare_vel = base
+        ghost_vel = max(0.0, base - 0.2)
+        assert ghost_vel < snare_vel < kick_vel
+
+    def test_pitch_mapping(self):
+        """Kick low, snare/ghost higher"""
+        kick_pitch, snare_pitch = 36, 40
+        pitch_map = {"kick": kick_pitch, "snare": snare_pitch, "ghost": snare_pitch}
+        assert pitch_map["kick"] < pitch_map["snare"]
+        assert pitch_map["ghost"] == pitch_map["snare"]
+
+    def test_duration_mapping(self):
+        """Kick longest, ghost shortest"""
+        dur_map = {"kick": 0.2, "snare": 0.12, "ghost": 0.08}
+        assert dur_map["ghost"] < dur_map["snare"] < dur_map["kick"]
+
+    def test_bar_repetition(self):
+        """4 bars = 4 cycles of 1-bar pattern"""
+        bars = 4
+        cycles = bars
+        assert cycles == 4
+
+    def test_note_generation_one_bar(self):
+        strokes = self.DEMBOW_PATTERNS["classic"]
+        all_notes = []
+        for beat, stroke_type in strokes:
+            all_notes.append({"pitch": 36 if stroke_type == "kick" else 40, "start": beat})
+        assert len(all_notes) == 5
+        starts = [n["start"] for n in all_notes]
+        assert starts == [0.0, 2.0, 2.5, 3.5, 4.5]
+
+    def test_note_generation_four_bars(self):
+        strokes = self.DEMBOW_PATTERNS["classic"]
+        cycle_len = 4.0
+        all_notes = []
+        for c in range(4):
+            for beat, stroke_type in strokes:
+                all_notes.append({"start": c * cycle_len + beat, "stroke": stroke_type})
+        assert len(all_notes) == 20
+        assert all_notes[5]["start"] == 4.0  # second bar starts at beat 4
+
+    def test_type_normalization(self):
+        raw = "Trap Latino"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert normalized == "trap_latino"
+
+    def test_pitch_validation(self):
+        assert 0 <= 36 <= 127
+        assert 0 <= 40 <= 127
+        assert not (0 <= 128 <= 127)

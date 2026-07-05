@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.118.0 (2026-07-05)
+
+- **`create_dembow` orchestration tool (316 MCP tools)** — reggaeton/dancehall dembow rhythm: the 3-3-2 syncopated gallop that drives virtually all reggaeton and Latin dancehall. From Bobby Dixon's "Dembow" riddim (1990 Jamaica) to Daddy Yankee "Gasolina" to Bad Bunny. 5 variants: classic (full gallop), dancehall (sparser), trap_latino (syncopated kick), perreo (ghost hits, underground), urbano (reggaeton+trap fusion). Kick + snare + ghost strokes. 1-bar cycle. 59 orchestration tools. 316 MCP tools
+- **1331 unit tests** (+17)
+
 ## v1.117.0 (2026-07-05)
 
 - **`werkstatt_matching_eq.js` DSP script (94 DSP, 75 Werkstatt)** — matching EQ: adaptive spectral balance corrector. Accumulates long-term average spectrum (LTAS) of input, compares to reference target (pink noise = -3 dB/octave, white = flat, brown = -6 dB/octave, interpolated), computes per-bin correction gain = (target/actual)^matchAmt. Smoothing window (1-31 bins) for broadband vs detailed correction. Adaptation speed controls how fast gain curve approaches target. Additional tilt for subjective brightness. Gain clamped 0.1x-10x. iZotope Ozone EQ Match / FabFilter Pro-Q spectrum grab — the EQ that decides for you. 7 params (target/match_amt/smooth/adapt_rate/tilt/mix/output). 94 DSP scripts, 75 Werkstatt
