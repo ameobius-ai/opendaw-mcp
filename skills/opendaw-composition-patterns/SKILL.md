@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.280.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.281.0"
 ---
 
 # openDAW Composition Patterns
@@ -126,6 +126,7 @@ What do you want to create?
 ├── Additive Rhythm → create_additive_rhythm (unequal groupings within a bar, "3+2+2" etc., 4 note values, 5 pitch modes, group_start/group_end accents, velocity decay)
 ├── Modal Transformation → shift_mode (shift notes from one scale/mode to another preserving tonic, 14 scales, only changed degrees move)
 ├── Microtonal Control → set_note_cents (deterministic cent offsets, 7 targeting modes: all/pitch/beats/indices/alternating/gradient/scale_degree, -100 to +100 cents)
+├── Stochastic Melody → create_random_walk_melody (random walk through scale, stepwise dependency, max_step/direction_bias/boundary behavior, seeded PRNG, Eno/Xenakis generative)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

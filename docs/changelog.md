@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.281.0 (2026-07-06)
+
+### Added
+- `create_random_walk_melody` — stochastic melody via random walk through a scale. Each note depends on the previous (stepwise motion). max_step (1-7), direction_bias (-1 to +1), boundary behavior (reflect/wrap/clamp), duration/velocity variation, rest probability, seeded PRNG (mulberry32). Brian Eno generative, Xenakis stochastic, ambient, IDM. Unlike generate_melody (contour-guided), produces melodic continuity through stepwise dependency.
+
 ## v1.280.0 (2026-07-06)
 
 ### Added

@@ -35378,6 +35378,295 @@ async def mcp_opendaw_set_note_cents(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_random_walk_melody(
+    root: str = "C",
+    scale: str = "minor",
+    bars: int = 4,
+    octave: int = 4,
+    max_step: int = 3,
+    direction_bias: float = 0.0,
+    duration: float = 0.5,
+    duration_variation: str = "none",
+    rest_probability: float = 0.0,
+    velocity: float = 0.7,
+    velocity_variation: str = "none",
+    boundary_behavior: str = "reflect",
+    seed: int = 42,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a melody using a random walk through a scale — stochastic generation.
+
+    Each note is chosen by walking up or down the scale from the previous note.
+    The walk is constrained by max_step (how many scale degrees can move per
+    step) and direction_bias (probability of ascending vs descending).
+
+    This produces melodies that feel coherent (smooth stepwise motion) yet
+    unpredictable — the hallmark of generative music. Brian Eno's generative
+    systems, Xenakis's stochastic pieces, ambient textures, IDM melodies.
+
+    Unlike generate_melody (contour-guided weighted random), random walk
+    produces stepwise motion where each note depends on the previous one —
+    creating the melodic continuity that contour guidance doesn't guarantee.
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, dorian, phrygian, lydian, mixolydian,
+            harmonic_minor, melodic_minor, pentatonic_major, pentatonic_minor, blues).
+        bars: Number of bars (1-32). At default duration=0.5, 4 bars = 32 notes.
+        octave: Starting MIDI octave (1-6, default 4 = C4=60).
+        max_step: Maximum scale steps per move (1-7, default 3).
+            1 = only adjacent scale tones (very smooth, stepwise).
+            2 = allow skips of up to a third.
+            3 = up to a fourth (mix of steps and skips).
+            5 = up to a sixth (dramatic leaps).
+            7 = full octave (free movement).
+        direction_bias: -1.0 to +1.0 (default 0 = equal up/down).
+            Negative = tend downward, positive = tend upward.
+            0.5 = 75% chance up, 25% down.
+        duration: Note duration in beats (0.0625-4.0, default 0.5 = eighth).
+        duration_variation: "none" (uniform), "slight" (+/-50%), "wide"
+            (16th to half), "dotted" (mix of dotted and straight).
+        rest_probability: 0-0.5 (default 0 = no rests). Inserts rests
+            instead of notes at the given probability.
+        velocity: Base velocity 0-1.
+        velocity_variation: "none" (uniform), "slight" (+/-0.1), "dynamic"
+            (+/-0.3), "human" (gaussian-ish, +/-0.15).
+        boundary_behavior: "reflect" (bounce back at octave limits),
+            "wrap" (wrap around), "clamp" (stay at boundary).
+        seed: PRNG seed for reproducibility.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, walk statistics (range, average interval,
+    direction ratio), and seed for reproducibility.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["minor"])
+
+    if not (1 <= bars <= 32):
+        return f"Error: bars must be 1-32, got {bars}"
+    if not (1 <= max_step <= 7):
+        return f"Error: max_step must be 1-7, got {max_step}"
+    if not (-1.0 <= direction_bias <= 1.0):
+        return f"Error: direction_bias must be -1 to +1, got {direction_bias}"
+    if not (0.0625 <= duration <= 4.0):
+        return f"Error: duration must be 0.0625-4.0, got {duration}"
+    if not (0.0 <= rest_probability <= 0.5):
+        return f"Error: rest_probability must be 0-0.5, got {rest_probability}"
+    if boundary_behavior not in ("reflect", "wrap", "clamp"):
+        return f"Error: boundary_behavior must be reflect/wrap/clamp, got '{boundary_behavior}'"
+    if duration_variation not in ("none", "slight", "wide", "dotted"):
+        return f"Error: duration_variation must be none/slight/wide/dotted, got '{duration_variation}'"
+    if velocity_variation not in ("none", "slight", "dynamic", "human"):
+        return f"Error: velocity_variation must be none/slight/dynamic/human, got '{velocity_variation}'"
+
+    # Build scale pitch list spanning 3 octaves
+    scale_pitches = []
+    for oct_shift in range(-1, 2):
+        for iv in intervals:
+            pitch = (octave + 1 + oct_shift) * 12 + (root_num + iv) % 12
+            scale_pitches.append(pitch)
+    scale_pitches = sorted(set(scale_pitches))
+
+    # Seeded PRNG (mulberry32)
+    prng_state = seed & 0xFFFFFFFF
+
+    def next_random():
+        nonlocal prng_state
+        prng_state = (prng_state + 0x6D2B79F5) & 0xFFFFFFFF
+        t = prng_state
+        t = ((t ^ (t >> 15)) * t | 1) & 0xFFFFFFFF
+        t = (t ^ (t >> 14)) & 0xFFFFFFFF
+        return t / 0xFFFFFFFF
+
+    # Random walk
+    total_steps = int(bars * 4 / duration)
+    # Start at middle of scale
+    start_idx = len(scale_pitches) // 2
+    current_idx = start_idx
+    notes = []
+    intervals_walk = []
+    up_count = 0
+    down_count = 0
+    min_pitch = 999
+    max_pitch = -1
+
+    for step in range(total_steps):
+        # Rest?
+        if rest_probability > 0 and next_random() < rest_probability:
+            notes.append(None)  # rest
+            continue
+
+        # Determine direction
+        r = next_random()
+        # direction_bias > 0 = more likely up
+        up_prob = 0.5 + direction_bias * 0.5
+        go_up = r < up_prob
+
+        # Step size (1 to max_step)
+        step_size = 1 + int(next_random() * max_step)
+        if step_size > max_step:
+            step_size = max_step
+
+        if go_up:
+            new_idx = current_idx + step_size
+            up_count += 1
+        else:
+            new_idx = current_idx - step_size
+            down_count += 1
+
+        # Boundary handling
+        if new_idx < 0 or new_idx >= len(scale_pitches):
+            if boundary_behavior == "reflect":
+                if new_idx < 0:
+                    new_idx = abs(new_idx)
+                elif new_idx >= len(scale_pitches):
+                    new_idx = 2 * len(scale_pitches) - new_idx - 2
+                new_idx = max(0, min(len(scale_pitches) - 1, new_idx))
+            elif boundary_behavior == "wrap":
+                new_idx = new_idx % len(scale_pitches)
+            elif boundary_behavior == "clamp":
+                new_idx = max(0, min(len(scale_pitches) - 1, new_idx))
+
+        interval = abs(new_idx - current_idx)
+        intervals_walk.append(interval)
+
+        pitch = scale_pitches[new_idx]
+        min_pitch = min(min_pitch, pitch)
+        max_pitch = max(max_pitch, pitch)
+
+        # Duration variation
+        note_dur = duration
+        if duration_variation == "slight":
+            note_dur = duration * (0.5 + next_random())
+        elif duration_variation == "wide":
+            choices = [0.0625, 0.125, 0.25, 0.5, 1.0, 2.0]
+            note_dur = choices[int(next_random() * len(choices))]
+        elif duration_variation == "dotted":
+            if next_random() < 0.3:
+                note_dur = duration * 1.5
+
+        # Velocity variation
+        note_vel = velocity
+        if velocity_variation == "slight":
+            note_vel = max(0.01, min(1.0, velocity + (next_random() - 0.5) * 0.2))
+        elif velocity_variation == "dynamic":
+            note_vel = max(0.01, min(1.0, velocity + (next_random() - 0.5) * 0.6))
+        elif velocity_variation == "human":
+            # Gaussian-ish via averaging 3 uniforms
+            g = (next_random() + next_random() + next_random()) / 3.0
+            note_vel = max(0.01, min(1.0, velocity + (g - 0.5) * 0.3))
+
+        pos = step * duration
+        notes.append({
+            "pitch": pitch,
+            "pos": round(pos, 4),
+            "dur": round(note_dur, 4),
+            "vel": round(note_vel, 4),
+        })
+        current_idx = new_idx
+
+    # Build note data for bridge
+    note_pitches = [n["pitch"] if n else -1 for n in notes]
+    note_positions = [n["pos"] if n else -1 for n in notes]
+    note_durations = [n["dur"] if n else 0 for n in notes]
+    note_velocities = [n["vel"] if n else 0 for n in notes]
+
+    # Filter out rests
+    valid_notes = [n for n in notes if n is not None]
+    avg_interval = sum(intervals_walk) / len(intervals_walk) if intervals_walk else 0
+    direction_ratio = up_count / (up_count + down_count) if (up_count + down_count) > 0 else 0.5
+
+    pitches_json = json.dumps([n["pitch"] for n in valid_notes])
+    positions_json = json.dumps([n["pos"] for n in valid_notes])
+    durations_json = json.dumps([n["dur"] for n in valid_notes])
+    velocities_json = json.dumps([n["vel"] for n in valid_notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat, note_pitches, note_positions, note_durations, note_velocities)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i], dur: durations[i], vel: velocities[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            bars: {bars},
+            notes_created: created,
+            rests: {len(notes) - len(valid_notes)},
+            seed: {seed},
+            max_step: {max_step},
+            direction_bias: {direction_bias},
+            boundary_behavior: "{boundary_behavior}",
+            walk_stats: {{
+                min_pitch: {min_pitch if min_pitch != 999 else 0},
+                max_pitch: {max_pitch if max_pitch != -1 else 0},
+                pitch_range: {max_pitch - min_pitch if min_pitch != 999 and max_pitch != -1 else 0},
+                avg_interval: Math.round({avg_interval} * 100) / 100,
+                direction_ratio: Math.round({direction_ratio} * 100) / 100,
+                up_steps: {up_count},
+                down_steps: {down_count},
+            }},
+            note_preview: noteEvents.slice(0, 10),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
 
