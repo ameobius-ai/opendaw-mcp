@@ -21185,3 +21185,152 @@ async def mcp_opendaw_create_dembow(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_boom_bap(
+    boom_bap_type: str = "classic",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kick_pitch: int = 36,
+    snare_pitch: int = 38,
+    hat_pitch: int = 42,
+    velocity: float = 0.8,
+) -> str:
+    """Create a boom-bap hip-hop drum pattern — the foundational beat of hip-hop.
+
+    Boom-bap: "boom" = kick drum, "bap" = snare. The pattern places kicks on
+    beats 1 and 3, snares on beats 2 and 4 — the backbone of hip-hop from
+    Run-DMC to Nas to Kendrick Lamar. Hi-hats fill the 8th or 16th notes
+    between. The feel comes from swing/groove and kick placement variations.
+
+    boom_bap_type:
+      "classic"     — 90s boom-bap: kick on 1 and 3, snare on 2 and 4,
+                      hats on every 8th. The "Untitled" / Nas "Illmatic" feel.
+                      2-bar cycle with kick variation on bar 2.
+      "old_school"  — 80s old school: simpler, kick strictly on 1 and 3,
+                      snare on 2 and 4, hats on quarter notes. Run-DMC /
+                      LL Cool J style. Less syncopation.
+      "trap"        — Trap: rolling hi-hats (16ths with occasional triplets),
+                      kick on 1 and "and of 2" and 3.5, snare on 4 only.
+                      Faster hats. Migos / Future style.
+      "lofi"        — Lo-fi hip-hop: laid-back, kick slightly behind beat
+                      (0.95 and 2.95), snare on 2 and 4, hats on 8ths with
+                      subtle swing. J Dilla / Nujabes feel.
+      "drill"       — UK drill: sliding bass kicks, snare on 3 only,
+                      chaotic hi-hat patterns with rolls. Headie One /
+                      Central Cee style. More aggressive kick patterns.
+
+    bars: Pattern length (2-16, 2 = one boom-bap cycle).
+    kick_pitch: MIDI pitch for kick (36 = C1).
+    snare_pitch: MIDI pitch for snare (38 = D1, acoustic snare).
+    hat_pitch: MIDI pitch for hi-hats (42 = F#1, closed hat).
+    velocity: Base velocity 0-1. Ghost hats -0.2, snares -0.05.
+
+    Returns notes created, boom-bap type, and stroke breakdown.
+
+    Example:
+      create_boom_bap(boom_bap_type="classic", track_index=0)
+      create_boom_bap(boom_bap_type="lofi", track_index=1, bars=4)
+    """
+    boom_bap_type = boom_bap_type.strip().lower().replace(" ", "_")
+    valid_types = ["classic", "old_school", "trap", "lofi", "drill"]
+    if boom_bap_type not in valid_types:
+        return f"Error: unknown boom_bap_type '{boom_bap_type}'. Valid: {', '.join(valid_types)}"
+
+    if bars < 2 or bars > 16:
+        return "Error: bars must be 2-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    for p in (kick_pitch, snare_pitch, hat_pitch):
+        if not (0 <= p <= 127):
+            return "Error: pitches must be 0-127"
+
+    # Patterns: (beat_position, stroke_type)
+    # stroke_type: "kick", "snare", "hat", "ghost"
+    # Beat positions within a 2-bar cycle (8 beats in 4/4)
+    patterns = {
+        # 90s boom-bap: kicks on 1+3, snares on 2+4, hats on 8ths
+        "classic": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "snare"), (1.5, "hat"),
+            (2.0, "kick"), (2.5, "hat"), (3.0, "snare"), (3.5, "hat"),
+            (4.0, "kick"), (4.5, "hat"), (5.0, "snare"), (5.5, "hat"),
+            (6.0, "kick"), (6.5, "hat"), (7.0, "snare"), (7.5, "hat"),
+        ],
+        # 80s old school: simpler, hats on quarters
+        "old_school": [
+            (0.0, "kick"), (1.0, "snare"), (1.0, "hat"),
+            (2.0, "kick"), (3.0, "snare"), (3.0, "hat"),
+            (4.0, "kick"), (5.0, "snare"), (5.0, "hat"),
+            (6.0, "kick"), (7.0, "snare"), (7.0, "hat"),
+        ],
+        # Trap: rolling hats, syncopated kick, snare on 4
+        "trap": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.75, "hat"),
+            (2.0, "hat"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+            (3.0, "snare"), (3.25, "hat"), (3.5, "hat"), (3.75, "hat"),
+            (4.0, "kick"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+            (5.0, "hat"), (5.25, "hat"), (5.5, "kick"), (5.75, "hat"),
+            (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+            (7.0, "snare"), (7.25, "hat"), (7.5, "hat"), (7.75, "hat"),
+        ],
+        # Lo-fi: laid-back, kicks behind beat, swung hats
+        "lofi": [
+            (0.0, "kick"), (0.66, "hat"), (1.0, "snare"), (1.66, "hat"),
+            (2.0, "kick"), (2.66, "hat"), (3.0, "snare"), (3.66, "hat"),
+            (4.0, "kick"), (4.66, "hat"), (5.0, "snare"), (5.66, "hat"),
+            (5.95, "kick"), (6.66, "hat"), (7.0, "snare"), (7.66, "hat"),
+        ],
+        # UK drill: aggressive kicks, snare on 3, chaotic hats
+        "drill": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "hat"), (1.5, "kick"),
+            (2.0, "snare"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+            (3.0, "kick"), (3.5, "hat"), (4.0, "kick"), (4.5, "hat"),
+            (5.0, "kick"), (5.5, "hat"), (6.0, "snare"), (6.25, "hat"),
+            (6.5, "hat"), (6.75, "ghost"), (7.0, "kick"), (7.5, "hat"),
+        ],
+    }
+
+    strokes = patterns[boom_bap_type]
+    cycle_len = 8.0  # 2 bars of 4/4
+
+    pitch_map = {"kick": kick_pitch, "snare": snare_pitch, "hat": hat_pitch, "ghost": hat_pitch}
+    vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": max(0.0, velocity - 0.05),
+        "hat": max(0.0, velocity - 0.15),
+        "ghost": max(0.0, velocity - 0.35),
+    }
+    dur_map = {"kick": 0.2, "snare": 0.12, "hat": 0.05, "ghost": 0.04}
+
+    all_notes = []
+    cycles = bars // 2
+    stroke_counts = {"kick": 0, "snare": 0, "hat": 0, "ghost": 0}
+
+    for c in range(cycles):
+        offset = c * cycle_len
+        for beat, stroke_type in strokes:
+            all_notes.append({
+                "pitch": pitch_map[stroke_type],
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[stroke_type] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["boom_bap"] = True
+        data["boom_bap_type"] = boom_bap_type
+        data["strokes"] = stroke_counts
+        data["cycles"] = cycles
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

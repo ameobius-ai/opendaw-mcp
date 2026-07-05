@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.120.0 (2026-07-05)
+
+- **`create_boom_bap` orchestration tool (317 MCP tools)** — boom-bap hip-hop drum pattern: the foundational beat of hip-hop. "boom" = kick, "bap" = snare. 5 variants: classic (90s, Nas/Illmatic), old_school (80s, Run-DMC), trap (rolling hats, Migos), lofi (laid-back, J Dilla), drill (UK, Central Cee). Kick + snare + hi-hat + ghost strokes. 2-bar cycle. From Run-DMC to Kendrick Lamar. 60 orchestration tools. 317 MCP tools
+- **1373 unit tests** (+20)
+
 ## v1.119.0 (2026-07-05)
 
 - **`werkstatt_spectral_denoise.js` DSP script (95 DSP, 76 Werkstatt)** — spectral denoiser: restoration tool using noise floor subtraction. Two-phase: (1) noise learning — accumulates noise magnitude spectrum from input during 0.5-10s learning period, (2) denoising — per-bin spectral subtraction (Berouti & Schwartz 1979) with oversubtraction factor (1-4x), spectral floor (prevents musical noise), half-wave rectification, gain smoothing. Reduction 0 to -30 dB. iZotope RX Spectral De-noise / CEDAR DNS style — first restoration processor in the library. 7 params (reduction/learn_time/oversub/floor/smoothing/mix/output). 95 DSP scripts, 76 Werkstatt

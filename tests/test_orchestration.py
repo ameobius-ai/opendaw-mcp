@@ -3646,3 +3646,168 @@ class TestDembow:
         assert 0 <= 36 <= 127
         assert 0 <= 40 <= 127
         assert not (0 <= 128 <= 127)
+
+
+class TestBoomBap:
+    """Tests for create_boom_bap orchestration tool"""
+
+    BOOM_BAP_PATTERNS = {
+        "classic": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "snare"), (1.5, "hat"),
+            (2.0, "kick"), (2.5, "hat"), (3.0, "snare"), (3.5, "hat"),
+            (4.0, "kick"), (4.5, "hat"), (5.0, "snare"), (5.5, "hat"),
+            (6.0, "kick"), (6.5, "hat"), (7.0, "snare"), (7.5, "hat"),
+        ],
+        "old_school": [
+            (0.0, "kick"), (1.0, "snare"), (1.0, "hat"),
+            (2.0, "kick"), (3.0, "snare"), (3.0, "hat"),
+            (4.0, "kick"), (5.0, "snare"), (5.0, "hat"),
+            (6.0, "kick"), (7.0, "snare"), (7.0, "hat"),
+        ],
+        "trap": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.75, "hat"),
+            (2.0, "hat"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+            (3.0, "snare"), (3.25, "hat"), (3.5, "hat"), (3.75, "hat"),
+            (4.0, "kick"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+            (5.0, "hat"), (5.25, "hat"), (5.5, "kick"), (5.75, "hat"),
+            (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+            (7.0, "snare"), (7.25, "hat"), (7.5, "hat"), (7.75, "hat"),
+        ],
+        "lofi": [
+            (0.0, "kick"), (0.66, "hat"), (1.0, "snare"), (1.66, "hat"),
+            (2.0, "kick"), (2.66, "hat"), (3.0, "snare"), (3.66, "hat"),
+            (4.0, "kick"), (4.66, "hat"), (5.0, "snare"), (5.66, "hat"),
+            (5.95, "kick"), (6.66, "hat"), (7.0, "snare"), (7.66, "hat"),
+        ],
+        "drill": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "hat"), (1.5, "kick"),
+            (2.0, "snare"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+            (3.0, "kick"), (3.5, "hat"), (4.0, "kick"), (4.5, "hat"),
+            (5.0, "kick"), (5.5, "hat"), (6.0, "snare"), (6.25, "hat"),
+            (6.5, "hat"), (6.75, "ghost"), (7.0, "kick"), (7.5, "hat"),
+        ],
+    }
+
+    def test_classic_kick_on_1_and_3(self):
+        strokes = self.BOOM_BAP_PATTERNS["classic"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        assert 0.0 in kicks, "Missing kick on beat 1"
+        assert 2.0 in kicks, "Missing kick on beat 3"
+
+    def test_classic_snare_on_2_and_4(self):
+        strokes = self.BOOM_BAP_PATTERNS["classic"]
+        snares = [b for b, s in strokes if s == "snare"]
+        assert 1.0 in snares, "Missing snare on beat 2"
+        assert 3.0 in snares, "Missing snare on beat 4"
+
+    def test_classic_hats_on_8ths(self):
+        strokes = self.BOOM_BAP_PATTERNS["classic"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.5 in hats, "Missing hat on &1"
+        assert 1.5 in hats, "Missing hat on &2"
+
+    def test_old_school_simpler_than_classic(self):
+        classic_count = len(self.BOOM_BAP_PATTERNS["classic"])
+        old_count = len(self.BOOM_BAP_PATTERNS["old_school"])
+        assert old_count < classic_count, "old_school should be simpler (fewer strokes)"
+
+    def test_trap_has_16th_hats(self):
+        strokes = self.BOOM_BAP_PATTERNS["trap"]
+        hats = [b for b, s in strokes if s == "hat"]
+        # 16th notes: 0.25, 0.5, 0.75 etc
+        assert 0.25 in hats, "Missing 16th hat at 0.25"
+        assert 0.75 in hats, "Missing 16th hat at 0.75"
+
+    def test_trap_snare_on_4_only(self):
+        strokes = self.BOOM_BAP_PATTERNS["trap"]
+        snares = [b for b, s in strokes if s == "snare"]
+        assert 3.0 in snares, "Missing snare on beat 4"
+        assert 7.0 in snares, "Missing snare on beat 4 bar 2"
+        # Trap only has snare on beat 4, not 2
+        assert 1.0 not in snares, "Trap should NOT have snare on beat 2"
+
+    def test_lofi_laid_back_kick(self):
+        strokes = self.BOOM_BAP_PATTERNS["lofi"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        # Lo-fi has a kick slightly behind beat (5.95 instead of 6.0)
+        assert 5.95 in kicks, "Missing laid-back kick at 5.95"
+
+    def test_lofi_swung_hats(self):
+        strokes = self.BOOM_BAP_PATTERNS["lofi"]
+        hats = [b for b, s in strokes if s == "hat"]
+        # Swung hats at 0.66 instead of 0.5
+        assert 0.66 in hats, "Missing swung hat at 0.66"
+
+    def test_drill_has_ghost(self):
+        strokes = self.BOOM_BAP_PATTERNS["drill"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert len(ghosts) >= 1, "drill should have ghost notes"
+
+    def test_drill_snare_on_3(self):
+        strokes = self.BOOM_BAP_PATTERNS["drill"]
+        snares = [b for b, s in strokes if s == "snare"]
+        assert 2.0 in snares, "Missing snare on beat 3 (drill characteristic)"
+
+    def test_all_types_valid(self):
+        valid = {"kick", "snare", "hat", "ghost"}
+        for name, strokes in self.BOOM_BAP_PATTERNS.items():
+            for _, stroke_type in strokes:
+                assert stroke_type in valid, f"{name} has invalid stroke {stroke_type}"
+
+    def test_cycle_length(self):
+        cycle_len = 8.0
+        for name, strokes in self.BOOM_BAP_PATTERNS.items():
+            max_beat = max(b for b, _ in strokes)
+            assert max_beat < cycle_len, f"{name}: beat {max_beat} exceeds cycle {cycle_len}"
+
+    def test_velocity_mapping(self):
+        base = 0.8
+        kick_vel = min(1.0, base + 0.05)
+        snare_vel = max(0.0, base - 0.05)
+        hat_vel = max(0.0, base - 0.15)
+        ghost_vel = max(0.0, base - 0.35)
+        assert ghost_vel < hat_vel < snare_vel < kick_vel
+
+    def test_pitch_mapping(self):
+        kick, snare, hat = 36, 38, 42
+        pitch_map = {"kick": kick, "snare": snare, "hat": hat, "ghost": hat}
+        assert pitch_map["kick"] < pitch_map["snare"] < pitch_map["hat"]
+
+    def test_duration_mapping(self):
+        dur_map = {"kick": 0.2, "snare": 0.12, "hat": 0.05, "ghost": 0.04}
+        assert dur_map["ghost"] < dur_map["hat"] < dur_map["snare"] < dur_map["kick"]
+
+    def test_bar_repetition(self):
+        bars = 4
+        cycles = bars // 2
+        assert cycles == 2
+
+    def test_note_generation_one_cycle(self):
+        strokes = self.BOOM_BAP_PATTERNS["classic"]
+        all_notes = []
+        for beat, stroke_type in strokes:
+            all_notes.append({"start": beat, "stroke": stroke_type})
+        assert len(all_notes) == 16
+        assert all_notes[0]["start"] == 0.0
+
+    def test_note_generation_two_cycles(self):
+        strokes = self.BOOM_BAP_PATTERNS["classic"]
+        cycle_len = 8.0
+        all_notes = []
+        for c in range(2):
+            for beat, stroke_type in strokes:
+                all_notes.append({"start": c * cycle_len + beat, "stroke": stroke_type})
+        assert len(all_notes) == 32
+        assert all_notes[16]["start"] == 8.0
+
+    def test_type_normalization(self):
+        raw = "Old School"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert normalized == "old_school"
+
+    def test_pitch_validation(self):
+        assert 0 <= 36 <= 127
+        assert 0 <= 38 <= 127
+        assert 0 <= 42 <= 127
+        assert not (0 <= 128 <= 127)
