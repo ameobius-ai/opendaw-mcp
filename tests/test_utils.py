@@ -11602,14 +11602,14 @@ class TestBluesArrangement:
     def test_registered_in_genre_mix(self):
         """Blues is registered in apply_genre_mix valid_genres"""
         import ast
-        tree = ast.parse(open("server.py").read())
+        _ = ast.parse(open("server.py").read())
         source = open("server.py").read()
         assert '"blues"' in source
 
     def test_has_genre_mix_recipe(self):
         """Has a genre_mix recipe for blues"""
         import ast
-        tree = ast.parse(open("server.py").read())
+        _ = ast.parse(open("server.py").read())
         source = open("server.py").read()
         # Find the blues recipe in the recipes dict
         assert '"blues": {' in source or '"blues":{' in source
