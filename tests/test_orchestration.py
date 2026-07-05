@@ -1986,3 +1986,87 @@ class TestVocoderDSP:
         out_p = [p for p in params if p["name"] == "output"][0]
         assert mix["min"] == 0 and mix["max"] == 1, "mix range should be 0-1"
         assert out_p["min"] == -12 and out_p["max"] == 12, "output range should be -12 to 12 dB"
+
+
+class TestReverseDSP:
+    """Unit tests for werkstatt_reverse.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_reverse.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt reverse" in code, "Missing @werkstatt reverse header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_chunk_size_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        cs = [p for p in params if p["name"] == "chunk_size"][0]
+        assert cs["min"] > 0 and cs["max"] >= 1, "chunk_size should be positive"
+
+    def test_circular_buffer(self):
+        code = self._read_script()
+        assert "bufL" in code and "bufR" in code, "Missing stereo buffer"
+        assert "writePos" in code, "Missing write position"
+        assert "bufSize" in code, "Missing buffer size"
+
+    def test_reverse_read(self):
+        code = self._read_script()
+        assert "_readReverse" in code, "Missing reverse read function"
+        assert "writePos - 1" in code, "Missing backward read logic"
+
+    def test_trigger_modes(self):
+        code = self._read_script()
+        assert "trigger_mode" in code, "Missing trigger_mode param"
+        assert "triggerMode" in code, "Missing triggerMode variable"
+        assert "Continuous" in code or "triggerMode === 0" in code, "Missing continuous mode"
+        assert "Single" in code or "triggerMode === 1" in code, "Missing single mode"
+        assert "Gate" in code or "triggerMode === 2" in code, "Missing gate mode"
+
+    def test_stereo_modes(self):
+        code = self._read_script()
+        assert "stereo_mode" in code, "Missing stereo_mode param"
+        assert "Ping-pong" in code or "stereoMode === 1" in code, "Missing ping-pong mode"
+        assert "Wide" in code or "stereoMode === 2" in code, "Missing wide mode"
+
+    def test_feedback(self):
+        code = self._read_script()
+        assert "feedback" in code, "Missing feedback param"
+        assert "fbL" in code and "fbR" in code, "Missing feedback state"
+        params = self._parse_params(code)
+        fb_max = [p for p in params if p["name"] == "feedback"][0]
+        assert fb_max["max"] <= 0.9, "Feedback max should be < 1 for stability"
+
+    def test_speed_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        speed = [p for p in params if p["name"] == "speed"][0]
+        assert speed["min"] > 0, "speed should be positive"
+        assert speed["max"] >= 2, "speed should allow at least 2x"
+
+    def test_smoothing(self):
+        code = self._read_script()
+        assert "smooth" in code, "Missing smooth param"
+        assert "fadeSamples" in code, "Missing fade samples calculation"
+        assert "fadeStart" in code or "fadeEnd" in code, "Missing crossfade logic"

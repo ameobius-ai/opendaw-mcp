@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.65.0 (2026-07-05)
+
+- **`werkstatt_reverse.js` DSP script** — real-time reverse playback effect with chunked circular buffer. Reverses audio in configurable chunks (0.05-5 sec) with variable speed (0.25x-4x). Three trigger modes: continuous, single, gate. Three stereo modes: normal, ping-pong, wide. Feedback for layered reverse textures. Crossfade smoothing. Classic for backwards cymbals, vocal reverses, psychedelic transitions. 10 params: chunk_size, feedback, speed, smooth, dry_gain, wet_gain, mix, stereo_mode, trigger_mode, output
+- **55 DSP scripts** (42 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **565 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.64.0 (2026-07-05)
 
 - **`werkstatt_vocoder.js` DSP script** — channel vocoder with 8-24 log-spaced bandpass filter bank. Maps modulator (vocal/input) spectral envelope onto a carrier oscillator (saw/square/noise). Per-band envelope followers with adjustable response time and threshold gating. Emphasis control boosts high bands for intelligibility. Output highpass removes rumble. Classic for robotic voice effects, synth vocal textures, Daft Punk-style sounds. 10 params: bands, carrier_wave, carrier_freq, mod_response, mod_threshold, band_q, emphasis, highpass, mix, output
