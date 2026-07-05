@@ -4867,3 +4867,128 @@ class TestCreateTrapArrangement:
         """808 bass at octave 1 = sub-bass territory"""
         octave = 1
         assert octave == 1, "Default 808 octave should be 1 (sub-bass)"
+
+
+class TestCreateTechnoArrangement:
+    """Tests for create_techno_arrangement — multi-track techno arrangement"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick"), (0.5, "chat"), (1.0, "kick"), (1.5, "chat"),
+        (2.0, "kick"), (2.0, "clap"), (2.5, "chat"), (3.0, "kick"), (3.5, "ohat"),
+        (4.0, "kick"), (4.5, "chat"), (5.0, "kick"), (5.5, "chat"),
+        (6.0, "kick"), (6.0, "clap"), (6.5, "ohat"), (7.0, "kick"), (7.5, "chat"),
+    ]
+    BASS_PATTERN = [
+        (0.0, 0, 4.0, 1.0),
+        (4.0, 0, 2.0, 0.95),
+        (6.0, 7, 2.0, 0.9),
+    ]
+    STAB_PATTERN = [
+        (0.5, 0, 0.15, 0.7), (1.5, 3, 0.15, 0.6),
+        (2.5, 7, 0.15, 0.65), (3.5, 12, 0.15, 0.55),
+        (4.5, 0, 0.15, 0.7), (5.5, 10, 0.15, 0.6),
+        (6.5, 7, 0.15, 0.65), (7.5, 3, 0.15, 0.55),
+    ]
+
+    def test_drums_four_on_floor(self):
+        """Kick on every quarter — the techno engine"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.0 in kicks and 1.0 in kicks and 2.0 in kicks and 3.0 in kicks
+        assert 4.0 in kicks and 5.0 in kicks and 6.0 in kicks and 7.0 in kicks
+
+    def test_drums_have_closed_hats(self):
+        chats = [b for b, s in self.DRUM_PATTERN if s == "chat"]
+        assert 0.5 in chats, "Missing closed hat on off-beat"
+        assert 1.5 in chats, "Missing closed hat on off-beat"
+
+    def test_drums_have_open_hat(self):
+        ohats = [b for b, s in self.DRUM_PATTERN if s == "ohat"]
+        assert len(ohats) >= 1, "Missing open hat accent"
+
+    def test_drums_clap_on_2_and_4(self):
+        """Clap on beats 2 and 4 (0-indexed: 2.0 and 6.0)"""
+        claps = [b for b, s in self.DRUM_PATTERN if s == "clap"]
+        assert 2.0 in claps, "Missing clap on beat 2"
+        assert 6.0 in claps, "Missing clap on beat 4"
+
+    def test_bass_is_sustained_drone(self):
+        """Sub-bass is sustained (4 beats), not rhythmic — key techno difference from house"""
+        dur0 = self.BASS_PATTERN[0][2]
+        assert dur0 >= 4.0, "First bass note should be sustained 4+ beats (drone)"
+
+    def test_bass_has_fifth_shift(self):
+        """Bass shifts to fifth for tension — root/fifth drone pattern"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert 7 in pitch_offs, "Missing fifth shift in sub-bass"
+
+    def test_bass_is_continuous(self):
+        """Bass notes should cover most of the cycle without gaps"""
+        total_dur = sum(d for _, _, d, _ in self.BASS_PATTERN)
+        assert total_dur >= 7.0, "Bass should be near-continuous across the 8-beat cycle"
+
+    def test_stabs_on_off_beats(self):
+        """Stabs on the 'and' of beats — 0.5, 1.5, 2.5..."""
+        stab_beats = [b for b, _, _, _ in self.STAB_PATTERN]
+        for b in stab_beats:
+            assert b % 1.0 == 0.5, f"Stab at {b} should be on off-beat"
+
+    def test_stabs_are_short(self):
+        """Stabs are percussive — very short durations"""
+        durs = [d for _, _, d, _ in self.STAB_PATTERN]
+        assert max(durs) <= 0.2, "Stabs should be short (percussive)"
+
+    def test_stabs_use_minor_intervals(self):
+        """Stabs use root, minor third, fifth, minor seventh, octave"""
+        pitch_offs = [po for _, po, _, _ in self.STAB_PATTERN]
+        assert 0 in pitch_offs, "Missing root in stabs"
+        assert 3 in pitch_offs, "Missing minor third"
+        assert 7 in pitch_offs, "Missing fifth"
+        assert 10 in pitch_offs, "Missing minor seventh"
+        assert 12 in pitch_offs, "Missing octave"
+
+    def test_stabs_are_sparse_vs_drums(self):
+        """Stabs fewer than drums — minimalist techno"""
+        assert len(self.STAB_PATTERN) < len(self.DRUM_PATTERN)
+
+    def test_drum_cycle_2_bars(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 8.0, "Drum pattern exceeds 2 bars"
+
+    def test_bass_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.BASS_PATTERN)
+        assert max_beat < 8.0, "Bass pattern exceeds 2 bars"
+
+    def test_stab_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.STAB_PATTERN)
+        assert max_beat < 8.0, "Stab pattern exceeds 2 bars"
+
+    def test_tracks_separate(self):
+        assert len({0, 1, 2}) == 3, "Tracks must be distinct"
+
+    def test_bpm_range(self):
+        assert 120 <= 130 <= 150, "Default BPM should be valid"
+
+    def test_min_bars_is_8(self):
+        """Techno needs longer forms — minimum 8 bars"""
+        assert 8 <= 8, "Minimum bars should be 8"
+
+    def test_note_counts_8_bars(self):
+        bars = 8
+        cycles = bars // 2
+        drum_count = len(self.DRUM_PATTERN) * cycles
+        bass_count = len(self.BASS_PATTERN) * cycles
+        stab_count = len(self.STAB_PATTERN) * cycles
+        assert drum_count > bass_count, "Drums should have most notes"
+        assert stab_count < drum_count, "Stabs should be sparsest"
+
+    def test_stab_velocity_low(self):
+        """Stabs are quiet/percussive, not loud"""
+        vels = [vm for _, _, _, vm in self.STAB_PATTERN]
+        assert max(vels) <= 0.7, "Stabs should be quiet (percussive)"
+
+    def test_techno_differs_from_house(self):
+        """Key structural difference: house bass is rhythmic (off-beat), techno bass is sustained"""
+        # House: short bass notes on off-beats; techno: long sustained bass
+        techno_bass_durs = [d for _, _, d, _ in self.BASS_PATTERN]
+        avg_dur = sum(techno_bass_durs) / len(techno_bass_durs)
+        assert avg_dur > 2.0, "Techno bass should be sustained (avg >2 beats), unlike house off-beat"

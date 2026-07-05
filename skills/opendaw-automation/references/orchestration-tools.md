@@ -80,6 +80,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 67. `create_dnb_arrangement` — First multi-track genre arrangement: complete DnB section (drums+bass+pad) across 3 tracks. Amen breakbeat, Reese bass, minor triad pad. Tempo-aware. One call = full section
 68. `create_house_arrangement` — Second multi-track arrangement: house section (drums+bass+stabs). Four-on-floor, off-beat bass (interleaved with kick), minor triad stabs. Tempo-aware 110-140 BPM
 69. `create_trap_arrangement` — Third multi-track arrangement: trap section (drums+bass+melody). Trap rolls, 808 sub-bass slides (negative offsets), minor bell plucks with echo. F# minor default. 120-170 BPM
+70. `create_techno_arrangement` — Fourth multi-track arrangement: Berlin/Detroit techno (drums+bass+stabs). Relentless four-on-floor, sustained sub-bass drone (not rhythmic), Detroit percussive atonal stabs. C minor default. 120-150 BPM. Min 8 bars
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

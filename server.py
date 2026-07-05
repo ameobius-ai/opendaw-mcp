@@ -22469,3 +22469,174 @@ async def mcp_opendaw_create_trap_arrangement(
         "bass_pattern": "808_slides",
         "melody_type": "minor_bell",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_techno_arrangement(
+    bpm: float = 130,
+    bars: int = 8,
+    root: str = "C",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    stab_track: int = 2,
+    start_beat: float = 0,
+    velocity: float = 0.82,
+) -> str:
+    """Create a full techno arrangement — drums + sub-bass drone + percussive stabs across 3 tracks.
+
+    Berlin/Detroit techno with hypnotic, minimalist elements locked together:
+    - Track 0: Drums — relentless four-on-floor with industrial hats and claps, the engine
+    - Track 1: Bass — sustained sub-bass drone with root shifts per phrase, not rhythmic
+                     but continuous — the hypnotic foundation that drives the groove underground
+    - Track 2: Stabs — percussive atonal stabs on off-beats, the signature Detroit sound
+
+    At 130 BPM (default), this creates the classic warehouse techno feel. The sub-bass
+    drone is the key difference from house — instead of off-beat bass notes, it's a
+    continuous low-end that shifts root notes across phrases, creating tension and release.
+
+    bpm: Tempo (125-145, default 130 = classic techno).
+    bars: Arrangement length (8-32, default 8). Techno needs longer forms.
+    root: Root note (C is the classic techno key for sub-bass).
+    octave: MIDI octave for sub-bass (2 = C2=36, low but audible).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / stab_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_techno_arrangement(bpm=130, root="C", bars=8)
+      create_techno_arrangement(bpm=138, root="A", bars=16)
+    """
+    if not (120 <= bpm <= 150):
+        return "Error: bpm must be 120-150"
+    if bars < 8 or bars > 32:
+        return "Error: bars must be 8-32 (techno needs longer forms)"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc  # sub-bass territory
+    stab_base = (octave + 3) * 12 + root_pc  # stabs 2 octaves above bass
+
+    # --- DRUMS: relentless four-on-floor, industrial (4-bar cycle) ---
+    # kick every beat, closed hats on off-beats, open hat accents, clap on 2+4
+    drum_pattern = [
+        (0.0, "kick"), (0.5, "chat"), (1.0, "kick"), (1.5, "chat"),
+        (2.0, "kick"), (2.0, "clap"), (2.5, "chat"), (3.0, "kick"), (3.5, "ohat"),
+        (4.0, "kick"), (4.5, "chat"), (5.0, "kick"), (5.5, "chat"),
+        (6.0, "kick"), (6.0, "clap"), (6.5, "ohat"), (7.0, "kick"), (7.5, "chat"),
+    ]
+    kick_p, chat_p, ohat_p, clap_p = 36, 42, 46, 39
+    drum_pitch_map = {"kick": kick_p, "clap": clap_p, "chat": chat_p, "ohat": ohat_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.08),
+        "clap": max(0.0, velocity - 0.02),
+        "chat": max(0.0, velocity - 0.18),
+        "ohat": max(0.0, velocity - 0.08),
+    }
+    drum_dur_map = {"kick": 0.22, "clap": 0.1, "chat": 0.04, "ohat": 0.1}
+
+    drum_notes = []
+    drum_cycle = 8.0  # 2 bars per cycle at 4/4
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: sustained sub-bass drone with root shifts (2-bar cycle) ---
+    # Not rhythmic — continuous sustained notes that shift root across phrases
+    # Pattern: root (4 beats) → root (2 beats) → fifth (2 beats) per cycle
+    # Creates hypnotic tension/release without rhythmic movement
+    bass_pattern = [
+        (0.0, 0, 4.0, 1.0),    # root, sustained 4 beats
+        (4.0, 0, 2.0, 0.95),   # root, 2 beats
+        (6.0, 7, 2.0, 0.9),    # fifth, 2 beats — tension shift
+    ]
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for beat, po, dur, vm in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- STABS: percussive atonal stabs on off-beats (2-bar cycle) ---
+    # Detroit techno signature: short, sharp, single notes on the "and" of beats
+    # Not chords — single percussive hits that cut through the mix
+    # Pitch pattern: root, minor third, fifth, octave — sparse and percussive
+    stab_pattern = [
+        (0.5, 0, 0.15, 0.7),    # off-beat, root
+        (1.5, 3, 0.15, 0.6),    # minor third
+        (2.5, 7, 0.15, 0.65),   # fifth
+        (3.5, 12, 0.15, 0.55),  # octave
+        (4.5, 0, 0.15, 0.7),    # root
+        (5.5, 10, 0.15, 0.6),   # minor seventh
+        (6.5, 7, 0.15, 0.65),   # fifth
+        (7.5, 3, 0.15, 0.55),   # minor third
+    ]
+    stab_notes = []
+    stab_cycle = 8.0
+    stab_cycles = bars // 2
+    for c in range(stab_cycles):
+        off = c * stab_cycle
+        for beat, po, dur, vm in stab_pattern:
+            stab_notes.append({
+                "pitch": stab_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm * 0.4, 3),  # stabs are quiet, percussive
+            })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    stab_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(stab_notes), unit_index, stab_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        stab_data = json.loads(stab_result)
+    except Exception:
+        stab_data = {"raw": stab_result}
+
+    return json.dumps({
+        "techno_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "stabs": {"track": stab_track, "notes": len(stab_notes), "result": stab_data.get("notes_created", len(stab_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(stab_notes),
+        "drum_pattern": "four_on_floor_industrial",
+        "bass_pattern": "sub_bass_drone",
+        "stab_type": "detroit_percussive",
+    }, indent=2)
