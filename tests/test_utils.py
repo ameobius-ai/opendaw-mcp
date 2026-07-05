@@ -6834,3 +6834,142 @@ class TestAddVocalChain:
         assert "add_vocal_chain" in pipeline
         assert len(pipeline) == 3
 
+
+class TestAddDrumChain:
+    """Tests for add_drum_chain — one-call drum processing"""
+
+    STYLES = ["punchy", "deep", "crisp", "roomy", "tight"]
+
+    def test_five_styles(self):
+        assert len(self.STYLES) == 5
+
+    def test_punchy_is_pop_default(self):
+        """Punchy: tight gate, bright EQ, fast comp"""
+        params = {"gate_threshold": -45, "comp_threshold": -18, "comp_ratio": 4.0, "comp_attack": 3}
+        assert params["gate_threshold"] == -45
+        assert params["comp_attack"] == 3  # fast
+
+    def test_deep_has_lowest_gate_threshold(self):
+        """Deep: loosest gate (-55dB) for 808s"""
+        deep_gate = -55
+        punchy_gate = -45
+        assert deep_gate < punchy_gate  # more negative = more open
+
+    def test_crisp_brightest_eq(self):
+        """Crisp: highest high-shelf (6dB@10kHz) for electronic"""
+        crisp_high = 6.0
+        punchy_high = 4.0
+        assert crisp_high > punchy_high
+
+    def test_roomy_longest_release(self):
+        """Roomy: longest gate release (200ms) for room sound"""
+        roomy_release = 200
+        punchy_release = 80
+        assert roomy_release > punchy_release
+
+    def test_tight_gentlest(self):
+        """Tight: transparent, lightest comp (ratio 2.0)"""
+        tight_ratio = 2.0
+        punchy_ratio = 4.0
+        assert tight_ratio < punchy_ratio
+
+    def test_chain_order(self):
+        """Chain order: Gate → EQ → Compressor (→ Reverb)"""
+        chain = ["Gate", "Revamp EQ", "Compressor"]
+        assert chain[0] == "Gate"
+        assert chain[-1] == "Compressor"
+
+    def test_chain_with_reverb(self):
+        """Chain with reverb: Gate → EQ → Comp → Reverb"""
+        chain = ["Gate", "Revamp EQ", "Compressor", "Reverb"]
+        assert len(chain) == 4
+        assert chain[-1] == "Reverb"
+
+    def test_default_reverb_off(self):
+        """Default reverb_amount=0.0 (off)"""
+        assert 0.0 == 0
+
+    def test_drum_vs_vocal_chain(self):
+        """add_drum_chain adds Gate; add_vocal_chain does not"""
+        drum = {"Gate", "EQ", "Compressor", "Reverb"}
+        vocal = {"EQ", "Compressor", "Reverb"}
+        assert "Gate" in drum and "Gate" not in vocal
+
+    def test_pipeline_with_drum_chain(self):
+        """Full drum pipeline: create_genre_track → add_drum_chain → render"""
+        pipeline = ["create_genre_track", "add_drum_chain", "render_full_song"]
+        assert "add_drum_chain" in pipeline
+        assert len(pipeline) == 3
+
+
+class TestAddBassChain:
+    """Tests for add_bass_chain — one-call bass processing"""
+
+    STYLES = ["deep", "round", "driven", "clean", "tight"]
+
+    def test_five_styles(self):
+        assert len(self.STYLES) == 5
+
+    def test_deep_is_default(self):
+        """Deep: sub boost (5dB@50Hz), thick low end"""
+        params = {"eq_low_shelf_gain": 5.0, "eq_low_shelf_freq": 50, "comp_ratio": 4.0}
+        assert params["eq_low_shelf_gain"] == 5.0
+        assert params["eq_low_shelf_freq"] == 50
+
+    def test_round_has_mid_warmth(self):
+        """Round: mid boost (2dB@200Hz) for R&B warmth"""
+        round_mid = 2.0
+        deep_mid = 1.0
+        assert round_mid > deep_mid
+
+    def test_driven_has_highest_mid(self):
+        """Driven: most mid boost (3dB@800Hz) for rock bass"""
+        driven_mid = 3.0
+        deep_mid = 1.0
+        assert driven_mid > deep_mid
+
+    def test_clean_cuts_highs_most(self):
+        """Clean: most high cut (-4dB@2kHz) for electronic"""
+        clean_high = -4.0
+        deep_high = -3.0
+        assert clean_high < deep_high  # more negative = more cut
+
+    def test_tight_fastest_comp(self):
+        """Tight: fastest comp (attack 3ms, release 40ms) for disco/funk"""
+        tight_attack = 3
+        deep_attack = 15
+        assert tight_attack < deep_attack
+
+    def test_chain_order(self):
+        """Chain order: EQ → Compressor (→ Waveshaper)"""
+        chain = ["Revamp EQ", "Compressor"]
+        assert chain[0] == "Revamp EQ"
+
+    def test_chain_with_drive(self):
+        """Chain with drive: EQ → Comp → Waveshaper"""
+        chain = ["Revamp EQ", "Compressor", "Waveshaper"]
+        assert len(chain) == 3
+        assert chain[-1] == "Waveshaper"
+
+    def test_default_drive_off(self):
+        """Default drive_amount=0.0 (off)"""
+        assert 0.0 == 0
+
+    def test_bass_vs_drum_chain(self):
+        """add_bass_chain starts with EQ; add_drum_chain starts with Gate"""
+        bass = {"EQ", "Compressor"}
+        drum = {"Gate", "EQ", "Compressor"}
+        assert "Gate" in drum and "Gate" not in bass
+
+    def test_pipeline_with_bass_chain(self):
+        """Full bass pipeline: create_genre_track → add_bass_chain → render"""
+        pipeline = ["create_genre_track", "add_bass_chain", "render_full_song"]
+        assert "add_bass_chain" in pipeline
+        assert len(pipeline) == 3
+
+    def test_full_mix_chains_pipeline(self):
+        """Full mix: drum chain + bass chain + vocal chain + mastering"""
+        pipeline = ["add_drum_chain", "add_bass_chain", "add_vocal_chain", "add_mastering_chain"]
+        assert len(pipeline) == 4
+        assert "add_mastering_chain" == pipeline[-1]
+

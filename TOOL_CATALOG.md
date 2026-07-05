@@ -416,12 +416,15 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apply_velocity_curve` — Apply velocity envelope across notes (ramp_up/ramp_down/arc/trough/power). Deterministic curve shape for build-ups, fade-ins, expressive phrasing.
 - `apply_articulation` — Apply articulation to notes (staccato/legato/tenuto/accent). Duration reshaping for phrasing character. Accent boosts velocity on downbeats.
 - `add_mastering_chain` — Add EQ + Compressor + Maximizer to the output bus with genre-style presets (balanced/warm/loud/transparent).
+- `add_vocal_chain` — One-call vocal processing: EQ + Compressor + Reverb (+ optional Delay). 5 presets (balanced/warm/bright/intimate/aggressive).
+- `add_drum_chain` — One-call drum processing: Gate + EQ + Compressor (+ optional Reverb). 5 presets (punchy/deep/crisp/roomy/tight).
+- `add_bass_chain` — One-call bass processing: EQ + Compressor (+ optional Waveshaper drive). 5 presets (deep/round/driven/clean/tight).
 - `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient/coldwave/hiphop) — synth, drums, bass, chords, BPM in one call.
 - `create_song_structure` — Create arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list. Enables agents to reason about song form.
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 314 tools**
+**Total: 354 tools**
 
 ## DSP Scripts (scripts/) — 90 scripts
 

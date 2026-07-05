@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.168.0 (2026-07-05)
+
+### Added
+- `add_drum_chain` — one-call drum processing: Gate → EQ → Compressor (+ optional Reverb). 5 presets: punchy, deep, crisp, roomy, tight
+- `add_bass_chain` — one-call bass processing: EQ → Compressor (+ optional Waveshaper drive). 5 presets: deep, round, driven, clean, tight
+- Completes the processing chain family: vocal + drum + bass + mastering
+
 ## v1.167.0 (2026-07-05)
 
 - **add_vocal_chain** — new one-call vocal processing chain. Adds EQ + Compressor + Reverb (+ optional Delay) to any audio unit. 5 style presets: balanced (pop), warm (R&B/soul), bright (radio pop), intimate (ballad/acoustic), aggressive (rock/rap). Each preset has genre-appropriate EQ curves (low shelf, mid cut, high shelf air) and compressor settings (threshold, ratio, attack, release). `reverb_amount` (0-1) and `delay_amount` (0-1, default off) for spatial control. Parallel to add_mastering_chain but for vocal/melodic tracks. 12 unit tests. 352 MCP tools, 2223 tests.

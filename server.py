@@ -13554,6 +13554,327 @@ async def mcp_opendaw_add_vocal_chain(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_add_drum_chain(
+    unit_index: int = 0,
+    style: str = "punchy",
+    reverb_amount: float = 0.0,
+) -> str:
+    """Add a ready-made drum processing chain to an audio unit — Gate → EQ → Compressor (+ optional Reverb).
+
+    One call replaces 3-4 individual add_effect + set_effect_parameter calls.
+    Designed for drum tracks but works on any rhythmic content.
+
+    unit_index: Target audio unit (the drum track).
+    style: Preset character:
+      - "punchy" — tight gate, bright EQ, fast comp (pop, rock drums)
+      - "deep" — loose gate, sub boost, slow comp (hip-hop, trap, 808s)
+      - "crisp" — bright EQ, fast attack comp (techno, house, electronic)
+      - "roomy" — medium gate, warm EQ, lush reverb (rock, live drums)
+      - "tight" — transparent, just cleanup (jazz, acoustic, lofi)
+
+    reverb_amount: Reverb wet/dry (0-1, default 0 = off). Use 0.1-0.3 for room sound.
+
+    Creates: Gate → Revamp EQ → Compressor (→ Reverb) on the target AU.
+    Returns effect indices and parameter values set.
+
+    Example:
+      # Punchy drum chain on track 0
+      add_drum_chain(0)
+      # Deep 808 chain
+      add_drum_chain(0, style="deep")
+      # Roomy rock drums with reverb
+      add_drum_chain(0, style="roomy", reverb_amount=0.25)
+    """
+    styles = {
+        "punchy": {
+            "gate_threshold": -45, "gate_attack": 1, "gate_hold": 20, "gate_release": 80,
+            "eq_low_shelf_gain": 2.0, "eq_low_shelf_freq": 60,
+            "eq_high_shelf_gain": 4.0, "eq_high_shelf_freq": 8000,
+            "eq_mid_gain": -2.0, "eq_mid_freq": 400,
+            "comp_threshold": -18, "comp_ratio": 4.0, "comp_attack": 3, "comp_release": 50,
+        },
+        "deep": {
+            "gate_threshold": -55, "gate_attack": 2, "gate_hold": 30, "gate_release": 120,
+            "eq_low_shelf_gain": 5.0, "eq_low_shelf_freq": 50,
+            "eq_high_shelf_gain": 1.0, "eq_high_shelf_freq": 5000,
+            "eq_mid_gain": -1.0, "eq_mid_freq": 300,
+            "comp_threshold": -20, "comp_ratio": 3.0, "comp_attack": 10, "comp_release": 100,
+        },
+        "crisp": {
+            "gate_threshold": -50, "gate_attack": 1, "gate_hold": 15, "gate_release": 60,
+            "eq_low_shelf_gain": 1.0, "eq_low_shelf_freq": 80,
+            "eq_high_shelf_gain": 6.0, "eq_high_shelf_freq": 10000,
+            "eq_mid_gain": -3.0, "eq_mid_freq": 500,
+            "comp_threshold": -16, "comp_ratio": 5.0, "comp_attack": 2, "comp_release": 40,
+        },
+        "roomy": {
+            "gate_threshold": -40, "gate_attack": 3, "gate_hold": 40, "gate_release": 200,
+            "eq_low_shelf_gain": 3.0, "eq_low_shelf_freq": 70,
+            "eq_high_shelf_gain": 2.5, "eq_high_shelf_freq": 6000,
+            "eq_mid_gain": -1.5, "eq_mid_freq": 350,
+            "comp_threshold": -20, "comp_ratio": 3.0, "comp_attack": 8, "comp_release": 80,
+        },
+        "tight": {
+            "gate_threshold": -60, "gate_attack": 1, "gate_hold": 10, "gate_release": 50,
+            "eq_low_shelf_gain": 1.0, "eq_low_shelf_freq": 100,
+            "eq_high_shelf_gain": 2.0, "eq_high_shelf_freq": 7000,
+            "eq_mid_gain": -1.0, "eq_mid_freq": 400,
+            "comp_threshold": -24, "comp_ratio": 2.0, "comp_attack": 10, "comp_release": 120,
+        },
+    }
+    if style not in styles:
+        return f"Error: unknown style '{style}'. Valid: {list(styles.keys())}"
+    if not (0.0 <= reverb_amount <= 1.0):
+        return "Error: reverb_amount must be 0-1"
+
+    params = styles[style]
+    use_reverb = reverb_amount > 0.0
+
+    chain_desc = "Gate → Revamp EQ → Compressor"
+    if use_reverb:
+        chain_desc += " → Reverb"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const p = window.DAW;
+        const EF = window.DAW_EffectFactories;
+
+        const params = {json.dumps(params)};
+        const reverbAmount = {reverb_amount};
+        const useReverb = {str(use_reverb).lower()};
+
+        const allUnits = h.allAUBoxes();
+        if (!allUnits[{unit_index}]) return {{error: "Audio unit {unit_index} not found"}};
+        const targetAU = allUnits[{unit_index}];
+
+        let gateIdx = -1, eqIdx = -1, compIdx = -1, revIdx = -1;
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Gate);
+            gateIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Revamp);
+            eqIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Compressor);
+            compIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        if (useReverb) {{
+            h.modify(() => {{
+                p.api.insertEffect(targetAU.audioEffects, EF.Reverb);
+                revIdx = h.effectBoxes(targetAU).length - 1;
+            }});
+        }}
+
+        // Set gate params
+        const effects = h.effectBoxes(targetAU);
+        h.modify(() => {{
+            const gateBox = effects[gateIdx];
+            if (gateBox) {{
+                const record = gateBox.record();
+                for (const [key, field] of Object.entries(record)) {{
+                    const fname = field._fieldName || field.fieldName || key;
+                    if (fname === 'threshold') field.setValue(params.gate_threshold);
+                    if (fname === 'attack') field.setValue(params.gate_attack);
+                    if (fname === 'hold') field.setValue(params.gate_hold);
+                    if (fname === 'release') field.setValue(params.gate_release);
+                }}
+            }}
+        }});
+
+        // Set compressor params
+        h.modify(() => {{
+            const compBox = effects[compIdx];
+            if (compBox) {{
+                const record = compBox.record();
+                for (const [key, field] of Object.entries(record)) {{
+                    const fname = field._fieldName || field.fieldName || key;
+                    if (fname === 'threshold') field.setValue(params.comp_threshold);
+                    if (fname === 'ratio') field.setValue(params.comp_ratio);
+                    if (fname === 'attack') field.setValue(params.comp_attack);
+                    if (fname === 'release') field.setValue(params.comp_release);
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            unit_index: {unit_index},
+            chain: [
+                {{name: "Gate", index: gateIdx, params: {{
+                    threshold: params.gate_threshold, attack: params.gate_attack,
+                    hold: params.gate_hold, release: params.gate_release,
+                }}}},
+                {{name: "Revamp EQ", index: eqIdx, params: {{
+                    low_shelf: params.eq_low_shelf_gain + "dB@" + params.eq_low_shelf_freq + "Hz",
+                    high_shelf: params.eq_high_shelf_gain + "dB@" + params.eq_high_shelf_freq + "Hz",
+                    mid: params.eq_mid_gain + "dB@" + params.eq_mid_freq + "Hz",
+                }}}},
+                {{name: "Compressor", index: compIdx, params: {{
+                    threshold: params.comp_threshold, ratio: params.comp_ratio,
+                    attack: params.comp_attack, release: params.comp_release,
+                }}}},
+            ] + (useReverb ? [{{name: "Reverb", index: revIdx, params: {{wet: reverbAmount}}}}] : []),
+            style: "{style}",
+            chain_description: "{chain_desc}",
+            note: "Drum chain applied. Adjust reverb_amount for room sound.",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_add_bass_chain(
+    unit_index: int = 0,
+    style: str = "deep",
+    drive_amount: float = 0.0,
+) -> str:
+    """Add a ready-made bass processing chain to an audio unit — EQ → Compressor (+ optional Waveshaper drive).
+
+    One call replaces 2-3 individual add_effect + set_effect_parameter calls.
+    Designed for bass tracks but works on any low-frequency content.
+
+    unit_index: Target audio unit (the bass track).
+    style: Preset character:
+      - "deep" — sub boost, slow comp, thick low end (hip-hop, trap, 808s)
+      - "round" — low-mid warmth, gentle comp (R&B, jazz, soul)
+      - "driven" — low cut, mid boost, comp + drive (rock, punk bass)
+      - "clean" — transparent, minimal coloration (electronic, house)
+      - "tight" — fast comp, controlled, punchy (disco, funk, pop)
+
+    drive_amount: Waveshaper saturation (0-1, default 0 = off). Use 0.2-0.5 for grit.
+
+    Creates: Revamp EQ → Compressor (→ Waveshaper) on the target AU.
+    Returns effect indices and parameter values set.
+
+    Example:
+      # Deep sub bass chain
+      add_bass_chain(0)
+      # Driven rock bass with grit
+      add_bass_chain(0, style="driven", drive_amount=0.4)
+      # Clean electronic bass
+      add_bass_chain(0, style="clean")
+    """
+    styles = {
+        "deep": {
+            "eq_low_shelf_gain": 5.0, "eq_low_shelf_freq": 50,
+            "eq_high_shelf_gain": -3.0, "eq_high_shelf_freq": 3000,
+            "eq_mid_gain": 1.0, "eq_mid_freq": 120,
+            "comp_threshold": -20, "comp_ratio": 4.0, "comp_attack": 15, "comp_release": 120,
+        },
+        "round": {
+            "eq_low_shelf_gain": 3.0, "eq_low_shelf_freq": 80,
+            "eq_high_shelf_gain": -2.0, "eq_high_shelf_freq": 4000,
+            "eq_mid_gain": 2.0, "eq_mid_freq": 200,
+            "comp_threshold": -22, "comp_ratio": 2.5, "comp_attack": 20, "comp_release": 150,
+        },
+        "driven": {
+            "eq_low_shelf_gain": 2.0, "eq_low_shelf_freq": 60,
+            "eq_high_shelf_gain": 2.0, "eq_high_shelf_freq": 2500,
+            "eq_mid_gain": 3.0, "eq_mid_freq": 800,
+            "comp_threshold": -18, "comp_ratio": 3.5, "comp_attack": 8, "comp_release": 60,
+        },
+        "clean": {
+            "eq_low_shelf_gain": 2.0, "eq_low_shelf_freq": 50,
+            "eq_high_shelf_gain": -4.0, "eq_high_shelf_freq": 2000,
+            "eq_mid_gain": 0.0, "eq_mid_freq": 150,
+            "comp_threshold": -24, "comp_ratio": 3.0, "comp_attack": 10, "comp_release": 80,
+        },
+        "tight": {
+            "eq_low_shelf_gain": 1.0, "eq_low_shelf_freq": 70,
+            "eq_high_shelf_gain": -1.0, "eq_high_shelf_freq": 3000,
+            "eq_mid_gain": 1.0, "eq_mid_freq": 250,
+            "comp_threshold": -16, "comp_ratio": 5.0, "comp_attack": 3, "comp_release": 40,
+        },
+    }
+    if style not in styles:
+        return f"Error: unknown style '{style}'. Valid: {list(styles.keys())}"
+    if not (0.0 <= drive_amount <= 1.0):
+        return "Error: drive_amount must be 0-1"
+
+    params = styles[style]
+    use_drive = drive_amount > 0.0
+
+    chain_desc = "Revamp EQ → Compressor"
+    if use_drive:
+        chain_desc += " → Waveshaper"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const p = window.DAW;
+        const EF = window.DAW_EffectFactories;
+
+        const params = {json.dumps(params)};
+        const driveAmount = {drive_amount};
+        const useDrive = {str(use_drive).lower()};
+
+        const allUnits = h.allAUBoxes();
+        if (!allUnits[{unit_index}]) return {{error: "Audio unit {unit_index} not found"}};
+        const targetAU = allUnits[{unit_index}];
+
+        let eqIdx = -1, compIdx = -1, driveIdx = -1;
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Revamp);
+            eqIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Compressor);
+            compIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        if (useDrive) {{
+            h.modify(() => {{
+                p.api.insertEffect(targetAU.audioEffects, EF.Waveshaper);
+                driveIdx = h.effectBoxes(targetAU).length - 1;
+            }});
+        }}
+
+        // Set compressor params
+        const effects = h.effectBoxes(targetAU);
+        h.modify(() => {{
+            const compBox = effects[compIdx];
+            if (compBox) {{
+                const record = compBox.record();
+                for (const [key, field] of Object.entries(record)) {{
+                    const fname = field._fieldName || field.fieldName || key;
+                    if (fname === 'threshold') field.setValue(params.comp_threshold);
+                    if (fname === 'ratio') field.setValue(params.comp_ratio);
+                    if (fname === 'attack') field.setValue(params.comp_attack);
+                    if (fname === 'release') field.setValue(params.comp_release);
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            unit_index: {unit_index},
+            chain: [
+                {{name: "Revamp EQ", index: eqIdx, params: {{
+                    low_shelf: params.eq_low_shelf_gain + "dB@" + params.eq_low_shelf_freq + "Hz",
+                    high_shelf: params.eq_high_shelf_gain + "dB@" + params.eq_high_shelf_freq + "Hz",
+                    mid: params.eq_mid_gain + "dB@" + params.eq_mid_freq + "Hz",
+                }}}},
+                {{name: "Compressor", index: compIdx, params: {{
+                    threshold: params.comp_threshold, ratio: params.comp_ratio,
+                    attack: params.comp_attack, release: params.comp_release,
+                }}}},
+            ] + (useDrive ? [{{name: "Waveshaper", index: driveIdx, params: {{drive: driveAmount}}}}] : []),
+            style: "{style}",
+            chain_description: "{chain_desc}",
+            note: "Bass chain applied. Adjust drive_amount for grit/saturation.",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_create_genre_track(genre: str, bpm: float = 120) -> str:
     """Create a genre-specific starting track with synth, beat, and basic mix — one call builds a full section.
 
