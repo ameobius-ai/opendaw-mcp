@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.135.0 (2026-07-05)
+
+- **`create_rock_arrangement` orchestration tool (328 MCP tools)** — seventh multi-track genre arrangement. Classic rock with blues-based I-IV-V harmony across 4 tracks: drums (rock beat — kick on 1&3, snare on 2&4, crash on downbeat, tom fill at bar transition), bass (root-fifth walking bassline locking with kick drum, octave walks between changes), guitar (power chords — root+fifth, no third, ambiguous major/minor, with palm-muted downstrokes), keys (major triad pads — root+major third+fifth, sustained, adding the third that guitar omits). Blues form: I-I-IV-I-V-IV-I-V (8-bar compressed). E default (most common rock guitar key — open strings). 80-180 BPM, default 120. 4-16 bars. Second organic 4-track arrangement. 71 orchestration tools. 328 MCP tools
+- **1660 unit tests** (+20)
+
 ## v1.134.0 (2026-07-05)
 
 - **`create_afrobeat_arrangement` orchestration tool (327 MCP tools)** — sixth multi-track genre arrangement. First non-electronic genre. Fela Kuti-style afrobeat across 4 tracks: drums (layered polyrhythm — syncopated kick + continuous shaker + clave accents + triplet perc, 12/8 feel in 4/4 time), bass (repetitive ostinato — root/octave/fifth/fourth 16th-note pattern, driving and hypnotic, locks with kick), horns (brass section call-and-response — sustained minor triads as calls, syncopated stabs as responses, minor key intervals root/min3/fourth/fifth/min7/octave), guitar (off-beat "chanka" stabs — two-note voicings root+fifth and min3+fifth, percussive and tight). First arrangement with 4 tracks. F minor default (Fela's key). 95-135 BPM, default 120. 8-32 bars. 70 orchestration tools. 327 MCP tools

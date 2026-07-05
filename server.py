@@ -23058,3 +23058,218 @@ async def mcp_opendaw_create_afrobeat_arrangement(
         "horn_type": "call_and_response",
         "guitar_type": "chanka_off_beat",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_rock_arrangement(
+    bpm: float = 120,
+    bars: int = 8,
+    root: str = "E",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    guitar_track: int = 2,
+    keys_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full rock arrangement — rock beat drums + bass + power chords + riff across 4 tracks.
+
+    Classic rock with blues-based harmony and guitar-driven energy:
+    - Track 0: Drums — rock beat: kick on 1 & 3, snare on 2 & 4, with crash on
+                     downbeats and fills at bar transitions. The backbone.
+    - Track 1: Bass — root-fifth bassline locking with kick drum, with walks
+                     between chord changes. Blues-based, driving.
+    - Track 2: Guitar — power chords (root+fifth) on chord changes, with
+                     palm-muted downstrokes between. The defining instrument.
+    - Track 3: Keys — sustained chord pads backing the guitar, filling the
+                     midrange. Optional but adds depth.
+
+    At 120 BPM (default), this creates a mid-tempo rock feel. The I-IV-V
+    blues-based harmony (A-E-D for key of A, or E-A-D for key of E) is the
+    foundation of rock from Beatles to AC/DC. Power chords are the signature
+    — root+fifth voicings, no third (ambiguous major/minor).
+
+    bpm: Tempo (90-160, default 120 = mid-tempo rock).
+    bars: Arrangement length (4-16, default 8).
+    root: Root note (E is the most common rock guitar key — open strings).
+    octave: MIDI octave for bass (2 = E2=40, standard bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / guitar_track / keys_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_rock_arrangement(bpm=120, root="E", bars=8)
+      create_rock_arrangement(bpm=140, root="A", bars=16)
+    """
+    if not (80 <= bpm <= 180):
+        return "Error: bpm must be 80-180"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    guitar_base = (octave + 3) * 12 + root_pc  # guitar 2 octaves above bass
+    keys_base = (octave + 2) * 12 + root_pc  # keys between bass and guitar
+
+    # Blues-based I-IV-V chord changes (2-bar cycle)
+    # I = root (0), IV = fourth (5), V = fifth (7)
+    # Pattern: I (1 bar) → I (1 bar) → IV (1 bar) → I (1 bar) → V (1 bar) → IV (1 bar) → I (1 bar) → V (1 bar)
+    # Classic 12-bar blues in 8-bar compressed form
+    chord_changes = [
+        (0, 0),   # I for 1 bar
+        (4, 0),   # I for 1 bar
+        (8, 5),   # IV for 1 bar
+        (12, 0),  # I for 1 bar
+        (16, 7),  # V for 1 bar
+        (20, 5),  # IV for 1 bar
+        (24, 0),  # I for 1 bar
+        (28, 7),  # V for 1 bar
+    ]
+
+    # --- DRUMS: rock beat (2-bar cycle) ---
+    # Kick on 1 & 3 (beats 0, 2), snare on 2 & 4 (beats 1, 3)
+    # Crash on downbeats, fill at end of cycle
+    drum_pattern = [
+        # Bar 1
+        (0.0, "kick"), (0.0, "crash"), (0.5, "hat"), (1.0, "snare"), (0.5, "hat"),
+        (1.5, "hat"), (2.0, "kick"), (2.0, "hat"), (2.5, "hat"),
+        (3.0, "snare"), (3.0, "hat"), (3.5, "hat"),
+        # Bar 2
+        (4.0, "kick"), (4.0, "hat"), (4.5, "hat"),
+        (5.0, "snare"), (5.0, "hat"), (5.5, "hat"),
+        (6.0, "kick"), (6.0, "hat"), (6.5, "hat"),
+        (7.0, "snare"), (7.25, "tom"), (7.5, "tom"), (7.75, "kick"),
+    ]
+    kick_p, snare_p, hat_p, crash_p, tom_p = 36, 38, 42, 49, 45
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "crash": crash_p, "tom": tom_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.08),
+        "snare": max(0.0, velocity - 0.02),
+        "hat": max(0.0, velocity - 0.15),
+        "crash": max(0.0, velocity - 0.1),
+        "tom": max(0.0, velocity - 0.05),
+    }
+    drum_dur_map = {"kick": 0.2, "snare": 0.15, "hat": 0.05, "crash": 0.3, "tom": 0.12}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: root-fifth pattern, locks with kick (2-bar cycle) ---
+    # Follows chord changes: root note of current chord, with fifth and octave
+    # Walking between changes
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        # Map chord changes to 2-bar cycle (4 bars per 2-bar cycle = 8 beats)
+        # Each chord lasts 1 bar = 4 beats
+        for bar_start, chord_root in chord_changes:
+            if bar_start >= 8:
+                break
+            bar_off = off + bar_start
+            # Root on beats 1 and 3, fifth on beat 2, octave on beat 4
+            bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 0.0, 4), "duration": 1.5, "velocity": round(velocity * 1.0, 3)})
+            bass_notes.append({"pitch": bass_base + chord_root + 7, "start": round(bar_off + 1.5, 4), "duration": 0.5, "velocity": round(velocity * 0.85, 3)})
+            bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 2.0, 4), "duration": 1.5, "velocity": round(velocity * 1.0, 3)})
+            bass_notes.append({"pitch": bass_base + chord_root + 12, "start": round(bar_off + 3.5, 4), "duration": 0.5, "velocity": round(velocity * 0.8, 3)})
+
+    # --- GUITAR: power chords on chord changes (2-bar cycle) ---
+    # Power chord = root + fifth (no third = ambiguous major/minor)
+    # Sustained for 2 beats, then palm-muted downstrokes
+    guitar_notes = []
+    guitar_cycle = 8.0
+    guitar_cycles = bars // 2
+    for c in range(guitar_cycles):
+        off = c * guitar_cycle
+        for bar_start, chord_root in chord_changes:
+            if bar_start >= 8:
+                break
+            bar_off = off + bar_start
+            # Power chord sustained for 2 beats
+            for interval in [0, 7]:  # root + fifth
+                guitar_notes.append({"pitch": guitar_base + chord_root + interval, "start": round(bar_off + 0.0, 4), "duration": 2.0, "velocity": round(velocity * 0.9, 3)})
+            # Palm-muted downstrokes (root only) on beats 3 and 3.5
+            guitar_notes.append({"pitch": guitar_base + chord_root, "start": round(bar_off + 2.0, 4), "duration": 0.5, "velocity": round(velocity * 0.6, 3)})
+            guitar_notes.append({"pitch": guitar_base + chord_root, "start": round(bar_off + 3.0, 4), "duration": 0.5, "velocity": round(velocity * 0.65, 3)})
+
+    # --- KEYS: sustained chord pads (2-bar cycle) ---
+    # Full triad (root + third + fifth) — keys add the third that guitar doesn't
+    # Major triad: root + 4 + 7, since blues I-IV-V is major-based
+    keys_notes = []
+    keys_cycle = 8.0
+    keys_cycles = bars // 2
+    for c in range(keys_cycles):
+        off = c * keys_cycle
+        for bar_start, chord_root in chord_changes:
+            if bar_start >= 8:
+                break
+            bar_off = off + bar_start
+            # Major triad sustained for full bar
+            for interval in [0, 4, 7]:  # root + major third + fifth
+                keys_notes.append({"pitch": keys_base + chord_root + interval, "start": round(bar_off + 0.0, 4), "duration": 3.5, "velocity": round(velocity * 0.5, 3)})
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    guitar_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(guitar_notes), unit_index, guitar_track)
+    keys_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(keys_notes), unit_index, keys_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        guitar_data = json.loads(guitar_result)
+    except Exception:
+        guitar_data = {"raw": guitar_result}
+    try:
+        keys_data = json.loads(keys_result)
+    except Exception:
+        keys_data = {"raw": keys_result}
+
+    return json.dumps({
+        "rock_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "guitar": {"track": guitar_track, "notes": len(guitar_notes), "result": guitar_data.get("notes_created", len(guitar_notes))},
+            "keys": {"track": keys_track, "notes": len(keys_notes), "result": keys_data.get("notes_created", len(keys_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(guitar_notes) + len(keys_notes),
+        "drum_pattern": "rock_beat_kick_1_3_snare_2_4",
+        "bass_pattern": "root_fifth_walking",
+        "guitar_type": "power_chords",
+        "keys_type": "major_triad_pads",
+        "harmony": "I_IV_V_blues_based",
+    }, indent=2)

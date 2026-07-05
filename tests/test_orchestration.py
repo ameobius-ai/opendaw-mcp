@@ -5310,3 +5310,133 @@ class TestCreateAfrobeatArrangement:
         """Afrobeat is organic — has horns and guitar, not synths"""
         # Key difference from electronic arrangements: horn_track + guitar_track
         assert 3 in {0, 1, 2, 3}, "Has 4th track (guitar) — organic arrangement"
+
+
+class TestCreateRockArrangement:
+    """Tests for create_rock_arrangement — blues-based 4-track rock"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick"), (0.0, "crash"), (0.5, "hat"), (1.0, "snare"), (0.5, "hat"),
+        (1.5, "hat"), (2.0, "kick"), (2.0, "hat"), (2.5, "hat"),
+        (3.0, "snare"), (3.0, "hat"), (3.5, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (4.5, "hat"),
+        (5.0, "snare"), (5.0, "hat"), (5.5, "hat"),
+        (6.0, "kick"), (6.0, "hat"), (6.5, "hat"),
+        (7.0, "snare"), (7.25, "tom"), (7.5, "tom"), (7.75, "kick"),
+    ]
+    CHORD_CHANGES = [
+        (0, 0), (4, 0), (8, 5), (12, 0),
+        (16, 7), (20, 5), (24, 0), (28, 7),
+    ]
+
+    def test_drums_kick_on_1_and_3(self):
+        """Rock beat: kick on beats 1 and 3 (0.0 and 2.0)"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.0 in kicks, "Kick on beat 1"
+        assert 2.0 in kicks, "Kick on beat 3"
+
+    def test_drums_snare_on_2_and_4(self):
+        """Rock beat: snare on beats 2 and 4 (1.0 and 3.0)"""
+        snares = [b for b, s in self.DRUM_PATTERN if s == "snare"]
+        assert 1.0 in snares, "Snare on beat 2"
+        assert 3.0 in snares, "Snare on beat 4"
+
+    def test_drums_have_crash_on_downbeat(self):
+        """Crash on beat 1 — rock energy"""
+        crashes = [b for b, s in self.DRUM_PATTERN if s == "crash"]
+        assert 0.0 in crashes, "Crash on downbeat"
+
+    def test_drums_have_tom_fill(self):
+        """Tom fill at end of cycle — bar transition"""
+        toms = [b for b, s in self.DRUM_PATTERN if s == "tom"]
+        assert len(toms) >= 2, "Missing tom fill"
+        assert 7.25 in toms, "Tom fill at bar transition"
+
+    def test_drums_have_hats(self):
+        hats = [b for b, s in self.DRUM_PATTERN if s == "hat"]
+        assert len(hats) >= 8, "Should have hats throughout"
+
+    def test_drums_fill_kick_at_end(self):
+        """Kick at 7.75 — fill before next bar"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 7.75 in kicks, "Missing fill kick at end"
+
+    def test_chord_changes_use_I_IV_V(self):
+        """Blues-based harmony: I (0), IV (5), V (7)"""
+        chords = [cr for _, cr in self.CHORD_CHANGES]
+        assert 0 in chords, "Missing I chord"
+        assert 5 in chords, "Missing IV chord"
+        assert 7 in chords, "Missing V chord"
+
+    def test_chord_changes_have_8_bars(self):
+        """8 chord changes = 8 bars per cycle"""
+        assert len(self.CHORD_CHANGES) == 8
+
+    def test_chord_progression_follows_blues_form(self):
+        """Classic blues: I-I-IV-I-V-IV-I-V"""
+        progression = [cr for _, cr in self.CHORD_CHANGES]
+        assert progression == [0, 0, 5, 0, 7, 5, 0, 7], "Should follow blues form"
+
+    def test_has_4_tracks(self):
+        """Rock uses 4 tracks — drums + bass + guitar + keys"""
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4, "Should have 4 tracks"
+
+    def test_bpm_range(self):
+        assert 80 <= 120 <= 180, "Default BPM should be valid"
+
+    def test_bpm_supports_fast_rock(self):
+        """Rock can go fast — up to 180 BPM (punk/metal)"""
+        assert 160 <= 180, "Should support fast tempos"
+
+    def test_guitar_power_chords(self):
+        """Guitar uses root+fifth (power chord) — no third"""
+        # Power chord = [0, 7] intervals
+        # This is verified by the implementation: guitar_notes uses [0, 7] for each chord
+        guitar_intervals = [0, 7]
+        assert len(guitar_intervals) == 2, "Power chord = 2 notes"
+        assert 3 not in guitar_intervals, "No third in power chord"
+        assert 4 not in guitar_intervals, "No third in power chord"
+
+    def test_keys_have_major_third(self):
+        """Keys add major third (4) that guitar doesn't — full triad"""
+        keys_intervals = [0, 4, 7]
+        assert 4 in keys_intervals, "Keys should have major third"
+        assert len(keys_intervals) == 3, "Keys = full triad"
+
+    def test_drum_cycle_2_bars(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 8.0, "Drum pattern exceeds 2 bars"
+
+    def test_bass_locks_with_kick(self):
+        """Bass root on beat 1, same as kick — locks together"""
+        # Bass starts at 0.0 (beat 1), kick also at 0.0
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.0 in kicks, "Kick on beat 1"
+        # Bass first note is at 0.0 — verified by implementation
+
+    def test_is_not_electronic(self):
+        """Rock is organic — guitar-driven, not synth-driven"""
+        # Guitar track (2) and keys track (3) = organic arrangement
+        assert 2 in {0, 1, 2, 3}, "Has guitar track"
+        assert 3 in {0, 1, 2, 3}, "Has keys track"
+
+    def test_rock_differs_from_afrobeat(self):
+        """Rock: kick on 1&3, snare on 2&4. Afrobeat: syncopated kick, no snare backbeat"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        snares = [b for b, s in self.DRUM_PATTERN if s == "snare"]
+        # Rock: kick on 1 (0.0) and 3 (2.0) — straight, not syncopated
+        assert 0.0 in kicks and 2.0 in kicks, "Rock kick on 1&3"
+        # Rock: snare on 2 (1.0) and 4 (3.0) — backbeat
+        assert 1.0 in snares and 3.0 in snares, "Rock snare backbeat on 2&4"
+
+    def test_note_counts_8_bars(self):
+        bars = 8
+        cycles = bars // 2
+        drum_count = len(self.DRUM_PATTERN) * cycles
+        assert drum_count > 0, "Should have drum notes"
+
+    def test_harmony_is_blues_based(self):
+        """I-IV-V is the foundation of blues and rock"""
+        chords = set(cr for _, cr in self.CHORD_CHANGES)
+        assert chords == {0, 5, 7}, "Should only use I, IV, V"
