@@ -1536,3 +1536,78 @@ class TestVibratoDSP:
     def test_stereo_phase_offset(self):
         code = self._read_script()
         assert "Math.PI * stereo" in code or "Math.PI * this.p.stereo" in code, "Missing stereo phase offset"
+
+
+class TestWavetableDSP:
+    """Unit tests for apparat_wavetable.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "apparat_wavetable.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@apparat wavetable" in code, "Missing @apparat wavetable header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_pos_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        pos = [p for p in params if p["name"] == "pos"][0]
+        assert pos["min"] == 0 and pos["max"] == 1
+
+    def test_unison_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        unison = [p for p in params if p["name"] == "unison"][0]
+        assert unison["scale"] == "int"
+        assert unison["min"] == 1 and unison["max"] == 7
+
+    def test_wavetable_count(self):
+        code = self._read_script()
+        assert "case 7:" in code, "Expected 8 wavetables (0-7)"
+        assert "case 0:" in code
+
+    def test_interpolation(self):
+        code = self._read_script()
+        assert "frac" in code, "Missing wavetable interpolation"
+        assert "1 - frac" in code or "(1 - frac)" in code
+
+    def test_scan_lfo(self):
+        code = self._read_script()
+        assert "pos_lfo" in code, "Missing scan LFO"
+        assert "lfoPhase" in code, "Missing LFO phase accumulator"
+
+    def test_unison_detune(self):
+        code = self._read_script()
+        assert "_uniDetunes" in code, "Missing unison detune array"
+        assert "_uniPhases" in code, "Missing unison phase array"
+
+    def test_adsr_envelope(self):
+        code = self._read_script()
+        assert "envState" in code, "Missing ADSR envelope state"
+        assert "aCoef" in code and "rCoef" in code, "Missing ADSR coefficients"
+
+    def test_note_on_off(self):
+        code = self._read_script()
+        assert "noteOn" in code, "Missing noteOn handler"
+        assert "noteOff" in code, "Missing noteOff handler"

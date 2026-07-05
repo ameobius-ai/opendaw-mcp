@@ -415,6 +415,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apparat_fm.js` — FM synthesis (carrier, modulator, ratio, depth)
 - `apparat_ringmod.js` — Ring modulation synth (carrier, modulator, depth)
 - `apparat_pluck.js` — Karplus-Strong plucked string (decay, damping, brightness, attack, release, detune, volume)
+- `apparat_wavetable.js` — Wavetable synth (8 tables, scan position + LFO, unison detune, ADSR, volume)
 
 ### Spielwerk (MIDI Effects) — 6 scripts
 - `spielwerk_arpeggiator.js` — MIDI arpeggiator (rate, octave, pattern)

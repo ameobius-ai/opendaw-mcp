@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **298** MCP tools | **69** Python examples (8 genre templates) |
-| **42** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **374** unit + **20** E2E tests |
+| **298** MCP tools | **70** Python examples (8 genre templates) |
+| **43** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **232** unit + **21** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,16 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.48.0 (2026-07-05)
+
+- **`apparat_wavetable.js` DSP script** — wavetable synthesizer with 8 interpolated wavetables (sine, triangle, saw, square, pulse, double-sine, saw+tri, noise-sine). Scan position with LFO modulation, unison detune (1-7 voices), ADSR envelope. Completes Apparat synthesis methods: subtractive ✅ FM ✅ ring mod ✅ Karplus-Strong ✅ wavetable ✅
+- **43 DSP scripts** (30 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 10 params, pos/unison/pos_lfo_depth set
+- **+10 unit tests** (TestWavetableDSP: header, params, tables, scan, unison, ADSR) → 232 total
+- **Example script**: `apparat_wavetable.py` — scan + unison presets
+- **298 MCP tools** (260 low-level + 41 orchestration + 3 melodic)
+- ruff clean, CI green
 
 ### v1.47.0 (2026-07-05)
 

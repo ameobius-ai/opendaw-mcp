@@ -1,6 +1,6 @@
 # DSP Scripts
 
-42 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+43 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
 ## Werkstatt (Audio Effects) — 30 scripts
 
@@ -37,7 +37,7 @@
 | `werkstatt_ringmod_env.js` | Ring modulator with envelope | frequency, depth, mix |
 | `werkstatt_adsr_trim.js` | ADSR-based trim | attack, decay, sustain, release |
 
-## Apparat (Instruments) — 6 scripts
+## Apparat (Instruments) — 7 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -47,6 +47,7 @@
 | `apparat_fm.js` | FM synthesis | carrier, modulator, ratio, depth |
 | `apparat_ringmod.js` | Ring modulation synth | carrier, modulator, depth |
 | `apparat_pluck.js` | Karplus-Strong plucked string | decay, damping, brightness, attack, release, detune, volume |
+| `apparat_wavetable.js` | Wavetable synth (8 tables, scan, unison) | pos, pos_lfo_rate, pos_lfo_depth, detune, unison, attack, decay, sustain, release, volume |
 
 ## Spielwerk (MIDI Effects) — 6 scripts
 

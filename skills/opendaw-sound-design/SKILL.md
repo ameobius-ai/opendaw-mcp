@@ -1,6 +1,6 @@
 ---
 name: opendaw-sound-design
-description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 42 DSP scripts. How to synthesize and shape sound with MCP tools."
+description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 43 DSP scripts. How to synthesize and shape sound with MCP tools."
 tags: [opendaw, mcp, sound-design, instruments, synth, dsp, werkstatt, apparat, spielwerk, scriptable]
 ---
 
@@ -284,6 +284,7 @@ class Processor {
 | `apparat_ringmod.js` | Ring modulator synth | frequency, waveform, ADSR, adsrAmount, subOsc, volume | #277 |
 | `apparat_fm.js` | 2-operator FM synth | carrier, ratio, mod_depth, waveform, ADSR, volume | #138 |
 | `apparat_pluck.js` | Karplus-Strong plucked string | decay, damping, brightness, attack, release, detune, volume | |
+| `apparat_wavetable.js` | Wavetable synth (8 tables, scan, unison) | pos, pos_lfo_rate, pos_lfo_depth, detune, unison, ADSR, volume | |
 
 ### Spielwerk (6 MIDI effects)
 
@@ -331,6 +332,7 @@ class Processor {
 | Sub-bass | `apparat_subcrusher.js` | Apparat |
 | Lead synth | `apparat_coldlead.js` | Apparat |
 | FM synth | `apparat_fm.js` | Apparat |
+| Wavetable synth | `apparat_wavetable.js` | Apparat |
 | Ring mod (MIDI) | `apparat_ringmod.js` | Apparat |
 | Plucked string (KS) | `apparat_pluck.js` | Apparat |
 | Ring mod (audio) | `werkstatt_ringmod_env.js` | Werkstatt |
