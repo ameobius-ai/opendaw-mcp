@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.85.0 (2026-07-05)
+
+- **`werkstatt_dimension_chorus.js` DSP script** — Roland Dimension D-style chorus: 2 detuned delay lines with independent LFO rates (triangle wave), no feedback, mono-sum input, brightness filter, stereo width control. 68 DSP scripts
+- **818 unit tests** (+13), E2E 8/8
+
 ## v1.84.0 (2026-07-05)
 
 - **`werkstatt_multitap_delay.js` DSP script** — multitap delay: 4 independent taps from single delay buffer, each with time/level/pan/feedback. Equal-power stereo pan per tap, feedback damping, spread modulation. 67 DSP scripts

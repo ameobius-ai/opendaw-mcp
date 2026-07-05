@@ -521,6 +521,7 @@ process(io, block) {
 | `werkstatt_convolution_reverb.js` | Convolution reverb | generated stereo IR + time-domain direct convolution |
 | `werkstatt_dynamic_eq.js` | Dynamic EQ | peaking biquad + envelope follower per band |
 | `werkstatt_multitap_delay.js` | Multitap delay | single buffer + 4 parallel taps + equal-power pan |
+| `werkstatt_dimension_chorus.js` | Dimension chorus | dual detuned delay lines + independent triangle LFOs + no feedback |
 | `werkstatt_chorus.js` | Modulated delay | LFO + fractional read |
 | `werkstatt_phaser.js` | Allpass cascade | 6-stage allpass + quadrature LFO |
 | `werkstatt_lookahead.js` | Compressor | envelope follower + lookahead buffer |

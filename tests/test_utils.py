@@ -3198,3 +3198,90 @@ class TestMultitapDelayDSP:
         out_p = [p for p in params if p["name"] == "output"][0]
         assert mix["min"] == 0 and mix["max"] == 1
         assert out_p["min"] == 0 and out_p["max"] == 1
+
+
+class TestDimensionChorusDSP:
+    """Unit tests for werkstatt_dimension_chorus.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "werkstatt_dimension_chorus.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt dimension_chorus" in code, "Missing @werkstatt dimension_chorus header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_dual_rate(self):
+        params = self._parse_params(self._read_script())
+        rl = [p for p in params if p["name"] == "rate_l"][0]
+        rr = [p for p in params if p["name"] == "rate_r"][0]
+        assert rl["min"] == 0.05 and rl["max"] == 5
+        assert rr["min"] == 0.05 and rr["max"] == 5
+
+    def test_no_feedback(self):
+        code = self._read_script()
+        # Dimension D characteristic: no feedback in the delay lines
+        assert "no feedback" in code.lower() or "no feedback!" in code.lower(), "Should note absence of feedback"
+
+    def test_dual_lfo_phases(self):
+        code = self._read_script()
+        assert "phaseL" in code and "phaseR" in code, "Missing independent LFO phases"
+        assert "rate_l" in code and "rate_r" in code, "Missing independent LFO rates"
+
+    def test_triangle_lfo(self):
+        code = self._read_script()
+        assert "Math.abs" in code, "Missing triangle LFO (abs-based)"
+
+    def test_dual_buffers(self):
+        code = self._read_script()
+        assert "this.bufL" in code and "this.bufR" in code, "Missing dual delay buffers"
+        assert "this.idxL" in code and "this.idxR" in code, "Missing dual write indices"
+
+    def test_brightness_filter(self):
+        code = self._read_script()
+        assert "_brightFilter" in code, "Missing brightness filter method"
+        assert "brightState" in code, "Missing brightness filter state"
+
+    def test_phase_offset(self):
+        params = self._parse_params(self._read_script())
+        po = [p for p in params if p["name"] == "phase_offset"][0]
+        assert po["min"] == 0 and po["max"] == 360, "phase_offset should be 0-360 degrees"
+
+    def test_width_param(self):
+        params = self._parse_params(self._read_script())
+        w = [p for p in params if p["name"] == "width"][0]
+        assert w["min"] == 0 and w["max"] == 1
+
+    def test_frac_read(self):
+        code = self._read_script()
+        assert "_fracRead" in code, "Missing fractional read method"
+        assert "frac" in code, "Missing fractional interpolation"
+
+    def test_reset_clears(self):
+        code = self._read_script()
+        assert "bufL.fill(0)" in code or "fill(0)" in code, "Reset should clear buffers"
+        assert "phaseL = 0" in code, "Reset should zero LFO phases"
+
+    def test_process_audio(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"

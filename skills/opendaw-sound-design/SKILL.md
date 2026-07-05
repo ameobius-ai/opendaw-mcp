@@ -277,6 +277,7 @@ class Processor {
 | `werkstatt_tube_saturator.js` | Tube/valve saturator (even harmonics, bias) | drive, warmth, bias, tone, output, mix | |
 | `werkstatt_tape_delay.js` | Tape delay (wow/flutter, feedback saturation) | time, feedback, wow, flutter, saturation, mix | |
 | `werkstatt_multitap_delay.js` | Multitap delay (4 taps, per-tap pan/fb, spread) | tap1-4_time/level/pan/fb, spread, damping, mix | |
+| `werkstatt_dimension_chorus.js` | Dimension chorus (Roland D, dual LFO, no fb) | rate_l, rate_r, depth, center, phase_offset, width, brightness, mix | |
 | `werkstatt_graphic_eq.js` | 10-band graphic EQ (ISO freqs, biquad peaking) | band_32..band_16k (10 bands), master | |
 | `werkstatt_auto_pan.js` | Auto-pan (LFO stereo positioning, waveform morph) | rate, depth, shape, phase, width, offset | |
 | `werkstatt_comb_filter.js` | Comb filter (delay-line feedback, polarity, damping) | freq, feedback, damping, mix, polarity | |
@@ -335,6 +336,7 @@ class Processor {
 | Delay (stereo) | `werkstatt_stereo_delay.js` | Werkstatt |
 | Delay (tape, wow/flutter) | `werkstatt_tape_delay.js` | Werkstatt |
 | Delay (multitap, 4 taps) | `werkstatt_multitap_delay.js` | Werkstatt |
+| Chorus (Dimension D) | `werkstatt_dimension_chorus.js` | Werkstatt |
 | Delay (MIDI) | `spielwerk_mididelay.js` | Spielwerk |
 | Saturation (tube/valve) | `werkstatt_tube_saturator.js` | Werkstatt |
 | Bitcrusher (lo-fi) | `werkstatt_bitcrusher.js` | Werkstatt |
