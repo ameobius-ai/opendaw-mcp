@@ -6,7 +6,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-372-brightgreen)](TOOL_CATALOG.md)
-[![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
+[![Skills](https://img.shields.io/badge/Agent%20Skills-12-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-108-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-1330%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Examples](https://img.shields.io/badge/Examples-122-blue)](examples/)
@@ -28,7 +28,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **372** MCP tools | **122** Python examples (8 genre templates) |
-| **108** DSP scripts | **11** agent skills |
+| **108** DSP scripts | **12** agent skills |
 | **3** framework wrappers | **1330** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -586,7 +586,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## v1.74.0 (2026-07-05)
 
-- **`opendaw-dsp-chains` agent skill** — 10 production-ready DSP signal chain recipes: vocal, guitar, drum bus, synth bass, lofi character, mastering, acid house, ambient pad, vocoder/vocal FX, distortion/metal. Each chain specifies exact Werkstatt scripts, order, and parameter values. Includes pitfalls section (EQ→dynamics→saturation→time order, no double saturation, reverb/limiter always last, moog self-oscillation warning, vocoder carrier requirements). DSP script index by family. 11 agent skills total
+- **`opendaw-dsp-chains` agent skill** — 10 production-ready DSP signal chain recipes: vocal, guitar, drum bus, synth bass, lofi character, mastering, acid house, ambient pad, vocoder/vocal FX, distortion/metal. Each chain specifies exact Werkstatt scripts, order, and parameter values. Includes pitfalls section (EQ→dynamics→saturation→time order, no double saturation, reverb/limiter always last, moog self-oscillation warning, vocoder carrier requirements). DSP script index by family. 12 agent skills total
 - ruff clean, CI green
 
 ## v1.73.0 (2026-07-05)
