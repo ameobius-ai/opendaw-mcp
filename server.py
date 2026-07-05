@@ -15481,6 +15481,149 @@ async def mcp_opendaw_create_break(break_type: str = "amen", bars: int = 1, vari
 
 
 @mcp.tool()
+async def mcp_opendaw_create_bass_drop(start_pitch: int = 48, end_pitch: int = 24, sweep_beats: float = 2, hold_beats: float = 4, sweep_curve: str = "exp", unit_index: int = -1, track_index: int = 0, start_beat: float = 0, velocity: float = 1.0) -> str:
+    """Create a bass drop — descending pitch sweep into sustained sub bass.
+
+    Generates a pitched sweep downward (the "wub" or "fall") followed by a
+    sustained low note. The quintessential dubstep/bass music drop. Also works
+    for EDM build-and-drop, trap bass falls, and impact transitions.
+
+    The tool creates two phases:
+    1. Sweep phase: notes descend from start_pitch to end_pitch over sweep_beats
+    2. Hold phase: a single sustained note at end_pitch for hold_beats
+
+    start_pitch: Starting MIDI pitch for the sweep (default 48 = C3).
+    end_pitch: Landing pitch for the sustained bass (default 24 = C1, sub bass).
+    sweep_beats: Duration of the descending sweep in beats (0.5-8, default 2).
+    hold_beats: Duration of the sustained bass after landing (0-16, default 4).
+    sweep_curve: Pitch curve — "linear" (even), "exp" (fast start, slow landing),
+      "log" (slow start, fast landing).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the drop begins.
+    velocity: Base velocity (0-1, default 1.0 = maximum impact).
+
+    Returns notes created, sweep/hold details.
+    """
+    if start_pitch < 0 or start_pitch > 127:
+        return "Error: start_pitch must be 0-127"
+    if end_pitch < 0 or end_pitch > 127:
+        return "Error: end_pitch must be 0-127"
+    if sweep_beats < 0.25 or sweep_beats > 8:
+        return "Error: sweep_beats must be 0.25-8"
+    if hold_beats < 0 or hold_beats > 16:
+        return "Error: hold_beats must be 0-16"
+    if sweep_curve not in ("linear", "exp", "log"):
+        return "Error: sweep_curve must be linear, exp, or log"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    # Build sweep notes — denser than riser for smooth pitch glide
+    sweep_steps = max(8, int(sweep_beats * 16))  # 16th-note resolution
+    note_data = []
+
+    for i in range(sweep_steps):
+        progress = i / max(1, sweep_steps - 1)
+        if sweep_curve == "exp":
+            t = 1 - (1 - progress) * (1 - progress)  # fast start
+        elif sweep_curve == "log":
+            t = progress * progress  # slow start
+        else:
+            t = progress
+        pitch = round(start_pitch + (end_pitch - start_pitch) * t)
+        pos = start_beat + progress * sweep_beats
+        step_dur = sweep_beats / sweep_steps
+        # Velocity ramps up slightly during sweep for impact
+        vel = velocity * (0.7 + 0.3 * progress)
+        note_data.append({"pitch": pitch, "pos": pos, "dur": step_dur * 1.5, "vel": vel})
+
+    # Hold phase: one sustained note at end_pitch
+    if hold_beats > 0:
+        hold_pos = start_beat + sweep_beats
+        note_data.append({"pitch": end_pitch, "pos": hold_pos, "dur": hold_beats, "vel": velocity})
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {sweep_beats} + {hold_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Bass Drop");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            sweep_notes: {sweep_steps},
+            hold_note: {hold_beats} > 0,
+            start_pitch: {start_pitch},
+            end_pitch: {end_pitch},
+            sweep_beats: {sweep_beats},
+            hold_beats: {hold_beats},
+            sweep_curve: "{sweep_curve}",
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,

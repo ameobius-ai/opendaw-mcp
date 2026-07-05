@@ -990,3 +990,98 @@ class TestBreakPatternGeneration:
         notes = self._generate_break("amen", bars=1, variation="none")
         # All 'x' hits should have velocity 0.9
         assert all(abs(n["vel"] - 0.9) < 0.01 for n in notes), "All hits should be 0.9 velocity"
+
+
+class TestBassDropPatternGeneration:
+    """Test the Python-side pattern generation logic of create_bass_drop."""
+
+    def _generate_bass_drop(self, start_pitch=48, end_pitch=24, sweep_beats=2,
+                            hold_beats=4, sweep_curve="exp", velocity=1.0, start_beat=0):
+        """Replicate the pattern generation logic from create_bass_drop."""
+        sweep_steps = max(8, int(sweep_beats * 16))
+        note_data = []
+
+        for i in range(sweep_steps):
+            progress = i / max(1, sweep_steps - 1)
+            if sweep_curve == "exp":
+                t = 1 - (1 - progress) * (1 - progress)
+            elif sweep_curve == "log":
+                t = progress * progress
+            else:
+                t = progress
+            pitch = round(start_pitch + (end_pitch - start_pitch) * t)
+            pos = start_beat + progress * sweep_beats
+            step_dur = sweep_beats / sweep_steps
+            vel = velocity * (0.7 + 0.3 * progress)
+            note_data.append({"pitch": pitch, "pos": pos, "dur": step_dur * 1.5, "vel": vel})
+
+        if hold_beats > 0:
+            hold_pos = start_beat + sweep_beats
+            note_data.append({"pitch": end_pitch, "pos": hold_pos, "dur": hold_beats, "vel": velocity})
+        return note_data
+
+    def test_default_note_count(self):
+        notes = self._generate_bass_drop()
+        # sweep_steps = max(8, 2*16) = 32, + 1 hold = 33
+        assert len(notes) == 33, f"Expected 33, got {len(notes)}"
+
+    def test_pitch_descending(self):
+        notes = self._generate_bass_drop(start_pitch=48, end_pitch=24, sweep_beats=2)
+        sweep_notes = notes[:-1]  # exclude hold
+        for i in range(1, len(sweep_notes)):
+            assert sweep_notes[i]["pitch"] <= sweep_notes[i - 1]["pitch"], "Pitch should be non-increasing"
+
+    def test_start_and_end_pitch(self):
+        notes = self._generate_bass_drop(start_pitch=48, end_pitch=24)
+        assert notes[0]["pitch"] == 48, f"First pitch should be 48, got {notes[0]['pitch']}"
+        assert notes[-1]["pitch"] == 24, f"Last pitch should be 24 (hold), got {notes[-1]['pitch']}"
+
+    def test_no_hold(self):
+        notes = self._generate_bass_drop(hold_beats=0)
+        # Only sweep notes, no hold
+        sweep_steps = max(8, int(2 * 16))
+        assert len(notes) == sweep_steps, f"Expected {sweep_steps} sweep notes, got {len(notes)}"
+
+    def test_hold_note_duration(self):
+        notes = self._generate_bass_drop(hold_beats=4)
+        hold = notes[-1]
+        assert abs(hold["dur"] - 4) < 0.01, f"Hold duration should be 4 beats, got {hold['dur']}"
+        assert hold["pitch"] == 24, f"Hold pitch should be end_pitch=24, got {hold['pitch']}"
+
+    def test_velocity_ramps_during_sweep(self):
+        notes = self._generate_bass_drop(velocity=1.0)
+        sweep = notes[:-1]
+        assert sweep[0]["vel"] < sweep[-1]["vel"], "Velocity should ramp up during sweep"
+
+    def test_linear_curve(self):
+        notes = self._generate_bass_drop(start_pitch=0, end_pitch=40, sweep_beats=1, sweep_curve="linear", hold_beats=0)
+        # sweep_steps = max(8, 16) = 16, linear: 0, 2.67, 5.33... rounded
+        assert notes[0]["pitch"] == 0
+        assert notes[-1]["pitch"] == 40
+
+    def test_exp_curve_fast_start(self):
+        notes = self._generate_bass_drop(start_pitch=0, end_pitch=100, sweep_beats=1, sweep_curve="exp", hold_beats=0)
+        # Exp: fast start → large first gap, small last gap
+        first_gap = abs(notes[1]["pitch"] - notes[0]["pitch"])
+        last_gap = abs(notes[-1]["pitch"] - notes[-2]["pitch"])
+        assert first_gap > last_gap, "Exp curve should have larger gaps at start (descending)"
+
+    def test_log_curve_slow_start(self):
+        notes = self._generate_bass_drop(start_pitch=0, end_pitch=100, sweep_beats=1, sweep_curve="log", hold_beats=0)
+        first_gap = abs(notes[1]["pitch"] - notes[0]["pitch"])
+        last_gap = abs(notes[-1]["pitch"] - notes[-2]["pitch"])
+        assert first_gap < last_gap, "Log curve should have smaller gaps at start"
+
+    def test_start_beat_offset(self):
+        notes = self._generate_bass_drop(start_beat=16, hold_beats=0)
+        assert abs(notes[0]["pos"] - 16) < 0.01, f"First note at beat 16, got {notes[0]['pos']}"
+
+    def test_short_sweep_minimum_steps(self):
+        notes = self._generate_bass_drop(sweep_beats=0.25, hold_beats=0)
+        # sweep_steps = max(8, 0.25*16=4) = 8
+        assert len(notes) == 8, f"Expected 8 minimum sweep notes, got {len(notes)}"
+
+    def test_hold_position_after_sweep(self):
+        notes = self._generate_bass_drop(sweep_beats=3, hold_beats=2, start_beat=0)
+        hold = notes[-1]
+        assert abs(hold["pos"] - 3) < 0.01, f"Hold should start at beat 3, got {hold['pos']}"

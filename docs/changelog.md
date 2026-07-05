@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.35.0 (2026-07-05)
+
+- **`create_bass_drop` orchestration tool (287 MCP tools)** — descending pitch sweep into sustained sub bass for dubstep/EDM/trap. Two phases: sweep (16th-note resolution pitch glide) + hold (sustained landing note). 3 curves (linear/exp/log), adjustable sweep (0.25-8 beats) and hold (0-16 beats). Complement to `create_riser` — riser builds up, bass drop lands. One call replaces 10-65 manual note creations. Essential for: dubstep drops, EDM build-and-drop, trap bass falls, impact transitions
+- **E2E verified**: default drop (33 notes, 32 sweep + 1 hold), sweep-only (64 notes), short aggressive (9 notes), error handling
+- **287 MCP tools** (254 low-level + 30 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.34.0 (2026-07-05)
 
 - **`create_break` orchestration tool (286 MCP tools)** — classic drum break patterns for jungle/DnB/hip-hop/breakbeat. 6 presets: Amen Break, Think Break, Ashanti, Funky Drummer, When the Levee, Synthetic. 1-8 bars with variation modes (none/fill/humanize/drop) and swing. One call replaces 15-120 manual note creations. Essential for: breakbeat-based genres, sampling workflows, drum programming
