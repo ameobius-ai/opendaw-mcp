@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.275.0 (2026-07-06)
+
+### Added
+- `create_melodic_polyrhythm` — melodic polyrhythm: N notes evenly spaced across M beats. 3:4=triplet, 5:4=quintuplet, 7:4=septuplet. Scale-based pitch generation (12 scales, up/down/alternate) or custom pitches. 4 velocity patterns (constant/accent/fade/wave). 1-8 bars. Jazz cross-rhythm, prog-rock, African cross-pulse, contemporary classical.
+
 ## v1.274.0 (2026-07-06)
 
 ### Added

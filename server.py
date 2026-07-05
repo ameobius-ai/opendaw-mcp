@@ -33388,6 +33388,239 @@ async def mcp_opendaw_clone_track(
         }};
     }}""")
     return _wrap_eval(result)
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_melodic_polyrhythm(
+    unit_index: int,
+    track_index: int,
+    numerator: int = 3,
+    denominator: int = 4,
+    bars: int = 1,
+    pitches: str = "60",
+    velocity: float = 0.8,
+    velocity_pattern: str = "constant",
+    start_beat: float = 0.0,
+    direction: str = "up",
+    scale: str = "major",
+    root: str = "C",
+) -> str:
+    """Create a polyrhythm — N notes evenly spaced across M beats.
+
+    A polyrhythm places numerator notes evenly across denominator beats,
+    creating cross-rhythms against the main pulse. 3:4 = triplet feel,
+    5:4 = quintuplet, 7:4 = septuplet, 3:2 = half-note triplets.
+
+    The notes ascend or descend through the specified scale, creating a
+    melodic polyrhythm rather than just rhythmic hits. This is the
+    foundation of jazz cross-rhythm, prog-rock metric modulation,
+    African cross-pulse, and contemporary classical writing.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        numerator: Number of notes to fit across denominator beats
+            (2-9, default 3). This is the "against" number.
+        denominator: Number of beats to span (2-8, default 4).
+            This is the "base" pulse.
+        bars: Number of times to repeat the polyrhythm cycle (1-8,
+            default 1).
+        pitches: Comma-separated MIDI pitches for custom note selection.
+            If provided, overrides scale-direction generation. Notes
+            cycle through this list.
+        velocity: Base velocity (0-1, default 0.8)
+        velocity_pattern: Velocity across the polyrhythm —
+            "constant": same velocity
+            "accent": accent first note of each cycle
+            "fade": linear fade across all notes
+            "wave": sine wave velocity pattern
+        start_beat: Position in beats where polyrhythm starts
+            (default 0.0)
+        direction: Pitch direction when using scale generation —
+            "up": ascending through scale
+            "down": descending through scale
+            "alternate": up then down per cycle
+        scale: Scale for pitch generation ("major", "minor",
+               "dorian", "phrygian", "lydian", "mixolydian",
+               "locrian", "harmonic_minor", "melodic_minor",
+               "pentatonic", "blues", "chromatic")
+        root: Root note for scale (C, C#, D, ... B)
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const numer = Math.max(2, Math.min(9, {numerator}));
+        const denom = Math.max(2, Math.min(8, {denominator}));
+        const numBars = Math.max(1, Math.min(8, {bars}));
+        const baseVel = Math.max(0.01, Math.min(1, {velocity}));
+        const velPattern = "{velocity_pattern}";
+        const startBeat = {start_beat};
+        const dirMode = "{direction}";
+        const scaleName = "{scale}";
+        const rootNote = "{root}";
+        const customPitches = "{pitches}".split(",").map(p => parseInt(p.trim())).filter(p => !isNaN(p));
+
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "pentatonic": [0, 2, 4, 7, 9],
+            "blues": [0, 3, 5, 6, 7, 10],
+            "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{"error": "Invalid root: " + rootNote}};
+        if (!scaleMap[scaleName]) return {{"error": "Invalid scale: " + scaleName}};
+
+        function isInScale(pitch) {{
+            const intervals = scaleMap[scaleName];
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            return intervals.includes(rel);
+        }}
+
+        function getScaleStep(pitch, direction) {{
+            if (direction > 0) {{
+                for (let p = pitch + 1; p <= 127; p++) {{
+                    if (isInScale(p)) return p;
+                }}
+            }} else {{
+                for (let p = pitch - 1; p >= 0; p--) {{
+                    if (isInScale(p)) return p;
+                }}
+            }}
+            return pitch;
+        }}
+
+        // Calculate polyrhythm positions
+        // numerator notes across denominator beats
+        // each note is spaced denom/numerator beats apart
+        const totalNotes = numer * numBars;
+        const beatSpacing = denom / numer; // beats between each note
+        const tickSpacing = Math.round(beatSpacing * Quarter);
+        const startTicks = Math.round(startBeat * Quarter);
+
+        // Note duration: slightly shorter than spacing for articulation
+        const noteDur = Math.max(1, Math.round(tickSpacing * 0.9));
+
+        // Generate pitches
+        const notePitches = [];
+        if (customPitches.length > 0) {{
+            for (let i = 0; i < totalNotes; i++) {{
+                notePitches.push(customPitches[i % customPitches.length]);
+            }}
+        }} else {{
+            // Generate through scale
+            let currentPitch = rootIdx + 60; // start at middle C octave
+            let goingUp = dirMode !== "down";
+            for (let i = 0; i < totalNotes; i++) {{
+                if (dirMode === "alternate" && i > 0 && i % numer === 0) {{
+                    goingUp = !goingUp;
+                }}
+                notePitches.push(currentPitch);
+                currentPitch = getScaleStep(currentPitch, goingUp ? 1 : -1);
+                if (currentPitch === notePitches[i]) break; // hit boundary
+            }}
+        }}
+
+        // Generate velocities
+        const noteVelocities = [];
+        for (let i = 0; i < totalNotes; i++) {{
+            let vel = baseVel;
+            if (velPattern === "accent") {{
+                vel = (i % numer === 0) ? Math.min(1, baseVel * 1.2) : baseVel * 0.7;
+            }} else if (velPattern === "fade") {{
+                vel = baseVel * (1 - 0.5 * i / (totalNotes - 1));
+            }} else if (velPattern === "wave") {{
+                vel = baseVel * (0.7 + 0.3 * Math.sin(i * Math.PI / numer));
+            }}
+            noteVelocities.push(Math.max(0.01, Math.min(1, vel)));
+        }}
+
+        // Build note list
+        const notesToCreate = [];
+        for (let i = 0; i < totalNotes; i++) {{
+            notesToCreate.push({{
+                pos: startTicks + i * tickSpacing,
+                dur: noteDur,
+                pitch: Math.max(0, Math.min(127, notePitches[i])),
+                vel: noteVelocities[i],
+            }});
+        }}
+
+        // Find or create region
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+
+        // Create notes
+        const editing = h.editing;
+        let created = 0;
+
+        await editing.modify(async () => {{
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            if (!NoteEventBox || !bg || !uuidGen) return;
+
+            for (const n of notesToCreate) {{
+                try {{
+                    await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                        box.position.setValue(n.pos);
+                        box.duration.setValue(n.dur);
+                        box.pitch.setValue(n.pitch);
+                        box.velocity.setValue(n.vel);
+                        if (collection && collection.events) {{
+                            box.events.refer(collection.events);
+                        }}
+                    }});
+                    created++;
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            numerator: numer,
+            denominator: denom,
+            ratio: numer + ":" + denom,
+            bars: numBars,
+            total_notes: totalNotes,
+            notes_created: created,
+            beat_spacing: Math.round(beatSpacing * 100) / 100,
+            scale: customPitches.length > 0 ? "custom" : scaleName,
+            root: rootNote,
+            direction: dirMode,
+            velocity_pattern: velPattern,
+            start_beat: startBeat,
+            note_duration_ticks: noteDur,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 
 
 
