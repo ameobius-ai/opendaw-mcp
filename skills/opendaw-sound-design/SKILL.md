@@ -322,7 +322,8 @@ class Processor {
 | `spielwerk_strum.js` | Strummer | speed, direction, spread, velocity |
 | `spielwerk_velocity.js` | Velocity scaler | scale, offset, curve, min_vel, max_vel |
 | `spielwerk_scale_quantizer.js` | Scale quantizer (14 scales, 12 roots) | scale, root, direction |
-| `spielwerk_harmonizer.js` | MIDI harmonizer (3 voices, diatonic/fixed) | interval1-3, vel1-3, mode, key_root, scale |
+| `spielwerk_harmonizer.js` | MIDI harmonizer (3 voices, diatonic/fixed) | interval1-3, vel1-3, mode, key_root, scale | |
+| `spielwerk_prob_gate.js` | Probability gate (subtractive, LCG note dropping) | chance, variation, seed, mode, min_pitch, max_pitch, velocity_boost, hold | |
 | `spielwerk_mididelay.js` | MIDI delay + feedback | time, feedback, repeats, transpose, decay |
 
 ### Choosing a script

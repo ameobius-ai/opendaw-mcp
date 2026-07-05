@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.90.0 (2026-07-05)
+
+- **`spielwerk_prob_gate.js` DSP script** — subtractive probability gate (Spielwerk MIDI effect): LCG-based note dropping with per-note probability, 3 modes (uniform/position-based/pitch-based), hold momentum (passed notes boost next), forced pass zones (min/max pitch always pass), velocity boost for survivors, seedable for reproducibility. 8 params (chance/variation/seed/mode/min_pitch/max_pitch/velocity_boost/hold). 72 DSP scripts, 9 Spielwerk MIDI effects
+- **822 unit tests** (+15), E2E 8/8
+
 ## v1.89.0 (2026-07-05)
 
 - **`werkstatt_fuzz.js` DSP script** — hard clipping fuzz (Big Muff Pi style): high-gain hard clip with foldback squash, full-wave rectified octave-up content, Muff tone stack (LP/HP blend), noise gate, asymmetrical bias for even harmonics, dry blend. 8 params (sustain/tone/octave/gate/bias/level/dry/output). 71 DSP scripts

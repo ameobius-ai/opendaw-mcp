@@ -3524,6 +3524,94 @@ class TestFuzzDSP:
         assert "outGain" in code, "Missing output gain"
         assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
 
-    def test_process_method(self):
+    def test_process_method_fuzz(self):
         code = self._read_script()
         assert "process(" in code or "processAudio" in code, "Missing process method"
+
+
+class TestProbGateDSP:
+    """Unit tests for spielwerk_prob_gate.js — subtractive probability gate"""
+
+    SCRIPT = "spielwerk_prob_gate.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@spielwerk prob_gate" in code, "Missing @spielwerk prob_gate header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_chance_param(self):
+        params = self._parse_params(self._read_script())
+        c = [p for p in params if p["name"] == "chance"][0]
+        assert c["min"] == 0 and c["max"] == 1
+        assert c["default"] == 0.7
+
+    def test_seed_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "seed"][0]
+        assert s["default"] == 42
+
+    def test_mode_param(self):
+        params = self._parse_params(self._read_script())
+        m = [p for p in params if p["name"] == "mode"][0]
+        assert m["min"] == 0 and m["max"] == 2
+
+    def test_rng_implementation(self):
+        code = self._read_script()
+        assert "1103515245" in code, "Missing LCG random implementation"
+        assert "_nextRand" in code, "Missing RNG method"
+
+    def test_generator_process(self):
+        code = self._read_script()
+        assert "*process" in code, "Missing generator process method"
+        assert "yield" in code, "Missing yield (should be a generator)"
+
+    def test_dropping_notes(self):
+        code = self._read_script()
+        assert "passed" in code or "roll <" in code, "Missing probability check"
+
+    def test_forced_pass_zones(self):
+        code = self._read_script()
+        assert "min_pitch" in code and "max_pitch" in code, "Missing forced pass zones"
+        assert "continue" in code, "Missing forced pass continue"
+
+    def test_hold_momentum(self):
+        code = self._read_script()
+        assert "hold" in code, "Missing hold/momentum parameter"
+        assert "_lastPassed" in code, "Missing lastPassed state for momentum"
+
+    def test_mode_uniform(self):
+        code = self._read_script()
+        assert "mode === 0" in code or "mode === 1" in code, "Missing mode selection logic"
+
+    def test_mode_position_based(self):
+        code = self._read_script()
+        assert "barPos" in code or "position" in code, "Missing position-based mode"
+
+    def test_mode_pitch_based(self):
+        code = self._read_script()
+        assert "pitchNorm" in code or "ev.pitch" in code, "Missing pitch-based mode"
+
+    def test_velocity_boost(self):
+        code = self._read_script()
+        assert "velocity_boost" in code, "Missing velocity boost for surviving notes"
+
+    def test_reset(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"

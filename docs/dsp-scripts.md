@@ -87,6 +87,7 @@
 | `spielwerk_velocity.js` | Velocity processor | curve, min, max |
 | `spielwerk_scale_quantizer.js` | Scale quantizer (14 scales, 12 roots) | scale, root, direction |
 | `spielwerk_harmonizer.js` | MIDI harmonizer (3 voices, diatonic/fixed, 14 scales) | interval1-3, vel1-3, mode, key_root, scale |
+| `spielwerk_prob_gate.js` | Probability gate (subtractive, LCG note dropping) | chance, variation, seed, mode, min_pitch, max_pitch, velocity_boost, hold |
 
 ## Using DSP scripts
 

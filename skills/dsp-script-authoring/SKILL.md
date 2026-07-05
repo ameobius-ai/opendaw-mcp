@@ -561,6 +561,7 @@ process(io, block) {
 | `spielwerk_mididelay.js` | MIDI delay | feedback + transpose + decay |
 | `spielwerk_scale_quantizer.js` | Scale quantizer | 14 scales + nearest-note snap |
 | `spielwerk_harmonizer.js` | MIDI harmonizer | 3 voices, diatonic/fixed, 14 scales |
+| `spielwerk_prob_gate.js` | Probability gate | LCG note dropping, 3 modes, hold momentum, forced pass zones |
 
 ## Creating .opb Presets from Scripts
 

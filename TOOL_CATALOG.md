@@ -383,7 +383,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 283 tools**
 
-## DSP Scripts (scripts/) — 71 scripts
+## DSP Scripts (scripts/) — 72 scripts
 
 ### Werkstatt (Audio Effects) — 55 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
@@ -449,7 +449,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apparat_wavetable.js` — Wavetable synth (8 tables, scan position + LFO, unison detune, ADSR, volume)
 - `apparat_supersaw.js` — Supersaw synth (7 detuned saws, per-voice stereo pan, resonant lowpass, ADSR)
 
-### Spielwerk (MIDI Effects) — 8 scripts
+### Spielwerk (MIDI Effects) — 9 scripts
 - `spielwerk_arpeggiator.js` — MIDI arpeggiator (rate, octave, pattern)
 - `spielwerk_chordmemory.js` — Chord memory (chord type 0-6)
 - `spielwerk_mididelay.js` — MIDI delay (time, feedback, mix)
@@ -458,6 +458,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `spielwerk_velocity.js` — Velocity scaler (scale, offset)
 - `spielwerk_scale_quantizer.js` — Scale quantizer (14 scales, 12 roots, snap direction)
 - `spielwerk_harmonizer.js` — MIDI harmonizer (3 voices, diatonic/fixed mode, 14 scales, per-voice velocity)
+- `spielwerk_prob_gate.js` — Probability gate (subtractive MIDI effect: LCG-based note dropping, 3 modes uniform/position/pitch, hold momentum, forced pass zones, velocity boost, seedable)
 
 ## DAW_HELPERS (17 helpers)
 All box enumeration is done through typed helpers injected into the bridge context:
