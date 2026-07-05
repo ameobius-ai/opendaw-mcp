@@ -3972,3 +3972,185 @@ class TestCreateFourOnFloor:
     def test_valid_types_list(self):
         valid = {"classic_house", "deep_house", "techno", "disco", "tech_house"}
         assert set(self.FOUR_ON_FLOOR_PATTERNS.keys()) == valid
+
+
+class TestCreateBreakbeat:
+    """Tests for create_breakbeat orchestration tool"""
+
+    BREAKBEAT_PATTERNS = {
+        "amen": [
+            (0.0, "kick"), (0.0, "hat"), (0.5, "hat"), (1.0, "snare"), (1.0, "hat"),
+            (1.5, "hat"), (2.0, "hat"), (2.5, "hat"),
+            (2.66, "kick"), (2.66, "ghost"), (3.0, "snare"), (3.0, "hat"), (3.5, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.5, "hat"), (5.0, "snare"), (5.0, "hat"),
+            (5.5, "hat"), (6.0, "hat"), (6.5, "hat"),
+            (6.66, "kick"), (6.66, "ghost"), (7.0, "snare"), (7.0, "hat"), (7.5, "hat"),
+        ],
+        "dnb": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "snare"), (1.25, "hat"), (1.5, "hat"), (1.75, "ghost"),
+            (2.0, "hat"), (2.25, "hat"), (2.5, "kick"), (2.66, "ghost"),
+            (2.75, "hat"), (3.0, "snare"), (3.25, "hat"), (3.5, "hat"),
+            (3.75, "hat"), (4.0, "kick"), (4.25, "hat"), (4.5, "hat"),
+            (4.75, "hat"), (5.0, "snare"), (5.25, "hat"), (5.5, "hat"),
+            (5.75, "ghost"), (6.0, "hat"), (6.25, "hat"), (6.5, "kick"),
+            (6.66, "ghost"), (6.75, "hat"), (7.0, "snare"), (7.25, "hat"),
+            (7.5, "hat"), (7.75, "hat"),
+        ],
+        "big_beat": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "snare"), (1.5, "hat"),
+            (2.0, "kick"), (2.0, "snare"), (2.5, "hat"), (2.66, "kick"),
+            (3.0, "snare"), (3.5, "hat"),
+            (4.0, "kick"), (4.5, "hat"), (5.0, "snare"), (5.5, "hat"),
+            (6.0, "kick"), (6.0, "snare"), (6.5, "hat"), (6.66, "kick"),
+            (7.0, "snare"), (7.5, "hat"),
+        ],
+        "2_step": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "snare"), (1.5, "hat"),
+            (2.0, "hat"), (2.5, "hat"), (2.66, "kick"), (3.0, "snare"),
+            (3.5, "ghost"), (3.66, "hat"),
+            (4.0, "kick"), (4.5, "hat"), (5.0, "snare"), (5.5, "hat"),
+            (6.0, "hat"), (6.5, "hat"), (6.66, "kick"), (7.0, "snare"),
+            (7.5, "ghost"), (7.66, "hat"),
+        ],
+        "funky_drummer": [
+            (0.0, "kick"), (0.0, "hat"), (0.33, "ghost"), (0.5, "hat"),
+            (1.0, "snare"), (1.0, "hat"), (1.33, "ghost"), (1.5, "hat"),
+            (2.0, "kick"), (2.0, "hat"), (2.33, "ghost"), (2.5, "hat"),
+            (2.66, "kick"), (3.0, "snare"), (3.0, "hat"), (3.33, "ghost"),
+            (3.5, "hat"), (3.66, "kick"),
+            (4.0, "kick"), (4.0, "hat"), (4.33, "ghost"), (4.5, "hat"),
+            (5.0, "snare"), (5.0, "hat"), (5.33, "ghost"), (5.5, "hat"),
+            (6.0, "kick"), (6.0, "hat"), (6.33, "ghost"), (6.5, "hat"),
+            (6.66, "kick"), (7.0, "snare"), (7.0, "hat"), (7.33, "ghost"),
+            (7.5, "hat"), (7.66, "kick"),
+        ],
+    }
+
+    def test_amen_syncopated_kick(self):
+        """Amen break: kick NOT on clean quarters — the defining feature"""
+        strokes = self.BREAKBEAT_PATTERNS["amen"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        assert 0.0 in kicks, "Missing kick on beat 1"
+        assert 2.66 in kicks, "Missing syncopated kick at 2.66"
+
+    def test_amen_snare_on_2_and_4(self):
+        strokes = self.BREAKBEAT_PATTERNS["amen"]
+        snares = [b for b, s in strokes if s == "snare"]
+        assert 1.0 in snares, "Missing snare on beat 2"
+        assert 3.0 in snares, "Missing snare on beat 4"
+
+    def test_amen_has_ghost_notes(self):
+        strokes = self.BREAKBEAT_PATTERNS["amen"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert 2.66 in ghosts, "Missing ghost snare at 2.66"
+
+    def test_amen_hats_on_8ths(self):
+        strokes = self.BREAKBEAT_PATTERNS["amen"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.5 in hats, "Missing hat on &1"
+
+    def test_dnb_has_16th_hats(self):
+        strokes = self.BREAKBEAT_PATTERNS["dnb"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.25 in hats, "Missing 16th hat at 0.25"
+        assert 0.75 in hats, "Missing 16th hat at 0.75"
+
+    def test_dnb_has_ghost_snares(self):
+        strokes = self.BREAKBEAT_PATTERNS["dnb"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert len(ghosts) >= 2, "DnB should have multiple ghost snares"
+
+    def test_dnb_denser_than_amen(self):
+        dnb_count = len(self.BREAKBEAT_PATTERNS["dnb"])
+        amen_count = len(self.BREAKBEAT_PATTERNS["amen"])
+        assert dnb_count > amen_count, "DnB should be denser than amen"
+
+    def test_big_beat_kick_snare_syncopation(self):
+        """Big beat has kick+snare simultaneously on beat 2 — characteristic"""
+        strokes = self.BREAKBEAT_PATTERNS["big_beat"]
+        kicks_at_2 = [b for b, s in strokes if s == "kick" and b == 2.0]
+        snares_at_2 = [b for b, s in strokes if s == "snare" and b == 2.0]
+        assert len(kicks_at_2) >= 1 and len(snares_at_2) >= 1, "Missing kick+snare at beat 2"
+
+    def test_big_beat_has_syncopated_kick(self):
+        strokes = self.BREAKBEAT_PATTERNS["big_beat"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        assert 2.66 in kicks, "Missing syncopated kick at 2.66"
+
+    def test_2_step_skipping_kick(self):
+        """2-step: second kick shifted to 2.66, not on beat 3 — the skip"""
+        strokes = self.BREAKBEAT_PATTERNS["2_step"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        assert 2.66 in kicks, "Missing shifted kick at 2.66"
+        assert 2.0 not in kicks, "2-step should NOT have kick on beat 3 (that's the skip)"
+
+    def test_2_step_ghost_on_3_5(self):
+        strokes = self.BREAKBEAT_PATTERNS["2_step"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert 3.5 in ghosts, "Missing ghost snare at 3.5"
+
+    def test_funky_drummer_triple_kick(self):
+        """Funky Drummer: kick at 0, 2, AND 2.66 — the funk"""
+        strokes = self.BREAKBEAT_PATTERNS["funky_drummer"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        assert 0.0 in kicks, "Missing kick on 1"
+        assert 2.0 in kicks, "Missing kick on 3"
+        assert 2.66 in kicks, "Missing syncopated kick at 2.66"
+
+    def test_funky_drummer_has_ghosts(self):
+        strokes = self.BREAKBEAT_PATTERNS["funky_drummer"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert len(ghosts) >= 4, "Funky Drummer should have multiple ghost notes"
+
+    def test_all_types_valid(self):
+        valid = {"kick", "snare", "hat", "ghost"}
+        for name, strokes in self.BREAKBEAT_PATTERNS.items():
+            for _, stroke_type in strokes:
+                assert stroke_type in valid, f"{name} has invalid stroke {stroke_type}"
+
+    def test_cycle_length_two_bars(self):
+        cycle_len = 8.0
+        for name, strokes in self.BREAKBEAT_PATTERNS.items():
+            max_beat = max(b for b, _ in strokes)
+            assert max_beat < cycle_len, f"{name}: beat {max_beat} exceeds cycle {cycle_len}"
+
+    def test_all_breakbeats_are_syncopated(self):
+        """The defining feature: at least one kick or snare NOT on a clean quarter"""
+        for name, strokes in self.BREAKBEAT_PATTERNS.items():
+            off_grid = [b for b, s in strokes if s in ("kick", "snare") and b != int(b)]
+            assert len(off_grid) >= 1, f"{name}: not syncopated enough (no off-grid kick/snare)"
+
+    def test_velocity_mapping(self):
+        base = 0.85
+        kick_vel = min(1.0, base + 0.05)
+        snare_vel = max(0.0, base - 0.05)
+        hat_vel = max(0.0, base - 0.15)
+        ghost_vel = max(0.0, base - 0.3)
+        assert ghost_vel < hat_vel < snare_vel < kick_vel
+
+    def test_pitch_mapping(self):
+        kick, snare, hat, ghost = 36, 38, 42, 37
+        pitch_map = {"kick": kick, "snare": snare, "hat": hat, "ghost": ghost}
+        assert pitch_map["kick"] < pitch_map["snare"] < pitch_map["hat"]
+
+    def test_bar_repetition(self):
+        bars = 4
+        cycles = bars // 2
+        cycle_len = 8.0
+        strokes = self.BREAKBEAT_PATTERNS["amen"]
+        all_notes = []
+        for c in range(cycles):
+            for beat, stroke_type in strokes:
+                all_notes.append({"start": c * cycle_len + beat, "stroke": stroke_type})
+        assert len(all_notes) == len(strokes) * cycles
+        assert all_notes[len(strokes)]["start"] == cycle_len
+
+    def test_type_normalization(self):
+        raw = "Big Beat"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert normalized == "big_beat"
+
+    def test_valid_types_list(self):
+        valid = {"amen", "dnb", "big_beat", "2_step", "funky_drummer"}
+        assert set(self.BREAKBEAT_PATTERNS.keys()) == valid

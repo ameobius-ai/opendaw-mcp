@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.125.0 (2026-07-05)
+
+- **`create_breakbeat` orchestration tool (319 MCP tools)** — breakbeat: the syncopated skeleton of jungle, DnB, big beat, and breakbeat hardcore. Broken drum patterns where kick/snare don't sit on clean quarters. 5 variants: amen (G.C. Coleman, The Winstons 1969 — the most sampled 6-second loop in history), dnb (chopped Amen-style with 16th hats and ghost snares, Andy C/Noisia), big_beat (mid-tempo fat breaks with kick+snare syncopation, Fatboy Slim/Prodigy), 2_step (UK garage skipping feel, shifted kick, MJ Cole/Disclosure), funky_drummer (Clyde Stubblefield, James Brown 1970 — the most funk-sampled break, Public Enemy/NWA). All patterns syncopated (at least one off-grid kick/snare). 2-bar cycle. 62 orchestration tools. 319 MCP tools
+- **1404 unit tests** (+21)
+
 ## v1.124.0 (2026-07-05)
 
 - **`create_four_on_floor` orchestration tool (318 MCP tools)** — four-on-the-floor: the foundational beat of house, techno, and disco. Kick on every quarter note (beats 1-2-3-4) — the pulse that defined dance music from 70s disco through Chicago house to Berlin techno. 5 variants: classic_house (open hats on off-beats, clap on 2+4, Frankie Knuckles/TR-909), deep_house (shuffled hats, rimshot, Larry Heard), techno (16th hats, industrial clap, Jeff Mills), disco (tambourine 16ths, Moroder/Donna Summer), tech_house (swung hats, perc stabs, Solardo/Fisher). 1-bar cycle. 61 orchestration tools. 318 MCP tools

@@ -21487,3 +21487,172 @@ async def mcp_opendaw_create_four_on_floor(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_breakbeat(
+    breakbeat_type: str = "amen",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kick_pitch: int = 36,
+    snare_pitch: int = 38,
+    hat_pitch: int = 42,
+    ghost_pitch: int = 37,
+    velocity: float = 0.85,
+) -> str:
+    """Create a breakbeat pattern — the syncopated skeleton of jungle, DnB, big beat, and breakbeat hardcore.
+
+    Breakbeats are "broken" drum patterns where the snare and kick don't sit on clean
+    quarter notes. Instead they syncopate, stutter, and displace — creating the
+    forward-leaning momentum that powered hip-hop's early years (Amen break), then
+    jungle/DnB (160-180 BPM chopped breaks), big beat (Fatboy Slim, Prodigy), and
+    UK garage/2-step.
+
+    breakbeat_type:
+      "amen"       — The Amen break: G.C. Coleman's performance in The Winstons
+                     "Amen, Brother" (1969). The most sampled 6-second loop in
+                     history. Kick at 0, 2.66; snare at 1, 3; ghost snare at 2.66.
+                     Hats on 8ths. The DNA of jungle and DnB.
+      "dnb"        — Drum & bass: chopped Amen-style at DnB tempo. Kick on
+                     0 and 2.5, snare on 1 and 3, rapid 16th hats, ghost snares
+                     on the "e" and "a". Rolling, driving. Andy C / Noisia style.
+      "big_beat"   — Big beat: mid-tempo (120-130) fat breaks. Kick on 0 and
+                     2.66, snare on 1 and 3, with a kick+snare syncopation on
+                     beat 2. Big, swaggering. Fatboy Slim / Prodigy "Firestarter".
+      "2_step"     — UK garage 2-step: kick on 1 and 3, snare on 2 and 4,
+                     but the second kick is shifted to 2.66 and there's a
+                     ghost snare on 3.5. Swung 16ths. The "skipping" feel.
+                     MJ Cole / Disclosure style.
+      "funky_drummer" — Clyde Stubblefield's break from James Brown "Funky Drummer"
+                     (1970). Kick at 0, 2, 2.66; snare at 1, 3; hats throughout
+                     with ghost notes. The most funk-sampled break. Public Enemy,
+                     NWA, LL Cool J all built on this.
+
+    bars: Pattern length (2-16, 2 = one breakbeat cycle).
+    kick_pitch: MIDI pitch for kick (36 = C1).
+    snare_pitch: MIDI pitch for snare (38 = D1).
+    hat_pitch: MIDI pitch for hi-hats (42 = F#1).
+    ghost_pitch: MIDI pitch for ghost snares (37 = F#1, side-stick).
+    velocity: Base velocity 0-1. Snares -0.05, hats -0.15, ghosts -0.3.
+
+    Returns notes created, breakbeat type, and stroke breakdown.
+
+    Example:
+      create_breakbeat(breakbeat_type="amen", track_index=0)
+      create_breakbeat(breakbeat_type="dnb", track_index=1, bars=4)
+    """
+    breakbeat_type = breakbeat_type.strip().lower().replace(" ", "_")
+    valid_types = ["amen", "dnb", "big_beat", "2_step", "funky_drummer"]
+    if breakbeat_type not in valid_types:
+        return f"Error: unknown breakbeat_type '{breakbeat_type}'. Valid: {', '.join(valid_types)}"
+
+    if bars < 2 or bars > 16:
+        return "Error: bars must be 2-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    for p in (kick_pitch, snare_pitch, hat_pitch, ghost_pitch):
+        if not (0 <= p <= 127):
+            return "Error: pitches must be 0-127"
+
+    # Patterns: (beat_position, stroke_type)
+    # stroke_type: "kick", "snare", "hat", "ghost"
+    # Beat positions within a 2-bar cycle (8 beats in 4/4)
+    patterns = {
+        # Amen break: G.C. Coleman, The Winstons "Amen, Brother" (1969)
+        # Kick at 0, 2.66; snare at 1, 3; ghost snare at 2.66; hats on 8ths
+        "amen": [
+            (0.0, "kick"), (0.0, "hat"), (0.5, "hat"), (1.0, "snare"), (1.0, "hat"),
+            (1.5, "hat"), (2.0, "hat"), (2.5, "hat"),
+            (2.66, "kick"), (2.66, "ghost"), (3.0, "snare"), (3.0, "hat"), (3.5, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.5, "hat"), (5.0, "snare"), (5.0, "hat"),
+            (5.5, "hat"), (6.0, "hat"), (6.5, "hat"),
+            (6.66, "kick"), (6.66, "ghost"), (7.0, "snare"), (7.0, "hat"), (7.5, "hat"),
+        ],
+        # DnB: chopped Amen-style, rapid 16th hats, rolling kicks
+        "dnb": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "snare"), (1.25, "hat"), (1.5, "hat"), (1.75, "ghost"),
+            (2.0, "hat"), (2.25, "hat"), (2.5, "kick"), (2.66, "ghost"),
+            (2.75, "hat"), (3.0, "snare"), (3.25, "hat"), (3.5, "hat"),
+            (3.75, "hat"), (4.0, "kick"), (4.25, "hat"), (4.5, "hat"),
+            (4.75, "hat"), (5.0, "snare"), (5.25, "hat"), (5.5, "hat"),
+            (5.75, "ghost"), (6.0, "hat"), (6.25, "hat"), (6.5, "kick"),
+            (6.66, "ghost"), (6.75, "hat"), (7.0, "snare"), (7.25, "hat"),
+            (7.5, "hat"), (7.75, "hat"),
+        ],
+        # Big beat: mid-tempo fat breaks, kick+snare syncopation
+        "big_beat": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "snare"), (1.5, "hat"),
+            (2.0, "kick"), (2.0, "snare"), (2.5, "hat"), (2.66, "kick"),
+            (3.0, "snare"), (3.5, "hat"),
+            (4.0, "kick"), (4.5, "hat"), (5.0, "snare"), (5.5, "hat"),
+            (6.0, "kick"), (6.0, "snare"), (6.5, "hat"), (6.66, "kick"),
+            (7.0, "snare"), (7.5, "hat"),
+        ],
+        # 2-step: skipping feel, shifted kick, ghost snare on 3.5
+        "2_step": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "snare"), (1.5, "hat"),
+            (2.0, "hat"), (2.5, "hat"), (2.66, "kick"), (3.0, "snare"),
+            (3.5, "ghost"), (3.66, "hat"),
+            (4.0, "kick"), (4.5, "hat"), (5.0, "snare"), (5.5, "hat"),
+            (6.0, "hat"), (6.5, "hat"), (6.66, "kick"), (7.0, "snare"),
+            (7.5, "ghost"), (7.66, "hat"),
+        ],
+        # Funky Drummer: Clyde Stubblefield, James Brown (1970)
+        # Kick at 0, 2, 2.66; snare at 1, 3; hats with ghost notes
+        "funky_drummer": [
+            (0.0, "kick"), (0.0, "hat"), (0.33, "ghost"), (0.5, "hat"),
+            (1.0, "snare"), (1.0, "hat"), (1.33, "ghost"), (1.5, "hat"),
+            (2.0, "kick"), (2.0, "hat"), (2.33, "ghost"), (2.5, "hat"),
+            (2.66, "kick"), (3.0, "snare"), (3.0, "hat"), (3.33, "ghost"),
+            (3.5, "hat"), (3.66, "kick"),
+            (4.0, "kick"), (4.0, "hat"), (4.33, "ghost"), (4.5, "hat"),
+            (5.0, "snare"), (5.0, "hat"), (5.33, "ghost"), (5.5, "hat"),
+            (6.0, "kick"), (6.0, "hat"), (6.33, "ghost"), (6.5, "hat"),
+            (6.66, "kick"), (7.0, "snare"), (7.0, "hat"), (7.33, "ghost"),
+            (7.5, "hat"), (7.66, "kick"),
+        ],
+    }
+
+    strokes = patterns[breakbeat_type]
+    cycle_len = 8.0  # 2 bars of 4/4
+
+    pitch_map = {"kick": kick_pitch, "snare": snare_pitch, "hat": hat_pitch, "ghost": ghost_pitch}
+    vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": max(0.0, velocity - 0.05),
+        "hat": max(0.0, velocity - 0.15),
+        "ghost": max(0.0, velocity - 0.3),
+    }
+    dur_map = {"kick": 0.2, "snare": 0.12, "hat": 0.05, "ghost": 0.04}
+
+    all_notes = []
+    cycles = bars // 2
+    stroke_counts = {"kick": 0, "snare": 0, "hat": 0, "ghost": 0}
+
+    for c in range(cycles):
+        offset = c * cycle_len
+        for beat, stroke_type in strokes:
+            all_notes.append({
+                "pitch": pitch_map[stroke_type],
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[stroke_type] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["breakbeat"] = True
+        data["breakbeat_type"] = breakbeat_type
+        data["strokes"] = stroke_counts
+        data["cycles"] = cycles
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
