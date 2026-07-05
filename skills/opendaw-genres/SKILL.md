@@ -472,9 +472,9 @@ await mcp_opendaw_add_mastering_chain(target_lufs=-16, style="transparent")  # a
 - `opendaw-sound-design` — instruments + DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain
 - `suno-to-opendaw` — Suno→stems→openDAW E2E
-- `opendaw-automation` — 332 MCP tools full API reference
+- `opendaw-automation` — 335 MCP tools full API reference
 
-## Multi-Track Arrangement Tools (11 genres)
+## Multi-Track Arrangement Tools (12 genres)
 
 One-call genre sections across 3-4 tracks. Replaces 100+ individual create_note calls.
 
@@ -488,7 +488,8 @@ User wants...
 │   │   ├── Off-beat bass?       → create_house_arrangement (124 BPM, "untz-untz")
 │   │   ├── Sustained drone?     → create_techno_arrangement (130 BPM, hypnotic, min 8 bars)
 │   │   └── Half-time + wobble?  → create_dubstep_arrangement (140 BPM, feels like 70)
-│   └── Trap rolls + 808?        → create_trap_arrangement (140 BPM, F# minor)
+│   ├── Trap rolls + 808?        → create_trap_arrangement (140 BPM, F# minor)
+│   └── Nostalgic 80s + arp?     → create_synthwave_arrangement (110 BPM, Am, i-VI-III-VII)
 ├── Organic / band?
 │   ├── Guitar-driven?
 │   │   ├── Power chords, I-IV-V? → create_rock_arrangement (120 BPM, E default)
@@ -500,7 +501,7 @@ User wants...
 │   └── Song structure needed?     → create_pop_arrangement (120 BPM, verse-chorus-bridge)
 ```
 
-### All 11 Arrangements
+### All 12 Arrangements
 
 | Tool | Genre | Tracks | BPM | Key | Key Feature |
 |------|-------|--------|-----|-----|-------------|
@@ -509,6 +510,7 @@ User wants...
 | `create_trap_arrangement` | Trap | 3 | 120-170 | F# | Trap rolls + 808 slides + bell |
 | `create_techno_arrangement` | Techno | 3 | 120-150 | C | Four-on-floor + sub drone + Detroit stabs |
 | `create_dubstep_arrangement` | Dubstep | 3 | 130-155 | G | Half-time + wobble bass + arp |
+| `create_synthwave_arrangement` | Synthwave | 4 | 90-130 | A | Arpeggiated 16th bass + i-VI-III-VII + dreamy pads |
 | `create_afrobeat_arrangement` | Afrobeat | 4 | 95-135 | F | Polyrhythm + ostinato + horns + chanka |
 | `create_rock_arrangement` | Rock | 4 | 80-180 | E | Rock beat + power chords + I-IV-V |
 | `create_jazz_arrangement` | Jazz | 4 | 50-220 | F | Swing ride + walking bass + ii-V-I |
@@ -522,9 +524,22 @@ User wants...
 |-------|------|-------|--------|
 | House | Every beat | Clap 2+4 | Four-on-floor |
 | Techno | Every beat | Clap 2+4 | Industrial hats |
+| Synthwave | Every beat (soft) | 2+4 | Retro 80s, softer than house |
 | Rock | 1 & 3 | 2 & 4 | Straight backbeat |
 | Jazz | Sporadic | Ghost on swung 8ths | Spang-a-lang ride |
 | Funk | Syncopated | 2+4 + ghosts | 16th-note hats |
 | Reggae | 3 ONLY | 3 ONLY (with kick) | One-drop, empty on 1 |
 | Dubstep | 1 ONLY | 3 ONLY | Half-time, feels like 70 |
 | Afrobeat | Syncopated | None (clave) | 12/8 polyrhythm |
+
+### Bass Pattern Comparison
+
+| Genre | Bass Style | Unique |
+|-------|-----------|--------|
+| Synthwave | Arpeggiated 16ths (root-octave-fifth-octave) | Relentless arp engine |
+| House | Off-beat stabs | Syncopated pulse |
+| Techno | Sub-bass drone | Sustained, not rhythmic |
+| Reggae | Melodic lead (root-octave-fifth-root) | Bass IS the lead instrument |
+| Jazz | Walking (quarter notes through ii-V-I) | Chord-tone movement |
+| Funk | Slap (thumb/pluck, 16th density) | 16 notes per bar |
+| Rock | Root-fifth walking | Locks with kick |
