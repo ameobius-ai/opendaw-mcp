@@ -14812,6 +14812,156 @@ async def mcp_opendaw_humanize_pitch(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_randomize_note_chance(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    min_chance: int = 50,
+    max_chance: int = 100,
+    mode: str = "uniform",
+    seed: int = 42,
+) -> str:
+    """Randomize note playback probability (chance) — generative variation.
+
+    Sets a random chance value (0-100%) for each note, controlling whether
+    it plays on each run. This is the core of generative MIDI — patterns
+    that are different every time while maintaining structure. Notes with
+    chance=100 always play, chance=50 play half the time, chance=0 never
+    play (silent ghost).
+
+    Perfect for:
+    - Ghost notes that appear/disappear (drum variation)
+    - Generative melodies where notes drop in/out
+    - Call-and-response patterns with probabilistic responses
+    - Evolving textures that change per iteration
+
+    mode: Distribution of chance values:
+    - "uniform" — random between min_chance and max_chance, evenly distributed.
+      Each note gets an independent random chance. Default mode.
+    - "decreasing" — chance decreases linearly from max to min across the
+      region. First notes are most likely, last notes least. Creates
+      fade-out of probability — pattern dissolves.
+    - "increasing" — chance increases from min to max. Pattern emerges
+      from silence. Builds anticipation.
+    - "sparse" — most notes get min_chance, but some get max_chance.
+      Creates sparse texture with occasional hits. Good for ghost notes.
+    - "binary" — each note gets either min_chance or max_chance (coin flip).
+      Creates stark on/off patterns.
+
+    min_chance: Minimum chance value (0-100, default 50).
+    max_chance: Maximum chance value (0-100, default 100).
+    seed: Random seed for reproducibility.
+
+    Returns per-track note counts, chance range applied.
+
+    Example:
+      # Ghost note variation — 30-80% chance
+      randomize_note_chance(unit_index=0, track_index=0, min_chance=30, max_chance=80)
+      # Dissolving pattern — high to low
+      randomize_note_chance(unit_index=0, track_index=2, mode="decreasing", min_chance=0, max_chance=100)
+    """
+    if not (0 <= min_chance <= 100):
+        return f'{{"error": "min_chance must be 0-100, got {min_chance}"}}'
+    if not (0 <= max_chance <= 100):
+        return f'{{"error": "max_chance must be 0-100, got {max_chance}"}}'
+    if min_chance > max_chance:
+        return '{"error": "min_chance cannot exceed max_chance"}'
+    valid_modes = ("uniform", "decreasing", "increasing", "sparse", "binary")
+    if mode not in valid_modes:
+        return f'{{"error": "mode must be one of {list(valid_modes)}, got {mode}"}}'
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const minC = {min_chance};
+        const maxC = {max_chance};
+        const mode = "{mode}";
+        const seed = {seed};
+
+        // Seeded PRNG (mulberry32)
+        let s = seed >>> 0;
+        function rand() {{
+            s = (s + 0x6D2B79F5) >>> 0;
+            let t = s;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }}
+
+        let totalCount = 0;
+        const trackStats = [];
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const targetUnits = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+
+        h.modify(() => {{
+            for (let ui = 0; ui < targetUnits.length; ui++) {{
+                const au = targetUnits[ui];
+                const noteTracks = h.trackBoxes(au)
+                    .filter(box => box.type?.getValue?.() === 1);
+                if (trackIdx >= noteTracks.length) return;
+                const targetTracks = trackIdx < 0 ? noteTracks : [noteTracks[trackIdx]];
+
+                for (let ti = 0; ti < targetTracks.length; ti++) {{
+                    const track = targetTracks[ti];
+                    let trackCount = 0;
+                    const regions = h.regionBoxes(track);
+                    if (regions.length === 0) continue;
+                    const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                    for (const region of regionsToProcess) {{
+                        try {{
+                            const vertex = region.events.targetVertex.unwrap();
+                            const collectionBox = vertex.box || vertex;
+                            const noteEvents = [...collectionBox.events.pointerHub.incoming()];
+                            if (noteEvents.length === 0) continue;
+
+                            // Sort by position for directional modes
+                            const sorted = noteEvents.slice().sort((a, b) =>
+                                a.box.position.getValue() - b.box.position.getValue());
+
+                            for (let i = 0; i < sorted.length; i++) {{
+                                let chance;
+                                if (mode === "uniform") {{
+                                    chance = Math.round(minC + rand() * (maxC - minC));
+                                }} else if (mode === "decreasing") {{
+                                    const frac = sorted.length > 1 ? i / (sorted.length - 1) : 0;
+                                    chance = Math.round(maxC - frac * (maxC - minC));
+                                }} else if (mode === "increasing") {{
+                                    const frac = sorted.length > 1 ? i / (sorted.length - 1) : 0;
+                                    chance = Math.round(minC + frac * (maxC - minC));
+                                }} else if (mode === "sparse") {{
+                                    // 70% get min, 30% get max
+                                    chance = rand() < 0.3 ? maxC : minC;
+                                }} else {{ // binary
+                                    chance = rand() < 0.5 ? minC : maxC;
+                                }}
+                                sorted[i].box.chance.setValue(chance);
+                                trackCount++;
+                                totalCount++;
+                            }}
+                        }} catch (e) {{ /* skip non-note regions */ }}
+                    }}
+                    trackStats.push({{unit: ui, track: ti, notes_randomized: trackCount}});
+                }}
+            }}
+        }});
+
+        return {{
+            notes_randomized: totalCount,
+            mode: mode,
+            min_chance: minC,
+            max_chance: maxC,
+            seed: seed,
+            tracks: trackStats,
+            next_step: "use create_motif_variations for structured variation, or humanize_notes for timing variation",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_create_harmony(
     unit_index: int,
     track_index: int = 0,

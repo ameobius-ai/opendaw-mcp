@@ -178,6 +178,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 165. `humanize_pitch` — micro-detune (cents) intonation humanization: cents_depth 0-50, bias -20..+20, seeded PRNG, complements humanize_notes
 166. `reorder_sections` — full song structure rearrangement: JSON array of section boundaries in new order, rearranges note content back-to-back, complements swap_sections
 167. `spread_voicing` — chord voicing spread/compact: 4 modes (open/close/drop2/drop3), open widens spacing, close collapses to one octave, drop2/drop3 are jazz comping voicings
+168. `randomize_note_chance` — generative note probability: 5 modes (uniform/decreasing/increasing/sparse/binary), chance 0-100%, seeded PRNG, patterns that evolve per iteration
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.256.0 (2026-07-06)
+
+### Added
+- `randomize_note_chance` — Randomize note playback probability (chance 0-100%). 5 distribution modes: uniform (even random), decreasing (fade-out probability), increasing (emerge from silence), sparse (mostly min, some max), binary (coin flip). Seeded PRNG. Core generative MIDI tool — patterns that evolve per iteration.
+
 ## v1.255.0 (2026-07-06)
 
 ### Added

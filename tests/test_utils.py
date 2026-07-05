@@ -14306,6 +14306,127 @@ class TestConstrainNoteRange:
         assert pitch % 12 == 90 % 12, "Pitch class should be preserved"
 
 
+class TestRandomizeNoteChance:
+    """Tests for randomize_note_chance — generative probability variation."""
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_randomize_note_chance"]
+        assert len(tools) == 1
+
+    def test_has_mode_param(self):
+        """Has mode param with 5 distribution options"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                arg_names = [a.arg for a in node.args.args]
+                assert "mode" in arg_names
+                assert "min_chance" in arg_names
+                assert "max_chance" in arg_names
+                assert "seed" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_mode_options(self):
+        """Supports uniform/decreasing/increasing/sparse/binary modes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                source = ast.unparse(node)
+                assert "uniform" in source
+                assert "decreasing" in source
+                assert "increasing" in source
+                assert "sparse" in source
+                assert "binary" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_min_max_chance(self):
+        """min_chance and max_chance must be 0-100"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                source = ast.unparse(node)
+                assert "0 <= min_chance <= 100" in source
+                assert "0 <= max_chance <= 100" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_min_le_max(self):
+        """min_chance cannot exceed max_chance"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                source = ast.unparse(node)
+                assert "min_chance > max_chance" in source
+                return
+        assert False, "function not found"
+
+    def test_has_seeded_prng(self):
+        """Uses seeded PRNG (mulberry32) for reproducibility"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                source = ast.unparse(node)
+                assert "0x6D2B79F5" in source
+                return
+        assert False, "function not found"
+
+    def test_sets_chance_field(self):
+        """Sets n.box.chance on each note"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                source = ast.unparse(node)
+                assert "chance.setValue" in source
+                return
+        assert False, "function not found"
+
+    def test_default_mode_is_uniform(self):
+        """Default mode is 'uniform'"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                source = ast.unparse(node)
+                assert "uniform" in source
+                # Check default value in args
+                defaults = [ast.unparse(d) for d in node.args.defaults]
+                assert any("uniform" in d for d in defaults)
+                return
+        assert False, "function not found"
+
+    def test_param_count(self):
+        """Has exactly 7 parameters"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_randomize_note_chance":
+                assert len(node.args.args) == 7
+                return
+        assert False, "function not found"
+
+    def test_complements_humanize_family(self):
+        """randomize_note_chance complements humanize_notes and humanize_pitch"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_humanize_notes" in tool_names
+        assert "mcp_opendaw_humanize_pitch" in tool_names
+        assert "mcp_opendaw_randomize_note_chance" in tool_names
+
+
 class TestHumanizePitch:
     """Tests for humanize_pitch — micro-detune intonation humanization"""
 

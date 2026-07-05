@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-429 MCP tools for headless openDAW control via Playwright bridge.
+430 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -501,7 +501,8 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `humanize_pitch` — Add micro-detune (cents) to notes for intonation humanization. Real instruments drift, this simulates that. cents_depth 0-50, bias -20 to +20, seeded PRNG. Complements humanize_notes (velocity/timing/duration).
 - `reorder_sections` — Full song structure rearrangement. JSON array of section boundaries in new order, rearranges note content back-to-back. Complements swap_sections.
 - `spread_voicing` — Chord voicing spread/compact. 4 modes: open (widen spacing), close (collapse to one octave), drop2 (jazz piano comping), drop3 (wider jazz voicing). spread_octaves 1-3.
-**Total: 429 tools**
+- `randomize_note_chance` — Randomize note playback probability (chance 0-100%). 5 distribution modes: uniform, decreasing, increasing, sparse, binary. Seeded PRNG. Generative MIDI — patterns that evolve per iteration.
+**Total: 430 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 
