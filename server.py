@@ -31235,6 +31235,215 @@ async def mcp_opendaw_merge_note_tracks(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_apply_contour(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    contour: str = "arch",
+    range_semitones: int = 12,
+    snap_to_scale: str = "",
+    root: str = "C",
+    preserve_first: bool = False,
+    preserve_last: bool = False,
+) -> str:
+    """Apply a melodic contour shape to existing notes.
+
+    Redistributes note pitches to follow a specified contour profile
+    while keeping timing and duration unchanged. Unlike transpose_notes
+    (uniform shift), this reshapes the melody direction — ascending,
+    descending, arch, inverted arch, wave, or custom.
+
+    The tool calculates a target pitch for each note based on its
+    position in the sequence (0..1 normalized) mapped through the
+    contour function, then snaps to the nearest scale degree if
+    requested. The original pitch range center is preserved.
+
+    Contours:
+    - "ascending": low to high across the phrase
+    - "descending": high to low
+    - "arch": rise then fall (peak at midpoint)
+    - "inverted_arch": fall then rise (valley at midpoint)
+    - "wave": sinusoidal up-down-up
+    - "escalating": stepwise ascending with plateaus
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        contour: Contour shape name
+        range_semitones: Pitch range span in semitones (1-48, default 12=octave)
+        snap_to_scale: Scale for snapping results (""=chromatic, "major",
+                       "minor", "dorian", "phrygian", "lydian",
+                       "mixolydian", "locrian", "harmonic_minor",
+                       "melodic_minor", "pentatonic", "blues")
+        root: Root note for scale snapping
+        preserve_first: Keep first note pitch unchanged
+        preserve_last: Keep last note pitch unchanged
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const contourName = "{contour}";
+        const rangeSemis = Math.max(1, Math.min(48, {range_semitones}));
+        const snapScale = "{snap_to_scale}";
+        const rootNote = "{root}";
+        const preserveFirst = {preserve_first};
+        const preserveLast = {preserve_last};
+
+        // Scale intervals
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "pentatonic": [0, 2, 4, 7, 9],
+            "blues": [0, 3, 5, 6, 7, 10],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{"error": "Invalid root: " + rootNote}};
+
+        function snapToScale(pitch) {{
+            if (!snapScale || !scaleMap[snapScale]) return pitch;
+            const intervals = scaleMap[snapScale];
+            const octave = Math.floor(pitch / 12) * 12;
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            let best = intervals[0], bestDist = Math.abs(rel - intervals[0]);
+            for (const iv of intervals) {{
+                const dist = Math.abs(rel - iv);
+                if (dist < bestDist || (dist === bestDist && iv < best)) {{
+                    bestDist = dist; best = iv;
+                }}
+            }}
+            return octave + rootIdx + best;
+        }}
+
+        // Contour functions: input t (0..1), output offset (-1..1)
+        const contourFns = {{
+            "ascending": (t) => t * 2 - 1,
+            "descending": (t) => 1 - t * 2,
+            "arch": (t) => 1 - Math.abs(t - 0.5) * 2,
+            "inverted_arch": (t) => Math.abs(t - 0.5) * 2 - 1,
+            "wave": (t) => Math.sin(t * Math.PI * 2),
+            "escalating": (t) => {{
+                const steps = 4;
+                const stepSize = 2 / steps;
+                return Math.floor(t * steps) * stepSize - 1;
+            }},
+        }};
+
+        if (!contourFns[contourName]) {{
+            return {{"error": "Invalid contour. Use: ascending, descending, arch, inverted_arch, wave, escalating"}};
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length < 2) return {{"error": "Need at least 2 notes to apply contour"}};
+
+        // Read and sort by position
+        const noteData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        const n = noteData.length;
+        const origPitches = noteData.map(d => d.pitch);
+        const meanPitch = Math.round(noteData.reduce((s, d) => s + d.pitch, 0) / n);
+        const halfRange = rangeSemis / 2;
+        const contourFn = contourFns[contourName];
+
+        // Calculate new pitches
+        const newPitches = new Array(n);
+        for (let i = 0; i < n; i++) {{
+            if (preserveFirst && i === 0) {{
+                newPitches[i] = noteData[i].pitch;
+                continue;
+            }}
+            if (preserveLast && i === n - 1) {{
+                newPitches[i] = noteData[i].pitch;
+                continue;
+            }}
+            const t = n > 1 ? i / (n - 1) : 0.5;
+            const offset = contourFn(t); // -1..1
+            const targetPitch = Math.round(meanPitch + offset * halfRange);
+            newPitches[i] = snapToScale(Math.max(0, Math.min(127, targetPitch)));
+        }}
+
+        // Apply
+        const editing = h.editing;
+        let updated = 0;
+        const changes = [];
+
+        await editing.modify(async () => {{
+            for (let i = 0; i < srcNotes.length; i++) {{
+                const notePos = srcNotes[i].position.getValue();
+                const sortedIdx = noteData.findIndex(d => d.pos === notePos);
+                if (sortedIdx >= 0) {{
+                    const oldPitch = srcNotes[i].pitch.getValue();
+                    if (newPitches[sortedIdx] !== oldPitch) {{
+                        srcNotes[i].pitch.setValue(newPitches[sortedIdx]);
+                        updated++;
+                        if (changes.length < 10) {{
+                            changes.push({{
+                                note: sortedIdx,
+                                old_pitch: oldPitch,
+                                new_pitch: newPitches[sortedIdx],
+                                contour_offset: contourFn(n > 1 ? sortedIdx / (n - 1) : 0.5),
+                            }});
+                        }}
+                    }}
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            contour: contourName,
+            range_semitones: rangeSemis,
+            snap_to_scale: snapScale,
+            root: rootNote,
+            preserve_first: preserveFirst,
+            preserve_last: preserveLast,
+            notes_updated: updated,
+            total_notes: n,
+            mean_pitch: meanPitch,
+            original_pitches: origPitches,
+            new_pitches: newPitches,
+            changes: changes,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 

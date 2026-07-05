@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.266.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.267.0"
 ---
 
 # openDAW Composition Patterns
@@ -112,6 +112,7 @@ What do you want to create?
 ├── Rests → insert_rests (positional rest insertion, 3 modes: delete/truncate/shorten, syncopation/space)
 ├── Shuffle → shuffle_notes (random permutation, 4 modes: pitches/rhythm/full/within_groups, seeded, generative variation)
 ├── Merge → merge_note_tracks (combine two tracks into one, 6 overlap strategies, transpose, delete_source)
+├── Contour → apply_contour (reshapes melody direction: ascending/descending/arch/inverted_arch/wave/escalating, scale snapping)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

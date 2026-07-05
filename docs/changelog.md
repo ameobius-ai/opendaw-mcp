@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.267.0 (2026-07-06)
+
+### Added
+- `apply_contour` — Apply a melodic contour shape to existing notes. 6 contours: ascending, descending, arch, inverted_arch, wave, escalating. Redistributes pitches to follow the contour while keeping timing unchanged. range_semitones controls span (1-48), optional scale snapping (12 scales), preserve_first/last anchors. Complement to analyze_melody (which extracts contour). Melodic transformation, motivic reshaping.
+
 ## v1.266.0 (2026-07-06)
 
 ### Added
