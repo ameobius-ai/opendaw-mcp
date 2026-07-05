@@ -34657,6 +34657,272 @@ async def mcp_opendaw_create_metric_modulation(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_additive_rhythm(
+    grouping: str,
+    unit: str = "eighth",
+    repeats: int = 1,
+    pitch: str = "root",
+    scale: str = "minor",
+    root: str = "C",
+    octave: int = 4,
+    accent_mode: str = "group_start",
+    accent_velocity: float = 0.95,
+    normal_velocity: float = 0.6,
+    decay: float = 0.0,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create an additive rhythm — unequal groupings within a bar.
+
+    The defining technique of Messiaen, Stravinsky, Bartok, Ligeti, and
+    modern math rock / prog metal. Instead of dividing a bar into equal
+    parts (eighth-eighth-eighth-eighth), the bar is divided into unequal
+    groups (3+2+2 = 7 eighths, 2+3+2 = shifting accent, 5+3 = 8 eighths).
+
+    The resulting accent pattern creates a sense of irregular meter within
+    a nominal time signature — the pulse "turns" inside the bar.
+
+    Examples:
+      create_additive_rhythm("3+2+2", "eighth")
+        -> 7 eighth notes grouped as 3-2-2, accents on notes 1, 4, 6
+          (Bartok "Bulgarian Rhythm", Math rock 7/8 feel)
+      create_additive_rhythm("2+3+2", "eighth", repeats=4)
+        -> shifting accent pattern, 4 bars
+      create_additive_rhythm("5+3", "eighth", pitch="scale_up")
+        -> 8 eighths in 5+3 grouping, ascending scale
+      create_additive_rhythm("3+2+2", "sixteenth", repeats=2, decay=0.1)
+        -> 7 sixteenths per bar, velocity decay within groups
+
+    Args:
+        grouping: Plus-separated group sizes (e.g. "3+2+2", "5+3", "2+1+2").
+            Each number = count of notes in that group. Sum = total notes
+            per bar. 2-6 groups, 2-16 notes total.
+        unit: Note value — "eighth", "quarter", "sixteenth", "thirty_second".
+        repeats: Number of bars (1-16).
+        pitch: Pitch mode — "root" (same note), "scale_up" (ascending scale),
+            "scale_down" (descending), "alternating" (up/down per note),
+            "octave_bounce" (root->octave->root).
+        scale: Scale for pitch modes (minor, major, dorian, phrygian, etc.).
+        root: Root note (C, C#, D, ...).
+        octave: Base octave (1-6).
+        accent_mode: Where to place accents — "group_start" (first note of
+            each group gets accent), "group_end" (last note), "every_note"
+            (all same velocity).
+        accent_velocity: Velocity for accented notes (0-1).
+        normal_velocity: Velocity for non-accented notes (0-1).
+        decay: Velocity decay within each group (0-0.3). Each subsequent
+            note in a group gets slightly softer.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, grouping structure, accent pattern, and bar layout.
+    """
+    # Parse grouping
+    parts = grouping.replace(" ", "").split("+")
+    if len(parts) < 2 or len(parts) > 6:
+        return f"Error: grouping must have 2-6 groups, got {len(parts)}"
+    try:
+        groups = [int(p) for p in parts]
+    except ValueError:
+        return f"Error: group sizes must be integers, got '{grouping}'"
+    for g in groups:
+        if g < 1 or g > 8:
+            return f"Error: each group must be 1-8 notes, got {g}"
+    total_notes = sum(groups)
+    if total_notes < 2 or total_notes > 16:
+        return f"Error: total notes per bar must be 2-16, got {total_notes}"
+
+    if unit not in ("eighth", "quarter", "sixteenth", "thirty_second"):
+        return f"Error: unit must be eighth/quarter/sixteenth/thirty_second, got '{unit}'"
+    if repeats < 1 or repeats > 16:
+        return f"Error: repeats must be 1-16, got {repeats}"
+    if accent_mode not in ("group_start", "group_end", "every_note"):
+        return f"Error: accent_mode must be group_start/group_end/every_note, got '{accent_mode}'"
+    if not (0.0 <= accent_velocity <= 1.0):
+        return f"Error: accent_velocity must be 0-1, got {accent_velocity}"
+    if not (0.0 <= normal_velocity <= 1.0):
+        return f"Error: normal_velocity must be 0-1, got {normal_velocity}"
+    if not (0.0 <= decay <= 0.3):
+        return f"Error: decay must be 0-0.3, got {decay}"
+
+    unit_beats = {
+        "eighth": 0.5,
+        "quarter": 1.0,
+        "sixteenth": 0.25,
+        "thirty_second": 0.125,
+    }[unit]
+
+    # Build accent pattern: which note indices get accented
+    accent_indices = set()
+    if accent_mode == "group_start":
+        idx = 0
+        for g in groups:
+            accent_indices.add(idx)
+            idx += g
+    elif accent_mode == "group_end":
+        idx = 0
+        for g in groups:
+            idx += g - 1
+            accent_indices.add(idx)
+            idx += 1
+
+    # Build full note schedule: (position_in_beats, velocity, pitch_offset)
+    note_schedule = []
+    bar_length = total_notes * unit_beats
+    for bar in range(repeats):
+        bar_start = bar * bar_length
+        note_idx_in_bar = 0
+        group_idx = 0
+        for g in groups:
+            for within_group in range(g):
+                pos = bar_start + note_idx_in_bar * unit_beats
+                is_accented = note_idx_in_bar in accent_indices
+                base_vel = accent_velocity if is_accented else normal_velocity
+                vel = max(0.01, base_vel - decay * within_group)
+                note_schedule.append({
+                    "pos": round(pos, 4),
+                    "vel": round(vel, 4),
+                    "accent": is_accented,
+                    "bar": bar,
+                    "group": group_idx,
+                    "note_in_bar": note_idx_in_bar,
+                })
+                note_idx_in_bar += 1
+            group_idx += 1
+
+    # Pitch generation
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],
+        "lydian": [0, 2, 4, 6, 7, 9, 11],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+        "blues": [0, 3, 5, 6, 7, 10],
+    }
+    root_pc = NOTE_NAMES.get(root, 0)
+    scale_pcs = SCALES.get(scale, SCALES["minor"])
+
+    def pitch_for_note(idx):
+        if pitch == "root":
+            return (octave + 1) * 12 + root_pc
+        elif pitch == "scale_up":
+            pc = scale_pcs[idx % len(scale_pcs)]
+            octave_shift = idx // len(scale_pcs)
+            return (octave + 1 + octave_shift) * 12 + (pc + root_pc) % 12
+        elif pitch == "scale_down":
+            rev_idx = idx % len(scale_pcs)
+            pc = scale_pcs[-(rev_idx + 1)]
+            octave_shift = idx // len(scale_pcs)
+            return max(0, (octave + 1 - octave_shift) * 12 + (pc + root_pc) % 12)
+        elif pitch == "alternating":
+            if idx % 2 == 0:
+                return (octave + 1) * 12 + root_pc
+            pc = scale_pcs[1 % len(scale_pcs)]
+            return (octave + 1) * 12 + (pc + root_pc) % 12
+        elif pitch == "octave_bounce":
+            if idx % 2 == 0:
+                return (octave + 1) * 12 + root_pc
+            return (octave + 2) * 12 + root_pc
+        return (octave + 1) * 12 + root_pc
+
+    pitches_list = [pitch_for_note(i) for i in range(total_notes * repeats)]
+    velocities_list = [ns["vel"] for ns in note_schedule]
+    positions_list = [ns["pos"] for ns in note_schedule]
+    accents_list = [1 if ns["accent"] else 0 for ns in note_schedule]
+    dur_beats = unit_beats * 0.9  # slight gap between notes
+
+    pitches_json = json.dumps(pitches_list)
+    velocities_json = json.dumps(velocities_list)
+    positions_json = json.dumps(positions_list)
+    accents_json = json.dumps(accents_list)
+    groups_json = json.dumps(groups)
+    _ = (dur_beats, groups_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let region = null;
+        let collection = null;
+        if (regions.length > 0) {{
+            region = regions[0];
+            try {{
+                const vertex = region.events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const velocities = {velocities_json};
+        const positions = {positions_json};
+        const accents = {accents_json};
+        const durTicks = Math.round({dur_beats} * Quarter);
+        const groups = {groups_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < positions.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pos: positions[i], pitch: pitches[i], vel: velocities[i], accent: accents[i] === 1}});
+            }}
+        }});
+
+        const totalNotes = groups.reduce((a, b) => a + b, 0);
+
+        return {{
+            success: true,
+            grouping: "{grouping}",
+            groups: groups,
+            unit: "{unit}",
+            total_notes_per_bar: totalNotes,
+            bars: {repeats},
+            notes_created: created,
+            bar_length_beats: Math.round(totalNotes * {unit_beats} * 100) / 100,
+            accent_mode: "{accent_mode}",
+            accent_count: accents.filter(a => a === 1).length,
+            pitch_mode: "{pitch}",
+            scale: "{scale}",
+            root: "{root}",
+            note_preview: noteEvents.slice(0, 8),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
 

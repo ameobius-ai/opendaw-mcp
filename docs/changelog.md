@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.278.0 (2026-07-06)
+
+### Added
+- `create_additive_rhythm` — unequal groupings within a bar. Plus-separated group sizes ("3+2+2", "5+3") create irregular accent patterns. 4 note values, 5 pitch modes, group_start/group_end accents, velocity decay. Messiaen, Stravinsky, Bartók, math rock, prog metal.
+
 ## v1.277.0 (2026-07-06)
 
 ### Added

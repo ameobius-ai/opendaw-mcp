@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.277.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.278.0"
 ---
 
 # openDAW Composition Patterns
@@ -123,6 +123,7 @@ What do you want to create?
 ├── Polyrhythm → create_melodic_polyrhythm (N notes across M beats, 3:4/5:4/7:4, scale-based or custom, 4 velocity patterns)
 ├── Phasing → create_phase_shift (Steve Reich phasing, gradual cumulative drift per bar, forward/backward, 2-16 bars)
 ├── Metric Modulation → create_metric_modulation (note-value equivalence tempo change, 12 note values, direct ratio "N:M", optional time signature)
+├── Additive Rhythm → create_additive_rhythm (unequal groupings within a bar, "3+2+2" etc., 4 note values, 5 pitch modes, group_start/group_end accents, velocity decay)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
