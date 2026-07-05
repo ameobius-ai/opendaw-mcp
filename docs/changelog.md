@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.66.0 (2026-07-05)
+
+- **`werkstatt_scratch.js` DSP script** — DJ vinyl scratch with turntable physics. Triangle LFO back-and-forth, pullback yank, friction-based inertia, wow/flutter, crackle. 10 params: depth, rate, pullback, friction, wow, flutter, flutter_rate, crackle, mix, output
+- **56 DSP scripts** (43 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **575 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.65.0 (2026-07-05)
 
 - **`werkstatt_reverse.js` DSP script** — real-time reverse playback effect with chunked circular buffer. Reverses audio in configurable chunks (0.05-5 sec) with variable speed (0.25x-4x). Three trigger modes: continuous, single, gate. Three stereo modes: normal, ping-pong, wide. Feedback for layered reverse textures. Crossfade smoothing. Classic for backwards cymbals, vocal reverses, psychedelic transitions. 10 params: chunk_size, feedback, speed, smooth, dry_gain, wet_gain, mix, stereo_mode, trigger_mode, output

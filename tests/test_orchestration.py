@@ -2070,3 +2070,83 @@ class TestReverseDSP:
         assert "smooth" in code, "Missing smooth param"
         assert "fadeSamples" in code, "Missing fade samples calculation"
         assert "fadeStart" in code or "fadeEnd" in code, "Missing crossfade logic"
+
+
+class TestScratchDSP:
+    """Unit tests for werkstatt_scratch.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_scratch.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt scratch" in code, "Missing @werkstatt scratch header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_circular_buffer(self):
+        code = self._read_script()
+        assert "bufL" in code and "bufR" in code, "Missing stereo buffer"
+        assert "writePos" in code and "readPos" in code, "Missing read/write positions"
+
+    def test_scratch_lfo(self):
+        code = self._read_script()
+        assert "scratchPhase" in code, "Missing scratch LFO phase"
+        assert "triWave" in code, "Missing triangle wave for back-and-forth"
+        assert "rate" in code, "Missing rate param"
+
+    def test_physics_model(self):
+        code = self._read_script()
+        assert "velocity" in code, "Missing velocity state"
+        assert "friction" in code, "Missing friction param"
+        assert "frictionCoeff" in code, "Missing friction coefficient"
+        assert "targetVelocity" in code, "Missing target velocity"
+
+    def test_pullback(self):
+        code = self._read_script()
+        assert "pullback" in code, "Missing pullback param"
+        assert "pullbackShape" in code, "Missing pullback shape calculation"
+
+    def test_wow_flutter(self):
+        code = self._read_script()
+        assert "wow" in code and "flutter" in code, "Missing wow/flutter params"
+        assert "wowPhase" in code and "flutterPhase" in code, "Missing wow/flutter phases"
+        assert "pitchMod" in code, "Missing pitch modulation"
+
+    def test_crackle(self):
+        code = self._read_script()
+        assert "crackle" in code, "Missing crackle param"
+        assert "crackleVal" in code, "Missing crackle value"
+        assert "crackleCounter" in code, "Missing crackle counter"
+
+    def test_variable_speed_readhead(self):
+        code = self._read_script()
+        assert "readSpeed" in code, "Missing variable read speed"
+        assert "linear" in code.lower() or "frac" in code, "Missing interpolation for variable speed"
+
+    def test_mix_and_output(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mix = [p for p in params if p["name"] == "mix"][0]
+        out_p = [p for p in params if p["name"] == "output"][0]
+        assert mix["min"] == 0 and mix["max"] == 1, "mix range should be 0-1"
+        assert out_p["min"] == -12 and out_p["max"] == 12, "output range should be -12 to 12 dB"
