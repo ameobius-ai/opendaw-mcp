@@ -26,7 +26,7 @@ jobs:
           tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]
           count = len(tools)
           print(f'MCP tools found: {count}')
-          assert count >= 377, f'Expected at least 377 tools, got {count}'
+          assert count >= 378, f'Expected at least 378 tools, got {count}'
           print('Tool count verification passed!')
           "
       - name: Validate DSP scripts exist and syntax

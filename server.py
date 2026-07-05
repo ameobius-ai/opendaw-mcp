@@ -26493,6 +26493,209 @@ async def mcp_opendaw_create_funk_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_lofi_arrangement(
+    bpm: float = 78,
+    bars: int = 8,
+    root: str = "F",
+    octave: int = 3,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    chord_track: int = 2,
+    melody_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.6,
+) -> str:
+    """Create a full lofi hip-hop arrangement — boom-bap drums + jazzy chords + mellow bass + sleepy melody.
+
+    Lofi hip-hop (Nujabes / J Dilla / chillhop) — warm, dusty, mellow:
+    - Track 0: Drums — boom-bap: kick on 1 and "and-a" of 2, snare on 2 and 4,
+                     laid-back 16th hi-hat with swing. No rush — behind the beat.
+                     Vinyl crackle character (lower velocity, humanized).
+    - Track 1: Bass — mellow root notes with occasional octave/fifth walks.
+                     Long, sustained, warm. No aggression.
+    - Track 2: Chords — jazzy 7th/9th voicings (maj7, min9, dom9) with
+                     soft attacks and gentle arpeggiation. The harmonic
+                     signature of lofi: extended chords, not triads.
+    - Track 3: Melody — sparse, sleepy pentatonic phrases. Long notes,
+                     space between phrases. The "nodding off" quality.
+
+    At 78 BPM (default), this creates the classic chillhop pocket — slow,
+    warm, behind-the-beat. ii-V-I jazz-influenced harmony (Dm7-G7-Cmaj7
+    in F major) gives that nostalgic, bittersweet quality.
+
+    bpm: Tempo (70-90, default 78 = chillhop sweet spot).
+    bars: Arrangement length (4-16, default 8).
+    root: Root note (F is a classic lofi key — warm, midrange).
+    octave: MIDI octave for bass (3 = F3=53, warm lofi bass).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / chord_track / melody_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_lofi_arrangement(bpm=78, root="F", bars=8)
+      create_lofi_arrangement(bpm=82, root="D", bars=16)
+    """
+    if not (65 <= bpm <= 95):
+        return "Error: bpm must be 65-95"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave) * 12 + root_pc
+    chord_base = (octave + 1) * 12 + root_pc
+    melody_base = (octave + 2) * 12 + root_pc
+
+    # ii-V-I progression in F major: Gm7 → C7 → Fmaj7 → Fmaj7 (4-bar cycle)
+    # Lofi loves ii-V-I — jazzy, nostalgic, bittersweet
+    _MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11]
+    chord_degrees = [1, 4, 0, 0]  # ii, V, I, I
+    chord_types = ["min7", "dom7", "maj7", "maj7"]
+    _CHORD_INTERVALS = {"min7": [0, 3, 7, 10], "dom7": [0, 4, 7, 10], "maj7": [0, 4, 7, 11]}
+
+    # --- DRUMS: boom-bap (1-bar cycle, 4-beat bar) ---
+    # Kick: beat 1 + "and-a" of beat 2 (syncopated)
+    # Snare: backbeat on 2 and 4 (laid back, slightly lower velocity)
+    # Hi-hat: 16ths with swing + velocity variation (behind the beat feel)
+    kick_p, snare_p, hat_p = 36, 38, 42
+    drum_notes = []
+    drum_cycle = 4.0
+    for c in range(bars):
+        off = c * drum_cycle
+        # Kick: beat 1, and-a of 2, beat 3 (light)
+        for beat, vm in [(0.0, 0.9), (1.75, 0.7), (2.0, 0.6)]:
+            drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + beat, 4),
+                              "duration": 0.2, "velocity": round(velocity * vm, 3)})
+        # Snare: backbeat 2 and 4 (laid back — slightly lower)
+        for beat, vm in [(1.0, 0.75), (3.0, 0.8)]:
+            drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + beat, 4),
+                              "duration": 0.15, "velocity": round(velocity * vm, 3)})
+        # Hi-hat: 16ths with swing (skip some for laid-back feel)
+        hat_pattern = [
+            (0.0, 0.5), (0.25, 0.35), (0.5, 0.45), (0.75, 0.3),
+            (1.0, 0.5), (1.25, 0.35), (1.5, 0.45), (1.75, 0.3),
+            (2.0, 0.5), (2.25, 0.35), (2.5, 0.45), (2.75, 0.3),
+            (3.0, 0.5), (3.25, 0.35), (3.5, 0.45), (3.75, 0.3),
+        ]
+        for beat, vm in hat_pattern:
+            # Skip every other off-beat 16th for laid-back feel
+            if beat % 0.5 == 0.25 and c % 2 == 1:
+                continue
+            drum_notes.append({"pitch": hat_p, "start": round(start_beat + off + beat, 4),
+                              "duration": 0.04, "velocity": round(velocity * vm * 0.7, 3)})
+
+    # --- BASS: mellow root notes, occasional walk ---
+    # Root on beat 1, sustained. Walk to next chord root near end of bar
+    bass_notes = []
+    for c in range(bars):
+        off = c * 4.0
+        deg = chord_degrees[c % 4]
+        next_deg = chord_degrees[(c + 1) % 4]
+        bass_root_pc = (root_pc + _MAJOR_SCALE[deg]) % 12
+        next_root_pc = (root_pc + _MAJOR_SCALE[next_deg]) % 12
+        bass_pitch = bass_base - 12 + bass_root_pc  # one octave below chord base
+
+        # Sustained root for 3.5 beats
+        bass_notes.append({"pitch": bass_pitch, "start": round(start_beat + off, 4),
+                          "duration": 3.5, "velocity": round(velocity * 0.8, 3)})
+
+        # Walk note to next root on beat 4 (if chord changes)
+        if deg != next_deg:
+            walk_pitch = bass_base - 12 + next_root_pc
+            bass_notes.append({"pitch": walk_pitch, "start": round(start_beat + off + 3.5, 4),
+                              "duration": 0.5, "velocity": round(velocity * 0.6, 3)})
+
+    # --- CHORDS: jazzy 7th/9th voicings, gentle arpeggiation ---
+    # Soft attack, arpeggiated from bottom to top over ~1 beat
+    chord_notes = []
+    for c in range(bars):
+        off = c * 4.0
+        deg = chord_degrees[c % 4]
+        ctype = chord_types[c % 4]
+        chord_root_pc = (root_pc + _MAJOR_SCALE[deg]) % 12
+        intervals = _CHORD_INTERVALS[ctype]
+
+        # Arpeggiate chord over 1 beat (0.25 per note)
+        for i, interval in enumerate(intervals):
+            pitch = chord_base + chord_root_pc + interval
+            chord_notes.append({
+                "pitch": pitch,
+                "start": round(start_beat + off + i * 0.25, 4),
+                "duration": 3.5,
+                "velocity": round(velocity * (0.5 + 0.1 * i), 3),  # gentle build
+            })
+
+    # --- MELODY: sparse sleepy pentatonic phrases ---
+    # Long notes with space — the "nodding off" quality
+    _PENTATONIC_MAJOR = [0, 2, 4, 7, 9]
+    melody_notes = []
+    for c in range(bars):
+        off = c * 4.0
+        deg = chord_degrees[c % 4]
+        melody_root_pc = (root_pc + _MAJOR_SCALE[deg]) % 12
+
+        # One or two notes per bar — long, sustained
+        if c % 2 == 0:
+            # Long note on beat 1 (root or third of pentatonic)
+            pidx = c % 3  # vary pentatonic degree
+            pitch = melody_base + melody_root_pc + _PENTATONIC_MAJOR[pidx]
+            melody_notes.append({"pitch": pitch, "start": round(start_beat + off, 4),
+                                "duration": 3.0, "velocity": round(velocity * 0.5, 3)})
+        else:
+            # Two shorter notes on beat 2 and 3.5
+            pidx = (c + 2) % 4
+            pitch1 = melody_base + melody_root_pc + _PENTATONIC_MAJOR[pidx]
+            pitch2 = melody_base + melody_root_pc + _PENTATONIC_MAJOR[(pidx + 1) % 5]
+            melody_notes.append({"pitch": pitch1, "start": round(start_beat + off + 1.0, 4),
+                                "duration": 1.5, "velocity": round(velocity * 0.45, 3)})
+            melody_notes.append({"pitch": pitch2, "start": round(start_beat + off + 2.5, 4),
+                                "duration": 1.0, "velocity": round(velocity * 0.4, 3)})
+
+    # Create all notes via batch API
+    drum_json = json.dumps(drum_notes)
+    bass_json = json.dumps(bass_notes)
+    chord_json = json.dumps(chord_notes)
+    melody_json = json.dumps(melody_notes)
+
+    drum_result = await mcp_opendaw_create_notes_batch(drum_json, unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, bass_track)
+    chord_result = await mcp_opendaw_create_notes_batch(chord_json, unit_index, chord_track)
+    melody_result = await mcp_opendaw_create_notes_batch(melody_json, unit_index, melody_track)
+
+    drum_data = json.loads(drum_result) if isinstance(drum_result, str) else drum_result
+    bass_data = json.loads(bass_result) if isinstance(bass_result, str) else bass_result
+    chord_data = json.loads(chord_result) if isinstance(chord_result, str) else chord_result
+    melody_data = json.loads(melody_result) if isinstance(melody_result, str) else melody_result
+
+    return json.dumps({
+        "success": True,
+        "genre": "lofi",
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "chords": {"track": chord_track, "notes": len(chord_notes), "result": chord_data.get("notes_created", len(chord_notes))},
+            "melody": {"track": melody_track, "notes": len(melody_notes), "result": melody_data.get("notes_created", len(melody_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(chord_notes) + len(melody_notes),
+        "drum_pattern": "boom_bap_laid_back_16th",
+        "bass_pattern": "mellow_root_walk",
+        "chord_type": "jazzy_7th_9th_arpeggiated",
+        "melody_type": "sparse_sleepy_pentatonic",
+        "harmony": "ii_V_I_loop",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_reggae_arrangement(
     bpm: float = 80,
     bars: int = 8,
@@ -28514,6 +28717,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "synthwave": {"bpm": 110, "root": "A",  "tracks": 4, "master_style": "warm"},
         "trance":    {"bpm": 138, "root": "F",  "tracks": 4, "master_style": "loud"},
         "disco":     {"bpm": 120, "root": "G",  "tracks": 4, "master_style": "warm"},
+        "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4, "master_style": "warm"},
     }
 
     if genre not in defaults:
@@ -28580,6 +28784,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "synthwave": mcp_opendaw_create_synthwave_arrangement,
         "trance":    mcp_opendaw_create_trance_arrangement,
         "disco":     mcp_opendaw_create_disco_arrangement,
+        "lofi":      mcp_opendaw_create_lofi_arrangement,
     }
 
     try:

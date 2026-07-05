@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.200.0 (2026-07-05)
+
+### Added
+- `create_lofi_arrangement` — 16th multi-track genre arrangement. Lofi hip-hop (Nujabes / J Dilla / chillhop): boom-bap drums (laid-back 16th hats, syncopated kick, backbeat snare), mellow bass (root + walk), jazzy 7th chords (ii-V-I, arpeggiated maj7/min7/dom7), sparse sleepy pentatonic melody. 78 BPM default, F major, 4 tracks. Integrated into create_full_genre_pipeline (16 genres total). 11 unit tests (signature, defaults, harmony, drums, tracks, delegation, pipeline integration, BPM validation, arpeggiation, pentatonic). **378 MCP tools**, 1403 unit tests
+
 ## v1.199.0 (2026-07-05)
 
 ### Added
