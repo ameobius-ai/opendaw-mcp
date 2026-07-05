@@ -14795,6 +14795,105 @@ async def mcp_opendaw_create_volume_fade(unit_index: int, direction: str = "out"
 
 
 @mcp.tool()
+async def mcp_opendaw_create_pan_sweep(unit_index: int, start_beat: float = 0, duration_beats: float = 8, start_pan: float = -1, end_pan: float = 1, curve: str = "linear", steps: int = 24) -> str:
+    """Create a panning automation sweep — move signal from left to right (or vice versa) over time.
+
+    Classic stereo movement technique for intros, guitar solos, EDM builds, and section transitions.
+    Creates panning automation events on the AU's panning parameter, sweeping from one position
+    to another. Uses linear curve by default (panning is already psychoacoustic, exp not needed).
+
+    unit_index: AU index.
+    start_beat: Start position in beats.
+    duration_beats: Sweep length in beats (default 8 = 2 bars).
+    start_pan: Starting pan position -1.0 (full left) to 1.0 (full right). Default -1.
+    end_pan: Ending pan position -1.0 to 1.0. Default 1 (full sweep L→R).
+    curve: "linear" (default — even stereo movement), "exp" (accelerating), "log" (decelerating).
+    steps: Number of automation points (default 24 = smooth).
+
+    Returns events created, pan range, and preview.
+
+    Examples:
+      create_pan_sweep(unit_index=0, duration_beats=16)
+        → 16-beat full L→R pan sweep, linear
+      create_pan_sweep(unit_index=2, start_pan=0.5, end_pan=-0.5, duration_beats=4)
+        → Quick 4-beat R→L sweep from half-right to half-left
+    """
+    end_beat = start_beat + duration_beats
+    safe_curve = curve.replace('"', '').replace("'", "")
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
+        try {{
+            const unitIdx = {unit_index};
+            const startBeat = {start_beat};
+            const endBeat = {end_beat};
+            const startPan = {start_pan};
+            const endPan = {end_pan};
+            const numSteps = {steps};
+            const curveType = "{safe_curve}";
+
+            const units = h.allAUBoxes();
+            if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
+            const au = units[unitIdx];
+
+            const panField = au["panning"];
+            if (!panField) return {{error: "No panning field on AU"}};
+
+            const beatRange = endBeat - startBeat;
+            const points = [];
+            for (let i = 0; i < numSteps; i++) {{
+                const t = i / (numSteps - 1);
+                let value;
+                if (curveType === "exp") {{
+                    value = startPan + (endPan - startPan) * (Math.exp(t * 3) - 1) / (Math.exp(3) - 1);
+                }} else if (curveType === "log") {{
+                    value = startPan + (endPan - startPan) * Math.log(1 + t * (Math.E - 1));
+                }} else {{
+                    value = startPan + (endPan - startPan) * t;
+                }}
+                const beatPos = startBeat + beatRange * t;
+                points.push([beatPos, Math.max(-1, Math.min(1, value))]);
+            }}
+
+            let autoTrack;
+            h.editing.modify(() => {{
+                autoTrack = h.api.createAutomationTrack(au, panField);
+                const panClip = h.api.createValueClip(autoTrack, 0, {{name: "panning"}});
+                const panCol = panClip.events?.targetVertex?.unwrap?.()?.box;
+                if (!panCol) throw new Error("No event collection on panning clip");
+                points.forEach(([beatPos, value], i) => {{
+                    ValueEventBox.create(h.boxGraph, UUID.generate(), (box) => {{
+                        box.events.refer(panCol.events);
+                        box.position.setValue(Math.round(beatPos * Quarter));
+                        box.index.setValue(i);
+                        box.value.setValue(value);
+                        box.interpolation.setValue(1);
+                    }});
+                }});
+            }});
+
+            return {{
+                success: true,
+                events_created: points.length,
+                unit_index: unitIdx,
+                start_beat: startBeat,
+                end_beat: endBeat,
+                pan_range: [startPan, endPan],
+                curve: curveType,
+                track_index: autoTrack?.index?.getValue?.() ?? 0,
+                preview: points.slice(0, 6).map(([b, v]) => ({{beat: Math.round(b * 100) / 100, pan: Math.round(v * 1000) / 1000}})),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_mix_preset(preset: str) -> str:
     """Apply a mix preset to all audio units in one call — volume, pan, mute, solo.
 

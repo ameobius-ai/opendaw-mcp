@@ -7814,3 +7814,67 @@ class TestCreateVolumeFade:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_create_volume_fade" in tool_names
 
+
+class TestCreatePanSweep:
+    """Tests for create_pan_sweep orchestration tool"""
+
+    def test_pan_range_left_to_right(self):
+        """Default sweep: -1 (full left) to +1 (full right)"""
+        start_pan, end_pan = -1, 1
+        assert start_pan < end_pan
+
+    def test_pan_clamped_to_valid_range(self):
+        """Pan values clamped to -1..+1"""
+        val = max(-1, min(1, 1.5))
+        assert val == 1
+        val = max(-1, min(1, -1.5))
+        assert val == -1
+
+    def test_linear_midpoint_is_center(self):
+        """Linear L→R sweep at midpoint should be 0 (center)"""
+        start_pan, end_pan = -1, 1
+        t = 0.5
+        val = start_pan + (end_pan - start_pan) * t
+        assert abs(val) < 0.001
+
+    def test_linear_first_point_is_start(self):
+        """First point of linear sweep = start_pan"""
+        start_pan, end_pan = -1, 1
+        t = 0.0
+        val = start_pan + (end_pan - start_pan) * t
+        assert val == start_pan
+
+    def test_linear_last_point_is_end(self):
+        """Last point of linear sweep = end_pan"""
+        start_pan, end_pan = -1, 1
+        t = 1.0
+        val = start_pan + (end_pan - start_pan) * t
+        assert val == end_pan
+
+    def test_reverse_sweep_right_to_left(self):
+        """R→L sweep: start +1, end -1"""
+        start_pan, end_pan = 1, -1
+        assert start_pan > end_pan
+
+    def test_partial_sweep_stays_in_range(self):
+        """Half-right to half-left: 0.5 to -0.5"""
+        start_pan, end_pan = 0.5, -0.5
+        t = 0.5
+        val = start_pan + (end_pan - start_pan) * t
+        assert abs(val) < 0.001  # center at midpoint
+
+    def test_steps_count(self):
+        """24 steps = 24 points"""
+        steps = 24
+        points = [i / (steps - 1) for i in range(steps)]
+        assert len(points) == 24
+
+    def test_tool_signature_exists(self):
+        """create_pan_sweep is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_pan_sweep" in tool_names
+

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.179.0 (2026-07-05)
+
+### Added
+- `create_pan_sweep` — stereo panning automation sweep. L→R, R→L, or partial. Linear curve default (panning is psychoacoustic, exp not needed). For intros, guitar solos, EDM builds, stereo movement. 361 MCP tools total
+
 ## v1.178.0 (2026-07-05)
 
 ### Added
