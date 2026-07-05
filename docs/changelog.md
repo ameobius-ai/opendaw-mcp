@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.73.0 (2026-07-05)
+
+- **`werkstatt_moog_ladder.js` DSP script** — Moog ladder 24dB/oct filter, 4 cascaded stages, feedback resonance, tanh nonlinearity, 3 modes (LP/HP/BP), drive, warmth
+- **60 DSP scripts** (47 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **702 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.72.0 (2026-07-05)
 
 - **`werkstatt_waveshaper.js` DSP script** — custom-curve waveshaper: tanh/cubic/atan/Chebyshev, drive 0-3, bias, harmonics, tone, output, mix. 4 shaping curves in one unit

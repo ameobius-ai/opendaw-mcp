@@ -2694,3 +2694,57 @@ class TestWerkstattWaveshaper:
         assert "_shape(" in code
         assert "Math.tanh" in code
         assert "Math.atan" in code
+
+
+class TestWerkstattMoogLadder:
+    """Unit tests for werkstatt_moog_ladder.js DSP script structure."""
+
+    def _read_script(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_moog_ladder.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt moog_ladder 1 1" in code
+
+    def test_label(self):
+        code = self._read_script()
+        assert "// @label Moog Ladder Filter" in code
+
+    def test_param_count(self):
+        code = self._read_script()
+        param_lines = [l for l in code.split("\n") if l.strip().startswith("// @param")]
+        assert len(param_lines) == 6
+
+    def test_param_cutoff(self):
+        code = self._read_script()
+        assert "// @param cutoff 800 20 20000 exp Hz" in code
+
+    def test_param_resonance(self):
+        code = self._read_script()
+        assert "// @param resonance 0.3 0 1 linear" in code
+
+    def test_param_warmth(self):
+        code = self._read_script()
+        assert "// @param warmth 0 0 1 linear" in code
+
+    def test_param_mode(self):
+        code = self._read_script()
+        assert "// @param mode 0 0 2 linear" in code
+
+    def test_has_processAudio(self):
+        code = self._read_script()
+        assert "processAudio(inputs, outputs, parameters)" in code
+
+    def test_has_ladder_stages(self):
+        code = self._read_script()
+        assert "stages[0]" in code
+        assert "stages[1]" in code
+        assert "stages[2]" in code
+        assert "stages[3]" in code
+
+    def test_has_tanh(self):
+        code = self._read_script()
+        assert "_tanh(" in code
+        assert "self._tanh" not in code  # it's a JS method, not Python

@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **306** MCP tools | **89** Python examples (8 genre templates) |
-| **59** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **692** unit + E2E tests |
+| **306** MCP tools | **91** Python examples (8 genre templates) |
+| **60** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **702** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.73.0 (2026-07-05)
+
+- **`werkstatt_moog_ladder.js` DSP script** — Moog ladder filter (24dB/oct) with 4 cascaded one-pole stages, feedback resonance with self-oscillation, Huovilainen improved topology with tanh nonlinearity per stage. 3 modes: LP (classic Moog 24dB), HP (subtractive), BP (cascade). Drive (pre-filter saturation), warmth (feedback cross-mix from stage 1 to resonance path). Unlike multifilter (Chamberlin SVF — 12dB/oct, linear phase), Moog ladder has nonlinear character, steeper rolloff, and harmonic distortion at high resonance. Classic for: subtractive synthesis, acid bass, synthwave leads, analog emulation, house stabs. 6 params: cutoff, resonance, drive, warmth, mode, mix
+- **60 DSP scripts** (47 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **702 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ## v1.72.0 (2026-07-05)
 
