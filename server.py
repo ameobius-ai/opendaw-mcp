@@ -27197,6 +27197,167 @@ async def mcp_opendaw_apply_velocity_curve(
 
 
 @mcp.tool()
+async def mcp_opendaw_apply_velocity_lfo(
+    unit_index: int,
+    track_index: int,
+    rate: float = 1.0,
+    depth: float = 0.3,
+    shape: str = "sine",
+    phase: float = 0.0,
+    center: float = 0.7,
+    region_index: int = -1,
+) -> str:
+    """Apply periodic velocity modulation — velocity LFO along note positions.
+
+    Oscillates note velocity cyclically based on each note's position,
+    creating pumping, breathing, or wave-like dynamic motion. Unlike
+    apply_velocity_curve (monotonic ramps), this creates REPEATING
+    velocity patterns synced to beat positions.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        rate: LFO cycles per beat (0.25=every 4 beats, 1.0=per beat,
+              2.0=twice per beat, 0.5=every 2 beats)
+        depth: Modulation depth 0-1 (0=no change, 0.3=subtle breathing,
+               1.0=full swing from 0 to max)
+        shape: LFO waveform — "sine" (smooth), "triangle" (linear),
+               "saw" (ramp up), "square" (on/off), "random" (per-beat random)
+        phase: Starting phase 0-1 (0=begin at peak, 0.25=begin at zero rising,
+               0.5=begin at trough, 0.75=begin at zero falling)
+        center: Center velocity around which modulation oscillates (0-1).
+                The LFO modulates ±depth*center around this value.
+        region_index: Specific region (-1 = all regions)
+
+    Returns:
+        JSON with notes_processed, modulation stats (min/max/avg velocity
+        before and after), regions_processed, rate, depth, shape.
+    """
+    rate = max(0.01, float(rate))
+    depth = max(0.0, min(1.0, float(depth)))
+    shape = shape if shape in ("sine", "triangle", "saw", "square", "random") else "sine"
+    phase = max(0.0, min(1.0, float(phase)))
+    center = max(0.0, min(1.0, float(center)))
+
+    result = await bridge.evaluate(f"""async () => {{
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const lfoRate = {rate};
+        const lfoDepth = {depth};
+        const lfoShape = {json.dumps(shape)};
+        const lfoPhase = {phase};
+        const lfoCenter = {center};
+        const regionIdx = {region_index};
+
+        const h = window.DAW_HeadlessBridge;
+        const units = [...h.api.units.pointerHub.incoming()];
+        if (unitIdx >= units.length) return JSON.stringify({{"error": "unit out of range"}});
+        const au = units[unitIdx];
+        const tracks = [...au.tracks.pointerHub.incoming()];
+        if (trackIdx >= tracks.length) return JSON.stringify({{"error": "track out of range"}});
+        const track = tracks[trackIdx];
+        const trackBox = track.box;
+        const isNote = trackBox.type && (trackBox.type.label === 'note' || trackBox.type.value === 2);
+        if (!isNote) return JSON.stringify({{"error": "track is not a note track"}});
+
+        const regions = [...track.regions.pointerHub.incoming()];
+        const regionsToProcess = regionIdx >= 0 ? [regions[regionIdx]].filter(Boolean) : regions;
+        if (regionsToProcess.length === 0) return JSON.stringify({{"error": "no regions found"}});
+
+        const PPQN = 960;
+        let totalProcessed = 0;
+        let origMin = Infinity, origMax = 0, origSum = 0;
+        let newMin = Infinity, newMax = 0, newSum = 0;
+        const regionStats = [];
+
+        function lfoValue(phase01) {{
+            const p = (phase01 + lfoPhase) % 1.0;
+            switch (lfoShape) {{
+                case "sine":
+                    return Math.sin(p * 2 * Math.PI);
+                case "triangle":
+                    return p < 0.5 ? (4 * p - 1) : (3 - 4 * p);
+                case "saw":
+                    return 2 * p - 1;
+                case "square":
+                    return p < 0.5 ? 1 : -1;
+                case "random":
+                    // Per-beat random: use beat index as seed
+                    const beatIdx = Math.floor(phase01 * lfoRate);
+                    const seed = (beatIdx * 9301 + 49297) % 233280;
+                    return (seed / 233280) * 2 - 1;
+                default:
+                    return Math.sin(p * 2 * Math.PI);
+            }}
+        }}
+
+        for (const region of regionsToProcess) {{
+            const regionBox = region.box;
+            const coll = regionBox.events.targetVertex.unwrap();
+            if (!coll) continue;
+            const notes = [...coll.events.pointerHub.incoming()];
+            let regionProcessed = 0;
+            let rOrigMin = Infinity, rOrigMax = 0, rOrigSum = 0;
+            let rNewMin = Infinity, rNewMax = 0, rNewSum = 0;
+
+            await h.editing.modify(async () => {{
+                for (const note of notes) {{
+                    const nb = note.box;
+                    const pos = nb.position.value;
+                    const beatPos = pos / PPQN;
+                    const lfoPhase01 = (beatPos * lfoRate) % 1.0;
+                    const lfo = lfoValue(lfoPhase01);
+                    const origVel = nb.velocity.value;
+                    const newVel = Math.max(0, Math.min(1, lfoCenter + lfo * lfoDepth * lfoCenter));
+
+                    nb.velocity.setValue(newVel);
+                    totalProcessed++;
+                    regionProcessed++;
+                    origSum += origVel; newSum += newVel;
+                    if (origVel < origMin) origMin = origVel;
+                    if (origVel > origMax) origMax = origVel;
+                    if (newVel < newMin) newMin = newVel;
+                    if (newVel > newMax) newMax = newVel;
+                    if (origVel < rOrigMin) rOrigMin = origVel;
+                    if (origVel > rOrigMax) rOrigMax = origVel;
+                    if (newVel < rNewMin) rNewMin = newVel;
+                    if (newVel > rNewMax) rNewMax = newVel;
+                    rOrigSum += origVel; rNewSum += newVel;
+                }}
+            }});
+
+            regionStats.push({{
+                notes: regionProcessed,
+                original_min: Math.round(rOrigMin * 1000) / 1000,
+                original_max: Math.round(rOrigMax * 1000) / 1000,
+                original_avg: Math.round((rOrigSum / Math.max(1, regionProcessed)) * 1000) / 1000,
+                new_min: Math.round(rNewMin * 1000) / 1000,
+                new_max: Math.round(rNewMax * 1000) / 1000,
+                new_avg: Math.round((rNewSum / Math.max(1, regionProcessed)) * 1000) / 1000,
+            }});
+        }}
+
+        return JSON.stringify({{
+            rate: lfoRate,
+            depth: lfoDepth,
+            shape: lfoShape,
+            phase: lfoPhase,
+            center: lfoCenter,
+            notes_processed: totalProcessed,
+            original_min: Math.round(Math.min(origMin, 0) * 1000) / 1000,
+            original_max: Math.round(origMax * 1000) / 1000,
+            original_avg: Math.round((origSum / Math.max(1, totalProcessed)) * 1000) / 1000,
+            new_min: Math.round(Math.min(newMin, 0) * 1000) / 1000,
+            new_max: Math.round(newMax * 1000) / 1000,
+            new_avg: Math.round((newSum / Math.max(1, totalProcessed)) * 1000) / 1000,
+            regions_processed: regionsToProcess.length,
+            region_stats: regionStats,
+        }});
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_articulation(
     unit_index: int = 0,
     track_index: int = 0,

@@ -97,6 +97,7 @@ What do you want to create?
 ├── Rhythm apply → apply_rhythm_pattern (stamp pattern onto notes, inverse of extract)
 ├── Pitch-based dynamics → map_velocity_by_pitch (higher_quieter/lower_quieter/bell_curve)
 ├── Velocity quantize → quantize_velocities (MPC 16-level, stepped dynamics, 2-128 levels)
+├── Velocity LFO → apply_velocity_lfo (sine/triangle/saw/square/random, cyclic pumping)
 ├── Cross-track balance → balance_track_velocities (5 presets, MIDI mix leveling)
 ├── MIDI echo → create_midi_echo (decaying repeats, pitch shift, 4 feedback modes)
 │

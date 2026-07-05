@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.249.0 (2026-07-06)
+
+### Added
+- `apply_velocity_lfo` — Periodic velocity modulation (velocity LFO). 5 waveforms (sine/triangle/saw/square/random), rate (cycles per beat), depth, phase, center velocity. Creates pumping, breathing, wave-like dynamics synced to beat positions.
+
 ## v1.248.0 (2026-07-06)
 
 ### Added

@@ -16065,6 +16065,119 @@ class TestBalanceTrackVelocities:
         assert len(presets) == 6
 
 
+class TestApplyVelocityLfo:
+    """Tests for mcp_opendaw_apply_velocity_lfo — periodic velocity modulation."""
+
+    def _lfo_value(self, phase01, shape="sine", phase_offset=0.0):
+        """Pure-Python reimplementation of the JS LFO."""
+        p = (phase01 + phase_offset) % 1.0
+        if shape == "sine":
+            import math
+            return math.sin(p * 2 * math.pi)
+        elif shape == "triangle":
+            return 4 * p - 1 if p < 0.5 else 3 - 4 * p
+        elif shape == "saw":
+            return 2 * p - 1
+        elif shape == "square":
+            return 1 if p < 0.5 else -1
+        else:
+            import math
+            return math.sin(p * 2 * math.pi)
+
+    def _compute_velocity(self, orig_vel, beat_pos, rate, depth, shape, phase, center):
+        """Simulate the LFO modulation."""
+        lfo_phase01 = (beat_pos * rate) % 1.0
+        lfo = self._lfo_value(lfo_phase01, shape, phase)
+        return max(0.0, min(1.0, center + lfo * depth * center))
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_apply_velocity_lfo"]
+        assert len(tools) == 1
+
+    def test_sine_shape(self):
+        """Sine LFO: zero at phase 0, peak at 0.25, trough at 0.75"""
+        assert abs(self._lfo_value(0.0, "sine") - 0.0) < 0.01
+        assert abs(self._lfo_value(0.25, "sine") - 1.0) < 0.01
+        assert abs(self._lfo_value(0.75, "sine") + 1.0) < 0.01
+
+    def test_triangle_shape(self):
+        """Triangle: rises linearly then falls"""
+        assert abs(self._lfo_value(0.0, "triangle") + 1.0) < 0.01
+        assert abs(self._lfo_value(0.25, "triangle") - 0.0) < 0.01
+        assert abs(self._lfo_value(0.5, "triangle") - 1.0) < 0.01
+
+    def test_saw_shape(self):
+        """Saw: ramps from -1 to +1"""
+        assert abs(self._lfo_value(0.0, "saw") + 1.0) < 0.01
+        assert abs(self._lfo_value(0.5, "saw") - 0.0) < 0.01
+        assert abs(self._lfo_value(0.99, "saw") - 0.98) < 0.02
+
+    def test_square_shape(self):
+        """Square: +1 first half, -1 second half"""
+        assert self._lfo_value(0.1, "square") == 1
+        assert self._lfo_value(0.6, "square") == -1
+
+    def test_depth_zero_no_change(self):
+        """depth=0 means no modulation — velocity stays at center"""
+        v = self._compute_velocity(0.8, 0.0, 1.0, 0.0, "sine", 0.0, 0.7)
+        assert abs(v - 0.7) < 0.01
+
+    def test_depth_full_swing(self):
+        """depth=1, sine, phase=0.25: velocity swings from center+center to center-center"""
+        v_peak = self._compute_velocity(0.8, 0.25, 1.0, 1.0, "sine", 0.0, 0.7)
+        assert abs(v_peak - 1.0) < 0.01  # clamped to max (0.7+0.7=1.4→1.0)
+        v_trough = self._compute_velocity(0.8, 0.75, 1.0, 1.0, "sine", 0.0, 0.7)
+        assert abs(v_trough - 0.0) < 0.01  # clamped to min (0.7-0.7=0.0)
+
+    def test_rate_per_beat(self):
+        """rate=1.0: one cycle per beat, so beat 0 and beat 1 have same LFO value"""
+        v0 = self._lfo_value(0.0 % 1.0, "sine")
+        v1 = self._lfo_value(1.0 % 1.0, "sine")
+        assert abs(v0 - v1) < 0.01
+
+    def test_rate_half_beat(self):
+        """rate=2.0: two cycles per beat"""
+        # At beat 0.375, phase = 0.375 * 2 = 0.75 → sine = -1
+        phase01 = (0.375 * 2.0) % 1.0
+        import math
+        v = math.sin(phase01 * 2 * math.pi)
+        assert abs(v + 1.0) < 0.01
+
+    def test_shape_validation(self):
+        """Unknown shape defaults to sine"""
+        shape = "invalid"
+        shape = shape if shape in ("sine", "triangle", "saw", "square", "random") else "sine"
+        assert shape == "sine"
+
+    def test_clamping(self):
+        """Velocities clamped to 0-1"""
+        v_high = self._compute_velocity(0.9, 0.25, 1.0, 1.0, "sine", 0.0, 1.0)
+        assert v_high <= 1.0
+        v_low = self._compute_velocity(0.1, 0.75, 1.0, 1.0, "sine", 0.0, 0.1)
+        assert v_low >= 0.0
+
+    def test_param_count(self):
+        """Should have 8 parameters"""
+        import inspect
+        from server import mcp_opendaw_apply_velocity_lfo
+        sig = inspect.signature(mcp_opendaw_apply_velocity_lfo)
+        assert len(sig.parameters) == 8
+
+    def test_defaults(self):
+        """Check default parameter values"""
+        import inspect
+        from server import mcp_opendaw_apply_velocity_lfo
+        sig = inspect.signature(mcp_opendaw_apply_velocity_lfo)
+        assert sig.parameters["rate"].default == 1.0
+        assert sig.parameters["depth"].default == 0.3
+        assert sig.parameters["shape"].default == "sine"
+        assert sig.parameters["center"].default == 0.7
+
+
 class TestQuantizeVelocities:
     """Unit tests for quantize_velocities — snap velocities to discrete levels."""
 

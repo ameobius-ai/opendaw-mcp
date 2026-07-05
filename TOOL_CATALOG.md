@@ -474,6 +474,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apply_sidechain` — Apply sidechain ducking via volume automation. Classic pumping/breathing effect for house/techno/EDM. Adjustable depth, attack, release, kick interval.
 - `create_ghost_notes` — Add ghost notes (quiet grace notes) to existing drum patterns. Funk/R&B/neo-soul/hip-hop groove enhancer. Seeded reproducibility.
 - `apply_velocity_curve` — Apply velocity envelope across notes (ramp_up/ramp_down/arc/trough/power). Deterministic curve shape for build-ups, fade-ins, expressive phrasing.
+- `apply_velocity_lfo` — Periodic velocity modulation — velocity LFO along note positions. 5 waveforms (sine/triangle/saw/square/random), rate (cycles per beat), depth, phase, center velocity. Creates pumping, breathing, wave-like dynamics. Unlike apply_velocity_curve (monotonic), this is repeating/cyclic.
 - `apply_articulation` — Apply articulation to notes (staccato/legato/tenuto/accent). Duration reshaping for phrasing character. Accent boosts velocity on downbeats.
 - `add_mastering_chain` — Add EQ + Compressor + Maximizer to the output bus with genre-style presets (balanced/warm/loud/transparent).
 - `add_vocal_chain` — One-call vocal processing: EQ + Compressor + Reverb (+ optional Delay). 5 presets (balanced/warm/bright/intimate/aggressive).
