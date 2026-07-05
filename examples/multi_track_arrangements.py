@@ -1,7 +1,7 @@
 """
-Example: Multi-Track Genre Arrangements — 12 genres in one file
+Example: Multi-Track Genre Arrangements — 13 genres in one file
 
-Demonstrates all 12 multi-track arrangement tools:
+Demonstrates all 13 multi-track arrangement tools:
   create_dnb_arrangement      — DnB (Amen breakbeat + Reese + pad)
   create_house_arrangement    — House (four-on-floor + off-beat bass + stabs)
   create_trap_arrangement     — Trap (trap rolls + 808 slides + bell)
@@ -14,6 +14,7 @@ Demonstrates all 12 multi-track arrangement tools:
   create_funk_arrangement     — Funk (Funky Drummer + slap bass + scratch + stabs)
   create_reggae_arrangement   — Reggae (one-drop + melodic bass + skank + organ)
   create_synthwave_arrangement — Synthwave (retro drums + arp bass + pads + lead)
+  create_trance_arrangement   — Trance (driving drums + rolling bass + supersaw + pluck)
 
 Each arrangement creates a complete genre section across 3-4 tracks in one call.
 One call replaces 100+ individual create_note calls.
@@ -138,13 +139,17 @@ async def main():
             ("Synthwave Arrangement (retro drums + arp bass + pads + lead)",
              server.mcp_opendaw_create_synthwave_arrangement,
              {"bpm": 110, "bars": 8, "root": "A", "octave": 2, "unit_index": unit_index}),
+
+            ("Trance Arrangement (driving drums + rolling bass + supersaw + pluck)",
+             server.mcp_opendaw_create_trance_arrangement,
+             {"bpm": 138, "bars": 8, "root": "F", "octave": 2, "unit_index": unit_index}),
         ]
 
         for name, fn, kwargs in arrangements:
             await run_arrangement(name, fn, **kwargs)
 
         print(f"\n{'='*60}")
-        print("  All 12 arrangements demonstrated!")
+        print("  All 13 arrangements demonstrated!")
         print(f"{'='*60}")
         print("\nKey differences:")
         print("  • DnB:       Amen breakbeat, Reese bass, 140-200 BPM")
@@ -159,6 +164,7 @@ async def main():
         print("  • Funk:      Vamp (one chord), Funky Drummer, 16th syncopation, 85-120 BPM")
         print("  • Reggae:    One-drop (kick+snare on 3), melodic bass lead, skank guitar, 65-100 BPM")
         print("  • Synthwave: Arpeggiated 16th bass, i-VI-III-VII, dreamy pads, 90-130 BPM")
+        print("  • Trance:    Rolling off-beat 8th bass, supersaw arp, snare rush, 128-145 BPM")
 
     finally:
         await server.bridge.stop()

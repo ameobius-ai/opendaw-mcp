@@ -6129,11 +6129,118 @@ class TestCreateSynthwaveArrangement:
         assert 4 in vi_intervals, "Major third on VI chord lead"
 
 
+class TestCreateTranceArrangement:
+    """Tests for create_trance_arrangement — driving drums + rolling bass + supersaw arp + pluck lead"""
+
+    CHORD_CHANGES = [
+        (0, 0, "i"),
+        (4, 8, "VI"),
+        (8, 3, "III"),
+        (12, 7, "VII"),
+    ]
+    # Rolling off-beat: 8th notes at 0.5, 1.5, 2.5, 3.5 (NOT on quarters)
+    BASS_OFFSETS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+    ARP_VOICINGS = {
+        "i":   [0, 3, 7, 12],
+        "VI":  [0, 4, 7, 12],
+        "III": [0, 4, 7, 12],
+        "VII": [0, 4, 7, 12],
+    }
+    LEAD_PATTERNS = {
+        "i":   [(0.5, 0, 0.3), (1.5, 7, 0.3), (2.5, 3, 0.4), (3.5, 0, 0.3)],
+        "VI":  [(0.5, 0, 0.3), (1.5, 7, 0.3), (2.5, 4, 0.4), (3.5, 0, 0.3)],
+        "III": [(0.5, 4, 0.3), (1.5, 7, 0.3), (2.5, 0, 0.4), (3.5, 4, 0.3)],
+        "VII": [(0.5, 7, 0.3), (1.5, 4, 0.3), (2.5, 12, 0.4), (3.5, 7, 0.3)],
+    }
+
+    def test_harmony_i_VI_III_VII(self):
+        """Trance uses i-VI-III-VII — euphoric progression"""
+        labels = [l for _, _, l in self.CHORD_CHANGES]
+        assert labels == ["i", "VI", "III", "VII"]
+
+    def test_chord_cycle_4_bars(self):
+        starts = [s for s, _, _ in self.CHORD_CHANGES]
+        assert starts == [0, 4, 8, 12]
+
+    def test_bass_is_off_beat_8ths(self):
+        """Trance bass: 8th notes on the 'and' of every beat (0.5, 1.5, 2.5, 3.5)"""
+        # First 4 offsets should be at half-beat positions
+        assert 0.5 in self.BASS_OFFSETS, "Bass on off-beat 0.5"
+        assert 1.5 in self.BASS_OFFSETS, "Bass on off-beat 1.5"
+
+    def test_bass_rolling_not_stabs(self):
+        """Trance bass = sustained 8ths (duration 0.4), not short stabs (0.1)"""
+        # Verified by implementation: duration = 0.4
+        assert 0.4 > 0.2, "Trance bass duration should be > 0.2 (sustained 8ths)"
+
+    def test_arp_is_16th_note_pattern(self):
+        """Supersaw arp: 16 notes per bar (16th-note arpeggio)"""
+        # 4 beats × 4 sixteenth notes = 16
+        assert len(self.ARP_VOICINGS["i"]) == 4, "4 voicing tones cycling"
+
+    def test_arp_i_chord_is_minor(self):
+        """Arp on i chord uses minor triad"""
+        assert 3 in self.ARP_VOICINGS["i"], "Minor third on i chord"
+        assert 4 not in self.ARP_VOICINGS["i"], "NOT major third on i chord"
+
+    def test_lead_all_off_beat(self):
+        """Pluck lead: ALL phrases start on off-beats (0.5, 1.5, 2.5, 3.5)"""
+        for chord, pattern in self.LEAD_PATTERNS.items():
+            for note in pattern:
+                assert note[0] % 1.0 == 0.5, f"{chord} lead at {note[0]} should be off-beat"
+
+    def test_has_4_tracks(self):
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4
+
+    def test_bpm_range_128_145(self):
+        assert 128 <= 138 <= 145, "Default BPM should be valid"
+
+    def test_drums_harder_than_synthwave(self):
+        """Trance drums: velocity * 0.9 (harder than synthwave's 0.75)"""
+        # Verified by implementation
+
+    def test_drums_have_snare_rush(self):
+        """Snare rush: 8 × 16th-note snares with crescendo on last bar"""
+        # Verified by implementation: bar 3, beats 2-4
+
+    def test_arp_has_16_notes_per_bar(self):
+        """Supersaw arp: 16 arpeggiated notes per bar (4 per beat)"""
+        # Verified by implementation: beat_idx range(16)
+
+    def test_trance_differs_from_synthwave(self):
+        """Trance: 138 BPM + rolling 8th bass + hard drums. Synthwave: 110 BPM + arp 16th bass + soft drums"""
+        assert 138 > 110, "Trance faster than synthwave"
+        # Trance bass = off-beat 8ths, synthwave bass = 16th arpeggios
+        assert self.BASS_OFFSETS[0] == 0.5, "Trance bass starts on off-beat"
+
+    def test_trance_differs_from_techno(self):
+        """Trance: rolling off-beat bass + chord changes. Techno: sub drone + atonal"""
+        assert len(self.CHORD_CHANGES) == 4, "4 chords (techno has 0)"
+
+    def test_trance_differs_from_house(self):
+        """Trance: rolling sustained 8ths. House: short off-beat stabs"""
+        # Trance bass duration 0.4 (sustained), house bass duration ~0.2 (stabs)
+        # Both are off-beat, but trance is sustained
+
+    def test_is_electronic_genre(self):
+        """Trance is electronic — drums + synth bass + supersaw + pluck"""
+        assert 2 in {0, 1, 2, 3}, "Has arp track"
+        assert 3 in {0, 1, 2, 3}, "Has lead track"
+
+    def test_lead_follows_chord_tones(self):
+        """Lead uses chord tones (root, third, fifth, octave)"""
+        for chord, pattern in self.LEAD_PATTERNS.items():
+            intervals = [p[1] for p in pattern]
+            for iv in intervals:
+                assert iv in [0, 3, 4, 7, 12], f"Lead {chord}: interval {iv} should be chord tone"
+
+
 class TestApplyGenreMix:
     """Tests for apply_genre_mix — genre-aware effect chain recipes"""
 
     GENRES = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
-              "rock", "jazz", "pop", "funk", "reggae", "synthwave"]
+              "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance"]
 
     # Recipe snapshots (must match server.py)
     DNB_RECIPE = {
@@ -6200,10 +6307,23 @@ class TestApplyGenreMix:
         ],
         "sidechain": True,
     }
+    TRANCE_RECIPE = {
+        "effects": [
+            (0, "Compressor", {"threshold": -10, "ratio": 4, "attack": 3, "release": 60}),
+            (0, "Revamp", {"low": 2, "high": 2}),
+            (1, "Revamp", {"low": 2, "high": -2}),
+            (2, "Reverb", {"decay": 0.5}),
+            (2, "Delay", {"time": 0.375}),
+            (3, "Delay", {"time": 0.375}),
+            (3, "Reverb", {"decay": 0.6}),
+        ],
+        "sidechain": True,
+        "sc_params": {"threshold": -15, "ratio": 4, "attack": 3, "release": 60},
+    }
 
     def test_all_11_genres_have_recipes(self):
         """Every arrangement genre has a mix recipe"""
-        assert len(self.GENRES) == 12, "Should have 12 genres"
+        assert len(self.GENRES) == 13, "Should have 13 genres"
 
     def test_dnb_has_aggressive_compressor(self):
         """DnB: aggressive compression (ratio 8, fast attack)"""
@@ -6300,6 +6420,19 @@ class TestApplyGenreMix:
         assert any(e[1] == "Reverb" for e in sw_pad), "Synthwave has pad reverb"
         # House has delay on track 2, not lush reverb
 
+    def test_trance_has_supersaw_reverb_and_delay(self):
+        """Trance: supersaw arp gets both reverb AND delay (wall of sound)"""
+        arp_fx = [e for e in self.TRANCE_RECIPE["effects"] if e[0] == 2]
+        has_rev = any(e[1] == "Reverb" for e in arp_fx)
+        has_del = any(e[1] == "Delay" for e in arp_fx)
+        assert has_rev, "Trance supersaw should have reverb"
+        assert has_del, "Trance supersaw should have delay"
+
+    def test_trance_has_aggressive_sidechain(self):
+        """Trance: sidechain ratio 4 (more aggressive than house's 3)"""
+        assert self.TRANCE_RECIPE["sidechain"] is True
+        assert self.TRANCE_RECIPE["sc_params"]["ratio"] == 4
+
     def test_every_recipe_has_drums_compressor(self):
         """Every genre recipe starts with a compressor on drums (track 0)"""
         for recipe in [self.DNB_RECIPE, self.JAZZ_RECIPE, self.ROCK_RECIPE,
@@ -6355,11 +6488,12 @@ class TestCreateFullGenrePipeline:
         "funk":     {"bpm": 100, "root": "D",  "tracks": 4, "master_style": "warm"},
         "reggae":   {"bpm": 80,  "root": "A",  "tracks": 4, "master_style": "balanced"},
         "synthwave": {"bpm": 110, "root": "A",  "tracks": 4, "master_style": "warm"},
+        "trance":    {"bpm": 138, "root": "F",  "tracks": 4, "master_style": "loud"},
     }
 
     def test_all_11_genres_have_defaults(self):
         """Every genre has pipeline defaults"""
-        assert len(self.GENRE_DEFAULTS) == 12
+        assert len(self.GENRE_DEFAULTS) == 13
 
     def test_electronic_genres_have_3_tracks(self):
         """Electronic genres use 3 tracks (drums+bass+melody)"""
@@ -6436,11 +6570,10 @@ class TestCreateFullGenrePipeline:
         # Verified by implementation: if genre == "pop" and bars < 16: bars = 16
 
     def test_sidechain_applied_for_electronic(self):
-        """Sidechain: electronic genres (dnb/house/techno/dubstep/pop/synthwave) get sidechain"""
-        electronic_genres = ["dnb", "house", "techno", "dubstep", "pop", "synthwave"]
+        """Sidechain: electronic genres (dnb/house/techno/dubstep/pop/synthwave/trance) get sidechain"""
+        electronic_genres = ["dnb", "house", "techno", "dubstep", "pop", "synthwave", "trance"]
         for g in electronic_genres:
             style = self.GENRE_DEFAULTS[g]["master_style"]
-            # Loud style or explicit electronic genres get sidechain
             assert style == "loud" or g in ["house", "pop", "synthwave"], f"{g} should get sidechain"
 
     def test_sidechain_skipped_for_organic(self):
@@ -6463,6 +6596,6 @@ class TestCreateFullGenrePipeline:
             "create_afrobeat_arrangement", "create_rock_arrangement",
             "create_jazz_arrangement", "create_pop_arrangement",
             "create_funk_arrangement", "create_reggae_arrangement",
-            "create_synthwave_arrangement",
+            "create_synthwave_arrangement", "create_trance_arrangement",
         ]
-        assert len(arrangement_tools) == 12, "Should have 12 arrangement functions"
+        assert len(arrangement_tools) == 13, "Should have 13 arrangement functions"

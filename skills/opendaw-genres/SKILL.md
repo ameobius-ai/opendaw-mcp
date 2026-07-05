@@ -472,9 +472,9 @@ await mcp_opendaw_add_mastering_chain(target_lufs=-16, style="transparent")  # a
 - `opendaw-sound-design` — instruments + DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain
 - `suno-to-opendaw` — Suno→stems→openDAW E2E
-- `opendaw-automation` — 335 MCP tools full API reference
+- `opendaw-automation` — 336 MCP tools full API reference
 
-## Multi-Track Arrangement Tools (12 genres)
+## Multi-Track Arrangement Tools (13 genres)
 
 One-call genre sections across 3-4 tracks. Replaces 100+ individual create_note calls.
 
@@ -489,7 +489,8 @@ User wants...
 │   │   ├── Sustained drone?     → create_techno_arrangement (130 BPM, hypnotic, min 8 bars)
 │   │   └── Half-time + wobble?  → create_dubstep_arrangement (140 BPM, feels like 70)
 │   ├── Trap rolls + 808?        → create_trap_arrangement (140 BPM, F# minor)
-│   └── Nostalgic 80s + arp?     → create_synthwave_arrangement (110 BPM, Am, i-VI-III-VII)
+│   ├── Nostalgic 80s + arp?     → create_synthwave_arrangement (110 BPM, Am, i-VI-III-VII)
+│   └── Euphoric + supersaw?     → create_trance_arrangement (138 BPM, Fm, rolling bass)
 ├── Organic / band?
 │   ├── Guitar-driven?
 │   │   ├── Power chords, I-IV-V? → create_rock_arrangement (120 BPM, E default)
@@ -501,7 +502,7 @@ User wants...
 │   └── Song structure needed?     → create_pop_arrangement (120 BPM, verse-chorus-bridge)
 ```
 
-### All 12 Arrangements
+### All 13 Arrangements
 
 | Tool | Genre | Tracks | BPM | Key | Key Feature |
 |------|-------|--------|-----|-----|-------------|
@@ -511,6 +512,7 @@ User wants...
 | `create_techno_arrangement` | Techno | 3 | 120-150 | C | Four-on-floor + sub drone + Detroit stabs |
 | `create_dubstep_arrangement` | Dubstep | 3 | 130-155 | G | Half-time + wobble bass + arp |
 | `create_synthwave_arrangement` | Synthwave | 4 | 90-130 | A | Arpeggiated 16th bass + i-VI-III-VII + dreamy pads |
+| `create_trance_arrangement` | Trance | 4 | 128-145 | F | Rolling off-beat 8th bass + supersaw arp + snare rush |
 | `create_afrobeat_arrangement` | Afrobeat | 4 | 95-135 | F | Polyrhythm + ostinato + horns + chanka |
 | `create_rock_arrangement` | Rock | 4 | 80-180 | E | Rock beat + power chords + I-IV-V |
 | `create_jazz_arrangement` | Jazz | 4 | 50-220 | F | Swing ride + walking bass + ii-V-I |
@@ -525,6 +527,7 @@ User wants...
 | House | Every beat | Clap 2+4 | Four-on-floor |
 | Techno | Every beat | Clap 2+4 | Industrial hats |
 | Synthwave | Every beat (soft) | 2+4 | Retro 80s, softer than house |
+| Trance | Every beat (hard) | Clap 2+4 | Open hats on off-beats, snare rush |
 | Rock | 1 & 3 | 2 & 4 | Straight backbeat |
 | Jazz | Sporadic | Ghost on swung 8ths | Spang-a-lang ride |
 | Funk | Syncopated | 2+4 + ghosts | 16th-note hats |
@@ -537,6 +540,7 @@ User wants...
 | Genre | Bass Style | Unique |
 |-------|-----------|--------|
 | Synthwave | Arpeggiated 16ths (root-octave-fifth-octave) | Relentless arp engine |
+| Trance | Rolling off-beat 8ths (root-octave) | Sustained, driving, off-beat |
 | House | Off-beat stabs | Syncopated pulse |
 | Techno | Sub-bass drone | Sustained, not rhythmic |
 | Reggae | Melodic lead (root-octave-fifth-root) | Bass IS the lead instrument |

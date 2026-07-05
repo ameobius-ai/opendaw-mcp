@@ -24581,6 +24581,251 @@ async def mcp_opendaw_create_synthwave_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_trance_arrangement(
+    bpm: float = 138,
+    bars: int = 8,
+    root: str = "F",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    arp_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.78,
+) -> str:
+    """Create a full trance arrangement — driving drums + rolling bass + supersaw arp + pluck lead across 4 tracks.
+
+    Uplifting trance with the signature euphoric energy — fundamentally different from other electronic genres:
+    - Track 0: Drums — driving four-on-floor: kick on every quarter (hard, consistent),
+                     clap on 2 & 4, open hat on off-beats (0.5, 1.5, 2.5, 3.5).
+                     The relentless pulse of trance — harder than synthwave, faster than house.
+                     Optional snare rush buildup on last bar of each 4-bar phrase.
+    - Track 1: Bass — rolling off-beat pattern: 8th notes on the "and" of every beat
+                     (0.5, 1.5, 2.5, 3.5), NOT on the quarter. Creates the "rolling" feel
+                     that drives trance forward. Root → octave alternation per bar.
+                     Different from house (off-beat stabs) — trance bass is sustained 8ths.
+    - Track 2: Supersaw arp — layered chord stabs on quarter notes: root position
+                     triad (root + third + fifth) played as 16th-note arpeggio pattern
+                     per beat. The euphoric wall of sound. i-VI-III-VII progression.
+    - Track 3: Pluck lead — staccato synth plucks: short melodic phrases following
+                     chord changes, mostly off-beat with occasional downbeats. The
+                     "-answer" to the supersaw's "call". Echo-like spacing.
+
+    Uses the classic trance progression i-VI-III-VII (Am-F-C-G transposed) —
+    same as synthwave but faster and euphoric, not nostalgic. The energy is in
+    the supersaw arp (wall of sound) and rolling bass (relentless 8ths).
+
+    At 138 BPM (default), this creates classic uplifting trance — fast, driving,
+    euphoric. The rolling off-beat bass is the fundamental difference from all
+    12 other arrangements: house has off-beat stabs (short), techno has sub drones
+    (sustained), synthwave has 16th arpeggios (melodic), trance has rolling 8ths
+    (driving, off-beat, sustained).
+
+    bpm: Tempo (128-145, default 138 = classic uplifting trance).
+    bars: Arrangement length (8-16, default 8). Must be multiple of 4.
+    root: Root note (F is a classic trance key — Fm).
+    octave: MIDI octave for bass (2 = F2=41, standard trance bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / arp_track / lead_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_trance_arrangement(bpm=138, root="F", bars=8)
+      create_trance_arrangement(bpm=140, root="C", bars=16)
+    """
+    if not (128 <= bpm <= 145):
+        return "Error: bpm must be 128-145"
+    if bars < 8 or bars > 16:
+        return "Error: bars must be 8-16"
+    if bars % 4 != 0:
+        return "Error: bars must be a multiple of 4 for chord cycle"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    arp_base = (octave + 3) * 12 + root_pc
+    lead_base = (octave + 4) * 12 + root_pc
+
+    # i-VI-III-VII chord progression (Fm-Db-Ab-Eb in F minor)
+    chord_changes = [
+        (0, 0, "i"),
+        (4, 8, "VI"),
+        (8, 3, "III"),
+        (12, 7, "VII"),
+    ]
+
+    # --- DRUMS: driving four-on-floor with open hats (4-bar cycle) ---
+    # Kick every quarter (hard), clap on 2 & 4, open hat on off-beats
+    # Snare rush on last bar of each 4-bar phrase (16th-note snares)
+    kick_p, clap_p, ohat_p, snare_p = 36, 39, 46, 38
+    drum_notes = []
+    drum_cycle = 16.0
+    drum_cycles = bars // 4
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for bar in range(4):
+            bar_off = off + bar * 4
+            # Kick on every quarter — hard and consistent
+            for beat in range(4):
+                drum_notes.append({
+                    "pitch": kick_p,
+                    "start": round(start_beat + bar_off + beat, 4),
+                    "duration": 0.3,
+                    "velocity": round(velocity * 0.9, 3),  # hard kick
+                })
+            # Clap on 2 & 4 (beats 1 and 3 in 0-indexed)
+            for clap_beat in [1.0, 3.0]:
+                drum_notes.append({
+                    "pitch": clap_p,
+                    "start": round(start_beat + bar_off + clap_beat, 4),
+                    "duration": 0.1,
+                    "velocity": round(velocity * 0.7, 3),
+                })
+            # Open hats on off-beats
+            for ohat_beat in [0.5, 1.5, 2.5, 3.5]:
+                drum_notes.append({
+                    "pitch": ohat_p,
+                    "start": round(start_beat + bar_off + ohat_beat, 4),
+                    "duration": 0.15,
+                    "velocity": round(velocity * 0.55, 3),
+                })
+            # Snare rush on last bar of 4-bar phrase (bar 3, beats 2-4)
+            if bar == 3:
+                for snare_idx in range(8):  # 8 × 16th notes = 2 beats
+                    drum_notes.append({
+                        "pitch": snare_p,
+                        "start": round(start_beat + bar_off + 2.0 + snare_idx * 0.25, 4),
+                        "duration": 0.08,
+                        "velocity": round(velocity * (0.4 + snare_idx * 0.06), 3),  # crescendo
+                    })
+
+    # --- BASS: rolling off-beat 8th notes (4-bar cycle) ---
+    # The trance engine: 8th notes on the "and" of every beat
+    # Root → octave alternation per bar. Sustained 8ths, not stabs.
+    bass_notes = []
+    bass_cycle = 16.0
+    bass_cycles = bars // 4
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for bar_start, chord_root, _ in chord_changes:
+            bar_off = off + bar_start
+            for beat_idx in range(8):  # 8 off-beat 8th notes per bar
+                # Alternate root and octave
+                bass_note = 0 if beat_idx % 2 == 0 else 12
+                bass_notes.append({
+                    "pitch": bass_base + chord_root + bass_note,
+                    "start": round(start_beat + bar_off + 0.5 + beat_idx * 0.5, 4),
+                    "duration": 0.4,  # sustained 8th — rolling feel
+                    "velocity": round(velocity * (0.85 if beat_idx % 2 == 0 else 0.75), 3),
+                })
+
+    # --- SUPERSAW ARP: chord stabs as 16th-note arpeggio (4-bar cycle) ---
+    # Wall of sound: root + third + fifth arpeggiated in 16th notes per beat
+    # i = minor triad, VI/III/VII = major triad
+    arp_voicings = {
+        "i":   [0, 3, 7, 12],    # Fm: root + min3 + fifth + octave
+        "VI":  [0, 4, 7, 12],    # Db: root + maj3 + fifth + octave
+        "III": [0, 4, 7, 12],    # Ab: root + maj3 + fifth + octave
+        "VII": [0, 4, 7, 12],    # Eb: root + maj3 + fifth + octave
+    }
+    arp_notes = []
+    arp_cycle = 16.0
+    arp_cycles = bars // 4
+    for c in range(arp_cycles):
+        off = c * arp_cycle
+        for bar_start, chord_root, chord_name in chord_changes:
+            bar_off = off + bar_start
+            voicing = arp_voicings[chord_name]
+            # 4 beats per bar × 4 sixteenth notes = 16 arp notes per bar
+            for beat_idx in range(16):
+                arp_note = voicing[beat_idx % 4]
+                arp_notes.append({
+                    "pitch": arp_base + chord_root + arp_note,
+                    "start": round(start_beat + bar_off + beat_idx * 0.25, 4),
+                    "duration": 0.2,
+                    "velocity": round(velocity * 0.6, 3),  # behind the lead
+                })
+
+    # --- PLUCK LEAD: staccato melodic phrases (4-bar cycle) ---
+    # Short synth plucks answering the supersaw. Off-beat emphasis.
+    # Chord tones with passing notes. Echo-like spacing.
+    lead_patterns = {
+        "i":   [(0.5, 0, 0.3), (1.5, 7, 0.3), (2.5, 3, 0.4), (3.5, 0, 0.3)],
+        "VI":  [(0.5, 0, 0.3), (1.5, 7, 0.3), (2.5, 4, 0.4), (3.5, 0, 0.3)],
+        "III": [(0.5, 4, 0.3), (1.5, 7, 0.3), (2.5, 0, 0.4), (3.5, 4, 0.3)],
+        "VII": [(0.5, 7, 0.3), (1.5, 4, 0.3), (2.5, 12, 0.4), (3.5, 7, 0.3)],
+    }
+    lead_notes = []
+    lead_cycle = 16.0
+    lead_cycles = bars // 4
+    for c in range(lead_cycles):
+        off = c * lead_cycle
+        for bar_start, chord_root, chord_name in chord_changes:
+            bar_off = off + bar_start
+            pattern = lead_patterns[chord_name]
+            for beat, interval, dur in pattern:
+                lead_notes.append({
+                    "pitch": lead_base + chord_root + interval,
+                    "start": round(start_beat + bar_off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * 0.7, 3),
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    arp_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(arp_notes), unit_index, arp_track)
+    lead_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(lead_notes), unit_index, lead_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        arp_data = json.loads(arp_result)
+    except Exception:
+        arp_data = {"raw": arp_result}
+    try:
+        lead_data = json.loads(lead_result)
+    except Exception:
+        lead_data = {"raw": lead_result}
+
+    return json.dumps({
+        "trance_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "arp": {"track": arp_track, "notes": len(arp_notes), "result": arp_data.get("notes_created", len(arp_notes))},
+            "lead": {"track": lead_track, "notes": len(lead_notes), "result": lead_data.get("notes_created", len(lead_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(arp_notes) + len(lead_notes),
+        "drum_pattern": "driving_four_on_floor_snare_rush",
+        "bass_pattern": "rolling_off_beat_8ths_root_octave",
+        "arp_type": "supersaw_16th_chord_arp",
+        "lead_type": "pluck_staccato_off_beat",
+        "harmony": "i_VI_III_VII_minor_euphoric",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_genre_mix(
     genre: str,
     unit_index: int = 0,
@@ -24613,7 +24858,7 @@ async def mcp_opendaw_apply_genre_mix(
       apply_genre_mix("jazz", unit_index=0, num_tracks=4, sidechain=False)
     """
     valid_genres = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
-                    "rock", "jazz", "pop", "funk", "reggae", "synthwave"]
+                    "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
     if not (2 <= num_tracks <= 4):
@@ -24761,6 +25006,19 @@ async def mcp_opendaw_apply_genre_mix(
             "sidechain": True,  # electronic
             "sc_params": {"threshold": -18, "ratio": 3, "attack": 5, "release": 100},
         },
+        "trance": {
+            "effects": [
+                (0, "Compressor", {"threshold": -10, "ratio": 4, "attack": 3, "release": 60}),
+                (0, "Revamp", {"low": 2, "high": 2}),    # drums: punchy + bright
+                (1, "Revamp", {"low": 2, "high": -2}),   # rolling bass: deep cut highs
+                (2, "Reverb", {"decay": 0.5}),           # supersaw arp: reverb
+                (2, "Delay", {"time": 0.375}),           # supersaw arp: delay
+                (3, "Delay", {"time": 0.375}),           # pluck lead: echo
+                (3, "Reverb", {"decay": 0.6}),           # pluck lead: lush reverb
+            ],
+            "sidechain": True,  # electronic
+            "sc_params": {"threshold": -15, "ratio": 4, "attack": 3, "release": 60},
+        },
     }
 
     recipe = recipes[genre]
@@ -24844,7 +25102,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
 
     After this call, the project is ready for export_audio / render.
 
-    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae, synthwave
+    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae, synthwave, trance
     bpm: Override tempo (None = genre default).
     bars: Arrangement length (default 8, pop min 16).
     root: Override key (None = genre default).
@@ -24872,6 +25130,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "funk":     {"bpm": 100, "root": "D",  "tracks": 4, "master_style": "warm"},
         "reggae":   {"bpm": 80,  "root": "A",  "tracks": 4, "master_style": "balanced"},
         "synthwave": {"bpm": 110, "root": "A",  "tracks": 4, "master_style": "warm"},
+        "trance":    {"bpm": 138, "root": "F",  "tracks": 4, "master_style": "loud"},
     }
 
     if genre not in defaults:
@@ -24935,6 +25194,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "funk":     mcp_opendaw_create_funk_arrangement,
         "reggae":   mcp_opendaw_create_reggae_arrangement,
         "synthwave": mcp_opendaw_create_synthwave_arrangement,
+        "trance":    mcp_opendaw_create_trance_arrangement,
     }
 
     try:
@@ -24957,7 +25217,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
     try:
         mix_result = await mcp_opendaw_apply_genre_mix(
             genre, unit_index=unit_index, num_tracks=num_tracks,
-            sidechain=(master_style == "loud" or genre in ["house", "techno", "dubstep", "dnb", "pop", "synthwave"]))
+            sidechain=(master_style == "loud" or genre in ["house", "techno", "dubstep", "dnb", "pop", "synthwave", "trance"]))
         mix_data = json.loads(mix_result)
         pipeline_steps.append({
             "step": "genre_mix",
