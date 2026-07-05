@@ -10273,6 +10273,171 @@ async def mcp_opendaw_get_note_range(unit_index: int, track_index: int, region_i
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_note_stats(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+) -> str:
+    """Get comprehensive statistics for notes in a region.
+
+    Returns a full statistical profile of the MIDI content:
+    - Note count, pitch range (min/max/span)
+    - Velocity statistics (min/max/mean/median/std)
+    - Duration statistics (min/max/mean in beats)
+    - Density (notes per beat)
+    - Pitch class histogram (how often each of 12 pitch classes appears)
+    - Most common pitches (top 5)
+    - Time span (first note to last note end)
+
+    Useful for:
+    - Analyzing imported MIDI before processing
+    - Comparing regions (which has more notes, wider range)
+    - Identifying register (is this bass, mid, or lead?)
+    - Detecting programming issues (all same velocity = robotic)
+    - Feeding data to arrangement decisions
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region (-1 = first region).
+
+    Returns statistics object.
+
+    Example:
+      stats = note_stats(0, 0)
+      # stats includes: note_count, pitch_range, velocity_stats, density, pitch_class_histogram
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const Quarter = h.ppqn.Quarter;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+
+        const notes = h.eventBoxes(collection);
+        if (notes.length === 0) return {{error: "No notes in region"}};
+
+        const regionPos = region.position.getValue();
+        const regionDur = region.duration.getValue() / Quarter;
+
+        // Extract note data
+        const pitches = [];
+        const velocities = [];
+        const durations = [];
+        const positions = [];
+        const pitchClassCounts = new Array(12).fill(0);
+        const pitchCounts = {{}};
+
+        for (const n of notes) {{
+            const p = n.pitch.getValue();
+            const v = n.velocity.getValue();
+            const d = n.duration.getValue() / Quarter;
+            const pos = (regionPos + n.position.getValue()) / Quarter;
+
+            pitches.push(p);
+            velocities.push(v);
+            durations.push(d);
+            positions.push(pos);
+            pitchClassCounts[p % 12]++;
+            pitchCounts[p] = (pitchCounts[p] || 0) + 1;
+        }}
+
+        // Pitch stats
+        const minPitch = Math.min(...pitches);
+        const maxPitch = Math.max(...pitches);
+        const pitchSpan = maxPitch - minPitch;
+
+        // Velocity stats
+        const sortedVel = [...velocities].sort((a, b) => a - b);
+        const minVel = sortedVel[0];
+        const maxVel = sortedVel[sortedVel.length - 1];
+        const meanVel = velocities.reduce((a, b) => a + b, 0) / velocities.length;
+        const medianVel = sortedVel.length % 2 === 0
+            ? (sortedVel[sortedVel.length / 2 - 1] + sortedVel[sortedVel.length / 2]) / 2
+            : sortedVel[Math.floor(sortedVel.length / 2)];
+        const velVariance = velocities.reduce((sum, v) => sum + Math.pow(v - meanVel, 2), 0) / velocities.length;
+        const velStd = Math.sqrt(velVariance);
+
+        // Duration stats
+        const minDur = Math.min(...durations);
+        const maxDur = Math.max(...durations);
+        const meanDur = durations.reduce((a, b) => a + b, 0) / durations.length;
+
+        // Time span
+        const firstNoteBeat = Math.min(...positions);
+        const lastNoteEnd = Math.max(...positions.map((p, i) => p + durations[i]));
+        const timeSpan = lastNoteEnd - firstNoteBeat;
+
+        // Density
+        const density = notes.length / (regionDur > 0 ? regionDur : timeSpan);
+
+        // Top 5 most common pitches
+        const pitchEntries = Object.entries(pitchCounts)
+            .map(([p, c]) => ({{ pitch: parseInt(p), count: c }}))
+            .sort((a, b) => b.count - a.count);
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const topPitches = pitchEntries.slice(0, 5).map(e => ({{
+            pitch: e.pitch,
+            name: noteNames[e.pitch % 12] + (Math.floor(e.pitch / 12) - 1),
+            count: e.count,
+        }}));
+
+        // Pitch class histogram with names
+        const pitchClassHistogram = pitchClassCounts.map((count, pc) => ({{
+            pitch_class: pc,
+            name: noteNames[pc],
+            count: count,
+        }}));
+
+        return {{
+            success: true,
+            note_count: notes.length,
+            pitch_stats: {{
+                min: minPitch,
+                max: maxPitch,
+                span: pitchSpan,
+                min_name: noteNames[minPitch % 12] + (Math.floor(minPitch / 12) - 1),
+                max_name: noteNames[maxPitch % 12] + (Math.floor(maxPitch / 12) - 1),
+            }},
+            velocity_stats: {{
+                min: Math.round(minVel * 1000) / 1000,
+                max: Math.round(maxVel * 1000) / 1000,
+                mean: Math.round(meanVel * 1000) / 1000,
+                median: Math.round(medianVel * 1000) / 1000,
+                std: Math.round(velStd * 1000) / 1000,
+            }},
+            duration_stats: {{
+                min_beats: Math.round(minDur * 1000) / 1000,
+                max_beats: Math.round(maxDur * 1000) / 1000,
+                mean_beats: Math.round(meanDur * 1000) / 1000,
+            }},
+            time_span_beats: Math.round(timeSpan * 1000) / 1000,
+            density_notes_per_beat: Math.round(density * 1000) / 1000,
+            pitch_class_histogram: pitchClassHistogram,
+            top_pitches: topPitches,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_filter_notes(
     unit_index: int,
     track_index: int,

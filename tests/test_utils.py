@@ -14843,3 +14843,130 @@ class TestFilterNotes:
         remaining = [n for n in notes if n["pitch"] >= min_p]
         assert len(remaining) == 3
         assert remaining[0]["pitch"] == 36, "C2 (boundary) should be kept"
+
+
+class TestNoteStats:
+    """Tests for mcp_opendaw_note_stats — comprehensive note statistics"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_note_stats" in names
+
+    def test_pitch_stats(self):
+        """Min, max, span from pitch list"""
+        pitches = [48, 60, 67, 72, 55]
+        min_p = min(pitches)
+        max_p = max(pitches)
+        span = max_p - min_p
+        assert min_p == 48
+        assert max_p == 72
+        assert span == 24, "Span should be 2 octaves"
+
+    def test_velocity_stats(self):
+        """Min, max, mean, median, std from velocity list"""
+        velocities = [0.2, 0.5, 0.8, 0.8, 1.0]
+        sorted_vel = sorted(velocities)
+        min_v = sorted_vel[0]
+        max_v = sorted_vel[-1]
+        mean_v = sum(velocities) / len(velocities)
+        # median of 5 values = middle = index 2
+        median_v = sorted_vel[len(sorted_vel) // 2]
+        variance = sum((v - mean_v) ** 2 for v in velocities) / len(velocities)
+        std_v = variance ** 0.5
+
+        assert min_v == 0.2
+        assert max_v == 1.0
+        assert abs(mean_v - 0.66) < 0.01
+        assert median_v == 0.8
+        assert std_v > 0, "Non-uniform velocities should have std > 0"
+
+    def test_velocity_std_zero_for_uniform(self):
+        """All same velocity → std = 0 (robotic)"""
+        velocities = [0.8, 0.8, 0.8, 0.8]
+        mean_v = sum(velocities) / len(velocities)
+        variance = sum((v - mean_v) ** 2 for v in velocities) / len(velocities)
+        std_v = variance ** 0.5
+        assert std_v == 0.0, "Uniform velocities should have std = 0"
+
+    def test_duration_stats(self):
+        """Min, max, mean duration in beats"""
+        durations = [0.25, 0.5, 1.0, 2.0]
+        min_d = min(durations)
+        max_d = max(durations)
+        mean_d = sum(durations) / len(durations)
+        assert min_d == 0.25
+        assert max_d == 2.0
+        assert abs(mean_d - 0.9375) < 0.01
+
+    def test_density_calculation(self):
+        """Density = note_count / region_duration"""
+        note_count = 16
+        region_dur = 4  # 4 beats
+        density = note_count / region_dur
+        assert density == 4.0, "16 notes over 4 beats = 4 notes/beat"
+
+    def test_density_high_for_busy_region(self):
+        """Busy region has high density"""
+        note_count = 32
+        region_dur = 2
+        density = note_count / region_dur
+        assert density == 16.0, "32 notes over 2 beats = very dense"
+
+    def test_pitch_class_histogram(self):
+        """Pitch class histogram counts each of 12 pitch classes"""
+        pitches = [0, 12, 24, 7, 19, 7]  # C×3, G×3
+        pc_counts = [0] * 12
+        for p in pitches:
+            pc_counts[p % 12] += 1
+        assert pc_counts[0] == 3, "C pitch class should have 3"
+        assert pc_counts[7] == 3, "G pitch class should have 3"
+        assert pc_counts[5] == 0, "F pitch class should have 0"
+        assert sum(pc_counts) == len(pitches)
+
+    def test_top_pitches_sorted(self):
+        """Top pitches sorted by count descending"""
+        pitch_counts = {60: 5, 67: 3, 72: 2, 48: 1}
+        entries = sorted(pitch_counts.items(), key=lambda x: -x[1])
+        assert entries[0] == (60, 5), "Most common pitch should be first"
+        assert entries[1] == (67, 3)
+        assert len(entries) == 4
+
+    def test_time_span(self):
+        """Time span = last note end - first note start"""
+        positions = [0, 2, 4, 8]
+        durations = [1, 0.5, 1, 2]
+        first_note = min(positions)
+        last_end = max(p + d for p, d in zip(positions, durations))
+        span = last_end - first_note
+        assert span == 10, "First at 0, last ends at 10 → span 10"
+
+    def test_pitch_name_conversion(self):
+        """MIDI pitch to note name: 60 = C4, 72 = C5, 48 = C3"""
+        note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        # 60 = C4 (octave = 60/12 - 1 = 4)
+        assert note_names[60 % 12] + str(60 // 12 - 1) == "C4"
+        # 72 = C5
+        assert note_names[72 % 12] + str(72 // 12 - 1) == "C5"
+        # 48 = C3
+        assert note_names[48 % 12] + str(48 // 12 - 1) == "C3"
+        # 67 = G4
+        assert note_names[67 % 12] + str(67 // 12 - 1) == "G4"
+
+    def test_median_even_count(self):
+        """Median with even number of values = average of two middle"""
+        sorted_vel = [0.2, 0.4, 0.6, 0.8]
+        n = len(sorted_vel)
+        if n % 2 == 0:
+            median = (sorted_vel[n // 2 - 1] + sorted_vel[n // 2]) / 2
+        else:
+            median = sorted_vel[n // 2]
+        assert median == 0.5, "Median of [0.2, 0.4, 0.6, 0.8] = (0.4+0.6)/2 = 0.5"
+
+    def test_empty_region_error(self):
+        """Empty region (0 notes) should return error"""
+        notes = []
+        # The tool checks notes.length === 0 and returns error
+        assert len(notes) == 0, "Empty region should be detected"

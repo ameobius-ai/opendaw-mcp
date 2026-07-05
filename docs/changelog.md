@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.237.0 (2026-07-06)
+
+### Added
+- `note_stats` — Comprehensive note statistics for a region. Returns: note count, pitch range (min/max/span + note names), velocity statistics (min/max/mean/median/std — std=0 detects robotic uniform velocity), duration statistics (min/max/mean in beats), density (notes per beat), pitch class histogram (12 pitch classes with counts), top 5 most common pitches (with names), time span (first note to last note end). 13 unit tests including velocity std, median (even/odd), density, pitch class histogram, pitch name conversion. **412 MCP tools**, 3008 unit tests
+
 ## v1.236.0 (2026-07-06)
 
 ### Added
