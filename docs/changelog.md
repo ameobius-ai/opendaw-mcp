@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.23.3 (2026-07-05)
+
+- **`werkstatt_multifilter.js`** — multi-mode SVF filter (LP/HP/BP/Notch). 5 params: mode, cutoff, resonance, drive, mix. Chamberlin topology
+- **33 DSP scripts** (22 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 5 params, mode switching, resonance cranked
+
 ## v1.23.2 (2026-07-05)
 
 - **`werkstatt_overdrive.js`** — asymmetric soft-clip overdrive. 5 params: drive, tone, level, bias, dry. Even harmonics for warmth, dry blend for parallel

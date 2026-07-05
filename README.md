@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **283** MCP tools | **55** Python examples (8 genre templates) |
-| **32** DSP scripts | **10** agent skills |
+| **33** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **241** unit + **11** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.23.3 (2026-07-05)
+
+- **`werkstatt_multifilter.js`** — multi-mode SVF filter (Chamberlin topology). 4 modes: lowpass, highpass, bandpass, notch. 5 params: mode, cutoff (20-20kHz), resonance, drive, mix. Closes critical gap — standalone multi-mode filter was missing while allpass/dcremover existed
+- **33 DSP scripts** (22 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params with correct defaults, mode switching (LP→HP), resonance cranked (0.3→0.8)
+- ruff clean, CI green
 
 ### v1.23.2 (2026-07-05)
 
