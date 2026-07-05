@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.95.0 (2026-07-05)
+
+- **`werkstatt_freq_shifter.js` DSP script** — SSB frequency shifter: single-sideband modulation via Hilbert transform (allpass pair for 90° phase difference) + complex carrier oscillator. Shifts all frequencies by fixed Hz amount (not ratio like pitch_shift), breaking harmonic relationships for that classic Buchla/banana synth inharmonic sound. Upper/lower sideband selection via direction param, feedback for spiraling shifts. 5 params (shift/direction/feedback/mix/output). 77 DSP scripts
+- **889 unit tests** (+13), E2E 8/8
+
 ## v1.94.0 (2026-07-05)
 
 - **`werkstatt_reverse_delay.js` DSP script** — reverse delay: reads delay buffer in reverse direction for each repetition, with fade ramps at window boundaries to prevent clicks. Feedback feeds reversed sample back into buffer (creating cascading reverse repeats). Damping lowpass on feedback path, equal-power pan, 8 params (time/feedback/levels/pan/fade/damping/mix/output). The Edge / U2 style reverse delay. 76 DSP scripts

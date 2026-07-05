@@ -25,6 +25,7 @@
 | `werkstatt_convolution_reverb.js` | Convolution reverb (generated stereo IR, early reflections + noise tail) | room_size, decay, damping, predelay, early_late, width, mix, output |
 | `werkstatt_gated_reverb.js` | Gated reverb (80s drum, Schroeder + envelope gate on dry input) | decay, predelay, damping, width, threshold, hold, release, mix, output |
 | `werkstatt_reverse_delay.js` | Reverse delay (reads buffer backwards, fade ramps, feedback) | time, feedback, levels, pan, fade, damping, mix, output |
+| `werkstatt_freq_shifter.js` | Frequency shifter (SSB, Hilbert transform, inharmonic shift) | shift, direction, feedback, mix, output |
 | `werkstatt_dynamic_eq.js` | Dynamic EQ (3 bands, envelope-followed peaking) | band1-3 freq/gain/Q/threshold/range, attack, release, mix, output |
 | `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix |
 | `werkstatt_reverb.js` | Algorithmic reverb | room, decay, damp, mix |

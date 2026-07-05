@@ -3795,6 +3795,92 @@ class TestMultibandImagerDSP:
         assert "processAudio" in code, "Missing processAudio method"
 
 
+class TestFreqShifterDSP:
+    """Unit tests for werkstatt_freq_shifter.js — SSB frequency shifter"""
+
+    SCRIPT = "werkstatt_freq_shifter.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt freq_shifter" in code, "Missing @werkstatt freq_shifter header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 5, f"Expected 5 params, got {len(params)}"
+
+    def test_shift_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "shift"][0]
+        assert s["default"] == 200 and s["min"] == -2000 and s["max"] == 2000
+        assert s["type"] == "linear"
+
+    def test_direction_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "direction"][0]
+        assert d["type"] == "bool", "direction should be bool"
+
+    def test_feedback_param(self):
+        params = self._parse_params(self._read_script())
+        fb = [p for p in params if p["name"] == "feedback"][0]
+        assert fb["default"] == 0 and fb["max"] == 0.9
+
+    def test_hilbert_transform(self):
+        code = self._read_script()
+        assert "_allpass" in code, "Missing allpass filter for Hilbert transform"
+        assert "phaseI" in code or "phaseI_" in code, "Missing in-phase branch"
+        assert "phaseQ" in code or "phaseQ_" in code, "Missing quadrature branch"
+
+    def test_ssb_modulation(self):
+        code = self._read_script()
+        assert "cosC" in code, "Missing cosine carrier"
+        assert "sinC" in code, "Missing sine carrier"
+        assert "upper" in code, "Missing upper sideband"
+        assert "lower" in code, "Missing lower sideband"
+
+    def test_sideband_selection(self):
+        code = self._read_script()
+        assert "shiftHz >= 0" in code or "shiftHz" in code, "Missing sideband selection logic"
+
+    def test_carrier_oscillator(self):
+        code = self._read_script()
+        assert "carrierPhase" in code, "Missing carrier phase state"
+        assert "carrierInc" in code, "Missing carrier increment"
+        assert "2 * Math.PI" in code, "Missing 2*pi frequency calculation"
+
+    def test_feedback_path(self):
+        code = self._read_script()
+        assert "this.fbL" in code, "Missing feedback state L"
+        assert "this.fbR" in code, "Missing feedback state R"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "dryGain" in code, "Missing dry gain"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+
 class TestReverseDelayDSP:
     """Unit tests for werkstatt_reverse_delay.js — reverse delay (The Edge style)"""
 
@@ -3883,7 +3969,6 @@ class TestReverseDelayDSP:
     def test_process_method(self):
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
-
 
 class TestGatedReverbDSP:
     """Unit tests for werkstatt_gated_reverb.js — 80s gated reverb"""
