@@ -6153,3 +6153,139 @@ class TestDeReverbDSP:
         assert "reset()" in code, "Missing reset method"
         assert ".fill(0)" in code, "Missing buffer reset"
         assert ".fill(1)" in code, "Missing gain reset to 1"
+
+
+class TestDeClickerDSP:
+    """Unit tests for werkstatt_declicker.js — click & crackle removal"""
+
+    def _read_script(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_declicker.js")) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)
+            })
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt declicker" in code, "Missing @werkstatt header"
+
+    def test_label(self):
+        code = self._read_script()
+        assert "De-Clicker" in code, "Missing label"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_param_names(self):
+        params = self._parse_params(self._read_script())
+        names = [p["name"] for p in params]
+        assert "sensitivity" in names, "Missing sensitivity param"
+        assert "click_len" in names, "Missing click_len param"
+        assert "median_size" in names, "Missing median_size param"
+        assert "interp" in names, "Missing interp param"
+        assert "overlap" in names, "Missing overlap param"
+        assert "mix" in names, "Missing mix param"
+        assert "output" in names, "Missing output param"
+
+    def test_output_param_type(self):
+        params = self._parse_params(self._read_script())
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["type"] == "linear"
+
+    def test_median_filter(self):
+        code = self._read_script()
+        assert "_median" in code, "Missing median filter method"
+        assert "insertion" in code.lower() or "Insertion" in code, "Missing insertion sort reference"
+
+    def test_median_window_size(self):
+        code = self._read_script()
+        assert "5 + this.p.median_size * 10" in code, "Missing median size range 5-15"
+
+    def test_hermite_interpolation(self):
+        code = self._read_script()
+        assert "_hermite" in code, "Missing Hermite interpolation method"
+        assert "h00" in code, "Missing Hermite basis h00"
+        assert "h01" in code, "Missing Hermite basis h01"
+        assert "m1" in code and "m2" in code, "Missing Hermite tangents"
+
+    def test_linear_interpolation_fallback(self):
+        code = self._read_script()
+        assert "_linear" in code, "Missing linear interpolation fallback"
+
+    def test_click_detection(self):
+        code = self._read_script()
+        assert "isClick" in code, "Missing click detection flag"
+        assert "deviation" in code, "Missing deviation calculation"
+        assert "threshold" in code, "Missing detection threshold"
+
+    def test_adaptive_threshold(self):
+        code = self._read_script()
+        assert "localAvg" in code, "Missing local energy average"
+        assert "energySum" in code, "Missing sliding energy window"
+        assert "energyWin" in code, "Missing energy window size"
+
+    def test_click_length_limit(self):
+        code = self._read_script()
+        assert "maxClickLen" in code, "Missing max click length"
+        assert "8 + this.p.click_len * 120" in code, "Missing click length range 8-128"
+
+    def test_overlap_expansion(self):
+        code = self._read_script()
+        assert "overlapSamps" in code, "Missing overlap samples"
+        assert "this.p.overlap * 32" in code, "Missing overlap range 0-32"
+
+    def test_click_region_finding(self):
+        code = self._read_script()
+        assert "clickEnd" in code, "Missing click region end detection"
+        assert "clickWidth" in code, "Missing click width calculation"
+
+    def test_anchor_points(self):
+        code = self._read_script()
+        assert "p0" in code and "p1" in code, "Missing anchor points p0/p1"
+        assert "p2" in code and "p3" in code, "Missing anchor points p2/p3"
+
+    def test_delay_buffer(self):
+        code = self._read_script()
+        assert "delayBuf" in code, "Missing delay buffer for look-back"
+        assert "DELAY = 256" in code, "Missing delay buffer size"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10, value / 20)" in code, "Missing dB to linear conversion"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert ".fill(0)" in code, "Missing buffer reset"
+
+    def test_config_update(self):
+        code = self._read_script()
+        assert "_updateConfig" in code, "Missing config update method"
+        assert "paramChanged" in code, "Missing paramChanged handler"
+
+    def test_interpolation_mode(self):
+        code = self._read_script()
+        assert "useCubic" in code, "Missing interpolation mode selection"
+        assert "this.p.interp > 0.3" in code, "Missing interpolation threshold"
+
+    def test_combined_buffer(self):
+        code = self._read_script()
+        assert "combined" in code, "Missing combined buffer (delay + current)"
+

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.123.0 (2026-07-05)
+
+- **`werkstatt_declicker.js` DSP script (97 DSP, 78 Werkstatt)** — de-clicker: restoration tool that detects and removes clicks, pops, and digital glitches from audio. Time-domain median-filter detection: sliding window (5-15 samples, insertion sort) computes local median, deviation from median vs adaptive threshold (local energy-based) flags clicks. Two-pass processing: detect click regions, then interpolate with cubic Hermite (Catmull-Rom) or linear fallback. Click length limit (8-128 samples) prevents over-repairing legitimate transients. Overlap expansion (0-32 samples) smooths transition edges. Delay buffer (256 samples) for look-back context. iZotope RX De-click / CEDAR Declick style — third restoration processor. 7 params (sensitivity/click_len/median_size/interp/overlap/mix/output). 97 DSP scripts, 78 Werkstatt
+- **1386 unit tests** (+23)
+
 ## v1.122.0 (2026-07-05)
 
 - **`werkstatt_dereverb.js` DSP script (96 DSP, 77 Werkstatt)** — de-reverb: restoration tool that removes room reverb tails from recordings. Per-band (4-16 logarithmic bands) dual envelope follower: fast envelope tracks direct signal, slow envelope tracks reverb tail. Transient detection via fast/slow ratio threshold — when fast > slow × sensitivity, it's a direct signal (preserve). When fast < slow, it's a tail (suppress). Tail dominance = how much the tail dominates, determines gain reduction (0 to -24 dB). Decay estimation (100ms-2s) controls slow envelope time constant. Direct signal preservation parameter. iZotope RX De-reverb / Accusonus ERA style — second restoration processor. 7 params (reduction/decay_est/sensitivity/bands/preserve/mix/output). 96 DSP scripts, 77 Werkstatt
