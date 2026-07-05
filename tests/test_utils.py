@@ -5144,3 +5144,127 @@ class TestHarmonicTremoloDSP:
     def test_reset_method(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
+class TestSpectralCompressorDSP:
+    """Unit tests for werkstatt_spectral_compressor.js — STFT spectral compressor"""
+
+    SCRIPT = "werkstatt_spectral_compressor.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt spectral_compressor" in code, "Missing header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_threshold_param(self):
+        params = self._parse_params(self._read_script())
+        t = [p for p in params if p["name"] == "threshold"][0]
+        assert t["type"] == "linear"
+
+    def test_ratio_param(self):
+        params = self._parse_params(self._read_script())
+        r = [p for p in params if p["name"] == "ratio"][0]
+        assert r["type"] == "linear"
+
+    def test_tilt_param(self):
+        params = self._parse_params(self._read_script())
+        t = [p for p in params if p["name"] == "tilt"][0]
+        assert t["type"] == "linear"
+
+    def test_smoothing_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "smoothing"][0]
+        assert s["type"] == "linear"
+
+    def test_output_param_db(self):
+        params = self._parse_params(self._read_script())
+        o = [p for p in params if p["name"] == "output"][0]
+        assert o["min"] == -12 and o["max"] == 6 and o["type"] == "linear"
+
+    def test_fft_implementation(self):
+        code = self._read_script()
+        assert "_fft" in code, "Missing FFT function"
+        assert "Butterfly" in code, "Missing Cooley-Tukey butterfly"
+        assert "Bit reversal" in code, "Missing bit reversal step"
+
+    def test_stft_config(self):
+        code = self._read_script()
+        assert "FFT_SIZE" in code, "Missing FFT size"
+        assert "HOP_SIZE" in code, "Missing hop size"
+        assert "1024" in code, "Missing FFT size value"
+
+    def test_hann_window(self):
+        code = self._read_script()
+        assert "window" in code, "Missing window function"
+        assert "Hann" in code or "0.5 * (1 - Math.cos" in code, "Missing Hann window"
+
+    def test_per_bin_envelope(self):
+        code = self._read_script()
+        assert "envBins" in code, "Missing per-bin envelope state"
+        assert "atkCoeff" in code and "relCoeff" in code, "Missing attack/release coefficients"
+
+    def test_per_bin_compression(self):
+        code = self._read_script()
+        assert "overDb" in code, "Missing over-threshold dB calculation"
+        assert "reductionDb" in code, "Missing gain reduction"
+        assert "ratioNum" in code, "Missing ratio"
+
+    def test_tilt_per_frequency(self):
+        code = self._read_script()
+        assert "freqRatio" in code, "Missing frequency ratio for tilt"
+        assert "tiltDb" in code, "Missing tilt dB calculation"
+        assert "binThreshDb" in code, "Missing per-bin threshold"
+
+    def test_gain_smoothing(self):
+        code = self._read_script()
+        assert "smoothCoeff" in code, "Missing gain smoothing"
+        assert "prevGain" in code, "Missing previous gain for smoothing"
+
+    def test_overlap_add(self):
+        code = self._read_script()
+        assert "outBufL" in code, "Missing overlap-add output buffer"
+        assert "overlap" in code.lower(), "Missing overlap-add reference"
+
+    def test_inverse_fft(self):
+        code = self._read_script()
+        assert "inverse" in code.lower(), "Missing inverse FFT"
+
+    def test_magnitude_phase(self):
+        code = self._read_script()
+        assert "Math.sqrt" in code, "Missing magnitude calculation"
+        assert "Math.atan2" in code, "Missing phase calculation"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "1 - p.mix" in code, "Missing dry gain"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"

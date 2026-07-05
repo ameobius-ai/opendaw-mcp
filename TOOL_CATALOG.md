@@ -386,9 +386,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 314 tools**
 
-## DSP Scripts (scripts/) — 88 scripts
+## DSP Scripts (scripts/) — 89 scripts
 
-### Werkstatt (Audio Effects) — 70 scripts
+### Werkstatt (Audio Effects) — 71 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -456,6 +456,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_expander.js` — Downward expander (compressor complement: attenuates signals below threshold, ratio controls expansion strength, range caps max attenuation, soft knee, stereo linked detection, gate at ratio=∞)
 - `werkstatt_binaural.js` — Binaural spatial panner (3D positioning via Woodworth ITD formula, frequency-dependent ILD head shadow, pinna elevation spectral notches, distance attenuation + air absorption, room reverb with decorrelation, azimuth/elevation/distance/head_size/room/mix/output)
 - `werkstatt_harmonic_tremolo.js` — Harmonic tremolo (Fender '60s: LR4 crossover splits low/high bands, dual LFO modulates them in antiphase, bass↔treble spectral rocking not amplitude, shape sine→square, phase_offset, crossover/rate/depth/shape/phase_offset/mix/output)
+- `werkstatt_spectral_compressor.js` — Spectral compressor (STFT per-bin dynamics: Cooley-Tukey FFT, Hann window, per-bin envelope follower + compression, tilt shifts threshold across frequency, gain smoothing, overlap-add, no crossover artifacts, Flux Syrah / FabFilter Pro-MB style)
 
 ### Apparat (Instruments) — 8 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

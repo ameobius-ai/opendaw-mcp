@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.111.0 (2026-07-05)
+
+- **`werkstatt_spectral_compressor.js` DSP script (89 DSP, 71 Werkstatt)** — spectral compressor: STFT-based per-bin dynamics processing. Cooley-Tukey radix-2 FFT (1024-point, 512 hop, Hann window), per-bin envelope follower with independent attack/release, per-bin compression curve, tilt parameter shifts threshold across frequency spectrum (compress lows more or highs more), gain smoothing prevents artifacts, overlap-add reconstruction. No crossover artifacts — each frequency bin compressed independently. Flux Syrah / FabFilter Pro-MB style. 8 params (threshold/ratio/attack/release/smoothing/tilt/mix/output). 89 DSP scripts, 71 Werkstatt
+- **1192 unit tests** (+21)
+
 ## v1.110.0 (2026-07-05)
 
 - **`create_tumbao` orchestration tool (314 MCP tools)** — Afro-Cuban tumbao (conga) pattern: the rhythmic foundation of salsa alongside clave. 4 variants: salsa (standard), salsa_slap (with slap on beat 2), rumba (guaguancó, more open tones), bolero (sparse, less anticipatory). 3 stroke types mapped to 3 conga pitches: tone (closed, low), open (resonant, mid), slap (sharp, high). Open tone on &4 anticipates downbeat — the tumbao signature. 57 orchestration tools. 314 MCP tools
