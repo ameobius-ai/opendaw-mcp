@@ -5268,3 +5268,123 @@ class TestSpectralCompressorDSP:
     def test_reset_method(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
+class TestBowedStringDSP:
+    """Unit tests for apparat_bowed_string.js — bowed string physical modeling"""
+
+    SCRIPT = "apparat_bowed_string.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@apparat bowed_string" in code, "Missing @apparat bowed_string header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_bow_pressure_param(self):
+        params = self._parse_params(self._read_script())
+        b = [p for p in params if p["name"] == "bow_pressure"][0]
+        assert b["type"] == "linear"
+
+    def test_bow_speed_param(self):
+        params = self._parse_params(self._read_script())
+        b = [p for p in params if p["name"] == "bow_speed"][0]
+        assert b["type"] == "linear"
+
+    def test_bow_position_param(self):
+        params = self._parse_params(self._read_script())
+        b = [p for p in params if p["name"] == "bow_position"][0]
+        assert b["max"] == 0.5, "bow_position max should be 0.5 (midpoint of string)"
+
+    def test_freq_param(self):
+        params = self._parse_params(self._read_script())
+        f = [p for p in params if p["name"] == "freq"][0]
+        assert f["type"] == "exp" and f["default"] == 220
+
+    def test_vibrato_params(self):
+        params = self._parse_params(self._read_script())
+        vr = [p for p in params if p["name"] == "vibrato_rate"][0]
+        vd = [p for p in params if p["name"] == "vibrato_depth"][0]
+        assert vr["type"] == "linear"
+        assert vd["type"] == "linear"
+
+    def test_waveguide_delay_lines(self):
+        code = self._read_script()
+        assert "waveBufL" in code and "waveBufR" in code, "Missing waveguide delay lines"
+        assert "waveLenL" in code and "waveLenR" in code, "Missing waveguide lengths"
+        assert "wavePosL" in code, "Missing waveguide read/write positions"
+
+    def test_bow_friction_model(self):
+        code = self._read_script()
+        assert "_bowFriction" in code, "Missing bow friction function"
+        assert "Stribeck" in code, "Missing Stribeck curve reference"
+        assert "exp(-Math.abs" in code, "Missing exponential friction decay"
+
+    def test_stick_slip(self):
+        code = self._read_script()
+        assert "vRel" in code, "Missing relative velocity for stick-slip"
+        assert "Math.sign" in code, "Missing friction direction (sign)"
+
+    def test_string_velocity(self):
+        code = self._read_script()
+        assert "vString" in code, "Missing string velocity calculation"
+        assert "waveR - waveL" in code, "Missing velocity = right wave - left wave"
+
+    def test_waveguide_damping(self):
+        code = self._read_script()
+        assert "_dampFilter" in code, "Missing damping filter"
+        assert "dampState" in code, "Missing damping filter state"
+        assert "brightness" in code, "Missing brightness control for damping"
+
+    def test_body_resonator(self):
+        code = self._read_script()
+        assert "_resonate" in code, "Missing body resonator function"
+        assert "body1_z1" in code, "Missing body resonator state"
+        assert "bodyFreqs" in code, "Missing body resonator frequencies"
+        assert "280" in code and "450" in code, "Missing violin body frequencies"
+
+    def test_vibrato(self):
+        code = self._read_script()
+        assert "vibPhase" in code, "Missing vibrato phase"
+        assert "vibCents" in code, "Missing vibrato cents calculation"
+        assert "actualFreq" in code, "Missing vibrato-modulated frequency"
+
+    def test_note_on(self):
+        code = self._read_script()
+        assert "noteOn" in code, "Missing noteOn method"
+        assert "440 * Math.pow(2" in code, "Missing MIDI to frequency conversion"
+        assert "Math.random" in code, "Missing noise seed for oscillation"
+
+    def test_bridge_output(self):
+        code = self._read_script()
+        assert "bridgeOut" in code, "Missing bridge output"
+        assert "bridge" in code.lower(), "Missing bridge reference"
+
+    def test_volume_param(self):
+        params = self._parse_params(self._read_script())
+        v = [p for p in params if p["name"] == "volume"][0]
+        assert v["type"] == "linear"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"

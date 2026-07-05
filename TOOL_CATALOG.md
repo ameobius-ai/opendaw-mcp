@@ -386,7 +386,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 314 tools**
 
-## DSP Scripts (scripts/) — 89 scripts
+## DSP Scripts (scripts/) — 90 scripts
 
 ### Werkstatt (Audio Effects) — 71 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
@@ -457,8 +457,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_binaural.js` — Binaural spatial panner (3D positioning via Woodworth ITD formula, frequency-dependent ILD head shadow, pinna elevation spectral notches, distance attenuation + air absorption, room reverb with decorrelation, azimuth/elevation/distance/head_size/room/mix/output)
 - `werkstatt_harmonic_tremolo.js` — Harmonic tremolo (Fender '60s: LR4 crossover splits low/high bands, dual LFO modulates them in antiphase, bass↔treble spectral rocking not amplitude, shape sine→square, phase_offset, crossover/rate/depth/shape/phase_offset/mix/output)
 - `werkstatt_spectral_compressor.js` — Spectral compressor (STFT per-bin dynamics: Cooley-Tukey FFT, Hann window, per-bin envelope follower + compression, tilt shifts threshold across frequency, gain smoothing, overlap-add, no crossover artifacts, Flux Syrah / FabFilter Pro-MB style)
+- `apparat_bowed_string.js` — Bowed string (digital waveguide + bow friction: Stribeck stick-slip model, Helmholtz motion, two delay lines split at bow position, string damping filter, 3-resonator violin body, vibrato, noteOn MIDI trigger)
 
-### Apparat (Instruments) — 8 scripts
+### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
 - `apparat_coldlead.js` — Cold lead synth (oscillator, envelope, filter)
 - `apparat_subcrusher.js` — Sub crusher (distorted bass, oscillator, distortion)
@@ -467,6 +468,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apparat_pluck.js` — Karplus-Strong plucked string (decay, damping, brightness, attack, release, detune, volume)
 - `apparat_wavetable.js` — Wavetable synth (8 tables, scan position + LFO, unison detune, ADSR, volume)
 - `apparat_supersaw.js` — Supersaw synth (7 detuned saws, per-voice stereo pan, resonant lowpass, ADSR)
+- `apparat_bowed_string.js` — Bowed string (digital waveguide + bow friction: Stribeck stick-slip model, Helmholtz motion, two delay lines split at bow position, string damping filter, 3-resonator violin body, vibrato, noteOn MIDI trigger)
 
 ### Spielwerk (MIDI Effects) — 10 scripts
 - `spielwerk_arpeggiator.js` — MIDI arpeggiator (rate, octave, pattern)

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.112.0 (2026-07-05)
+
+- **`apparat_bowed_string.js` DSP script (90 DSP, 9 Apparat)** — bowed string physical modeling: digital waveguide with bow friction. Stribeck stick-slip curve models Helmholtz motion (bow sticks, slips, sticks). Two delay lines split at bow position (nut side + bridge side). String velocity = right wave - left wave at bow point. One-pole damping filter in waveguide loop (brightness control). 3 biquad resonators for violin body (280/450/650 Hz). Vibrato with rate/depth. noteOn seeds waveguide with noise. 9 params (bow_pressure/bow_speed/bow_position/freq/brightness/body_resonance/vibrato_rate/vibrato_depth/volume). 90 DSP scripts, 9 Apparat
+- **1211 unit tests** (+19)
+
 ## v1.111.0 (2026-07-05)
 
 - **`werkstatt_spectral_compressor.js` DSP script (89 DSP, 71 Werkstatt)** — spectral compressor: STFT-based per-bin dynamics processing. Cooley-Tukey radix-2 FFT (1024-point, 512 hop, Hann window), per-bin envelope follower with independent attack/release, per-bin compression curve, tilt parameter shifts threshold across frequency spectrum (compress lows more or highs more), gain smoothing prevents artifacts, overlap-add reconstruction. No crossover artifacts — each frequency bin compressed independently. Flux Syrah / FabFilter Pro-MB style. 8 params (threshold/ratio/attack/release/smoothing/tilt/mix/output). 89 DSP scripts, 71 Werkstatt
