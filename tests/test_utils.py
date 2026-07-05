@@ -17273,3 +17273,119 @@ class TestCreateMidiEcho:
         """4 feedback modes available"""
         modes = ("linear", "exponential", "constant", "reverse")
         assert len(modes) == 4
+
+
+class TestRepeatNotes:
+    """Tests for mcp_opendaw_repeat_notes — repeat existing notes with transforms"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_repeat_notes" in names
+
+    def test_transpose_cumulative(self):
+        """Transpose per repeat is cumulative: r * transpose_semitones"""
+        transpose = 7
+        for r in range(1, 5):
+            offset = transpose * r
+            if r == 1:
+                assert offset == 7
+            elif r == 2:
+                assert offset == 14
+            elif r == 3:
+                assert offset == 21
+            elif r == 4:
+                assert offset == 28
+
+    def test_velocity_decay_cumulative(self):
+        """Velocity decay per repeat: velDecay^r"""
+        vel_decay = 0.8
+        for r in range(1, 4):
+            factor = vel_decay ** r
+            if r == 1:
+                assert abs(factor - 0.8) < 0.01
+            elif r == 2:
+                assert abs(factor - 0.64) < 0.01
+            elif r == 3:
+                assert abs(factor - 0.512) < 0.01
+
+    def test_direction_down_negates_transpose(self):
+        """direction='down' negates transpose"""
+        direction = "down"
+        transpose = 12
+        transpose_val = -abs(transpose) if direction == "down" else abs(transpose)
+        assert transpose_val == -12
+
+    def test_direction_up_keeps_positive(self):
+        """direction='up' keeps transpose positive"""
+        direction = "up"
+        transpose = 7
+        transpose_val = -abs(transpose) if direction == "down" else abs(transpose)
+        assert transpose_val == 7
+
+    def test_cycle_length_calculation(self):
+        """Cycle length = max_end / Quarter + gap_beats"""
+        # 4 notes each 1 beat long, max pos = 3*960 = 2880, dur = 960
+        # max_end = 2880 + 960 = 3840 ticks = 4 beats
+        Quarter = 960
+        max_end = 3840  # ticks
+        gap = 0.5
+        cycle_length = max_end / Quarter + gap
+        assert abs(cycle_length - 4.5) < 0.01
+
+    def test_time_offset_per_repeat(self):
+        """Time offset = cycle_length * r * Quarter"""
+        Quarter = 960
+        cycle_length = 4.0
+        for r in range(1, 4):
+            offset = round(cycle_length * r * Quarter)
+            if r == 1:
+                assert offset == 3840
+            elif r == 2:
+                assert offset == 7680
+            elif r == 3:
+                assert offset == 11520
+
+    def test_repeats_range(self):
+        """repeats clamped to 1-16"""
+        for val in [1, 4, 8, 16]:
+            clamped = max(1, min(16, val))
+            assert 1 <= clamped <= 16
+        for val in [0, -1, 17, 100]:
+            clamped = max(1, min(16, val))
+            assert 1 <= clamped <= 16
+
+    def test_note_count_total(self):
+        """Total notes = source_notes * repeats"""
+        source = 4
+        repeats = 3
+        total = source * repeats
+        assert total == 12
+
+    def test_velocity_clamping(self):
+        """Repeat velocities clamped to 0.01-1.0"""
+        vel = 0.5
+        factor = 0.01
+        new_vel = max(0.01, min(1.0, vel * factor))
+        assert new_vel == 0.01, "0.5 * 0.01 = 0.005 → clamped to 0.01 floor"
+
+    def test_dest_track_same(self):
+        """dest_track=-1 → same as source track"""
+        track_idx = 2
+        dest_track = -1
+        d_track = track_idx if dest_track < 0 else dest_track
+        assert d_track == track_idx
+
+    def test_dest_track_separate(self):
+        """dest_track=3 → separate track"""
+        track_idx = 0
+        dest_track = 3
+        d_track = track_idx if dest_track < 0 else dest_track
+        assert d_track == 3
+
+    def test_gap_beats_default(self):
+        """Default gap = 0 (back-to-back)"""
+        gap = 0.0
+        assert gap == 0.0

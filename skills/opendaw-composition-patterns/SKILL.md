@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 83 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.257.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 84 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.258.0"
 ---
 
 # openDAW Composition Patterns
@@ -103,6 +103,7 @@ What do you want to create?
 ├── Cross-track balance → balance_track_velocities (5 presets, MIDI mix leveling)
 ├── MIDI echo → create_midi_echo (decaying repeats, pitch shift, 4 feedback modes)
 ├── Ratchet → create_ratchet (accelerando/decelerando repeat, Bach cadences, build-ups)
+├── Repeat → repeat_notes (repeat existing notes N times with transpose/velocity/gap, sequences, motivic development)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

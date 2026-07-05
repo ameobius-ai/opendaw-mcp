@@ -29501,6 +29501,162 @@ async def mcp_opendaw_create_motif_development(
     return _wrap_eval(result)
 
 
+
+@mcp.tool()
+async def mcp_opendaw_repeat_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    repeats: int = 2,
+    transpose_semitones: int = 0,
+    velocity_decay: float = 0.0,
+    time_gap_beats: float = 0.0,
+    direction: str = "up",
+    dest_track_index: int = -1,
+) -> str:
+    """Repeat existing notes in a region N times with per-repeat transformations.
+
+    Takes the notes already in the region and copies them `repeats` times,
+    each copy offset in time, pitch, and velocity. Unlike create_midi_echo
+    (which decays feedback repeats), this tool preserves note structure and
+    applies a uniform transform per repeat cycle — ideal for sequences,
+    ostinato patterns, and motivic development.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        repeats: Number of repeat cycles (1-16, each cycle = full copy of source notes)
+        transpose_semitones: Semitones added per repeat cycle (0=same, 12=octave up,
+                             -12=octave down, 7=fifth up). Cumulative.
+        velocity_decay: Velocity multiplier per repeat (0=fade out, 1=constant,
+                        0.8=gradual fade). Applied cumulatively.
+        time_gap_beats: Extra gap between repeats in beats (0=back-to-back,
+                        0.5=half-beat rest between cycles)
+        direction: Transpose direction — "up" or "down" (affects sign of transpose)
+        dest_track_index: Destination track (-1 = same track)
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{error: "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const numRepeats = Math.max(1, Math.min(16, {repeats}));
+        const transposeVal = {direction} === "down" ? -Math.abs({transpose_semitones}) : Math.abs({transpose_semitones});
+        const velDecay = Math.max(0, Math.min(1, {velocity_decay}));
+        const gapBeats = Math.max(0, {time_gap_beats});
+        const destTrackIdx = {dest_track_index};
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{error: "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{error: "No notes in region"}};
+
+        // Read source note data
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }}));
+
+        // Find time span of source notes
+        let maxEnd = 0;
+        for (const n of srcData) {{
+            const end = n.pos + n.dur;
+            if (end > maxEnd) maxEnd = end;
+        }}
+        const cycleLengthBeats = maxEnd / Quarter + gapBeats;
+
+        // Determine destination
+        const dTrackIdx = destTrackIdx < 0 ? trackIdx : destTrackIdx;
+        if (dTrackIdx < 0 || dTrackIdx >= noteTracks.length) return {{error: "dest_track out of range"}};
+        const destTrack = noteTracks[dTrackIdx];
+        const destRegions = h.regionBoxes(destTrack);
+        if (destRegions.length === 0) return {{error: "No regions on dest track"}};
+        const destRegion = dTrackIdx === trackIdx ? region : destRegions[0];
+        let destColl = null;
+        try {{
+            const dv = destRegion.events.targetVertex.unwrap();
+            destColl = dv.box || dv;
+        }} catch(e) {{}}
+        if (!destColl || !destColl.events) return {{error: "No note collection in dest region"}};
+
+        // Build repeated notes
+        const repNotes = [];
+        const repeatInfo = [];
+        for (let r = 1; r <= numRepeats; r++) {{
+            const pitchOffset = transposeVal * r;
+            const velFactor = Math.pow(velDecay, r);
+            const timeOffset = Math.round(cycleLengthBeats * r * Quarter);
+
+            for (const note of srcData) {{
+                repNotes.push({{
+                    pos: note.pos + timeOffset,
+                    dur: note.dur,
+                    pitch: note.pitch + pitchOffset,
+                    vel: Math.max(0.01, Math.min(1.0, note.vel * velFactor)),
+                }});
+            }}
+            repeatInfo.push({{
+                repeat: r,
+                pitch_offset: pitchOffset,
+                velocity_factor: Math.round(velFactor * 1000) / 1000,
+                time_offset_beats: Math.round(cycleLengthBeats * r * 1000) / 1000,
+            }});
+        }}
+
+        // Create repeated notes in destination
+        const bg = h.boxGraph;
+        let created = 0;
+        const editing = h.editing;
+        await editing.modify(async () => {{
+            for (const rn of repNotes) {{
+                h.NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(rn.pos));
+                    box.duration.setValue(Math.round(rn.dur));
+                    box.pitch.setValue(rn.pitch);
+                    box.velocity.setValue(rn.vel);
+                    box.cent.setValue(0);
+                    box.events.refer(destColl.events);
+                }});
+                created++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: created,
+            repeats: numRepeats,
+            transpose_per_repeat: transposeVal,
+            velocity_decay: velDecay,
+            time_gap_beats: gapBeats,
+            cycle_length_beats: Math.round(cycleLengthBeats * 1000) / 1000,
+            dest_track: dTrackIdx,
+            repeat_details: repeatInfo,
+            source_note_count: srcData.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 @mcp.tool()
 async def mcp_opendaw_create_stutter(
     pitches: str = "60",

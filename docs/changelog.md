@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.258.0 (2026-07-06)
+
+### Added
+- `repeat_notes` — Repeat existing notes in a region N times (1-16 cycles) with per-repeat transformations: cumulative pitch transpose (direction up/down), velocity decay multiplier, and time gap between cycles. Unlike create_midi_echo (feedback decay), this preserves note structure and applies uniform transform per cycle. Ideal for sequences, ostinato patterns, motivic development. Cross-track destination support.
+
 ## v1.257.0 (2026-07-06)
 
 ### Added
