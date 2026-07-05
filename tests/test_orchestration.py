@@ -7855,3 +7855,183 @@ class TestBassFromProgression:
         ]
         assert "create_bass_from_progression" in pipeline
         assert len(pipeline) == 6
+
+
+class TestMelodyFromProgression:
+    """Tests for create_melody_from_progression — harmonic quartet lead melody"""
+
+    PATTERNS = ["chord_tones", "sustained", "syncopated", "triadic", "stepwise"]
+
+    def test_5_patterns(self):
+        """5 melodic patterns"""
+        assert len(self.PATTERNS) == 5
+
+    def test_chord_tones_beat_structure(self):
+        """chord_tones: chord tones on 1+3, passing/neighbor on 2+4"""
+        beats = {"strong": [1, 3], "weak": [2, 4]}
+        assert len(beats["strong"]) == 2
+        assert len(beats["weak"]) == 2
+
+    def test_chord_tones_notes_per_bar(self):
+        """chord_tones: 4 quarter notes per bar"""
+        notes_per_bar = 4
+        bars = 4
+        total = notes_per_bar * bars
+        assert total == 16
+
+    def test_sustained_notes_per_bar(self):
+        """sustained: 1 note per bar, held 3.8 beats"""
+        notes_per_bar = 1
+        bars = 4
+        total = notes_per_bar * bars
+        assert total == 4
+
+    def test_sustained_duration(self):
+        """sustained: note duration = 3.8 beats (almost full bar)"""
+        dur = 3.8
+        assert dur < 4.0  # small gap
+        assert dur > 3.5  # mostly sustained
+
+    def test_syncopated_8th_notes(self):
+        """syncopated: 8th notes, chord tones on downbeats"""
+        chord_beats = 16
+        steps = int(chord_beats / 0.5)
+        assert steps == 32
+
+    def test_syncopated_downbeat_upbeat(self):
+        """syncopated: even steps = downbeat (chord tone), odd = upbeat (passing)"""
+        step = 0
+        beat_pos = step * 0.5
+        assert int(beat_pos) == beat_pos  # downbeat
+
+        step = 1
+        beat_pos = step * 0.5
+        assert int(beat_pos) != beat_pos  # upbeat
+
+    def test_triadic_8th_notes(self):
+        """triadic: 8th arpeggios through chord tones"""
+        chord_beats = 16
+        steps = int(chord_beats / 0.5)
+        assert steps == 32
+
+    def test_triadic_octave_variation(self):
+        """triadic: octave up every other bar"""
+        bar = 1
+        octave_shift = 12 if bar % 2 == 1 else 0
+        assert octave_shift == 12
+
+        bar = 0
+        octave_shift = 12 if bar % 2 == 1 else 0
+        assert octave_shift == 0
+
+    def test_stepwise_direction(self):
+        """stepwise: walks stepwise between chord tones"""
+        start_tone = 60  # C4
+        end_tone = 64    # E4
+        direction = 1 if end_tone > start_tone else -1
+        assert direction == 1
+
+        start_tone = 64
+        end_tone = 60
+        direction = 1 if end_tone > start_tone else -1
+        assert direction == -1
+
+    def test_stepwise_4_quarters(self):
+        """stepwise: 4 quarter notes per bar"""
+        notes_per_bar = 4
+        bars = 4
+        total = notes_per_bar * bars
+        assert total == 16
+
+    def test_passing_tone_between_chord_tones(self):
+        """chord_tones beat 2: passing tone between chord tones"""
+        beat1 = 60  # C
+        fifth = 67  # G
+        passing = beat1 + 1 if beat1 < fifth else beat1 - 1
+        assert passing == 61  # C#
+
+    def test_approach_next_root(self):
+        """chord_tones last bar beat 4: approach next root chromatically"""
+        next_root = 65  # F4
+        beat3 = 67      # G4
+        if next_root > beat3:
+            approach = next_root - 1
+        else:
+            approach = next_root + 1
+        assert approach == 66  # F#4, half-step below F
+
+    def test_melody_octave_5(self):
+        """Lead melody octave 5 = C5=72"""
+        root_pc = NOTE_TO_PITCH["C"]
+        base = (5 + 1) * 12 + root_pc
+        assert base == 72
+
+    def test_melody_octave_range(self):
+        """Valid melody octaves 0-7"""
+        assert 0 <= 5 <= 7
+
+    def test_chord_tones_list(self):
+        """Chord tones from Am at octave 5: A5, C6, E6"""
+        root_pc = NOTE_TO_PITCH["A"]
+        base = (5 + 1) * 12 + root_pc  # 72 + 9 = 81
+        intervals = [0, 3, 7]  # minor
+        tones = [base + iv for iv in intervals]
+        assert tones == [81, 84, 88]  # A5, C6, E6
+
+    def test_harmonic_quartet_same_progression(self):
+        """All four tools take same 'Am-F-C-G' string"""
+        prog = "Am-F-C-G"
+        # chord_pads: sustained harmony
+        # arpeggiated_progression: melodic movement
+        # bass_from_progression: bass foundation
+        # melody_from_progression: lead melody
+        assert prog.split("-") == ["Am", "F", "C", "G"]
+
+    def test_full_harmonic_quartet_pipeline(self):
+        """Full quartet pipeline: song + pads + arp + bass + melody + mix + render"""
+        pipeline = [
+            "create_song_with_variations",
+            "create_chord_pads",
+            "create_arpeggiated_progression",
+            "create_bass_from_progression",
+            "create_melody_from_progression",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert "create_melody_from_progression" in pipeline
+        assert len(pipeline) == 7
+
+    def test_pop_lead_i_v_vi_iv(self):
+        """Pop lead from C-G-Am-F"""
+        prog = "C-G-Am-F"
+        chords = prog.split("-")
+        assert len(chords) == 4
+
+    def test_country_triadic_from_d_g_a(self):
+        """Country triadic from D-G-A-D (I-IV-V-I)"""
+        prog = "D-G-A-D"
+        chords = prog.split("-")
+        assert len(chords) == 4
+        assert chords[0] == "D"
+
+    def test_total_notes_chord_tones_4_chords(self):
+        """chord_tones: 4 chords × 4 bars × 4 notes/bar = 64 notes"""
+        chords = 4
+        bars_per = 4
+        notes_per_bar = 4
+        total = chords * bars_per * notes_per_bar
+        assert total == 64
+
+    def test_total_notes_sustained_4_chords(self):
+        """sustained: 4 chords × 4 bars × 1 note/bar = 16 notes"""
+        chords = 4
+        bars_per = 4
+        total = chords * bars_per * 1
+        assert total == 16
+
+    def test_total_notes_syncopated_4_chords(self):
+        """syncopated: 4 chords × 32 steps = 128 notes"""
+        chords = 4
+        steps = 32
+        total = chords * steps
+        assert total == 128

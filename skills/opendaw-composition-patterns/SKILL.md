@@ -91,6 +91,7 @@ What do you want to create?
 ├── Chord pads (string) → create_chord_pads ("Am-F-C-G", 10 chord types)
 ├── Arpeggiated progression → create_arpeggiated_progression ("Am-F-C-G", 5 arp patterns)
 ├── Bass from progression → create_bass_from_progression ("Am-F-C-G", 6 bass patterns)
+├── Melody from progression → create_melody_from_progression ("Am-F-C-G", 5 melody patterns)
 ├── Full pipeline → create_full_genre_pipeline (14 genres: zero-to-render in one call)
 └── Render entire song → render_full_song (auto-detect length, export WAV)
 ```
@@ -129,6 +130,7 @@ All three take "Am-F-C-G":
 - **create_chord_pads** → sustained harmony (track 2)
 - **create_arpeggiated_progression** → melodic movement (track 3, 5 patterns: up/down/updown/random/bass)
 - **create_bass_from_progression** → bass foundation (track 1, 6 patterns: root/root_fifth/walking/pedal/octave/root_octave)
+- **create_melody_from_progression** → lead melody (track 3, 5 patterns: chord_tones/sustained/syncopated/triadic/stepwise)
 
 ### Quick recipes
 

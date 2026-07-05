@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.153.0 (2026-07-05)
+
+- **`create_melody_from_progression` orchestration tool (346 MCP tools)** — new capability: lead melody from chord progression. Completes the harmonic quartet: create_chord_pads (sustained harmony) + create_arpeggiated_progression (arp movement) + create_bass_from_progression (bass foundation) + this (lead melody). All four take the same "Am-F-C-G" string. Melody hits chord tones on strong beats (1, 3) and uses passing/neighbor tones on weak beats (2, 4) for melodic interest. 5 patterns: chord_tones (4 quarters with chord tones on 1+3, passing on 2+4), sustained (ballad, 1 chord tone per bar), syncopated (8th notes: downbeats=chord tones, upbeats=passing), triadic (8th arpeggios through chord tones with octave variation, folk/country), stepwise (scale steps between chord tones, pop/classical). Approach notes to next chord root on last bar beat 4 (chromatic half-step). 72 orchestration tools. 346 MCP tools
+- **2035 unit tests** (+23)
+
 ## v1.152.0 (2026-07-05)
 
 - **`create_bass_from_progression` orchestration tool (345 MCP tools)** — new capability: bass line from chord progression. Completes the harmonic trio: create_chord_pads (sustained harmony) + create_arpeggiated_progression (melodic movement) + this (bass foundation). All three take the same "Am-F-C-G" string. 6 patterns: root (beat 1+3 quarter notes), root_fifth (root on 1, fifth on 3 — rock/pop), walking (jazz: root→chord tone→chord tone→chromatic approach to next root), pedal (one sustained root per chord — techno/house sub-bass), octave (8th notes alternating root+octave — disco/funk), root_octave (root on 1, octave up on 3 — pop/rock power). Walking bass uses chromatic approach notes (half-step below/above next chord root). Configurable octave (1=sub-bass, 2=bass, 3=mid), velocity, bars_per_chord. 71 orchestration tools. 345 MCP tools

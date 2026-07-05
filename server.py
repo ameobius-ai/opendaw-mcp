@@ -27228,3 +27228,247 @@ async def mcp_opendaw_create_bass_from_progression(
         "start_beat": start_beat,
         "next_step": "pair with create_chord_pads (harmony) + create_arpeggiated_progression (melody), then apply_genre_mix and render_full_song",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_melody_from_progression(
+    progression: str = "Am-F-C-G",
+    pattern: str = "chord_tones",
+    bars_per_chord: int = 4,
+    octave: int = 5,
+    velocity: float = 0.75,
+    unit_index: int = 0,
+    track_index: int = 3,
+    start_beat: float = 0,
+) -> str:
+    """Create a lead melody from a chord progression string.
+
+    Completes the harmonic quartet: create_chord_pads (sustained harmony) +
+    create_arpeggiated_progression (arp movement) +
+    create_bass_from_progression (bass foundation) +
+    THIS (lead melody). All four take the same "Am-F-C-G" string.
+
+    The melody hits chord tones on strong beats (1, 3) and uses passing
+    tones or neighbor tones on weak beats (2, 4) for melodic interest.
+
+    pattern: Melodic pattern:
+      "chord_tones" — root/third/fifth on beats 1+3, passing tone on 2+4
+      "sustained" — one chord tone per bar, held for full bar (ballad)
+      "syncopated" — 8th notes, chord tones on downbeats, passing on ups
+      "triadic" — arpeggiated 8ths through chord tones (folk, country)
+      "stepwise" — scale steps between chord tones (pop, classical)
+
+    bars_per_chord: Bars per chord (default 4).
+    octave: MIDI octave for melody (5 = C5=72, typical lead range).
+    velocity: Note velocity (0-1, default 0.75).
+    track_index: Track for melody (typically melody track = 3).
+
+    Example:
+      # Pop lead from I-V-vi-IV
+      create_melody_from_progression("C-G-Am-F", pattern="chord_tones",
+          octave=5, track_index=3)
+
+      # Ballad sustained melody
+      create_melody_from_progression("Am-F-C-G", pattern="sustained",
+          octave=5, bars_per_chord=4)
+
+      # Country triadic fiddle
+      create_melody_from_progression("D-G-A-D", pattern="triadic",
+          octave=5, velocity=0.8)
+    """
+    # Parse progression (same parser as the trio)
+    type_map = {
+        "m": "min", "7": "dom7", "maj7": "maj7", "m7": "min7",
+        "sus2": "sus2", "sus4": "sus4", "add9": "add9",
+        "dim": "dim", "aug": "aug", "maj": "maj",
+    }
+    chord_specs = []
+    for chord_str in progression.split("-"):
+        chord_str = chord_str.strip()
+        if not chord_str:
+            continue
+        if len(chord_str) >= 2 and chord_str[1] in "#b":
+            root = chord_str[:2]
+            remainder = chord_str[2:]
+        else:
+            root = chord_str[0]
+            remainder = chord_str[1:]
+
+        chord_type = "maj"
+        if remainder:
+            if remainder not in type_map:
+                return f"Error: unknown chord type '{remainder}' in chord '{chord_str}'. Valid: {list(type_map.keys())}"
+            chord_type = type_map[remainder]
+
+        if root not in NOTE_TO_PITCH:
+            return f"Error: unknown root note '{root}' in chord '{chord_str}'"
+        chord_specs.append((root, chord_type, chord_str))
+
+    if not chord_specs:
+        return "Error: progression must be a non-empty hyphen-separated chord list"
+    if len(chord_specs) > 16:
+        return "Error: maximum 16 chords per progression"
+    if bars_per_chord < 1 or bars_per_chord > 16:
+        return "Error: bars_per_chord must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 7):
+        return "Error: octave must be 0-7"
+    valid_patterns = ("chord_tones", "sustained", "syncopated", "triadic", "stepwise")
+    if pattern not in valid_patterns:
+        return f"Error: pattern must be one of {valid_patterns}, got '{pattern}'"
+
+    import random as _random
+
+    all_notes = []
+    chord_info = []
+    current_beat = start_beat
+
+    for ci, (root, chord_type, label) in enumerate(chord_specs):
+        intervals = CHORD_INTERVALS[chord_type]
+        root_pc = NOTE_TO_PITCH[root]
+        base = (octave + 1) * 12 + root_pc
+        tones = [base + iv for iv in intervals]
+        # Extended tones: root, third, fifth, octave, third above
+        ext_tones = tones + [tones[0] + 12, tones[1] + 12] if len(tones) >= 2 else tones
+
+        # Next chord root for passing tones
+        if ci + 1 < len(chord_specs):
+            next_root_pc = NOTE_TO_PITCH[chord_specs[ci + 1][0]]
+            next_root = (octave + 1) * 12 + next_root_pc
+        else:
+            next_root = tones[0] + 12  # octave if last chord
+
+        chord_beats = bars_per_chord * 4
+        notes_for_chord = []
+
+        if pattern == "sustained":
+            # One chord tone per bar, held full bar
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                # Pick a chord tone (rotate through tones)
+                tone = tones[bar % len(tones)]
+                notes_for_chord.append((tone, bar_start, 3.8))
+
+        elif pattern == "chord_tones":
+            # Chord tones on beats 1+3, passing tone on beats 2+4
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                # Beat 1: root or third (alternate)
+                beat1 = tones[bar % 2] if len(tones) > 1 else tones[0]
+                notes_for_chord.append((beat1, bar_start, 1.0))
+                # Beat 2: passing tone (scale step between chord tones)
+                passing = beat1 + 1 if beat1 < tones[2] else beat1 - 1
+                if 0 <= passing <= 127:
+                    notes_for_chord.append((passing, bar_start + 1.0, 1.0))
+                # Beat 3: fifth or root octave
+                beat3 = tones[2] if len(tones) > 2 else tones[0] + 12
+                notes_for_chord.append((beat3, bar_start + 2.0, 1.0))
+                # Beat 4: neighbor tone or approach to next root
+                if bar == bars_per_chord - 1 and ci + 1 < len(chord_specs):
+                    # Last bar: approach next root
+                    if next_root > beat3:
+                        beat4 = next_root - 1  # half-step below
+                    else:
+                        beat4 = next_root + 1  # half-step above
+                else:
+                    beat4 = beat3 + 2  # stepwise neighbor
+                if 0 <= beat4 <= 127:
+                    notes_for_chord.append((beat4, bar_start + 3.0, 1.0))
+
+        elif pattern == "syncopated":
+            # 8th notes: chord tones on downbeats, passing on upbeats
+            steps = int(chord_beats / 0.5)
+            for s in range(steps):
+                beat_pos = s * 0.5
+                bar = int(beat_pos // 4)
+                beat_in_bar = beat_pos % 4
+                if int(beat_in_bar) == beat_in_bar:
+                    # Downbeat → chord tone
+                    pitch = tones[(s // 2) % len(tones)]
+                    dur = 0.45
+                else:
+                    # Upbeat → passing or neighbor
+                    last_tone = tones[((s - 1) // 2) % len(tones)] if s > 0 else tones[0]
+                    pitch = last_tone + 1 if s % 4 == 1 else last_tone - 1
+                    dur = 0.35
+                if 0 <= pitch <= 127:
+                    notes_for_chord.append((pitch, current_beat + beat_pos, dur))
+
+        elif pattern == "triadic":
+            # Arpeggiated 8ths through chord tones (folk, country)
+            steps = int(chord_beats / 0.5)
+            for s in range(steps):
+                pitch = tones[s % len(tones)]
+                # Add octave variation every other bar
+                bar = s // 8
+                if bar % 2 == 1:
+                    pitch += 12
+                if 0 <= pitch <= 127:
+                    notes_for_chord.append((pitch, current_beat + s * 0.5, 0.45))
+
+        elif pattern == "stepwise":
+            # Scale steps between chord tones (pop, classical)
+            # Walk from current chord tone to next, stepwise
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                # Start on a chord tone
+                start_tone = tones[bar % len(tones)]
+                # End on another chord tone (next one in rotation)
+                end_tone = tones[(bar + 1) % len(tones)]
+                # 4 quarter notes, stepwise from start to end
+                direction = 1 if end_tone > start_tone else -1
+                for beat in range(4):
+                    pitch = start_tone + direction * beat
+                    if 0 <= pitch <= 127:
+                        notes_for_chord.append((pitch, bar_start + beat * 1.0, 0.9))
+
+        for pitch, nstart, ndur in notes_for_chord:
+            if 0 <= pitch <= 127:
+                all_notes.append({
+                    "pitch": pitch,
+                    "start": round(nstart, 4),
+                    "duration": round(ndur, 4),
+                    "velocity": round(velocity, 3),
+                })
+
+        chord_info.append({
+            "chord": label,
+            "root": root,
+            "type": chord_type,
+            "chord_tones": tones,
+            "pattern": pattern,
+            "start_beat": current_beat,
+            "bars": bars_per_chord,
+            "notes": len(notes_for_chord),
+        })
+        current_beat += chord_beats
+
+    notes_json = json.dumps(all_notes)
+    result = await mcp_opendaw_create_notes_batch(
+        notes_json, unit_index, track_index)
+
+    try:
+        batch_data = json.loads(result)
+        notes_created = batch_data.get("notes_created", len(all_notes))
+    except Exception:
+        notes_created = len(all_notes)
+
+    total_bars = len(chord_specs) * bars_per_chord
+    _ = _random
+
+    return json.dumps({
+        "melody_from_progression": True,
+        "progression": progression,
+        "pattern": pattern,
+        "chords": chord_info,
+        "chord_count": len(chord_specs),
+        "bars_per_chord": bars_per_chord,
+        "total_bars": total_bars,
+        "octave": octave,
+        "notes_created": notes_created,
+        "total_notes": len(all_notes),
+        "track": track_index,
+        "start_beat": start_beat,
+        "next_step": "combine with create_chord_pads + create_bass_from_progression + create_arpeggiated_progression for full harmonic quartet, then apply_genre_mix and render_full_song",
+    }, indent=2)
