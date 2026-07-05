@@ -472,4 +472,59 @@ await mcp_opendaw_add_mastering_chain(target_lufs=-16, style="transparent")  # a
 - `opendaw-sound-design` — instruments + DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain
 - `suno-to-opendaw` — Suno→stems→openDAW E2E
-- `opendaw-automation` — 263 MCP tools full API reference
+- `opendaw-automation` — 332 MCP tools full API reference
+
+## Multi-Track Arrangement Tools (11 genres)
+
+One-call genre sections across 3-4 tracks. Replaces 100+ individual create_note calls.
+
+### Decision Tree: Which Arrangement?
+
+```
+User wants...
+├── Electronic dance?
+│   ├── Fast + breakbeat?        → create_dnb_arrangement (174 BPM, Amen, Reese)
+│   ├── Four-on-floor?
+│   │   ├── Off-beat bass?       → create_house_arrangement (124 BPM, "untz-untz")
+│   │   ├── Sustained drone?     → create_techno_arrangement (130 BPM, hypnotic, min 8 bars)
+│   │   └── Half-time + wobble?  → create_dubstep_arrangement (140 BPM, feels like 70)
+│   └── Trap rolls + 808?        → create_trap_arrangement (140 BPM, F# minor)
+├── Organic / band?
+│   ├── Guitar-driven?
+│   │   ├── Power chords, I-IV-V? → create_rock_arrangement (120 BPM, E default)
+│   │   └── Skank + one-drop?     → create_reggae_arrangement (80 BPM, A minor)
+│   ├── Bass-driven groove?
+│   │   ├── Vamp, 16th syncopation? → create_funk_arrangement (100 BPM, Funky Drummer)
+│   │   └── Polyrhythm, horns?      → create_afrobeat_arrangement (120 BPM, Fela Kuti)
+│   ├── Jazz?                      → create_jazz_arrangement (120 BPM, ii-V-I, swing)
+│   └── Song structure needed?     → create_pop_arrangement (120 BPM, verse-chorus-bridge)
+```
+
+### All 11 Arrangements
+
+| Tool | Genre | Tracks | BPM | Key | Key Feature |
+|------|-------|--------|-----|-----|-------------|
+| `create_dnb_arrangement` | DnB | 3 | 140-200 | F | Amen breakbeat + Reese + pad |
+| `create_house_arrangement` | House | 3 | 110-140 | C | Four-on-floor + off-beat bass + stabs |
+| `create_trap_arrangement` | Trap | 3 | 120-170 | F# | Trap rolls + 808 slides + bell |
+| `create_techno_arrangement` | Techno | 3 | 120-150 | C | Four-on-floor + sub drone + Detroit stabs |
+| `create_dubstep_arrangement` | Dubstep | 3 | 130-155 | G | Half-time + wobble bass + arp |
+| `create_afrobeat_arrangement` | Afrobeat | 4 | 95-135 | F | Polyrhythm + ostinato + horns + chanka |
+| `create_rock_arrangement` | Rock | 4 | 80-180 | E | Rock beat + power chords + I-IV-V |
+| `create_jazz_arrangement` | Jazz | 4 | 50-220 | F | Swing ride + walking bass + ii-V-I |
+| `create_pop_arrangement` | Pop | 4 | 85-145 | C | Song structure + I-V-vi-IV |
+| `create_funk_arrangement` | Funk | 4 | 85-120 | D | Vamp + Funky Drummer + slap bass |
+| `create_reggae_arrangement` | Reggae | 4 | 60-100 | A | One-drop + skank + melodic bass lead |
+
+### Drum Pattern Comparison
+
+| Genre | Kick | Snare | Unique |
+|-------|------|-------|--------|
+| House | Every beat | Clap 2+4 | Four-on-floor |
+| Techno | Every beat | Clap 2+4 | Industrial hats |
+| Rock | 1 & 3 | 2 & 4 | Straight backbeat |
+| Jazz | Sporadic | Ghost on swung 8ths | Spang-a-lang ride |
+| Funk | Syncopated | 2+4 + ghosts | 16th-note hats |
+| Reggae | 3 ONLY | 3 ONLY (with kick) | One-drop, empty on 1 |
+| Dubstep | 1 ONLY | 3 ONLY | Half-time, feels like 70 |
+| Afrobeat | Syncopated | None (clave) | 12/8 polyrhythm |
