@@ -1,8 +1,8 @@
 # DSP Scripts
 
-105 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+106 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 86 scripts
+## Werkstatt (Audio Effects) — 87 scripts
 
 ### Dynamics (13)
 
@@ -122,7 +122,7 @@
 | `werkstatt_mid_side_processor.js` | Mid/Side Processor (independent M/S gain + filters + width, mastering) |
 | `werkstatt_haas_widener.js` | Haas Stereo Widener (short delay 1-30ms on one channel, precedence effect) |
 
-### Spectral/FX (8)
+### Spectral/FX (9)
 
 | Script | Description |
 |--------|-------------|
@@ -134,6 +134,7 @@
 | `werkstatt_vinyl.js` | Vinyl Simulator |
 | `werkstatt_spectral_compressor.js` | Spectral Compressor (STFT) |
 | `werkstatt_spectral_denoise.js` | Spectral Denoiser (Noise Floor Subtraction) |
+| `werkstatt_spectral_blur.js` | Spectral Blur (STFT-based spectral smearing, freq+temporal blur, phase randomization, ambient textures) |
 
 ### Restoration (5)
 

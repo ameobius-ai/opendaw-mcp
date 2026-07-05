@@ -434,9 +434,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 362 tools**
 
-## DSP Scripts (scripts/) — 105 scripts
+## DSP Scripts (scripts/) — 106 scripts
 
-### Werkstatt (Audio Effects) — 86 scripts
+### Werkstatt (Audio Effects) — 87 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -524,6 +524,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_glue_comp.js` — SSL-style glue compressor (auto-makeup gain, VCA warmth via tanh soft clip, 2:1 ratio / 10ms attack / 100ms release defaults, parallel mix New York compression, true stereo peak detection)
 - `werkstatt_de_plosive.js` — De-plosive (adaptive highpass for vocal plosive removal, one-pole LP envelope follower + threshold, transient-triggered HPF sweep, strength, freq, attack, release, mix)
 - `werkstatt_vowel_morph.js` — Vowel morph (3 cascaded formant biquad bandpass filters F1/F2/F3, A→E→I→O→U interpolation, auto-morph LFO with rate, spectral tilt, mix, output)
+- `werkstatt_spectral_blur.js` — Spectral blur (STFT-based spectral smearing: Cooley-Tukey FFT, Hann window, frequency blur averages magnitude across neighboring bins, temporal blur averages across 4 previous frames, phase randomization for diffuse texture, overlap-add reconstruction, ambient/drone/sound design)
 
 ### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

@@ -7942,3 +7942,74 @@ class TestCreateMuteAutomation:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_create_mute_automation" in tool_names
 
+
+class TestSpectralBlurDSP:
+    """Tests for werkstatt_spectral_blur.js — STFT-based spectral smearing"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_spectral_blur.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt spectral_blur" in code
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_spectral_blur.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_six_params(self):
+        """6 params: blur_size, freq_blur, time_blur, phase_rand, mix, output"""
+        code = self._read_script()
+        params = code.count("@param")
+        assert params == 6
+
+    def test_blur_size_is_int(self):
+        """blur_size is int type (1-32 bins)"""
+        code = self._read_script()
+        assert "int bins" in code
+
+    def test_has_fft(self):
+        """Uses FFT (Cooley-Tukey radix-2)"""
+        code = self._read_script()
+        assert "fft" in code.lower()
+        assert "Cooley" in code or "butterfly" in code.lower() or "Bit reversal" in code
+
+    def test_has_hann_window(self):
+        """Uses Hann window for overlap-add"""
+        code = self._read_script()
+        assert "Hann" in code or "hann" in code
+        assert "0.5 * (1 - Math.cos" in code
+
+    def test_overlap_add(self):
+        """Overlap-add for reconstruction"""
+        code = self._read_script()
+        assert "overlap" in code.lower()
+
+    def test_freq_blur_smears_magnitude(self):
+        """Frequency blur averages magnitude across neighboring bins"""
+        code = self._read_script()
+        assert "freqBlur" in code
+        assert "blurSize" in code
+
+    def test_time_blur_averages_frames(self):
+        """Temporal blur averages magnitude across previous frames"""
+        code = self._read_script()
+        assert "timeBlur" in code
+        assert "magnitudeHistory" in code
+
+    def test_phase_randomization(self):
+        """Phase randomization for diffuse texture"""
+        code = self._read_script()
+        assert "phaseRand" in code
+        assert "randPhase" in code
+
+    def test_magnitude_spectrum_reconstruction(self):
+        """Reconstructs from magnitude + phase"""
+        code = self._read_script()
+        assert "Math.cos(phase" in code
+        assert "Math.sin(phase" in code
+

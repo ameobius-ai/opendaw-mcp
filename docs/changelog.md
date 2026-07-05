@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.181.0 (2026-07-05)
+
+### Added
+- `werkstatt_spectral_blur.js` — STFT-based spectral blur DSP. Smears magnitude across frequency bins (freq_blur) and time frames (time_blur), with phase randomization for diffuse texture. Cooley-Tukey FFT, Hann window, overlap-add reconstruction. Classic for ambient, drone, sound design. 106 DSP scripts total
+
 ## v1.180.0 (2026-07-05)
 
 ### Added
