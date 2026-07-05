@@ -6562,7 +6562,7 @@ class TestWerkstattAutoWah:
         """Auto-wah modulates filter freq dynamically, unlike static filter"""
         auto_wah_features = {"envelope_following", "dynamic_freq", "amplitude_driven"}
         static_filter_features = {"fixed_freq", "no_envelope"}
-        assert "envelope_following" not in static_filter_features
+        assert auto_wah_features.isdisjoint(static_filter_features)
 
 
 class TestDePlosiveDSP:
@@ -7484,7 +7484,6 @@ class TestCreateBuildup:
 
     def test_snare_density_increases(self):
         """Snare roll: quarter → eighth → sixteenth → 32nd (density increases)"""
-        divisions = ["quarter", "eighth", "sixteenth", "thirtysecond"]
         rates = [1, 0.5, 0.25, 0.125]
         # each subsequent is faster (smaller division)
         for i in range(len(rates) - 1):

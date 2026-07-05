@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.176.0 (2026-07-05)
+
+### Fixed
+- Removed 3 unused variables flagged by ruff: `ext_tones` in `create_melody_from_progression` (server.py), `auto_wah_features` and `divisions` in test_utils.py — ruff now fully clean (0 errors, first time in 15+ cycles)
+
+### Changed
+- Synced docs/dsp-scripts.md with actual scripts: added 5 missing DSP scripts (de_plosive, mid_side_processor, haas_widener, glue_comp, vowel_morph), updated category counts (Dynamics 11→13, Filter 9→10, Stereo/Spatial 4→6, Restoration 4→5), total 81→86 Werkstatt, 100→105 scripts
+- Synced TOOL_CATALOG.md with actual scripts: added 10 missing Werkstatt DSP scripts (moog_ladder, rotary_speaker, waveshaper, envelope_follower, auto_wah, mid_side_processor, haas_widener, glue_comp, de_plosive, vowel_morph), updated counts 71→86 Werkstatt, 90→105 total
+
 ## v1.175.0 (2026-07-05)
 
 ### Added

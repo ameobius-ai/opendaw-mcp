@@ -28531,8 +28531,6 @@ async def mcp_opendaw_create_melody_from_progression(
         root_pc = NOTE_TO_PITCH[root]
         base = (octave + 1) * 12 + root_pc
         tones = [base + iv for iv in intervals]
-        # Extended tones: root, third, fifth, octave, third above
-        ext_tones = tones + [tones[0] + 12, tones[1] + 12] if len(tones) >= 2 else tones
 
         # Next chord root for passing tones
         if ci + 1 < len(chord_specs):

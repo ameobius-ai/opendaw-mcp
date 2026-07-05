@@ -1,10 +1,10 @@
 # DSP Scripts
 
-100 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+105 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 81 scripts
+## Werkstatt (Audio Effects) — 86 scripts
 
-### Dynamics (11)
+### Dynamics (13)
 
 | Script | Description |
 |--------|-------------|
@@ -19,6 +19,8 @@
 | `werkstatt_bass_enhancer.js` | Bass Enhancer (Psychoacoustic) |
 | `werkstatt_expander.js` | Downward Expander |
 | `werkstatt_envelope_follower.js` | Envelope Follower (amplitude tracking) |
+| `werkstatt_glue_comp.js` | SSL-Style Glue Compressor (auto-makeup, VCA warmth, parallel mix, true stereo peak detect) |
+| `werkstatt_de_plosive.js` | De-Plosive (adaptive highpass for vocal plosive removal, envelope follower + threshold) |
 
 ### Saturation/Distortion (8)
 
@@ -43,7 +45,7 @@
 | `werkstatt_tilt_eq.js` | Tilt EQ |
 | `werkstatt_matching_eq.js` | Matching EQ (Spectral Balance Corrector) |
 
-### Filter (9)
+### Filter (10)
 
 | Script | Description |
 |--------|-------------|
@@ -56,6 +58,7 @@
 | `werkstatt_autowah.js` | Autowah |
 | `werkstatt_auto_wah.js` | Auto-Wah (envelope-driven biquad sweep, Mu-Tron III) |
 | `werkstatt_svf.js` | State Variable Filter (Chamberlin) |
+| `werkstatt_vowel_morph.js` | Vowel Morph (3 cascaded formant biquads, A→E→I→O→U interpolation, auto-morph LFO, spectral tilt) |
 
 ### Modulation (8)
 
@@ -108,7 +111,7 @@
 | `werkstatt_paulstretch.js` | PaulStretch (Extreme Ambient Stretch) |
 | `werkstatt_tape_stop.js` | Tape Stop |
 
-### Stereo/Spatial (4)
+### Stereo/Spatial (6)
 
 | Script | Description |
 |--------|-------------|
@@ -116,6 +119,8 @@
 | `werkstatt_auto_pan.js` | Auto-Pan |
 | `werkstatt_multiband_imager.js` | Multiband Stereo Imager |
 | `werkstatt_binaural.js` | Binaural Spatial Panner (HRTF) |
+| `werkstatt_mid_side_processor.js` | Mid/Side Processor (independent M/S gain + filters + width, mastering) |
+| `werkstatt_haas_widener.js` | Haas Stereo Widener (short delay 1-30ms on one channel, precedence effect) |
 
 ### Spectral/FX (8)
 
@@ -130,7 +135,7 @@
 | `werkstatt_spectral_compressor.js` | Spectral Compressor (STFT) |
 | `werkstatt_spectral_denoise.js` | Spectral Denoiser (Noise Floor Subtraction) |
 
-### Restoration (4)
+### Restoration (5)
 
 | Script | Description |
 |--------|-------------|
@@ -138,6 +143,7 @@
 | `werkstatt_dereverb.js` | De-Reverb (reverb tail suppression: per-band dual envelope followers, fast=direct/slow=tail, transient detection via ratio, tail dominance gain reduction -24 dB, decay estimation, RX De-reverb style) |
 | `werkstatt_declicker.js` | De-Clicker (click & crackle removal: median filter, adaptive threshold, cubic Hermite interpolation, RX De-click style) |
 | `werkstatt_decrackle.js` | De-Crackle (continuous crackle removal: adaptive crackle modeling, crackle/signal energy tracking, crackle rate estimation, RX De-crackle style) |
+| `werkstatt_de_plosive.js` | De-Plosive (adaptive highpass for vocal plosive removal, one-pole LP envelope follower + threshold, transient-triggered HPF sweep) |
 
 ### Physical Modeling (1)
 

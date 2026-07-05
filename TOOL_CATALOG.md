@@ -430,9 +430,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 358 tools**
 
-## DSP Scripts (scripts/) — 90 scripts
+## DSP Scripts (scripts/) — 105 scripts
 
-### Werkstatt (Audio Effects) — 71 scripts
+### Werkstatt (Audio Effects) — 86 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -510,6 +510,16 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_dereverb.js` — De-reverb (reverb tail suppression: per-band dual envelope followers, fast=direct/slow=tail, transient detection via ratio, tail dominance gain reduction -24 dB, decay estimation, RX De-reverb style, second restoration processor)
 - `werkstatt_declicker.js` — De-clicker (click & crackle removal: median-filter detection with insertion sort, adaptive threshold via local energy, cubic Hermite (Catmull-Rom) interpolation, click length limit 8-128 samples, overlap expansion, delay buffer for look-back, RX De-click / CEDAR Declick style, third restoration processor)
 - `werkstatt_decrackle.js` — De-crackle (continuous crackle removal: adaptive crackle modeling with separate crackle/signal energy tracking, adaptive threshold, crackle rate estimation 10-200/sec, extent finding 1-8 samples, Hermite/linear blend interpolation, strength blend, RX De-crackle / CEDAR Decrackle style, fourth restoration processor)
+- `werkstatt_moog_ladder.js` — Moog ladder filter (4 cascaded 1-pole LP stages with internal feedback, resonant self-oscillation at max resonance, thermal saturation, drive, cutoff, resonance, output)
+- `werkstatt_rotary_speaker.js` — Rotary speaker (Leslie: dual rotor Doppler, horn + baffle, amplitude modulation, tremolo, acceleration/deceleration ramp, distance, mix, output)
+- `werkstatt_waveshaper.js` — Waveshaper (adjustable transfer curve: fold, clip, asymmetry, drive, DC bias, output, mix)
+- `werkstatt_envelope_follower.js` — Envelope follower (amplitude tracking with attack/release coefficients, sidechain ducking output, building block for auto-wah, tremolo auto-depth, sidechain detection)
+- `werkstatt_auto_wah.js` — Auto-wah (envelope-driven biquad bandpass sweep, Mu-Tron III style: attack/release envelope follower, resonance Q, sensitivity, up/down sweep)
+- `werkstatt_mid_side_processor.js` — Mid/Side processor (independent M/S gain + filters + width control, M/S encoding/decoding, stereo mastering tool, mid_gain, side_gain, mid_freq, side_freq, width, mix)
+- `werkstatt_haas_widener.js` — Haas stereo widener (short delay 1-30ms on one channel for precedence effect, pseudo-stereo from mono, delay, width, channel flip, feedback, mix)
+- `werkstatt_glue_comp.js` — SSL-style glue compressor (auto-makeup gain, VCA warmth via tanh soft clip, 2:1 ratio / 10ms attack / 100ms release defaults, parallel mix New York compression, true stereo peak detection)
+- `werkstatt_de_plosive.js` — De-plosive (adaptive highpass for vocal plosive removal, one-pole LP envelope follower + threshold, transient-triggered HPF sweep, strength, freq, attack, release, mix)
+- `werkstatt_vowel_morph.js` — Vowel morph (3 cascaded formant biquad bandpass filters F1/F2/F3, A→E→I→O→U interpolation, auto-morph LFO with rate, spectral tilt, mix, output)
 
 ### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
