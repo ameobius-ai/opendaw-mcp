@@ -8,9 +8,9 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## Tools Added (v1.10.0, 255 total → v1.32.0, 284 total)
 
-35 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+47 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
-### Full orchestration tool list (v1.32.0)
+### Full orchestration tool list (v1.67.0)
 1. `create_notes_batch` — batch note creation from JSON
 2. `create_drum_pattern` — step-sequencer drum notation
 3. `create_chord_progression` — scale-aware chord sequences
@@ -55,6 +55,9 @@ Orchestration tools solve this by combining multiple low-level operations into a
 42. `create_bordun` — continuously sustained drone chord as textural layer (open fifths/octaves, bagpipes/tanpura/ambient)
 43. `create_hocket` — melodic line split between 2-4 voices (alternate/pairs/phrase, medieval/African/gamelan/Reich)
 44. `create_isorhythm` — repeating rhythm (talea) × repeating pitch (color) as independent cycles (phase shift at LCM, Machaut/Messiaen)
+45. `create_passacaglia` — bass ostinato + evolving harmonies (block/arpeggiated/melodic variations, Bach/film/metal)
+46. `create_canon` — same melody in 2-6 voices with delayed entry + transposition (Pachelbel/rounds/fugues)
+47. `create_chorale` — 4-voice SATB chorale with voice-leading rules (nearest chord tone, parallel fifth detection, S/A/T/B range clamping, Bach/vocal/strings)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
