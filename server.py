@@ -30479,3 +30479,111 @@ async def mcp_opendaw_duplicate_section(from_beat: float, to_beat: float, target
         }}
     }}""")
     return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_apply_velocity_pattern(unit_index: int, track_index: int, pattern: str, region_index: int = -1, mode: str = "cycle", base_velocity: float = 0.8) -> str:
+    """Apply a cyclic velocity pattern to existing notes in a region.
+
+    The producer's accent pattern tool. Instead of a linear ramp (crescendo),
+    this applies a repeating velocity pattern across notes — the foundation of
+    groove. Examples: strong-weak-medium-weak (backbeat emphasis), staggered
+    accents for syncopation, or dynamic intensity layers.
+
+    unit_index: AU index.
+    track_index: Track index.
+    pattern: JSON array of velocity multipliers 0.0-1.0. Cycled across notes
+        in order of position. Example: [1.0, 0.5, 0.7, 0.5] = strong-weak-medium-weak.
+    region_index: Region index (-1 = first region).
+    mode: "cycle" (repeat pattern from start, default) or "stretch" (distribute
+        pattern evenly across all notes — good for 2-note patterns on 16 notes).
+    base_velocity: Base velocity 0-1 that multipliers are applied to (default 0.8).
+        Final velocity = base_velocity * pattern[i % len].
+
+    Returns notes modified, pattern applied, and velocity preview.
+
+    Examples:
+      apply_velocity_pattern(unit_index=0, track_index=0, pattern="[1.0, 0.5, 0.7, 0.5]")
+        -> 4-note accent cycle: strong-weak-medium-weak on every group of 4 notes
+      apply_velocity_pattern(unit_index=0, track_index=0, pattern="[1.0, 0.3]", base_velocity=0.9)
+        -> Alternating strong/weak at 0.9 and 0.27
+      apply_velocity_pattern(unit_index=1, track_index=0, pattern="[0.8, 0.4, 0.6, 0.4, 0.9, 0.4, 0.7, 0.4]", mode="stretch")
+        -> 8-note pattern stretched across all notes in region
+    """
+    try:
+        vel_pattern = json.loads(pattern)
+    except (json.JSONDecodeError, TypeError):
+        return "Error: pattern must be a JSON array like [1.0, 0.5, 0.7, 0.5]"
+    if not isinstance(vel_pattern, list) or len(vel_pattern) == 0:
+        return "Error: pattern must be a non-empty array"
+    if any(v < 0 or v > 1 for v in vel_pattern):
+        return "Error: pattern values must be 0-1"
+    if mode not in ("cycle", "stretch"):
+        return "Error: mode must be cycle or stretch"
+    if base_velocity < 0 or base_velocity > 1:
+        return "Error: base_velocity must be 0-1"
+
+    pattern_json = json.dumps(vel_pattern)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        try {{
+            const unitIdx = {unit_index};
+            const trackIdx = {track_index};
+            const regionIdx = {region_index};
+            const pat = {pattern_json};
+            const modeType = "{mode}";
+            const baseVel = {base_velocity};
+
+            const allUnits = h.allAUBoxes();
+            if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+            const au = allUnits[unitIdx];
+            const tracks = h.trackBoxes(au);
+            if (trackIdx < 0 || trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+            const track = tracks[trackIdx];
+            const regions = h.regionBoxes(track);
+            if (regions.length === 0) return {{error: "No regions on track"}};
+            const regionIdx2 = regionIdx < 0 ? 0 : regionIdx;
+            if (regionIdx2 >= regions.length) return {{error: "region_index out of range"}};
+            const region = regions[regionIdx2];
+
+            const eventsField = region.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+            const noteEvents = [...collBox.events.pointerHub.incoming()];
+            if (noteEvents.length === 0) return {{error: "No notes in region"}};
+
+            noteEvents.sort((a, b) => a.box.position.getValue() - b.box.position.getValue());
+
+            let modified = 0;
+            const velocities = [];
+            h.modify(() => {{
+                for (let i = 0; i < noteEvents.length; i++) {{
+                    let patternIdx;
+                    if (modeType === "stretch") {{
+                        patternIdx = Math.floor(i / noteEvents.length * pat.length);
+                        if (patternIdx >= pat.length) patternIdx = pat.length - 1;
+                    }} else {{
+                        patternIdx = i % pat.length;
+                    }}
+                    const newVel = Math.max(0, Math.min(1, baseVel * pat[patternIdx]));
+                    noteEvents[i].box.velocity.setValue(newVel);
+                    modified++;
+                    if (i < 10 || i >= noteEvents.length - 3) {{
+                        velocities.push({{note: i, velocity: Math.round(newVel * 100) / 100}});
+                    }}
+                }}
+            }});
+
+            return {{
+                success: true,
+                notes_modified: modified,
+                pattern: pat,
+                mode: modeType,
+                base_velocity: baseVel,
+                velocity_preview: velocities,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)

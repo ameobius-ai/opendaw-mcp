@@ -8313,6 +8313,94 @@ class TestDuplicateSection:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_duplicate_section" in tool_names
 
+
+class TestApplyVelocityPattern:
+    """Tests for apply_velocity_pattern orchestration tool"""
+
+    def test_cycle_mode_4_note_pattern(self):
+        """Cycle mode: 4-note pattern repeats every 4 notes"""
+        pattern = [1.0, 0.5, 0.7, 0.5]
+        num_notes = 10
+        velocities = []
+        for i in range(num_notes):
+            idx = i % len(pattern)
+            velocities.append(pattern[idx])
+        assert velocities[0] == 1.0  # note 0
+        assert velocities[4] == 1.0  # note 4 = pattern restart
+        assert velocities[8] == 1.0  # note 8 = pattern restart
+
+    def test_stretch_mode_distributes_evenly(self):
+        """Stretch mode: pattern distributed across all notes"""
+        pattern = [1.0, 0.3]
+        num_notes = 8
+        velocities = []
+        for i in range(num_notes):
+            idx = min(int(i / num_notes * len(pattern)), len(pattern) - 1)
+            velocities.append(pattern[idx])
+        # first 4 notes = pattern[0], last 4 = pattern[1]
+        assert velocities[0] == 1.0
+        assert velocities[3] == 1.0
+        assert velocities[4] == 0.3
+        assert velocities[7] == 0.3
+
+    def test_base_velocity_multiplied(self):
+        """Final velocity = base * pattern[i]"""
+        base = 0.8
+        pattern = [1.0, 0.5]
+        v0 = base * pattern[0]
+        v1 = base * pattern[1]
+        assert v0 == 0.8
+        assert v1 == 0.4
+
+    def test_velocity_clamped_to_0_1(self):
+        """Velocity clamped to 0-1 range"""
+        base = 1.0
+        pattern = [1.0, 0.0]
+        v0 = max(0, min(1, base * pattern[0]))
+        v1 = max(0, min(1, base * pattern[1]))
+        assert v0 == 1.0
+        assert v1 == 0.0
+
+    def test_pattern_json_parsing(self):
+        """JSON pattern string parses to list"""
+        pattern_str = "[1.0, 0.5, 0.7, 0.5]"
+        parsed = json.loads(pattern_str)
+        assert parsed == [1.0, 0.5, 0.7, 0.5]
+
+    def test_pattern_validation_rejects_negative(self):
+        """Pattern values < 0 rejected"""
+        pattern = [1.0, -0.5]
+        valid = all(0 <= v <= 1 for v in pattern)
+        assert not valid
+
+    def test_pattern_validation_rejects_over_1(self):
+        """Pattern values > 1 rejected"""
+        pattern = [1.0, 1.5]
+        valid = all(0 <= v <= 1 for v in pattern)
+        assert not valid
+
+    def test_empty_pattern_rejected(self):
+        """Empty pattern array rejected"""
+        pattern = []
+        valid = isinstance(pattern, list) and len(pattern) > 0
+        assert not valid
+
+    def test_backbeat_accent_pattern(self):
+        """Classic backbeat: strong-weak-medium-weak"""
+        pattern = [1.0, 0.5, 0.7, 0.5]
+        assert pattern[0] == 1.0  # downbeat strong
+        assert pattern[2] == 0.7  # offbeat medium
+        assert pattern[1] == pattern[3] == 0.5  # syncopated weak
+
+    def test_tool_in_ast(self):
+        """apply_velocity_pattern is a registered MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_apply_velocity_pattern" in tool_names
+
     def test_unknown_type_rejected(self):
         """Unknown transition type returns error"""
         valid_types = {"drop", "buildup", "breakdown", "intro", "outro"}

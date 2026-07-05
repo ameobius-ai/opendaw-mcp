@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.186.0 (2026-07-05)
+
+### Added
+- `apply_velocity_pattern` — cyclic velocity accent pattern on existing notes. JSON array of multipliers cycled across notes in position order. 2 modes: cycle (repeat pattern from start) and stretch (distribute evenly across all notes). Base velocity multiplier. The groove tool — replaces manual per-note velocity editing. 366 MCP tools total
+
 ## v1.185.0 (2026-07-05)
 
 ### Added
