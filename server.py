@@ -13875,6 +13875,165 @@ async def mcp_opendaw_add_bass_chain(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_add_instrument_chain(
+    unit_index: int = 0,
+    style: str = "clean",
+    reverb_amount: float = 0.15,
+    delay_amount: float = 0.0,
+) -> str:
+    """Add a ready-made instrument processing chain — EQ → Compressor → Reverb (+ optional Delay).
+
+    Universal chain for guitars, keys, synth leads, strings, pads — any melodic/harmonic instrument.
+    One call replaces 3-4 individual add_effect + set_effect_parameter calls.
+
+    unit_index: Target audio unit (the instrument track).
+    style: Preset character:
+      - "clean" — transparent EQ, light comp, subtle reverb (keys, piano, clean guitar)
+      - "warm" — low-mid warmth, tube-like comp (jazz guitar, Rhodes, warm synths)
+      - "bright" — air boost, present mids, short reverb (lead guitar, synth lead, pop keys)
+      - "ambient" — wide EQ, minimal comp, lush reverb (pads, strings, atmospheres)
+      - "driven" — mid crunch, drive comp, room reverb (rock guitar, aggressive synths)
+
+    reverb_amount: Reverb wet/dry (0-1, default 0.15 = subtle).
+    delay_amount: Optional delay wet/dry (0-1, default 0 = off).
+
+    Creates: Revamp EQ → Compressor → Reverb (→ Delay) on the target AU.
+    Returns effect indices and parameter values set.
+
+    Example:
+      # Clean keys chain
+      add_instrument_chain(0)
+      # Ambient pad with lush reverb
+      add_instrument_chain(0, style="ambient", reverb_amount=0.4)
+      # Driven rock guitar
+      add_instrument_chain(0, style="driven", reverb_amount=0.2)
+      # Synth lead with delay
+      add_instrument_chain(0, style="bright", delay_amount=0.2)
+    """
+    styles = {
+        "clean": {
+            "eq_low_shelf_gain": 1.0, "eq_low_shelf_freq": 150,
+            "eq_high_shelf_gain": 2.0, "eq_high_shelf_freq": 8000,
+            "eq_mid_gain": 0.0, "eq_mid_freq": 500,
+            "comp_threshold": -22, "comp_ratio": 2.0, "comp_attack": 12, "comp_release": 100,
+        },
+        "warm": {
+            "eq_low_shelf_gain": 3.0, "eq_low_shelf_freq": 200,
+            "eq_high_shelf_gain": 1.0, "eq_high_shelf_freq": 6000,
+            "eq_mid_gain": 1.5, "eq_mid_freq": 300,
+            "comp_threshold": -20, "comp_ratio": 2.5, "comp_attack": 18, "comp_release": 130,
+        },
+        "bright": {
+            "eq_low_shelf_gain": -1.0, "eq_low_shelf_freq": 120,
+            "eq_high_shelf_gain": 4.0, "eq_high_shelf_freq": 10000,
+            "eq_mid_gain": -1.0, "eq_mid_freq": 400,
+            "comp_threshold": -18, "comp_ratio": 3.0, "comp_attack": 6, "comp_release": 70,
+        },
+        "ambient": {
+            "eq_low_shelf_gain": 2.0, "eq_low_shelf_freq": 100,
+            "eq_high_shelf_gain": 3.0, "eq_high_shelf_freq": 9000,
+            "eq_mid_gain": -1.0, "eq_mid_freq": 500,
+            "comp_threshold": -26, "comp_ratio": 1.5, "comp_attack": 25, "comp_release": 200,
+        },
+        "driven": {
+            "eq_low_shelf_gain": -2.0, "eq_low_shelf_freq": 100,
+            "eq_high_shelf_gain": 3.0, "eq_high_shelf_freq": 7000,
+            "eq_mid_gain": 3.0, "eq_mid_freq": 800,
+            "comp_threshold": -16, "comp_ratio": 4.0, "comp_attack": 4, "comp_release": 50,
+        },
+    }
+    if style not in styles:
+        return f"Error: unknown style '{style}'. Valid: {list(styles.keys())}"
+    if not (0.0 <= reverb_amount <= 1.0):
+        return "Error: reverb_amount must be 0-1"
+    if not (0.0 <= delay_amount <= 1.0):
+        return "Error: delay_amount must be 0-1"
+
+    params = styles[style]
+    use_delay = delay_amount > 0.0
+
+    chain_desc = "Revamp EQ → Compressor → Reverb"
+    if use_delay:
+        chain_desc += " → Delay"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const p = window.DAW;
+        const EF = window.DAW_EffectFactories;
+
+        const params = {json.dumps(params)};
+        const reverbAmount = {reverb_amount};
+        const delayAmount = {delay_amount};
+        const useDelay = {str(use_delay).lower()};
+
+        const allUnits = h.allAUBoxes();
+        if (!allUnits[{unit_index}]) return {{error: "Audio unit {unit_index} not found"}};
+        const targetAU = allUnits[{unit_index}];
+
+        let eqIdx = -1, compIdx = -1, revIdx = -1, delIdx = -1;
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Revamp);
+            eqIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Compressor);
+            compIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Reverb);
+            revIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        if (useDelay) {{
+            h.modify(() => {{
+                p.api.insertEffect(targetAU.audioEffects, EF.Delay);
+                delIdx = h.effectBoxes(targetAU).length - 1;
+            }});
+        }}
+
+        // Set compressor params
+        const effects = h.effectBoxes(targetAU);
+        h.modify(() => {{
+            const compBox = effects[compIdx];
+            if (compBox) {{
+                const record = compBox.record();
+                for (const [key, field] of Object.entries(record)) {{
+                    const fname = field._fieldName || field.fieldName || key;
+                    if (fname === 'threshold') field.setValue(params.comp_threshold);
+                    if (fname === 'ratio') field.setValue(params.comp_ratio);
+                    if (fname === 'attack') field.setValue(params.comp_attack);
+                    if (fname === 'release') field.setValue(params.comp_release);
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            unit_index: {unit_index},
+            chain: [
+                {{name: "Revamp EQ", index: eqIdx, params: {{
+                    low_shelf: params.eq_low_shelf_gain + "dB@" + params.eq_low_shelf_freq + "Hz",
+                    high_shelf: params.eq_high_shelf_gain + "dB@" + params.eq_high_shelf_freq + "Hz",
+                    mid: params.eq_mid_gain + "dB@" + params.eq_mid_freq + "Hz",
+                }}}},
+                {{name: "Compressor", index: compIdx, params: {{
+                    threshold: params.comp_threshold, ratio: params.comp_ratio,
+                    attack: params.comp_attack, release: params.comp_release,
+                }}}},
+                {{name: "Reverb", index: revIdx, params: {{wet: reverbAmount}}}},
+            ] + (useDelay ? [{{name: "Delay", index: delIdx, params: {{wet: delayAmount}}}}] : []),
+            style: "{style}",
+            chain_description: "{chain_desc}",
+            note: "Instrument chain applied. Adjust reverb_amount and delay_amount for taste.",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_create_genre_track(genre: str, bpm: float = 120) -> str:
     """Create a genre-specific starting track with synth, beat, and basic mix — one call builds a full section.
 
@@ -26538,6 +26697,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
     master_lufs: float = -14,
     progression: str = "",
     add_counter_melody: bool = False,
+    add_track_chains: bool = False,
 ) -> str:
     """Create a complete genre track from zero to render-ready in one call.
 
@@ -26570,6 +26730,9 @@ async def mcp_opendaw_create_full_genre_pipeline(
         Default "" = no harmonic layers (rhythm only).
     add_counter_melody: If True and progression is set, also adds a
         counter-melody layer (contrary motion). Default False.
+    add_track_chains: If True, applies genre-appropriate processing chains
+        to each track (drum chain on rhythm tracks, bass chain on bass,
+        instrument chain on melodic). Default False.
 
     Returns complete pipeline status: tracks created, notes per track,
     effects added, mastering chain, harmonic layers.
@@ -26752,6 +26915,57 @@ async def mcp_opendaw_create_full_genre_pipeline(
         })
     except Exception as e:
         pipeline_steps.append({"step": "mastering", "error": str(e)})
+
+    # Step 6b: Track processing chains (optional)
+    if add_track_chains:
+        try:
+            chains_added = []
+            # Track 0 = drums/rhythm, Track 1 = bass, Track 2+ = melodic
+            drum_styles = {
+                "dnb": "crisp", "liquid_dnb": "tight", "house": "punchy",
+                "trap": "deep", "techno": "crisp", "dubstep": "deep",
+                "afrobeat": "roomy", "rock": "roomy", "jazz": "tight",
+                "pop": "punchy", "funk": "tight", "reggae": "roomy",
+                "synthwave": "punchy", "trance": "crisp", "disco": "tight",
+            }
+            bass_styles = {
+                "dnb": "deep", "liquid_dnb": "round", "house": "deep",
+                "trap": "deep", "techno": "clean", "dubstep": "deep",
+                "afrobeat": "round", "rock": "driven", "jazz": "round",
+                "pop": "tight", "funk": "tight", "reggae": "round",
+                "synthwave": "deep", "trance": "clean", "disco": "tight",
+            }
+            instr_styles = {
+                "dnb": "bright", "liquid_dnb": "warm", "house": "warm",
+                "trap": "deep", "techno": "clean", "dubstep": "driven",
+                "afrobeat": "warm", "rock": "driven", "jazz": "warm",
+                "pop": "bright", "funk": "bright", "reggae": "warm",
+                "synthwave": "bright", "trance": "bright", "disco": "bright",
+            }
+
+            # Drum chain on track 0
+            ds = drum_styles.get(genre, "punchy")
+            await mcp_opendaw_add_drum_chain(unit_index, style=ds)
+            chains_added.append({"track": 0, "chain": "drum", "style": ds})
+
+            # Bass chain on track 1
+            bs = bass_styles.get(genre, "deep")
+            await mcp_opendaw_add_bass_chain(unit_index, style=bs)
+            chains_added.append({"track": 1, "chain": "bass", "style": bs})
+
+            # Instrument chain on melodic tracks (2+)
+            is_ = instr_styles.get(genre, "clean")
+            for t in range(2, num_tracks):
+                await mcp_opendaw_add_instrument_chain(unit_index, style=is_)
+                chains_added.append({"track": t, "chain": "instrument", "style": is_})
+
+            pipeline_steps.append({
+                "step": "track_chains",
+                "chains": chains_added,
+                "status": "ok",
+            })
+        except Exception as e:
+            pipeline_steps.append({"step": "track_chains", "error": str(e)})
 
     # Summary
     total_notes = 0

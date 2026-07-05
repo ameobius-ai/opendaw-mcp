@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.169.0 (2026-07-05)
+
+### Added
+- `add_instrument_chain` — universal instrument processing chain: EQ → Comp → Reverb (+ optional Delay). 5 presets: clean, warm, bright, ambient, driven. Covers guitars, keys, synth leads, strings, pads
+- `create_full_genre_pipeline` now supports `add_track_chains=True` — automatically applies genre-appropriate drum/bass/instrument chains to each track
+
 ## v1.168.0 (2026-07-05)
 
 ### Added

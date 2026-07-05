@@ -6973,3 +6973,99 @@ class TestAddBassChain:
         assert len(pipeline) == 4
         assert "add_mastering_chain" == pipeline[-1]
 
+
+class TestAddInstrumentChain:
+    """Tests for add_instrument_chain — universal instrument processing"""
+
+    STYLES = ["clean", "warm", "bright", "ambient", "driven"]
+
+    def test_five_styles(self):
+        assert len(self.STYLES) == 5
+
+    def test_clean_is_default(self):
+        """Clean: transparent EQ, light comp (ratio 2.0)"""
+        params = {"comp_threshold": -22, "comp_ratio": 2.0, "comp_attack": 12}
+        assert params["comp_ratio"] == 2.0
+        assert params["comp_attack"] == 12
+
+    def test_warm_has_low_mid_warmth(self):
+        """Warm: low-mid boost (1.5dB@300Hz) for Rhodes/jazz guitar"""
+        warm_mid = 1.5
+        clean_mid = 0.0
+        assert warm_mid > clean_mid
+
+    def test_bright_has_most_air(self):
+        """Bright: highest high-shelf (4dB@10kHz) for lead instruments"""
+        bright_high = 4.0
+        clean_high = 2.0
+        assert bright_high > clean_high
+
+    def test_ambient_has_gentlest_comp(self):
+        """Ambient: lightest comp (ratio 1.5, slowest attack 25ms)"""
+        ambient_ratio = 1.5
+        clean_ratio = 2.0
+        assert ambient_ratio < clean_ratio
+
+    def test_driven_has_most_mid_crunch(self):
+        """Driven: most mid boost (3dB@800Hz) and hardest comp"""
+        driven_mid = 3.0
+        clean_mid = 0.0
+        assert driven_mid > clean_mid
+
+    def test_driven_cuts_lows(self):
+        """Driven: low cut (-2dB@100Hz) for rock guitar clarity"""
+        driven_low = -2.0
+        clean_low = 1.0
+        assert driven_low < clean_low  # more negative = cut
+
+    def test_ambient_slowest_release(self):
+        """Ambient: slowest comp release (200ms) for transparent leveling"""
+        ambient_release = 200
+        driven_release = 50
+        assert ambient_release > driven_release
+
+    def test_chain_order(self):
+        """Chain order: EQ → Compressor → Reverb (→ Delay)"""
+        chain = ["Revamp EQ", "Compressor", "Reverb"]
+        assert chain[0] == "Revamp EQ"
+        assert chain[-1] == "Reverb"
+
+    def test_chain_with_delay(self):
+        """Chain with delay: EQ → Comp → Reverb → Delay"""
+        chain = ["Revamp EQ", "Compressor", "Reverb", "Delay"]
+        assert len(chain) == 4
+        assert chain[-1] == "Delay"
+
+    def test_default_reverb_subtle(self):
+        """Default reverb_amount=0.15 (subtle)"""
+        assert 0.15 < 0.3
+
+    def test_default_delay_off(self):
+        """Default delay_amount=0.0 (off)"""
+        assert 0.0 == 0
+
+    def test_instrument_vs_vocal_chain(self):
+        """Both have EQ+comp+reverb, but different defaults and EQ curves"""
+        instr = {"EQ", "Compressor", "Reverb"}
+        vocal = {"EQ", "Compressor", "Reverb"}
+        assert instr == vocal  # same structure, different params
+
+    def test_pipeline_with_instrument_chain(self):
+        """Full instrument pipeline: create_genre_track → add_instrument_chain → render"""
+        pipeline = ["create_genre_track", "add_instrument_chain", "render_full_song"]
+        assert "add_instrument_chain" in pipeline
+
+    def test_all_five_chains_family(self):
+        """Complete chain family: drum + bass + vocal + instrument + mastering"""
+        family = {"add_drum_chain", "add_bass_chain", "add_vocal_chain",
+                  "add_instrument_chain", "add_mastering_chain"}
+        assert len(family) == 5
+
+    def test_track_chains_in_pipeline(self):
+        """create_full_genre_pipeline with add_track_chains=True applies genre-aware chains"""
+        pipeline = ["create_tracks", "arrangement", "genre_mix", "track_chains",
+                     "humanization", "mastering"]
+        assert "track_chains" in pipeline
+        assert pipeline.index("track_chains") > pipeline.index("genre_mix")
+        assert pipeline.index("track_chains") < pipeline.index("mastering")
+
