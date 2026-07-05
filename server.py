@@ -17369,6 +17369,156 @@ async def mcp_opendaw_create_crescendo(unit_index: int, track_index: int, region
 
 
 @mcp.tool()
+async def mcp_opendaw_scale_velocity(
+    unit_index: int,
+    track_index: int,
+    mode: str = "multiply",
+    value: float = 1.0,
+    region_index: int = -1,
+    min_velocity: float = 0.0,
+    max_velocity: float = 1.0,
+) -> str:
+    """Scale the velocity of all notes in a region — MIDI dynamics control.
+
+    Unlike create_crescendo (which creates a gradient from start to end),
+    this uniformly scales all existing velocities. Think of it as gain for
+    MIDI dynamics — boost, attenuate, normalize, or compress the velocity
+    range of an entire track or region.
+
+    mode: How to scale velocities:
+      - "multiply" — multiply each velocity by value (1.0 = no change,
+        0.8 = 20% quieter, 1.2 = 20% louder). Clamped to 0-1.
+      - "add" — add value to each velocity (0.1 = louder, -0.1 = quieter).
+        Clamped to 0-1.
+      - "set" — set all velocities to value (0.8 = uniform velocity).
+      - "normalize" — scale all velocities so the maximum equals value
+        (0.95 = normalize to 95% max). Preserves relative dynamics.
+      - "compress" — compress velocity range around midpoint. value = ratio
+        (0.5 = halve the dynamic range, 1.0 = no change). Pulls extremes
+        toward center — makes quiet notes louder, loud notes quieter.
+
+    value: The scaling parameter (meaning depends on mode).
+    region_index: Region index (-1 = first region).
+    min_velocity / max_velocity: Clamp range (0-1). Use to limit extremes.
+
+    Returns count of notes modified, original velocity range, new range.
+
+    Example:
+      # Make drums 20% quieter
+      scale_velocity(0, 0, mode="multiply", value=0.8)
+      # Normalize melody to 95% max velocity
+      scale_velocity(0, 3, mode="normalize", value=0.95)
+      # Compress velocity range — reduce dynamics
+      scale_velocity(0, 0, mode="compress", value=0.6)
+    """
+    if mode not in ("multiply", "add", "set", "normalize", "compress"):
+        return f"Error: mode must be multiply/add/set/normalize/compress, got '{mode}'"
+    if not (0.0 <= min_velocity <= 1.0):
+        return "Error: min_velocity must be 0-1"
+    if not (0.0 <= max_velocity <= 1.0):
+        return "Error: max_velocity must be 0-1"
+    if min_velocity > max_velocity:
+        return "Error: min_velocity cannot exceed max_velocity"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const mode = "{mode}";
+        const val = {value};
+        const minVel = {min_velocity};
+        const maxVel = {max_velocity};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const tracks = h.trackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+        const track = tracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regionIdx2 = regionIdx < 0 ? 0 : regionIdx;
+        if (regionIdx2 >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regionIdx2];
+
+        const eventsField = region.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const noteEvents = [...collBox.events.pointerHub.incoming()];
+        if (noteEvents.length === 0) return {{error: "No notes in region"}};
+
+        // Collect original velocities for stats
+        const origVels = noteEvents.map(n => n.box.velocity.getValue());
+        const origMin = Math.min(...origVels);
+        const origMax = Math.max(...origVels);
+        const origAvg = origVels.reduce((a, b) => a + b, 0) / origVels.length;
+
+        let modified = 0;
+        h.modify(() => {{
+            if (mode === "set") {{
+                for (const n of noteEvents) {{
+                    let v = val;
+                    v = Math.max(minVel, Math.min(maxVel, v));
+                    n.box.velocity.setValue(v);
+                    modified++;
+                }}
+            }} else if (mode === "multiply") {{
+                for (const n of noteEvents) {{
+                    let v = n.box.velocity.getValue() * val;
+                    v = Math.max(minVel, Math.min(maxVel, v));
+                    n.box.velocity.setValue(v);
+                    modified++;
+                }}
+            }} else if (mode === "add") {{
+                for (const n of noteEvents) {{
+                    let v = n.box.velocity.getValue() + val;
+                    v = Math.max(minVel, Math.min(maxVel, v));
+                    n.box.velocity.setValue(v);
+                    modified++;
+                }}
+            }} else if (mode === "normalize") {{
+                // Scale so max velocity equals val
+                const curMax = Math.max(...noteEvents.map(n => n.box.velocity.getValue()));
+                if (curMax > 0) {{
+                    const ratio = val / curMax;
+                    for (const n of noteEvents) {{
+                        let v = n.box.velocity.getValue() * ratio;
+                        v = Math.max(minVel, Math.min(maxVel, v));
+                        n.box.velocity.setValue(v);
+                        modified++;
+                    }}
+                }}
+            }} else if (mode === "compress") {{
+                // Compress around midpoint: newVel = mid + (vel - mid) * ratio
+                const mid = 0.5;
+                for (const n of noteEvents) {{
+                    let v = mid + (n.box.velocity.getValue() - mid) * val;
+                    v = Math.max(minVel, Math.min(maxVel, v));
+                    n.box.velocity.setValue(v);
+                    modified++;
+                }}
+            }}
+        }});
+
+        // Collect new velocities for stats
+        const newVels = noteEvents.map(n => n.box.velocity.getValue());
+        const newMin = Math.min(...newVels);
+        const newMax = Math.max(...newVels);
+        const newAvg = newVels.reduce((a, b) => a + b, 0) / newVels.length;
+
+        return {{
+            success: true,
+            notes_modified: modified,
+            mode: mode,
+            value: val,
+            original: {{min: origMin, max: origMax, avg: Math.round(origAvg * 1000) / 1000}},
+            new: {{min: newMin, max: newMax, avg: Math.round(newAvg * 1000) / 1000}},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

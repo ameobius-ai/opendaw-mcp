@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.208.0 (2026-07-05)
+
+### Added
+- `scale_velocity` — MIDI dynamics scaling tool. 5 modes: multiply (scale all velocities by factor), add (offset all velocities), set (uniform velocity), normalize (scale to target max velocity), compress (reduce dynamic range around 0.5 midpoint). Returns original + new velocity min/max/avg stats. Clamp range via min_velocity/max_velocity params. Unlike create_crescendo (gradient), this uniformly scales existing velocities — like gain for MIDI dynamics. 9 unit tests. **384 MCP tools**, 2678 unit tests
+
 ## v1.207.0 (2026-07-05)
 
 ### Added

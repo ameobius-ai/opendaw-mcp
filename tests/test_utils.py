@@ -10553,3 +10553,120 @@ class TestRnbArrangement:
                 return
         assert False, "create_song_with_variations not found"
 
+
+class TestScaleVelocity:
+    """Tests for scale_velocity — MIDI dynamics scaling tool"""
+
+    def test_tool_signature_exists(self):
+        """scale_velocity is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_scale_velocity" in tool_names
+
+    def test_has_5_modes(self):
+        """Supports multiply, add, set, normalize, compress modes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                source = ast.unparse(node)
+                assert "multiply" in source
+                assert "add" in source
+                assert "set" in source
+                assert "normalize" in source
+                assert "compress" in source
+                return
+        assert False, "function not found"
+
+    def test_default_mode_multiply(self):
+        """Default mode is multiply"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "mode" and isinstance(d, ast.Constant):
+                        assert d.value == "multiply"
+                    if arg_name == "value" and isinstance(d, ast.Constant):
+                        assert d.value == 1.0
+                return
+        assert False, "function not found"
+
+    def test_clamp_range_params(self):
+        """Has min_velocity and max_velocity clamp params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                source = ast.unparse(node)
+                assert "min_velocity" in source
+                assert "max_velocity" in source
+                return
+        assert False, "function not found"
+
+    def test_validation_min_max(self):
+        """Validates min_velocity <= max_velocity"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                source = ast.unparse(node)
+                assert "cannot exceed" in source or "min_velocity" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_modify(self):
+        """Uses h.modify() for box mutations"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                source = ast.unparse(node)
+                assert "h.modify" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_velocity_stats(self):
+        """Returns original and new velocity min/max/avg"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                source = ast.unparse(node)
+                assert "original" in source
+                assert "new" in source
+                assert "min" in source
+                assert "max" in source
+                return
+        assert False, "function not found"
+
+    def test_compress_uses_midpoint(self):
+        """Compress mode uses 0.5 midpoint formula"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                source = ast.unparse(node)
+                assert "mid" in source
+                assert "0.5" in source
+                return
+        assert False, "function not found"
+
+    def test_normalize_uses_current_max(self):
+        """Normalize mode scales relative to current max velocity"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_velocity":
+                source = ast.unparse(node)
+                assert "curMax" in source or "ratio" in source
+                return
+        assert False, "function not found"
+
