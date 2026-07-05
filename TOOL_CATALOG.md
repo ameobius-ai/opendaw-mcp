@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-412 MCP tools for headless openDAW control via Playwright bridge.
+413 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -479,6 +479,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_tempo_ramp` — Smooth tempo ramp (ritardando/accelerando). Series of ValueEventBox on tempo track. 3 curves (linear/exp/log), configurable steps. Auto-detects ramp type.
 - `duplicate_section` — Duplicate all regions in a beat range to a new position. Scans all tracks across all AUs, copies each overlapping region with offset. Replaces N duplicate_region calls with one.
 - `apply_velocity_pattern` — Cyclic velocity accent pattern on existing notes. JSON array of multipliers cycled across notes. 2 modes: cycle (repeat) and stretch (distribute). The groove tool — replaces manual per-note velocity editing.
+- `accent_beats` — Beat-aware velocity accents by position. 6 patterns: 4/4 (downbeat), backbeat (2+4), 3/4 waltz, 6/8 compound, off_beat (syncopated), four_on_floor (house). Interpolates for 16th notes. Unlike velocity_pattern (note index), this uses absolute beat position. Use for natural drum/bass dynamics.
 - `move_section` — Move all regions in a beat range to a new position. Cut-and-paste for arrangement restructuring. Collect-then-move pattern avoids index invalidation. Pairs with duplicate_section.
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).

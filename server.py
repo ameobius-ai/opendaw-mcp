@@ -37965,6 +37965,166 @@ async def mcp_opendaw_apply_velocity_pattern(unit_index: int, track_index: int, 
 
 
 @mcp.tool()
+async def mcp_opendaw_accent_beats(
+    unit_index: int,
+    track_index: int,
+    accent_pattern: str = "4/4",
+    strong_velocity: float = 1.0,
+    medium_velocity: float = 0.7,
+    weak_velocity: float = 0.4,
+    region_index: int = -1,
+) -> str:
+    """Apply beat-aware velocity accents to notes based on their position.
+
+    Unlike apply_velocity_pattern (which cycles by note index), this determines
+    accent strength from each note's beat position — downbeats get strong,
+    off-beats get weak. This is how real drummers and musicians play.
+
+    Accent patterns:
+    - "4/4" — beat 1 strong, 2 medium, 3 medium, 4 weak (classic rock/pop)
+    - "backbeat" — beats 1+3 medium, 2+4 strong (rock, funk, soul)
+    - "3/4" — beat 1 strong, 2 weak, 3 medium (waltz)
+    - "6/8" — beats 1+4 strong, others weak (compound duple)
+    - "off_beat" — downbeats weak, off-beats strong (syncopated, reggae skank)
+    - "four_on_floor" — every quarter strong (house, techno)
+
+    Notes that fall on exact beat boundaries get accent levels. Notes between
+    beats (e.g. 16th notes) get interpolated: closer to a strong beat → higher.
+
+    Use cases:
+    - Make drum patterns feel groovy instead of flat
+    - Add natural dynamics to programmed basslines
+    - Emphasise downbeats in chord stabs
+    - Create backbeat feel on snare/hihat
+
+    unit_index: AU index.
+    track_index: Note track index.
+    accent_pattern: Beat accent scheme (4/4, backbeat, 3/4, 6/8, off_beat, four_on_floor).
+    strong_velocity: Velocity for strong beats (0-1).
+    medium_velocity: Velocity for medium beats (0-1).
+    weak_velocity: Velocity for weak beats (0-1).
+    region_index: Region (-1 = first region).
+
+    Returns count of notes accented and per-level breakdown.
+
+    Example:
+      # Backbeat feel — accent beats 2 and 4
+      accent_beats(0, 0, "backbeat", strong_velocity=1.0, weak_velocity=0.5)
+      # Four-on-the-floor — every beat loud
+      accent_beats(0, 0, "four_on_floor", strong_velocity=0.95)
+    """
+    patterns = {
+        "4/4": [1.0, 0.5, 0.7, 0.4],           # beat 1 strong, 2 weak, 3 medium, 4 weak
+        "backbeat": [0.6, 1.0, 0.6, 1.0],       # beats 2+4 strong
+        "3/4": [1.0, 0.4, 0.6],                 # waltz
+        "6/8": [1.0, 0.3, 0.3, 1.0, 0.3, 0.3], # compound duple
+        "off_beat": [0.3, 1.0, 0.3, 1.0],       # syncopated
+        "four_on_floor": [1.0, 1.0, 1.0, 1.0],  # every beat strong
+    }
+    if accent_pattern not in patterns:
+        return f"Error: accent_pattern must be one of {list(patterns.keys())}, got '{accent_pattern}'"
+    if not (0.0 <= strong_velocity <= 1.0):
+        return f"Error: strong_velocity must be 0-1, got {strong_velocity}"
+    if not (0.0 <= medium_velocity <= 1.0):
+        return f"Error: medium_velocity must be 0-1, got {medium_velocity}"
+    if not (0.0 <= weak_velocity <= 1.0):
+        return f"Error: weak_velocity must be 0-1, got {weak_velocity}"
+
+    # Build normalized accent weights (0-1) for each beat in the pattern
+    raw_weights = patterns[accent_pattern]
+    max_w = max(raw_weights)
+    accent_weights = [w / max_w for w in raw_weights]
+    # Map weight levels to velocity: 1.0→strong, 0.5-0.8→medium, <0.5→weak
+    vel_map = {1.0: strong_velocity, 0.7: medium_velocity, 0.4: weak_velocity,
+               0.6: medium_velocity, 0.5: medium_velocity, 0.3: weak_velocity}
+    beat_velocities = []
+    for w in accent_weights:
+        # Find closest key in vel_map
+        closest = min(vel_map.keys(), key=lambda k: abs(k - w))
+        beat_velocities.append(vel_map[closest])
+
+    weights_json = json.dumps(accent_weights)
+    beat_vels_json = json.dumps(beat_velocities)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const accentWeights = {weights_json};
+        const beatVels = {beat_vels_json};
+        const Quarter = h.ppqn.Quarter;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+
+        const notes = h.eventBoxes(collection);
+        const regionPos = region.position.getValue();
+        const patternLen = accentWeights.length;
+        let strong = 0, medium = 0, weak = 0;
+
+        h.modify(() => {{
+            for (const n of notes) {{
+                const absTick = regionPos + n.position.getValue();
+                // Which beat within the pattern?
+                const beatInBar = Math.floor((absTick / Quarter) % patternLen);
+                // Fractional position within the beat for interpolation
+                const beatFloat = (absTick / Quarter) % patternLen;
+                const fracInBeat = beatFloat - Math.floor(beatFloat);
+
+                // Base velocity from beat position
+                const baseIdx = ((beatInBar % patternLen) + patternLen) % patternLen;
+                let targetVel = beatVels[baseIdx];
+
+                // Interpolate for notes between beats (16th notes etc.)
+                if (fracInBeat > 0.1) {{
+                    // Off-beat: blend toward weak
+                    const nextIdx = (baseIdx + 1) % patternLen;
+                    const blend = beatVels[baseIdx] * (1 - fracInBeat * 0.5) +
+                                  beatVels[nextIdx] * (fracInBeat * 0.5);
+                    targetVel = blend;
+                }}
+
+                // Clamp
+                targetVel = Math.max(0, Math.min(1, targetVel));
+                n.velocity.setValue(targetVel);
+
+                if (targetVel >= {strong_velocity} * 0.9) strong++;
+                else if (targetVel >= {medium_velocity} * 0.9) medium++;
+                else weak++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            accent_pattern: "{accent_pattern}",
+            notes_processed: notes.length,
+            strong_count: strong,
+            medium_count: medium,
+            weak_count: weak,
+            beat_velocities: beatVels,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_move_section(from_beat: float, to_beat: float, target_beat: float, unit_indices: str = "") -> str:
     """Move all regions within a beat range to a new position (non-destructive rearrangement).
 

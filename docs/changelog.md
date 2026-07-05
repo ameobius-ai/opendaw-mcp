@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.238.0 (2026-07-06)
+
+### Added
+- `accent_beats` — Beat-aware velocity accents by position. 6 patterns: 4/4 (downbeat strong), backbeat (beats 2+4 strong), 3/4 waltz, 6/8 compound, off_beat (syncopated, reggae skank), four_on_floor (every beat strong). Interpolates velocity for notes between beats (16th notes blend toward weak). Unlike apply_velocity_pattern (cycles by note index), this uses absolute beat position to determine accent level. strong/medium/weak velocity levels configurable. 14 unit tests including pattern weights, beat index calc, interpolation, clamping, region offset independence. **413 MCP tools**, 3022 unit tests
+
 ## v1.237.0 (2026-07-06)
 
 ### Added

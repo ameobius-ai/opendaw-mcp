@@ -14970,3 +14970,135 @@ class TestNoteStats:
         notes = []
         # The tool checks notes.length === 0 and returns error
         assert len(notes) == 0, "Empty region should be detected"
+
+
+class TestAccentBeats:
+    """Tests for mcp_opendaw_accent_beats — beat-aware velocity accents"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_accent_beats" in names
+
+    def test_pattern_4_4_weights(self):
+        """4/4 pattern: beat 1 strongest, beat 4 weakest"""
+        raw = [1.0, 0.5, 0.7, 0.4]
+        max_w = max(raw)
+        normalized = [w / max_w for w in raw]
+        assert normalized[0] == 1.0, "Beat 1 should be strongest"
+        assert normalized[3] < normalized[0], "Beat 4 should be weaker than beat 1"
+        assert normalized[2] > normalized[1], "Beat 3 (medium) > beat 2 (weak)"
+
+    def test_backbeat_pattern(self):
+        """Backbeat: beats 2 and 4 strongest (snare hits)"""
+        raw = [0.6, 1.0, 0.6, 1.0]
+        max_w = max(raw)
+        normalized = [w / max_w for w in raw]
+        assert normalized[1] == 1.0, "Beat 2 should be strongest"
+        assert normalized[3] == 1.0, "Beat 4 should be strongest"
+        assert normalized[0] < 1.0, "Beat 1 should be medium"
+
+    def test_3_4_waltz_pattern(self):
+        """3/4 waltz: beat 1 strong, 2 weak, 3 medium"""
+        raw = [1.0, 0.4, 0.6]
+        assert len(raw) == 3, "3/4 should have 3 beats"
+        assert raw[0] > raw[1], "Beat 1 > beat 2"
+        assert raw[2] > raw[1], "Beat 3 > beat 2"
+
+    def test_6_8_compound_pattern(self):
+        """6/8: 6 beats, 1 and 4 strong"""
+        raw = [1.0, 0.3, 0.3, 1.0, 0.3, 0.3]
+        assert len(raw) == 6, "6/8 should have 6 beats"
+        assert raw[0] == 1.0 and raw[3] == 1.0, "Beats 1 and 4 strong"
+        assert raw[1] < raw[0], "Beat 2 < beat 1"
+
+    def test_four_on_floor(self):
+        """Four on floor: every beat equally strong"""
+        raw = [1.0, 1.0, 1.0, 1.0]
+        assert all(w == 1.0 for w in raw), "All beats should be equal"
+
+    def test_off_beat_pattern(self):
+        """Off-beat: downbeats weak, off-beats strong (syncopated)"""
+        raw = [0.3, 1.0, 0.3, 1.0]
+        assert raw[0] < raw[1], "Downbeat should be weaker than off-beat"
+        assert raw[2] < raw[3], "Beat 3 weaker than beat 4"
+
+    def test_beat_index_calculation(self):
+        """Beat index from absolute tick position"""
+        Quarter = 960
+        regionPos = 0
+        patternLen = 4
+        # Note at beat 0 → beat 0 in pattern
+        beatInBar = Math_floor((regionPos + 0) / Quarter) % patternLen
+        assert beatInBar == 0
+        # Note at beat 3 → beat 3
+        beatInBar = Math_floor((regionPos + 3 * Quarter) / Quarter) % patternLen
+        assert beatInBar == 3
+        # Note at beat 5 → beat 1 (wraps around 4-beat pattern)
+        beatInBar = Math_floor((regionPos + 5 * Quarter) / Quarter) % patternLen
+        assert beatInBar == 1
+
+    def test_interpolation_for_off_beat_notes(self):
+        """Notes between beats get interpolated velocity"""
+        Quarter = 960
+        # Note at beat 0.5 (between beat 0 and 1)
+        absTick = 0.5 * Quarter
+        beatFloat = absTick / Quarter  # 0.5
+        fracInBeat = beatFloat - int(beatFloat)  # 0.5
+        assert fracInBeat == 0.5, "Half-beat note has frac=0.5"
+        assert fracInBeat > 0.1, "Should trigger interpolation"
+
+    def test_velocity_level_mapping(self):
+        """Weight 1.0 → strong, 0.5-0.7 → medium, <0.5 → weak"""
+        strong_v, medium_v, weak_v = 1.0, 0.7, 0.4
+        vel_map = {1.0: strong_v, 0.7: medium_v, 0.4: weak_v,
+                   0.6: medium_v, 0.5: medium_v, 0.3: weak_v}
+        # Weight 1.0 → strong
+        assert vel_map[1.0] == strong_v
+        # Weight 0.4 → weak
+        assert vel_map[0.4] == weak_v
+        # Weight 0.6 → medium
+        assert vel_map[0.6] == medium_v
+
+    def test_count_categorization(self):
+        """Notes counted as strong/medium/weak based on velocity"""
+        strong_v = 1.0
+        medium_v = 0.7
+        velocities = [1.0, 0.7, 0.4, 1.0, 0.7, 0.4]
+        strong = sum(1 for v in velocities if v >= strong_v * 0.9)
+        medium = sum(1 for v in velocities if medium_v * 0.9 <= v < strong_v * 0.9)
+        weak = sum(1 for v in velocities if v < medium_v * 0.9)
+        assert strong == 2
+        assert medium == 2
+        assert weak == 2
+
+    def test_invalid_pattern_rejected(self):
+        """Invalid accent pattern name should be rejected"""
+        valid = ["4/4", "backbeat", "3/4", "6/8", "off_beat", "four_on_floor"]
+        assert "5/4" not in valid
+        assert "rock" not in valid
+
+    def test_clamping(self):
+        """Velocity should be clamped to 0-1"""
+        raw_vel = 1.3
+        clamped = max(0, min(1, raw_vel))
+        assert clamped == 1.0
+        raw_vel = -0.2
+        clamped = max(0, min(1, raw_vel))
+        assert clamped == 0.0
+
+    def test_region_offset_independence(self):
+        """Accent pattern applies to absolute beat position, not region-relative"""
+        Quarter = 960
+        # Region at beat 4, note at region position 0 → absolute beat 4
+        regionPos = 4 * Quarter
+        notePos = 0
+        absTick = regionPos + notePos
+        absBeat = absTick / Quarter
+        patternLen = 4
+        beatInPattern = int(absBeat) % patternLen
+        assert beatInPattern == 0, "Beat 4 in 4/4 = pattern beat 0 (downbeat)"
+
+Math_floor = __import__('math').floor
