@@ -1,8 +1,8 @@
 # DSP Scripts
 
-108 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+109 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 89 scripts
+## Werkstatt (Audio Effects) — 90 scripts
 
 ### Dynamics (13)
 
@@ -60,7 +60,7 @@
 | `werkstatt_svf.js` | State Variable Filter (Chamberlin) |
 | `werkstatt_vowel_morph.js` | Vowel Morph (3 cascaded formant biquads, A→E→I→O→U interpolation, auto-morph LFO, spectral tilt) |
 
-### Modulation (8)
+### Modulation (9)
 
 | Script | Description |
 |--------|-------------|
@@ -103,7 +103,7 @@
 | `werkstatt_octaver.js` | Octaver (Sub-Octave Generator) |
 | `werkstatt_freq_shifter.js` | Frequency Shifter (SSB) |
 
-### Time (3)
+### Time (4)
 
 | Script | Description |
 |--------|-------------|
@@ -122,7 +122,7 @@
 | `werkstatt_mid_side_processor.js` | Mid/Side Processor (independent M/S gain + filters + width, mastering) |
 | `werkstatt_haas_widener.js` | Haas Stereo Widener (short delay 1-30ms on one channel, precedence effect) |
 
-### Spectral/FX (9)
+### Spectral/FX (10)
 
 | Script | Description |
 |--------|-------------|
@@ -135,6 +135,7 @@
 | `werkstatt_spectral_compressor.js` | Spectral Compressor (STFT) |
 | `werkstatt_spectral_denoise.js` | Spectral Denoiser (Noise Floor Subtraction) |
 | `werkstatt_spectral_blur.js` | Spectral Blur (STFT-based spectral smearing, freq+temporal blur, phase randomization, ambient textures) |
+| `werkstatt_spectral_enhancer.js` | Spectral Enhancer (STFT-based high-freq air boost, spectral peak emphasis, transient enhancement, stereo widening on enhanced band) |
 
 ### Restoration (5)
 

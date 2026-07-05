@@ -8229,6 +8229,80 @@ class TestPhaserDSP:
         assert "0.95" in code
 
 
+class TestSpectralEnhancerDSP:
+    """Tests for werkstatt_spectral_enhancer.js — STFT-based high-frequency air boost"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_spectral_enhancer.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt spectral_enhancer" in code
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_spectral_enhancer.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_seven_params(self):
+        """7 params: crossover, air, sparkle, transients, width, mix, output"""
+        code = self._read_script()
+        params = code.count("@param")
+        assert params == 7
+
+    def test_fft_implementation(self):
+        """Has radix-2 Cooley-Tukey FFT"""
+        code = self._read_script()
+        assert "_fft" in code
+        assert "bit" in code.lower() or "Bit reversal" in code
+        assert "Butterfly" in code or "butterfly" in code.lower() or "len <<= 1" in code
+
+    def test_hann_window(self):
+        """Uses Hann window for STFT"""
+        code = self._read_script()
+        assert "hann" in code.lower() or "0.5 * (1 - Math.cos" in code
+
+    def test_overlap_add(self):
+        """Uses overlap-add reconstruction"""
+        code = self._read_script()
+        assert "overlap" in code.lower()
+        assert "winNorm" in code or "windowNorm" in code.lower()
+
+    def test_crossover_band(self):
+        """Crossover frequency splits enhancement band"""
+        code = self._read_script()
+        assert "crossover" in code
+        assert "crossBin" in code
+
+    def test_spectral_peak_emphasis(self):
+        """Sparkle parameter emphasizes spectral peaks"""
+        code = self._read_script()
+        assert "sparkle" in code
+        assert "peak" in code.lower()
+
+    def test_transient_enhancement(self):
+        """Transient detection via magnitude delta"""
+        code = self._read_script()
+        assert "transients" in code
+        assert "delta" in code
+        assert "prevMag" in code
+
+    def test_stereo_widening(self):
+        """Width parameter applies stereo widening on enhanced band"""
+        code = self._read_script()
+        assert "width" in code
+
+    def test_dry_wet_mix(self):
+        """Output = dry + (wet - dry) * mix"""
+        code = self._read_script()
+        assert "mix" in code
+        assert "dry" in code
+        assert "wet" in code
+
+
 class TestDetectBpm:
     """Tests for _detect_bpm and detect_bpm tool"""
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.201.0 (2026-07-05)
+
+### Added
+- `werkstatt_spectral_enhancer.js` DSP script — STFT-based spectral enhancer for high-frequency "air" boost and sheen. 7 params: crossover (1-16 kHz exp), air (boost factor above crossover), sparkle (spectral peak emphasis), transients (magnitude delta detection), width (stereo widening on enhanced band), mix, output. Radix-2 Cooley-Tukey FFT (2048-point), Hann window, overlap-add reconstruction. 11 unit tests. **109 DSP scripts**, 2603 unit tests
+
+### Fixed
+- README: "303 MCP tools" → "378" (was 75 versions stale)
+- README: test count updated (1403→2603)
+- pyproject.toml/server.json: description "302" → "378"
+- CI workflow: tool threshold 304 → 378
+- dsp-scripts.md: counts updated (Werkstatt 89→90, Modulation 8→9, Time 3→4, Spectral/FX 9→10)
+
 ## v1.200.0 (2026-07-05)
 
 ### Added

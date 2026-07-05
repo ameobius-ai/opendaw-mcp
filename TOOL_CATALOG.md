@@ -541,6 +541,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_de_plosive.js` — De-plosive (adaptive highpass for vocal plosive removal, one-pole LP envelope follower + threshold, transient-triggered HPF sweep, strength, freq, attack, release, mix)
 - `werkstatt_vowel_morph.js` — Vowel morph (3 cascaded formant biquad bandpass filters F1/F2/F3, A→E→I→O→U interpolation, auto-morph LFO with rate, spectral tilt, mix, output)
 - `werkstatt_spectral_blur.js` — Spectral blur (STFT-based spectral smearing: Cooley-Tukey FFT, Hann window, frequency blur averages magnitude across neighboring bins, temporal blur averages across 4 previous frames, phase randomization for diffuse texture, overlap-add reconstruction, ambient/drone/sound design)
+- `werkstatt_spectral_enhancer.js` — Spectral enhancer (STFT-based high-frequency "air" boost above crossover, spectral peak emphasis for sparkle, transient enhancement via magnitude delta detection, stereo widening on enhanced band, mastering/sheen)
 - `werkstatt_karplus_strong.js` — Karplus-Strong string synthesis (delay-line with one-pole lowpass feedback loop, brightness controls feedback filtering, pluck damping controls excitation gain, stretch parameter for inharmonic/detuned strings, stereo processing)
 - `werkstatt_waveguide_string.js` — Waveguide string synthesis (bidirectional delay lines, bridge one-pole lowpass termination, nut first-order allpass dispersion for inharmonicity, pick position splits excitation between waves, stereo processing)
 
