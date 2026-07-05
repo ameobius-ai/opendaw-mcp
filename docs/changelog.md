@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.52.0 (2026-07-05)
+
+- **`create_hocket` orchestration tool (301 MCP tools)** — melodic line split between 2-4 voices. Hocket (Latin "hoquet" = hiccup) divides a single melody so each voice plays only part of it, creating interlocking texture. Three split modes: alternate (round-robin), pairs (2 per voice), phrase (4 per voice). Medieval Notre Dame polyphony, African mbira, Balinese gamelan, Steve Reich
+- **E2E verified**: alternate 2v (8 notes), 3 voices (12 notes), pairs, phrase, bad voices/split_mode/velocity/pitch — 8/8 tests passed
+- **+10 unit tests** for hocket voice assignment, note preservation, position spacing → 272 total
+- **Example script**: `create_hocket.py` — alternate, pairs, phrase patterns
+- **44 orchestration tools** total
+- ruff clean, CI green
+
 ## v1.51.0 (2026-07-05)
 
 - **`create_bordun` orchestration tool (300 MCP tools)** — continuously sustained drone chord as a textural layer. Unlike pedal_point (single anchored note), bordun is a sustained chord — open fifths, octaves, or drone chords. Found in Scottish bagpipes, Indian tanpura, hurdy-gurdy, ambient drone, folk. Configurable intervals (1-8), retrigger mode (every N bars), 3/4 time support

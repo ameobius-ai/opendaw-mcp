@@ -17338,6 +17338,184 @@ async def mcp_opendaw_create_bordun(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_hocket(
+    melody: str = "60,62,64,65,67,65,64,62",
+    voices: int = 2,
+    split_mode: str = "alternate",
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    note_duration: float = 0.5,
+    velocity: float = 0.7,
+) -> str:
+    """Create a hocket — single melodic line split between voices/tracks.
+
+    Hocket (from Latin "hoquet" = hiccup) is a technique where a single
+    melody is divided between two or more voices. Each voice plays only
+    every other (or every Nth) note, creating an interlocking texture.
+    Found in medieval polyphony (Notre Dame school), African mbira music,
+    Balinese gamelan, and modern minimalist composition (Steve Reich).
+
+    melody: Comma-separated MIDI pitches forming the complete melodic line.
+    voices: Number of voices to split between (2-4, default 2).
+    split_mode: How notes are distributed:
+      "alternate" — round-robin (note 0→voice 0, note 1→voice 1, ...)
+      "pairs" — pairs of notes per voice (2 per voice, then switch)
+      "phrase" — 4-note phrases per voice
+    unit_index: AU index with note tracks (-1 = find AU with enough note tracks).
+    track_index: Starting note track index (uses consecutive tracks for voices).
+    start_beat: Position in beats where the hocket begins.
+    note_duration: Duration of each note in beats (default 0.5 = eighth notes).
+    velocity: Velocity of all notes (0-1, default 0.7).
+
+    Returns notes created, voice assignment, total duration.
+    """
+    if voices < 2 or voices > 4:
+        return "Error: voices must be 2-4"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if note_duration <= 0 or note_duration > 4:
+        return "Error: note_duration must be 0.01-4 beats"
+
+    try:
+        pitches = [int(x.strip()) for x in melody.split(",")]
+    except ValueError:
+        return "Error: melody must be comma-separated MIDI pitches"
+
+    if not pitches or len(pitches) > 64:
+        return "Error: melody must have 1-64 notes"
+
+    for p in pitches:
+        if p < 0 or p > 127:
+            return f"Error: pitch {p} out of range (0-127)"
+
+    if split_mode not in ("alternate", "pairs", "phrase"):
+        return "Error: split_mode must be 'alternate', 'pairs', or 'phrase'"
+
+    # Assign notes to voices
+    voice_notes = {v: [] for v in range(voices)}
+    for i, pitch in enumerate(pitches):
+        if split_mode == "alternate":
+            voice = i % voices
+        elif split_mode == "pairs":
+            voice = (i // 2) % voices
+        else:  # phrase
+            voice = (i // 4) % voices
+        pos = start_beat + i * note_duration
+        voice_notes[voice].append({
+            "pitch": pitch,
+            "pos": pos,
+            "dur": note_duration,
+            "vel": velocity,
+        })
+
+    total_beats = len(pitches) * note_duration
+    all_note_data = []
+    for v in range(voices):
+        all_note_data.extend(voice_notes[v])
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(all_note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+        const voices = {voices};
+        const trackIdx = {track_index};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length >= voices) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+            if (noteTracks.length === 0) {{
+                for (const au of allUnits) {{
+                    const nt = h.noteTrackBoxes(au);
+                    if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+                }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const startPos = Math.round(startBeat * Quarter);
+            const regionDur = Math.round(totalBeats * Quarter);
+
+            // Group notes by voice
+            const voiceGroups = {{}};
+            for (const nd of noteData) {{
+                // Determine voice from position
+                const noteIdx = Math.round((nd.pos - startBeat) / {note_duration});
+                let voice;
+                if ("{split_mode}" === "alternate") voice = noteIdx % voices;
+                else if ("{split_mode}" === "pairs") voice = Math.floor(noteIdx / 2) % voices;
+                else voice = Math.floor(noteIdx / 4) % voices;
+
+                if (!voiceGroups[voice]) voiceGroups[voice] = [];
+                voiceGroups[voice].push(nd);
+            }}
+
+            for (const [voice, notes] of Object.entries(voiceGroups)) {{
+                const trackBox = noteTracks[Math.min(trackIdx + parseInt(voice), noteTracks.length - 1)];
+                const collection = window.DAW_NoteEventCollectionBox.create(bg, h.uuid.generate());
+
+                const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos);
+                    box.label.setValue("Hocket V" + (parseInt(voice) + 1));
+                    box.mute.setValue(false);
+                    box.duration.setValue(regionDur);
+                    box.loopDuration.setValue(regionDur);
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+
+                const eventsField = regionBox.events.targetVertex.unwrap();
+                const collBox = eventsField.box;
+
+                for (const nd of notes) {{
+                    NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                        box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                        box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                        box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                        box.pitch.setValue(nd.pitch);
+                        box.chance.setValue(100);
+                        box.cent.setValue(0);
+                        box.events.refer(collBox.events);
+                    }});
+                    totalNotes++;
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            melody_notes: {len(pitches)},
+            voices: voices,
+            split_mode: "{split_mode}",
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_canon(
     melody: str = "60,62,64,67,64,62,60,57",
     voices: int = 3,

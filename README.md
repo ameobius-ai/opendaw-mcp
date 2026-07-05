@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **300** MCP tools | **74** Python examples (8 genre templates) |
+| **301** MCP tools | **75** Python examples (8 genre templates) |
 | **44** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **262** unit + **23** E2E tests |
+| **3** framework wrappers | **272** unit + **24** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,15 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.52.0 (2026-07-05)
+
+- **`create_hocket` orchestration tool (301 MCP tools)** — melodic line split between 2-4 voices. Hocket (Latin "hoquet" = hiccup) divides a single melody so each voice plays only part of it, creating interlocking texture. Three split modes: alternate (round-robin), pairs (2 per voice), phrase (4 per voice). Medieval Notre Dame polyphony, African mbira, Balinese gamelan, Steve Reich
+- **E2E verified**: alternate 2v (8 notes), 3 voices (12 notes), pairs, phrase, bad voices/split_mode/velocity/pitch — 8/8 tests passed
+- **+10 unit tests** for hocket voice assignment, note preservation, position spacing → 272 total
+- **Example script**: `create_hocket.py` — alternate, pairs, phrase patterns
+- **44 orchestration tools** total
+- ruff clean, CI green
 
 ### v1.51.0 (2026-07-05)
 

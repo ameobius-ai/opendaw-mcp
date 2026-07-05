@@ -328,7 +328,7 @@
 - `save_effect_preset` — Encode an audio effect chain as a .opb preset bundle (ZIP: meta.json + preset.odp). Uses PresetEncoder.encodeEffects. Shareable, drag-and-drop into openDAW.
 - `load_effect_preset` — Load a .opb preset file and decode it via PresetDecoder into a project skeleton. Returns imported unit count.
 
-## Orchestration Tools (34)
+## Orchestration Tools (35)
 High-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 - `create_notes_batch` — Create multiple MIDI notes from a JSON array in one call. Replaces 10-50 create_note calls.
@@ -354,6 +354,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_sequence` — Repeat a melodic pattern at transposed pitch levels. 3 directions (up/down/alternating). Adjustable transposition (semitones), repeats (1-8), velocity decay. The fundamental compositional technique — baroque sequences, jazz chains, film score builds.
 - `create_pedal_point` — Sustained bass note under changing chords. Retrigger or sustained mode. Chord name parsing (maj/min/m7/maj7/sus2/sus4/dim/aug). Adjustable time signatures. Film scoring, organ preludes, rock ballads.
 - `create_bordun` — Continuously sustained drone chord as a textural layer. Open fifths, octaves, or custom intervals. Retrigger every N bars or one continuous note. Bagpipes, tanpura, hurdy-gurdy, ambient drone, folk.
+- `create_hocket` — Single melodic line split between 2-4 voices. Three split modes: alternate (round-robin), pairs, phrase. Each voice plays only part of the melody. Medieval polyphony, African mbira, Balinese gamelan, Steve Reich.
 - `create_canon` — Strict melodic imitation with delayed voice entries. 2-6 voices, per-voice transposition, velocity decay, up/down entry order. Pachelbel, rounds, fugue subjects, film score layering.
 - `create_comping` — Rhythmic chordal accompaniment. Chord JSON + rhythm grid (x/play, -/rest, ./ghost). Jazz piano, funk guitar, reggae skanks, country boom-chick, neo-soul. Syncopation, multi-chord progression.
 - `create_ostinato` — Create a repeating melodic/rhythmic pattern as a foundation layer. Scale-based, 1-16 repeats. Common in minimalism, electronic, and film music.

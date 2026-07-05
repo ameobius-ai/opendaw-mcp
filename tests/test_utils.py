@@ -1858,3 +1858,101 @@ class TestBordun:
         # 2 pitches × 3 chunks (6 / 2) = 6 notes
         assert len(notes) == 6
         assert abs(notes[4]["pos"] - 16) < 0.01  # third chunk at beat 16
+
+
+class TestHocket:
+    """Unit tests for create_hocket orchestration tool — voice splitting logic."""
+
+    def _split_notes(self, pitches, voices=2, split_mode="alternate", note_duration=0.5):
+        """Simulate hocket voice assignment without bridge."""
+        voice_notes = {v: [] for v in range(voices)}
+        for i, pitch in enumerate(pitches):
+            if split_mode == "alternate":
+                voice = i % voices
+            elif split_mode == "pairs":
+                voice = (i // 2) % voices
+            else:  # phrase
+                voice = (i // 4) % voices
+            pos = i * note_duration
+            voice_notes[voice].append({"pitch": pitch, "pos": pos, "dur": note_duration})
+        return voice_notes
+
+    def test_alternate_2_voices(self):
+        pitches = [60, 62, 64, 65, 67, 65, 64, 62]
+        vn = self._split_notes(pitches, voices=2, split_mode="alternate")
+        assert len(vn[0]) == 4  # notes 0,2,4,6
+        assert len(vn[1]) == 4  # notes 1,3,5,7
+        assert vn[0][0]["pitch"] == 60
+        assert vn[1][0]["pitch"] == 62
+
+    def test_alternate_3_voices(self):
+        pitches = [60, 62, 64, 65, 67, 65]
+        vn = self._split_notes(pitches, voices=3, split_mode="alternate")
+        assert len(vn[0]) == 2  # notes 0,3
+        assert len(vn[1]) == 2  # notes 1,4
+        assert len(vn[2]) == 2  # notes 2,5
+
+    def test_pairs_mode(self):
+        pitches = [60, 62, 64, 65, 67, 65, 64, 62]
+        vn = self._split_notes(pitches, voices=2, split_mode="pairs")
+        # voice 0: notes 0,1,4,5 → 4 notes
+        # voice 1: notes 2,3,6,7 → 4 notes
+        assert len(vn[0]) == 4
+        assert len(vn[1]) == 4
+        assert vn[0][0]["pitch"] == 60
+        assert vn[0][1]["pitch"] == 62
+        assert vn[1][0]["pitch"] == 64
+
+    def test_phrase_mode(self):
+        pitches = [60, 62, 64, 65, 67, 65, 64, 62]
+        vn = self._split_notes(pitches, voices=2, split_mode="phrase")
+        # voice 0: notes 0-3 → 4 notes
+        # voice 1: notes 4-7 → 4 notes
+        assert len(vn[0]) == 4
+        assert len(vn[1]) == 4
+        assert vn[0][3]["pitch"] == 65
+        assert vn[1][0]["pitch"] == 67
+
+    def test_total_notes_preserved(self):
+        pitches = [60, 62, 64, 65, 67, 65, 64, 62]
+        vn = self._split_notes(pitches, voices=2)
+        total = sum(len(v) for v in vn.values())
+        assert total == len(pitches)
+
+    def test_position_spacing(self):
+        pitches = [60, 62, 64]
+        vn = self._split_notes(pitches, voices=2, note_duration=1.0)
+        assert abs(vn[0][0]["pos"] - 0) < 0.01
+        assert abs(vn[1][0]["pos"] - 1.0) < 0.01
+        assert abs(vn[0][1]["pos"] - 2.0) < 0.01
+
+    def test_duration_applied(self):
+        pitches = [60, 62]
+        vn = self._split_notes(pitches, voices=2, note_duration=0.25)
+        assert vn[0][0]["dur"] == 0.25
+        assert vn[1][0]["dur"] == 0.25
+
+    def test_uneven_split(self):
+        """5 notes, 2 voices, alternate → voice 0 gets 3, voice 1 gets 2."""
+        pitches = [60, 62, 64, 65, 67]
+        vn = self._split_notes(pitches, voices=2, split_mode="alternate")
+        assert len(vn[0]) == 3  # notes 0,2,4
+        assert len(vn[1]) == 2  # notes 1,3
+
+    def test_4_voices(self):
+        pitches = [60, 62, 64, 65, 67, 65, 64, 62]
+        vn = self._split_notes(pitches, voices=4, split_mode="alternate")
+        assert len(vn[0]) == 2  # notes 0,4
+        assert len(vn[1]) == 2  # notes 1,5
+        assert len(vn[2]) == 2  # notes 2,6
+        assert len(vn[3]) == 2  # notes 3,7
+
+    def test_all_notes_in_melody(self):
+        """Every pitch from the melody appears exactly once across all voices."""
+        pitches = [60, 62, 64, 65, 67, 65, 64, 62, 60, 59]
+        vn = self._split_notes(pitches, voices=3, split_mode="alternate")
+        all_pitches = []
+        for v in vn.values():
+            for n in v:
+                all_pitches.append(n["pitch"])
+        assert sorted(all_pitches) == sorted(pitches)
