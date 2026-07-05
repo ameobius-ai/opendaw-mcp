@@ -375,7 +375,7 @@ track_name_mastered/
 ### openDAW MCP
 - Server: `~/projects/creative-studio/agent-daw/opendaw-mcp/server.py`
 - Headless: `~/projects/creative-studio/agent-daw/headless-daw/` (Vite port 5174)
-- 391 MCP tools, 80+ orchestration tools, 110 DSP scripts
+- 391 MCP tools, 80+ orchestration tools, 111 DSP scripts
 - See `opendaw-automation` skill for full API reference (385 tools)
 
 ### DSP Scripts (108 available)

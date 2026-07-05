@@ -11,6 +11,7 @@
 | `werkstatt_compressor.js` | Compressor |
 | `werkstatt_lookahead.js` | Lookahead Compressor |
 | `werkstatt_limiter.js` | Brickwall Limiter |
+| `werkstatt_maximizer.js` | Loudness Maximizer (lookahead limiting, ISP detection, TPDF dither, ceiling, stereo link) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |

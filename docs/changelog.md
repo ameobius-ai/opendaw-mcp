@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.216.0 (2026-07-05)
+
+### Added
+- `werkstatt_maximizer.js` — Loudness maximizer with lookahead limiting, ISP (inter-sample peak) detection, TPDF dithering via LFSR, stereo link, and dry/wet mix. Ceiling (-6 to 0 dB), release (5-500ms), lookahead (0-1ms), dither amount, stereo link. 6 params. Complements the existing limiter — maximizer is louder-than-limiter with transparent sound for mastering. **111 DSP scripts** (92 Werkstatt + 9 Apparat + 10 Spielwerk)
+
 ## v1.215.0 (2026-07-05)
 
 ### Added
