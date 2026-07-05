@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-304-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-305-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-58-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-605%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-615%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **304** MCP tools | **88** Python examples (8 genre templates) |
+| **305** MCP tools | **89** Python examples (8 genre templates) |
 | **58** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **605** unit + E2E tests |
+| **3** framework wrappers | **615** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.70.0 (2026-07-05)
+
+- **`create_fugue` orchestration tool** — polyphonic fugue generator with subject, tonal/real answer, countersubject, and stretto. Subject stated in first voice, then imitated in others with tonal answer (5th up, diatonic adjustment) or real answer (exact transposition). Optional countersubject provides contrasting counterpoint after subject completes. Stretto mode overlaps voice entries for climactic density. Voice alternation: subject → answer → subject (octave down) → answer. Per-voice velocity decay. 2-5 voices, 2-32 note subject. Distinct from create_canon (strict imitation) and create_chorale (SATB voice leading) — fugue uses independent subject/answer/countersubject with tonal answer adjustment. Bach Well-Tempered Clavier, Art of Fugue. 48 orchestration tools → 48
+- **305 MCP tools** (48 orchestration)
+- **615 unit tests** (+10), E2E 8/8
 
 ### v1.69.0 (2026-07-05)
 

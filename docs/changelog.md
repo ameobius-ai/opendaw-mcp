@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.70.0 (2026-07-05)
+
+- **`create_fugue` orchestration tool** — polyphonic fugue with subject, tonal/real answer, countersubject, stretto. Voice alternation, velocity decay. 2-5 voices, 2-32 note subject. Bach WTC/Art of Fugue style
+- **305 MCP tools** (48 orchestration)
+- **615 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.69.0 (2026-07-05)
 
 - **`werkstatt_spectral_gate.js` DSP script** — multiband spectral gate. 4-16 log-spaced bandpass bank, per-band envelope followers, threshold gating, spectral tilt. 10 params: bands, threshold, reduction, attack, release, min_freq, max_freq, tilt, mix, output

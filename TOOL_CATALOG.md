@@ -328,7 +328,7 @@
 - `save_effect_preset` — Encode an audio effect chain as a .opb preset bundle (ZIP: meta.json + preset.odp). Uses PresetEncoder.encodeEffects. Shareable, drag-and-drop into openDAW.
 - `load_effect_preset` — Load a .opb preset file and decode it via PresetDecoder into a project skeleton. Returns imported unit count.
 
-## Orchestration Tools (37)
+## Orchestration Tools (38)
 High-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 - `create_notes_batch` — Create multiple MIDI notes from a JSON array in one call. Replaces 10-50 create_note calls.
@@ -354,6 +354,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_sequence` — Repeat a melodic pattern at transposed pitch levels. 3 directions (up/down/alternating). Adjustable transposition (semitones), repeats (1-8), velocity decay. The fundamental compositional technique — baroque sequences, jazz chains, film score builds.
 - `create_pedal_point` — Sustained bass note under changing chords. Retrigger or sustained mode. Chord name parsing (maj/min/m7/maj7/sus2/sus4/dim/aug). Adjustable time signatures. Film scoring, organ preludes, rock ballads.
 - `create_chorale` — 4-voice SATB chorale with voice-leading rules. Nearest chord tone movement, parallel fifth/octave detection, voice range clamping (S/A/T/B). Per-voice velocity, voice_spread. Bach chorale style — vocal harmonies, string arrangements, synth pads.
+- `create_fugue` — Polyphonic fugue with subject, tonal/real answer, optional countersubject, stretto. Voice alternation (subject→answer→subject oct-down→answer). 2-5 voices. Bach WTC/Art of Fugue style. Distinct from canon (strict imitation) — fugue uses tonal answer adjustment.
 - `create_bordun` — Continuously sustained drone chord as a textural layer. Open fifths, octaves, or custom intervals. Retrigger every N bars or one continuous note. Bagpipes, tanpura, hurdy-gurdy, ambient drone, folk.
 - `create_hocket` — Single melodic line split between 2-4 voices. Three split modes: alternate (round-robin), pairs, phrase. Each voice plays only part of the melody. Medieval polyphony, African mbira, Balinese gamelan, Steve Reich.
 - `create_isorhythm` — Repeating rhythm (talea) × repeating pitch (color) as independent cycles. Phase shift when lengths differ, realign at LCM. Medieval motets (Machaut), Messiaen, Boulez. Distinct from ostinato.

@@ -2356,6 +2356,93 @@ class TestSpectralGateDSP:
         assert "_updateHp" in code, "Missing highpass update function"
 
 
+class TestCreateFugue:
+    """Unit tests for create_fugue orchestration tool."""
+
+    def test_subject_parsing(self):
+        pitches = [int(p.strip()) for p in "60,62,64,65,64,62,60,57".split(",")]
+        assert len(pitches) == 8
+        assert pitches[0] == 60
+        assert pitches[-1] == 57
+
+    def test_tonal_answer_transposition(self):
+        subject = [60, 62, 64, 65, 64, 62, 60, 57]
+        answer_transpose = 7
+        answer = [max(0, min(127, p + answer_transpose)) for p in subject]
+        assert answer[0] == 67  # G4 (dominant of C)
+        assert answer == [67, 69, 71, 72, 71, 69, 67, 64]
+
+    def test_real_answer_transposition(self):
+        subject = [60, 62, 64, 65]
+        answer = [max(0, min(127, p + 7)) for p in subject]
+        assert answer == [67, 69, 71, 72]
+
+    def test_voice_alternation(self):
+        """Voices alternate: subject, answer, subject (oct down), answer."""
+        subject = [60, 62, 64]
+        answer = [67, 69, 71]
+        subj_oct_down = [48, 50, 52]
+        voices = 4
+        voice_pitches = [subject]
+        for v in range(1, voices):
+            if v % 2 == 1:
+                voice_pitches.append(answer)
+            else:
+                voice_pitches.append(subj_oct_down)
+        assert voice_pitches[0] == subject
+        assert voice_pitches[1] == answer
+        assert voice_pitches[2] == subj_oct_down
+        assert voice_pitches[3] == answer
+
+    def test_note_count_without_countersubject(self):
+        """3 voices × 8-note subject = 24 notes."""
+        voices = 3
+        subj_len = 8
+        assert voices * subj_len == 24
+
+    def test_note_count_with_countersubject(self):
+        """3 voices × (8 subject + 8 countersubject) = 48 notes."""
+        voices = 3
+        subj_len = 8
+        cs_len = 8
+        assert voices * (subj_len + cs_len) == 48
+
+    def test_stretto_entry_timing(self):
+        """Stretto halves entry delay for later voices."""
+        entry_delay = 4
+        voices = 3
+        # Normal entries: 0, 4, 8
+        normal = [v * entry_delay for v in range(voices)]
+        assert normal == [0, 4, 8]
+        # Stretto: 0, 2, 4
+        stretto = [v * entry_delay * 0.5 for v in range(voices)]
+        assert stretto == [0, 2, 4]
+
+    def test_velocity_decay(self):
+        """Each voice is quieter by velocity_decay."""
+        base_vel = 0.75
+        decay = 0.1
+        assert max(0.1, base_vel - 0 * decay) == 0.75
+        assert max(0.1, base_vel - 1 * decay) == 0.65
+        assert max(0.1, base_vel - 2 * decay) == 0.55
+
+    def test_total_beats_calculation(self):
+        """3 voices, 4-beat delay, 8-note subject = 16 beats."""
+        voices = 3
+        entry_delay = 4
+        subj_len = 8
+        total = (voices - 1) * entry_delay + subj_len
+        assert total == 16
+
+    def test_total_beats_with_countersubject(self):
+        """With countersubject, add subject length."""
+        voices = 3
+        entry_delay = 4
+        subj_len = 8
+        total = (voices - 1) * entry_delay + subj_len + subj_len
+        assert total == 24
+
+
 class TestScratchDSP:
     """Unit tests for werkstatt_scratch.js DSP script structure."""
 

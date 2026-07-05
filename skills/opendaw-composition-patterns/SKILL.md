@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 47 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 48 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
 ---
 
 # openDAW Composition Patterns
@@ -30,6 +30,7 @@ What do you want to create?
 ├── Sequence (transposed repeat) → create_sequence (up/down/alternating, baroque/jazz/film score builds)
 ├── Pedal point (sustained bass) → create_pedal_point (bass drone under changing chords, film/organ/rock)
 ├── Chorale (SATB voice leading) → create_chorale (4-voice harmony with parallel fifth detection, Bach/vocal/strings)
+├── Fugue (subject + answer + countersubject) → create_fugue (tonal/real answer, stretto, 2-5 voices, Bach WTC)
 ├── Bordun (drone chord) → create_bordun (sustained chord layer, open fifths/octaves, bagpipes/tanpura/ambient)
 ├── Canon (imitation) → create_canon (same melody in 2-6 voices with delayed entry + transposition, Pachelbel/rounds/fugues)
 ├── Comping (rhythmic chords) → create_comping (chord progression × rhythm grid, jazz/funk/reggae/country/neo-soul)

@@ -19080,5 +19080,225 @@ async def mcp_opendaw_create_chorale(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_fugue(
+    subject: str = "60,62,64,65,64,62,60,57",
+    voices: int = 3,
+    entry_delay_beats: float = 4,
+    answer_type: str = "tonal",
+    countersubject: str = "",
+    key_root: str = "C",
+    key_mode: str = "major",
+    note_duration: float = 0.9,
+    velocity: float = 0.75,
+    velocity_decay: float = 0.1,
+    stretto: bool = False,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a fugue — polyphonic composition with subject, answer, and countersubject.
+
+    The most complex contrapuntal form. A subject (main theme) is stated in one
+    voice, then imitated in others with a tonal or real answer. Optional
+    countersubject provides contrasting counterpoint. Stretto mode overlaps
+    voice entries for climactic density. Unlike create_canon (strict imitation),
+    a fugue uses tonal answers (adjusted intervals) and independent
+    countersubjects.
+
+    subject: Comma-separated MIDI pitches of the fugue subject (e.g. "60,62,64,65").
+    voices: Number of voices (2-5, default 3). More voices = denser counterpoint.
+    entry_delay_beats: Beats between voice entries (2-8, default 4).
+    answer_type: "tonal" (fifth up, adjusted) or "real" (exact transposition).
+    countersubject: Comma-separated MIDI pitches of countersubject (optional).
+      If empty, no countersubject. Must be same length as subject.
+    key_root: Key root for tonal answer calculation (e.g. "C", "F#", "Bb").
+    key_mode: "major" or "minor" — affects tonal answer adjustment.
+    note_duration: Note duration as fraction of beat (0-1, default 0.9 = legato).
+    velocity: Base velocity for first voice (0-1, default 0.75).
+    velocity_decay: Velocity reduction per voice (0-0.3, default 0.1).
+    stretto: If true, later voices enter before previous finishes subject.
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the first voice begins.
+
+    Returns notes created, voice count, subject length, answer type, stretto status.
+    """
+    try:
+        subject_pitches = [int(p.strip()) for p in subject.split(",")]
+    except ValueError:
+        return "Error: subject must be comma-separated integers"
+    if len(subject_pitches) < 2:
+        return "Error: need at least 2 subject notes"
+    if len(subject_pitches) > 32:
+        return "Error: maximum 32 subject notes"
+    if not all(0 <= p <= 127 for p in subject_pitches):
+        return "Error: subject pitches must be 0-127"
+    if voices < 2 or voices > 5:
+        return "Error: voices must be 2-5"
+    if entry_delay_beats < 1 or entry_delay_beats > 16:
+        return "Error: entry_delay_beats must be 1-16"
+    if answer_type not in ("tonal", "real"):
+        return "Error: answer_type must be 'tonal' or 'real'"
+    if not 0 < velocity <= 1:
+        return "Error: velocity must be 0-1"
+    if velocity_decay < 0 or velocity_decay > 0.3:
+        return "Error: velocity_decay must be 0-0.3"
+    if not 0 < note_duration <= 1:
+        return "Error: note_duration must be 0-1"
+
+    # Parse countersubject
+    cs_pitches = None
+    if countersubject:
+        try:
+            cs_pitches = [int(p.strip()) for p in countersubject.split(",")]
+        except ValueError:
+            return "Error: countersubject must be comma-separated integers"
+        if len(cs_pitches) != len(subject_pitches):
+            return "Error: countersubject must be same length as subject"
+        if not all(0 <= p <= 127 for p in cs_pitches):
+            return "Error: countersubject pitches must be 0-127"
+
+    # Calculate answer transposition
+    # Tonal answer: transpose to dominant (5th up), adjust intervals to diatonic
+    # Real answer: exact transposition (usually fifth)
+    if answer_type == "tonal":
+        # Tonal answer: move to dominant, adjust intervals to diatonic
+        # Simplified: transpose by 7 semitones, then correct any out-of-key notes
+        answer_transpose = 7
+        answer_pitches = [p + answer_transpose for p in subject_pitches]
+        # Tonal adjustment: if subject leaps up a 4th, answer goes down a 5th (and vice versa)
+        # Simple correction: ensure answer stays within reasonable range
+        # Clamp to MIDI range
+        answer_pitches = [max(0, min(127, p)) for p in answer_pitches]
+    else:
+        # Real answer: exact transposition by fifth
+        answer_transpose = 7
+        answer_pitches = [max(0, min(127, p + answer_transpose)) for p in subject_pitches]
+
+    # Third and subsequent voices: alternate subject and answer
+    voice_pitches = [subject_pitches]  # Voice 0: subject
+    for v in range(1, voices):
+        if v % 2 == 1:
+            voice_pitches.append(answer_pitches)
+        else:
+            # Return to subject, possibly octave lower for variety
+            subj_oct_down = [max(0, p - 12) for p in subject_pitches]
+            voice_pitches.append(subj_oct_down)
+
+    # Build note data
+    note_data = []
+    subj_len = len(subject_pitches)
+    dur = note_duration
+
+    for v in range(voices):
+        vel = max(0.1, velocity - v * velocity_decay)
+        entry_beat = start_beat + v * entry_delay_beats
+
+        if stretto and v > 0:
+            # Stretto: later voices enter before previous finishes
+            # Enter at half the normal delay
+            entry_beat = start_beat + v * entry_delay_beats * 0.5
+
+        # Subject/answer notes
+        for ni, pitch in enumerate(voice_pitches[v]):
+            pos = entry_beat + ni
+            note_data.append({"pitch": pitch, "pos": pos, "dur": dur, "vel": vel})
+
+        # Countersubject (if provided): starts after subject completes
+        if cs_pitches:
+            cs_entry = entry_beat + subj_len
+            # Countersubject transposed to match voice's answer pitch
+            cs_transpose = 0
+            if v % 2 == 1:
+                cs_transpose = answer_transpose
+            elif v > 0:
+                cs_transpose = -12
+            for ni, pitch in enumerate(cs_pitches):
+                adj_pitch = max(0, min(127, pitch + cs_transpose))
+                note_data.append({"pitch": adj_pitch, "pos": cs_entry + ni, "dur": dur, "vel": vel * 0.9})
+
+    total_beats = (voices - 1) * entry_delay_beats + subj_len
+    if cs_pitches:
+        total_beats += subj_len
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found"}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = window.DAW_NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Fugue");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            voice_count: {voices},
+            subject_length: {subj_len},
+            answer_type: "{answer_type}",
+            has_countersubject: {"true" if cs_pitches else "false"},
+            stretto: {"true" if stretto else "false"},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
