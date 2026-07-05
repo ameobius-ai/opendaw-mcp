@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.92.0 (2026-07-05)
+
+- **`werkstatt_multiband_imager.js` DSP script** — 3-band stereo imager: LR4 Linkwitz-Riley crossover splits signal into low/mid/high, each band gets independent M/S width control. Low band defaults to mono (standard mastering practice), high band defaults wide. Bypass_low for dry low band, link mode couples low+mid width. 9 params (crossover1/crossover2/low_width/mid_width/high_width/bypass_low/link/mix/output). iZotope Ozone Imager / Waves S1 style. 74 DSP scripts
+- **849 unit tests** (+13), E2E 8/8
+
 ## v1.91.0 (2026-07-05)
 
 - **`werkstatt_tape_stop.js` DSP script** — exponential tape stop: speed decays exponentially to zero with corresponding pitch drop. State machine (playing→stopping→stopped), trigger/restart control, configurable decay curve (1=linear, 2=classic tape, 8=hard stop), wow/flutter during slowdown, circular buffer with fractional read. 9 params (stop_time/trigger/restart/curve/wow/flutter/flutter_rate/mix/output). 73 DSP scripts

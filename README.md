@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-310-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-73-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-836%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-74-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-849%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Examples](https://img.shields.io/badge/Examples-113-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -28,7 +28,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **308** MCP tools | **94** Python examples (8 genre templates) |
-| **61** DSP scripts | **11** agent skills |
+| **74** DSP scripts | **11** agent skills |
 | **3** framework wrappers | **732** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -636,7 +636,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.66.0 (2026-07-05)
 
 - **`werkstatt_scratch.js` DSP script** — DJ vinyl scratch with turntable physics. Triangle LFO drives back-and-forth motion with depth and rate control. Pullback parameter adds backward "yank" at cycle start. Physics model: velocity tracks target with friction coefficient for inertia. Wow (0.5 Hz pitch wobble) and flutter (adjustable 2-30 Hz) for vinyl character. Random crackle pops. Variable-speed readhead with linear interpolation from circular buffer. Classic for turntablism, tape rewind, DJ scratching, lo-fi character. 10 params: depth, rate, pullback, friction, wow, flutter, flutter_rate, crackle, mix, output
-- **56 DSP scripts** (43 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **57 DSP scripts (44 Werkstatt + 7 Apparat + 6 Spielwerk)
 - **575 unit tests** (+10), E2E 8/8
 
 ### v1.65.0 (2026-07-05)

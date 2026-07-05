@@ -437,6 +437,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_deesser.js` — De-esser, dynamic high-frequency compressor (freq, threshold, ratio, attack, release, mix, output)
 - `werkstatt_transient.js` — Transient shaper, dual envelope (attack, sustain, mix, output)
 - `werkstatt_stereowidth.js` — Stereo width M/S processor (width, lowTrim, lowFreq, mix, output)
+- `werkstatt_multiband_imager.js` — Multiband stereo imager (3-band LR4 crossover, per-band M/S width control, mono bass default, bypass_low, link mode, iZotope Ozone Imager style)
 - `werkstatt_convolution_reverb.js` — Convolution reverb (generated stereo IR, early reflections + decaying noise tail, room_size, decay, damping, predelay, early/late balance, width, mix, output)
 - `werkstatt_dynamic_eq.js` — Dynamic EQ (3 bands, peaking biquad + envelope follower, per-band threshold/range, attack/release, mix, output)
 

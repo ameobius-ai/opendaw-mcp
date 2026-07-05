@@ -21,6 +21,7 @@
 | `werkstatt_deesser.js` | De-esser (dynamic HF compressor) | freq, threshold, ratio, attack, release, mix, output |
 | `werkstatt_transient.js` | Transient shaper (dual envelope) | attack, sustain, mix, output |
 | `werkstatt_stereowidth.js` | Stereo width (M/S processor) | width, lowTrim, lowFreq, mix, output |
+| `werkstatt_multiband_imager.js` | Multiband stereo imager (3-band LR4 crossover, per-band M/S width, mono bass, link mode) | crossover1, crossover2, low_width, mid_width, high_width, bypass_low, link, mix, output |
 | `werkstatt_convolution_reverb.js` | Convolution reverb (generated stereo IR, early reflections + noise tail) | room_size, decay, damping, predelay, early_late, width, mix, output |
 | `werkstatt_dynamic_eq.js` | Dynamic EQ (3 bands, envelope-followed peaking) | band1-3 freq/gain/Q/threshold/range, attack, release, mix, output |
 | `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix |

@@ -3703,3 +3703,93 @@ class TestTapeStopDSP:
     def test_stereo_output(self):
         code = self._read_script()
         assert "io.out[0]" in code and "io.out[1]" in code, "Missing stereo output"
+
+
+class TestMultibandImagerDSP:
+    """Unit tests for werkstatt_multiband_imager.js — 3-band M/S stereo imager"""
+
+    SCRIPT = "werkstatt_multiband_imager.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt multiband_imager" in code, "Missing @werkstatt multiband_imager header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_crossover_params(self):
+        params = self._parse_params(self._read_script())
+        c1 = [p for p in params if p["name"] == "crossover1"][0]
+        c2 = [p for p in params if p["name"] == "crossover2"][0]
+        assert c1["type"] == "exp" and c2["type"] == "exp", "Crossovers should be exp"
+        assert c1["default"] == 200 and c2["default"] == 2000
+
+    def test_width_params(self):
+        params = self._parse_params(self._read_script())
+        low = [p for p in params if p["name"] == "low_width"][0]
+        mid = [p for p in params if p["name"] == "mid_width"][0]
+        high = [p for p in params if p["name"] == "high_width"][0]
+        assert low["default"] == 0, "low_width default should be 0 (mono bass)"
+        assert mid["default"] == 0.5, "mid_width default should be 0.5 (neutral)"
+        assert high["default"] == 1.0, "high_width default should be 1.0 (wide)"
+
+    def test_bypass_low_param(self):
+        params = self._parse_params(self._read_script())
+        b = [p for p in params if p["name"] == "bypass_low"][0]
+        assert b["type"] == "bool", "bypass_low should be bool"
+
+    def test_link_param(self):
+        params = self._parse_params(self._read_script())
+        lk = [p for p in params if p["name"] == "link"][0]
+        assert lk["type"] == "bool", "link should be bool"
+
+    def test_lr4_crossover(self):
+        code = self._read_script()
+        assert "_butterworthLP" in code, "Missing Butterworth LP filter"
+        assert "_butterworthHP" in code, "Missing Butterworth HP filter"
+        assert "_lr4" in code, "Missing LR4 crossover function"
+
+    def test_ms_encoding(self):
+        code = self._read_script()
+        assert "mid = (l + r)" in code, "Missing M/S mid encoding"
+        assert "side = (l - r)" in code, "Missing M/S side encoding"
+
+    def test_per_band_width(self):
+        code = self._read_script()
+        assert "lowW" in code, "Missing low band width application"
+        assert "midW" in code, "Missing mid band width application"
+        assert "highW" in code, "Missing high band width application"
+
+    def test_band_summation(self):
+        code = self._read_script()
+        assert "procLowL + procMidL + procHighL" in code, "Missing band summation L"
+        assert "procLowR + procMidR + procHighR" in code, "Missing band summation R"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "(wetL - dryL) * mix" in code, "Missing dry/wet blend formula"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
