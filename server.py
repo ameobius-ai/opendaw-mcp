@@ -30013,6 +30013,215 @@ async def mcp_opendaw_create_blues_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_country_arrangement(
+    bpm: float = 120,
+    bars: int = 8,
+    root: str = "G",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    chord_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.78,
+) -> str:
+    """Create a full country arrangement — boom-chick guitar + root-five bass + major pentatonic fiddle lead.
+
+    Classic country/Americana — the foundation of American roots music:
+    - Track 0: Drums — straight 8th backbeat: kick on 1 and 3, snare on 2 and 4,
+                     steady 8th hi-hats. Country drums are straight, not shuffled
+                     like blues — the groove comes from the guitar, not the drums.
+    - Track 1: Bass — root-five pattern: root on beat 1, fifth on beat 3. The
+                     classic country bass — simple, steady, and unmistakable.
+    - Track 2: Chords — boom-chick guitar: alternating bass note (beat 1) + chord
+                     strum (beat 2), bass note (beat 3) + chord strum (beat 4).
+                     Triads, not 7ths — country harmony is cleaner than blues.
+                     The boom-chick is the Carter Family/Johnny Cash pattern.
+    - Track 3: Lead — major pentatonic (root, 2, 3, 5, 6) with occasional blue
+                     notes (b3, b7). Fiddle-style: long sustained notes, fast
+                     scale runs, and bends. The crying fiddle quality.
+
+    At 120 BPM (default), this is a classic country two-step tempo. At 90 BPM,
+    it's a country ballad. At 140, it's a fast bluegrass breakdown feel.
+
+    The I-IV-V progression: I-I-IV-I-V-I-IV-I (8 bars). Simple, direct, and
+    the backbone of country, folk, and Americana.
+
+    bpm: Tempo (80-160, default 120 = classic country two-step).
+    bars: Arrangement length (must be multiple of 8, default 8).
+    root: Root note (G is the most common country key — guitar/capo friendly).
+    octave: MIDI octave for bass (2 = G2=43, standard country bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / chord_track / lead_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_country_arrangement(bpm=120, root="G", bars=8)
+      create_country_arrangement(bpm=90, root="D", bars=16)  # ballad, 2 verses
+    """
+    if not (80 <= bpm <= 160):
+        return "Error: bpm must be 80-160"
+    if bars < 8 or bars > 48:
+        return "Error: bars must be 8-48 (multiple of 8)"
+    if bars % 8 != 0:
+        return "Error: bars must be multiple of 8"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    chord_base = (octave + 3) * 12 + root_pc
+    lead_base = (octave + 4) * 12 + root_pc
+
+    # 8-bar country form: I-I-IV-I-V-I-IV-I
+    _COUNTRY_FORM = [0, 0, 5, 0, 7, 0, 5, 0]
+    _MAJOR_TRIAD = [0, 4, 7]
+    _MAJ_PENT = [0, 2, 4, 7, 9]
+    _BLUE_NOTES = [3, 10]  # b3, b7 for country feel
+
+    verses = bars // 8
+
+    # --- DRUMS: straight 8th backbeat ---
+    kick_p, snare_p, hat_p = 36, 38, 42
+    drum_notes = []
+    for b in range(bars):
+        off = b * 4.0
+        drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + 0.0, 4),
+                          "duration": 0.3, "velocity": round(velocity * 1.0, 3)})
+        drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + 2.0, 4),
+                          "duration": 0.25, "velocity": round(velocity * 0.85, 3)})
+        drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + 1.0, 4),
+                          "duration": 0.1, "velocity": round(velocity * 0.9, 3)})
+        drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + 3.0, 4),
+                          "duration": 0.1, "velocity": round(velocity * 0.9, 3)})
+        for beat in range(8):
+            vm = 0.45 if beat % 2 == 0 else 0.30
+            drum_notes.append({"pitch": hat_p, "start": round(start_beat + off + beat * 0.5, 4),
+                              "duration": 0.06, "velocity": round(velocity * vm, 3)})
+
+    # --- BASS: root-five pattern ---
+    bass_notes = []
+    for verse in range(verses):
+        for bar_idx in range(8):
+            bar_start = (verse * 8 + bar_idx) * 4.0
+            deg = _COUNTRY_FORM[bar_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            chord_root = bass_base + chord_root_pc
+            bass_notes.append({"pitch": chord_root, "start": round(start_beat + bar_start + 0.0, 4),
+                              "duration": 1.8, "velocity": round(velocity * 0.95, 3)})
+            bass_notes.append({"pitch": chord_root + 7, "start": round(start_beat + bar_start + 2.0, 4),
+                              "duration": 1.8, "velocity": round(velocity * 0.75, 3)})
+
+    # --- CHORDS: boom-chick guitar ---
+    chord_notes = []
+    for verse in range(verses):
+        for bar_idx in range(8):
+            bar_start = (verse * 8 + bar_idx) * 4.0
+            deg = _COUNTRY_FORM[bar_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            chord_notes.append({
+                "pitch": chord_base + chord_root_pc,
+                "start": round(start_beat + bar_start + 0.0, 4),
+                "duration": 0.9,
+                "velocity": round(velocity * 0.7, 3),
+            })
+            for interval in _MAJOR_TRIAD:
+                chord_notes.append({
+                    "pitch": chord_base + chord_root_pc + interval,
+                    "start": round(start_beat + bar_start + 1.0, 4),
+                    "duration": 0.8,
+                    "velocity": round(velocity * 0.5, 3),
+                })
+            chord_notes.append({
+                "pitch": chord_base + chord_root_pc + 7,
+                "start": round(start_beat + bar_start + 2.0, 4),
+                "duration": 0.9,
+                "velocity": round(velocity * 0.65, 3),
+            })
+            for interval in _MAJOR_TRIAD:
+                chord_notes.append({
+                    "pitch": chord_base + chord_root_pc + interval,
+                    "start": round(start_beat + bar_start + 3.0, 4),
+                    "duration": 0.8,
+                    "velocity": round(velocity * 0.45, 3),
+                })
+
+    # --- LEAD: major pentatonic fiddle style ---
+    lead_notes = []
+    for verse in range(verses):
+        for bar_idx in range(8):
+            bar_start = (verse * 8 + bar_idx) * 4.0
+            deg = _COUNTRY_FORM[bar_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            if bar_idx % 4 == 0:
+                p1 = lead_base + chord_root_pc + _MAJ_PENT[0]
+                lead_notes.append({"pitch": p1, "start": round(start_beat + bar_start + 0.5, 4),
+                                  "duration": 3.0, "velocity": round(velocity * 0.85, 3)})
+                pb = lead_base + chord_root_pc + _BLUE_NOTES[1]
+                lead_notes.append({"pitch": pb, "start": round(start_beat + bar_start + 3.5, 4),
+                                  "duration": 0.4, "velocity": round(velocity * 0.6, 3)})
+            elif bar_idx % 4 == 1:
+                for si in range(5):
+                    p = lead_base + chord_root_pc + _MAJ_PENT[si]
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.35, 4),
+                                      "duration": 0.3, "velocity": round(velocity * (0.6 + si * 0.05), 3)})
+            elif bar_idx % 4 == 2:
+                for si in range(5):
+                    sidx = 4 - si
+                    p = lead_base + chord_root_pc + _MAJ_PENT[sidx]
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.35, 4),
+                                      "duration": 0.3, "velocity": round(velocity * (0.65 - si * 0.03), 3)})
+            else:
+                lick = [_MAJ_PENT[0], _BLUE_NOTES[0], _MAJ_PENT[2], _MAJ_PENT[4], _BLUE_NOTES[1], _MAJ_PENT[0]]
+                for si, note_off in enumerate(lick):
+                    p = lead_base + chord_root_pc + note_off
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.3, 4),
+                                      "duration": 0.25, "velocity": round(velocity * (0.5 + (si % 2) * 0.1), 3)})
+
+    drum_json = json.dumps(drum_notes)
+    bass_json = json.dumps(bass_notes)
+    chord_json = json.dumps(chord_notes)
+    lead_json = json.dumps(lead_notes)
+
+    drum_result = await mcp_opendaw_create_notes_batch(drum_json, unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, bass_track)
+    chord_result = await mcp_opendaw_create_notes_batch(chord_json, unit_index, chord_track)
+    lead_result = await mcp_opendaw_create_notes_batch(lead_json, unit_index, lead_track)
+
+    drum_data = json.loads(drum_result) if isinstance(drum_result, str) else drum_result
+    bass_data = json.loads(bass_result) if isinstance(bass_result, str) else bass_result
+    chord_data = json.loads(chord_result) if isinstance(chord_result, str) else chord_result
+    lead_data = json.loads(lead_result) if isinstance(lead_result, str) else lead_result
+
+    return json.dumps({
+        "success": True,
+        "genre": "country",
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "chords": {"track": chord_track, "notes": len(chord_notes), "result": chord_data.get("notes_created", len(chord_notes))},
+            "lead": {"track": lead_track, "notes": len(lead_notes), "result": lead_data.get("notes_created", len(lead_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(chord_notes) + len(lead_notes),
+        "drum_pattern": "straight_8th_backbeat",
+        "bass_pattern": "root_five",
+        "chord_type": "boom_chick_guitar",
+        "lead_type": "major_pentatonic_fiddle",
+        "harmony": "I_IV_V_country_8_bar",
+        "form": "I-I-IV-I-V-I-IV-I",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_reggae_arrangement(
     bpm: float = 80,
     bars: int = 8,
@@ -31007,7 +31216,7 @@ async def mcp_opendaw_apply_genre_mix(
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco",
-                    "lofi", "soul", "rnb", "blues"]
+                    "lofi", "soul", "rnb", "blues", "country"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
     if not (2 <= num_tracks <= 4):
@@ -31236,6 +31445,16 @@ async def mcp_opendaw_apply_genre_mix(
             "sidechain": False,
             "sc_params": {},
         },
+        "country": {
+            "effects": [
+                (0, "Compressor", {"threshold": -15, "ratio": 2.5, "attack": 10, "release": 100}),
+                (1, "Revamp", {"low": 3, "high": 0}),       # bass: warm, no harshness
+                (2, "Reverb", {"decay": 0.3}),              # chords: short room reverb (live feel)
+                (3, "Delay", {"time": 0.25, "feedback": 0.15}),  # lead: slap-back (country staple)
+            ],
+            "sidechain": False,
+            "sc_params": {},
+        },
     }
 
     recipe = recipes[genre]
@@ -31347,7 +31566,7 @@ async def mcp_opendaw_apply_genre_humanization(
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave",
-                    "trance", "disco", "lofi", "soul", "rnb", "blues"]
+                    "trance", "disco", "lofi", "soul", "rnb", "blues", "country"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
 
@@ -31366,6 +31585,7 @@ async def mcp_opendaw_apply_genre_humanization(
         "soul":      {"timing": 0.10, "velocity": 0.12, "duration": 0.06, "swing": 0.0,  "bias": 0.02},
         "rnb":       {"timing": 0.08, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.02},
         "blues":     {"timing": 0.12, "velocity": 0.15, "duration": 0.08, "swing": 0.58, "bias": 0.02},
+        "country":   {"timing": 0.06, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.01},
         # Electronic — tight and consistent
         "dnb":       {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
         "liquid_dnb":{"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0,  "bias": 0.01},
@@ -31533,6 +31753,7 @@ async def mcp_opendaw_create_genre_sections(
         "trance":    mcp_opendaw_create_trance_arrangement,
         "disco":     mcp_opendaw_create_disco_arrangement,
         "blues":     mcp_opendaw_create_blues_arrangement,
+        "country":   mcp_opendaw_create_country_arrangement,
     }
     arr_fn = arrangement_fns[genre]
 
@@ -31716,6 +31937,7 @@ async def mcp_opendaw_create_arrangement_variation(
         "soul":      {"bpm": 72,  "root": "C",  "tracks": 4},
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
         "blues":     {"bpm": 120, "root": "A",  "tracks": 4},
+        "country":   {"bpm": 120, "root": "G",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
@@ -31741,6 +31963,7 @@ async def mcp_opendaw_create_arrangement_variation(
         "soul":      mcp_opendaw_create_soul_arrangement,
         "rnb":       mcp_opendaw_create_rnb_arrangement,
         "blues":     mcp_opendaw_create_blues_arrangement,
+        "country":   mcp_opendaw_create_country_arrangement,
     }
     arr_fn = arrangement_fns[genre]
 
@@ -32095,6 +32318,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "soul":      {"bpm": 72,  "root": "C",  "tracks": 4, "master_style": "warm"},
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4, "master_style": "warm"},
         "blues":     {"bpm": 120, "root": "A",  "tracks": 4, "master_style": "warm"},
+        "country":   {"bpm": 120, "root": "G",  "tracks": 4, "master_style": "warm"},
     }
 
     if genre not in defaults:
@@ -32165,6 +32389,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "soul":      mcp_opendaw_create_soul_arrangement,
         "rnb":       mcp_opendaw_create_rnb_arrangement,
         "blues":     mcp_opendaw_create_blues_arrangement,
+        "country":   mcp_opendaw_create_country_arrangement,
     }
 
     try:
@@ -32487,6 +32712,7 @@ async def mcp_opendaw_create_song_with_variations(
         "soul":      {"bpm": 72,  "root": "C",  "tracks": 4},
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
         "blues":     {"bpm": 120, "root": "A",  "tracks": 4},
+        "country":   {"bpm": 120, "root": "G",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
@@ -33855,6 +34081,7 @@ async def mcp_opendaw_create_modulated_song(
             "soul": mcp_opendaw_create_soul_arrangement,
             "rnb": mcp_opendaw_create_rnb_arrangement,
             "blues": mcp_opendaw_create_blues_arrangement,
+            "country": mcp_opendaw_create_country_arrangement,
         }
         if drum_genre not in arrangement_fns:
             return f"Error: unknown drum_genre '{drum_genre}'. Valid: {list(arrangement_fns.keys())}"

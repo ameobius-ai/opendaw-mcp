@@ -12224,3 +12224,149 @@ class TestCreateMotifVariations:
                 return
         assert False, "function not found"
 
+
+class TestCountryArrangement:
+    """Tests for create_country_arrangement — country/Americana multi-track arrangement"""
+
+    def test_tool_signature_exists(self):
+        """create_country_arrangement is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_country_arrangement" in tool_names
+
+    def test_has_4_tracks(self):
+        """Has drum_track, bass_track, chord_track, lead_track params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                arg_names = [a.arg for a in node.args.args]
+                assert "drum_track" in arg_names
+                assert "bass_track" in arg_names
+                assert "chord_track" in arg_names
+                assert "lead_track" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_bpm_is_120(self):
+        """Default bpm is 120 (classic country two-step)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bpm" and isinstance(d, ast.Constant):
+                        assert d.value == 120
+                        return
+        assert False, "default not found"
+
+    def test_default_bars_is_8(self):
+        """Default bars is 8 (one country verse)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bars" and isinstance(d, ast.Constant):
+                        assert d.value == 8
+                        return
+        assert False, "default not found"
+
+    def test_default_root_is_G(self):
+        """Default root is G (most common country key)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "root" and isinstance(d, ast.Constant):
+                        assert d.value == "G"
+                        return
+        assert False, "default not found"
+
+    def test_validates_bars_multiple_of_8(self):
+        """Validates bars must be multiple of 8"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                source = ast.unparse(node)
+                assert "multiple of 8" in source
+                return
+        assert False, "function not found"
+
+    def test_has_country_form(self):
+        """Contains the 8-bar country form (I-IV-V)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                source = ast.unparse(node)
+                assert "I-I-IV-I-V-I-IV-I" in source or "0, 0, 5, 0, 7, 0, 5, 0" in source
+                return
+        assert False, "function not found"
+
+    def test_has_major_triads(self):
+        """Uses major triads (not 7ths like blues)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                source = ast.unparse(node)
+                assert "0, 4, 7" in source  # major triad intervals
+                return
+        assert False, "function not found"
+
+    def test_has_major_pentatonic(self):
+        """Uses major pentatonic scale for lead (root, 2, 3, 5, 6)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                source = ast.unparse(node)
+                assert "0, 2, 4, 7, 9" in source  # major pentatonic
+                return
+        assert False, "function not found"
+
+    def test_has_boom_chick_guitar(self):
+        """Has boom-chick guitar pattern (alternating bass + chord strum)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                source = ast.unparse(node)
+                assert "boom_chick" in source or "boom-chick" in source
+                return
+        assert False, "function not found"
+
+    def test_has_root_five_bass(self):
+        """Has root-five bass pattern"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_country_arrangement":
+                source = ast.unparse(node)
+                assert "root_five" in source or "root-five" in source
+                return
+        assert False, "function not found"
+
+    def test_registered_in_genre_mix(self):
+        """Country is registered in apply_genre_mix valid_genres"""
+        source = open("server.py").read()
+        assert '"country"' in source
+

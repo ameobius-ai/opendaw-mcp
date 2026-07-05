@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.222.0 (2026-07-05)
+
+### Added
+- `create_country_arrangement` — Twentieth multi-track arrangement. Classic country/Americana across 4 tracks: straight 8th backbeat drums (kick 1+3, snare 2+4, steady 8th hats — straight, not shuffled like blues), root-five bass (root on beat 1, fifth on beat 3 — the classic country pattern), boom-chick guitar (alternating bass note + chord strum on beats 1-2 and 3-4 — Carter Family/Johnny Cash pattern), major pentatonic fiddle lead (root/2/3/5/6 with blue notes b3/b7, sustained notes + scale runs + turnaround licks). 8-bar form: I-I-IV-I-V-I-IV-I. 120 BPM default (country two-step), G root. Triads, not 7ths — country harmony is cleaner than blues. Registered in all 4 genre registries + genre_mix recipe + genre_humanization (timing 0.06, velocity 0.10, swing 0.0). 12 unit tests. **397 MCP tools**, 2815 unit tests, **20 multi-track arrangements**
+
 ## v1.221.0 (2026-07-05)
 
 ### Added
