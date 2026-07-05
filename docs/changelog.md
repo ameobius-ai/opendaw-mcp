@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.91.0 (2026-07-05)
+
+- **`werkstatt_tape_stop.js` DSP script** — exponential tape stop: speed decays exponentially to zero with corresponding pitch drop. State machine (playing→stopping→stopped), trigger/restart control, configurable decay curve (1=linear, 2=classic tape, 8=hard stop), wow/flutter during slowdown, circular buffer with fractional read. 9 params (stop_time/trigger/restart/curve/wow/flutter/flutter_rate/mix/output). 73 DSP scripts
+- **836 unit tests** (+14), E2E 8/8
+
 ## v1.90.0 (2026-07-05)
 
 - **`spielwerk_prob_gate.js` DSP script** — subtractive probability gate (Spielwerk MIDI effect): LCG-based note dropping with per-note probability, 3 modes (uniform/position-based/pitch-based), hold momentum (passed notes boost next), forced pass zones (min/max pitch always pass), velocity boost for survivors, seedable for reproducibility. 8 params (chance/variation/seed/mode/min_pitch/max_pitch/velocity_boost/hold). 72 DSP scripts, 9 Spielwerk MIDI effects

@@ -3615,3 +3615,91 @@ class TestProbGateDSP:
     def test_reset(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
+class TestTapeStopDSP:
+    """Unit tests for werkstatt_tape_stop.js — exponential tape stop effect"""
+
+    SCRIPT = "werkstatt_tape_stop.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt tape_stop" in code, "Missing @werkstatt tape_stop header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_stop_time_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "stop_time"][0]
+        assert s["min"] == 0.1 and s["max"] == 5
+        assert s["type"] == "exp"
+
+    def test_curve_param(self):
+        params = self._parse_params(self._read_script())
+        c = [p for p in params if p["name"] == "curve"][0]
+        assert c["default"] == 2, "curve default should be 2 (classic tape)"
+
+    def test_state_machine(self):
+        code = self._read_script()
+        assert "this.state" in code, "Missing state machine"
+        assert "state === 1" in code or "state === 0" in code, "Missing state transitions"
+
+    def test_exponential_decay(self):
+        code = self._read_script()
+        assert "Math.pow" in code, "Missing exponential decay"
+        assert "1.0 - t" in code or "1 - t" in code, "Missing speed decay formula"
+
+    def test_speed_variable(self):
+        code = self._read_script()
+        assert "this.speed" in code, "Missing speed tracking"
+        assert "speed" in code, "Missing speed variable"
+
+    def test_circular_buffer(self):
+        code = self._read_script()
+        assert "this.buf" in code, "Missing circular buffer"
+        assert "this.writePos" in code, "Missing write position"
+        assert "this.readPos" in code, "Missing read position"
+
+    def test_fractional_read(self):
+        code = self._read_script()
+        assert "Math.floor(this.readPos)" in code or "Math.floor(this.readPos)" in code, "Missing fractional read"
+        assert "frac" in code, "Missing fractional interpolation"
+
+    def test_flutter(self):
+        code = self._read_script()
+        assert "flutter" in code, "Missing flutter parameter"
+        assert "flutterPhase" in code, "Missing flutter phase state"
+
+    def test_trigger_restart(self):
+        code = self._read_script()
+        assert "trigger" in code, "Missing trigger parameter"
+        assert "restart" in code, "Missing restart parameter"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "process(" in code, "Missing process method"
+
+    def test_stereo_output(self):
+        code = self._read_script()
+        assert "io.out[0]" in code and "io.out[1]" in code, "Missing stereo output"
