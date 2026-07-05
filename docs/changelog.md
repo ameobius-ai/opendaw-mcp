@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.53.0 (2026-07-05)
+
+- **`create_isorhythm` orchestration tool (302 MCP tools)** — repeating rhythm (talea) × repeating pitch (color) as independent cycles. When lengths differ, patterns phase-shift until realigning at LCM. Medieval motets (Machaut), Messiaen, Boulez. Distinct from ostinato (which repeats rhythm+pitch together)
+- **E2E verified**: equal lengths (24 notes), phase shift 4×5 (LCM=20), single talea, complex rhythm, bad velocity/repeats/pitch/talea — 8/8 tests passed
+- **+10 unit tests** for isorhythm talea/color independence, phase cycling, position, duration → 282 total
+- **Example script**: `create_isorhythm.py` — classic, phase shift, minimalist
+- **45 orchestration tools** total
+- ruff clean, CI green
+
 ## v1.52.0 (2026-07-05)
 
 - **`create_hocket` orchestration tool (301 MCP tools)** — melodic line split between 2-4 voices. Hocket (Latin "hoquet" = hiccup) divides a single melody so each voice plays only part of it, creating interlocking texture. Three split modes: alternate (round-robin), pairs (2 per voice), phrase (4 per voice). Medieval Notre Dame polyphony, African mbira, Balinese gamelan, Steve Reich

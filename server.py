@@ -17516,6 +17516,171 @@ async def mcp_opendaw_create_hocket(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_isorhythm(
+    talea: str = "1,1,0.5,0.5,1,0.5,0.5,1",
+    color: str = "60,62,64,65,67,65,64,62",
+    repeats: int = 3,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create an isorhythm — repeating rhythm (talea) × repeating pitch series (color).
+
+    Isorhythm separates rhythm and pitch into two independent cycles. The talea
+    (rhythmic pattern) and color (pitch series) repeat independently, creating
+    constantly shifting relationships as they go in and out of phase. When talea
+    and color have different lengths, the pattern doesn't fully repeat until the
+    least common multiple of both lengths.
+
+    Found in medieval motets (Machaut), and heavily influenced 20th-century
+    composers — Messiaen, Boulez, Stockhausen. Distinct from ostinato, which
+    repeats rhythm and pitch together as one unit.
+
+    talea: Comma-separated note durations in beats (the repeating rhythm).
+      e.g. "1,1,0.5,0.5,1" = quarter, quarter, eighth, eighth, quarter.
+    color: Comma-separated MIDI pitches (the repeating pitch series).
+      e.g. "60,62,64,65" = C,D,E,F cycling independently of rhythm.
+    repeats: Number of full talea cycles (1-16, default 3).
+    velocity: Velocity of all notes (0-1, default 0.7).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the isorhythm begins.
+
+    Returns notes created, talea/color lengths, phase cycle length, total duration.
+    """
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if repeats < 1 or repeats > 16:
+        return "Error: repeats must be 1-16"
+
+    try:
+        talea_durations = [float(x.strip()) for x in talea.split(",")]
+    except ValueError:
+        return "Error: talea must be comma-separated durations (beats)"
+
+    try:
+        color_pitches = [int(x.strip()) for x in color.split(",")]
+    except ValueError:
+        return "Error: color must be comma-separated MIDI pitches"
+
+    if not talea_durations or len(talea_durations) > 32:
+        return "Error: talea must have 1-32 values"
+    if not color_pitches or len(color_pitches) > 32:
+        return "Error: color must have 1-32 values"
+
+    for d in talea_durations:
+        if d <= 0 or d > 8:
+            return "Error: talea durations must be 0.01-8 beats"
+    for p in color_pitches:
+        if p < 0 or p > 127:
+            return f"Error: pitch {p} out of range (0-127)"
+
+    from math import gcd
+
+    talea_len = len(talea_durations)
+    color_len = len(color_pitches)
+
+    # Total notes = talea length × repeats
+    total_notes = talea_len * repeats
+
+    # Build note data: rhythm from talea (cycling), pitch from color (cycling independently)
+    note_data = []
+    current_pos = start_beat
+    for i in range(total_notes):
+        dur = talea_durations[i % talea_len]
+        pitch = color_pitches[i % color_len]
+        note_data.append({
+            "pitch": pitch,
+            "pos": current_pos,
+            "dur": dur * 0.95,
+            "vel": velocity,
+        })
+        current_pos += dur
+
+    total_beats = sum(talea_durations) * repeats
+
+    # Phase cycle = LCM(talea_len, color_len) — when both patterns realign
+    lcm = (talea_len * color_len) // gcd(talea_len, color_len)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = window.DAW_NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Isorhythm");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            talea_length: {talea_len},
+            color_length: {color_len},
+            phase_cycle: {lcm},
+            repeats: {repeats},
+            length_beats: Math.round(totalBeats * 100) / 100,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_canon(
     melody: str = "60,62,64,67,64,62,60,57",
     voices: int = 3,

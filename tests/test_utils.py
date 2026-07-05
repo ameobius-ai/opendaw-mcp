@@ -1956,3 +1956,85 @@ class TestHocket:
             for n in v:
                 all_pitches.append(n["pitch"])
         assert sorted(all_pitches) == sorted(pitches)
+
+
+class TestIsorhythm:
+    """Unit tests for create_isorhythm orchestration tool — talea/color logic."""
+
+    def _build_notes(self, talea, color, repeats=3, velocity=0.7):
+        """Simulate isorhythm note generation without bridge."""
+        talea_durations = [float(x) for x in talea.split(",")]
+        color_pitches = [int(x) for x in color.split(",")]
+        talea_len = len(talea_durations)
+        color_len = len(color_pitches)
+        total_notes = talea_len * repeats
+        notes = []
+        current_pos = 0.0
+        for i in range(total_notes):
+            dur = talea_durations[i % talea_len]
+            pitch = color_pitches[i % color_len]
+            notes.append({"pitch": pitch, "pos": current_pos, "dur": dur * 0.95, "vel": velocity})
+            current_pos += dur
+        return notes
+
+    def test_talea_color_equal_length(self):
+        notes = self._build_notes("1,1,0.5,0.5", "60,62,64,65", repeats=2)
+        assert len(notes) == 8
+        # First note: pitch 60, duration 1.0
+        assert notes[0]["pitch"] == 60
+        assert abs(notes[0]["dur"] - 0.95) < 0.001
+        # Note 4 (start of 2nd talea cycle): pitch 60 again (both cycle at same point)
+        assert notes[4]["pitch"] == 60
+
+    def test_talea_color_different_length(self):
+        """talea=4, color=5 → phase shift: note 4 gets pitch index 4, note 5 gets pitch index 0"""
+        notes = self._build_notes("1,1,1,1", "60,62,64,65,67", repeats=2)
+        assert len(notes) == 8
+        assert notes[0]["pitch"] == 60  # color[0]
+        assert notes[4]["pitch"] == 67  # color[4] — talea cycled, color hasn't
+        assert notes[5]["pitch"] == 60  # color[0] — now color cycles
+
+    def test_duration_from_talea(self):
+        notes = self._build_notes("0.5,0.25,0.25,1", "60,62,64,65", repeats=1)
+        assert abs(notes[0]["dur"] - 0.475) < 0.001  # 0.5 * 0.95
+        assert abs(notes[1]["dur"] - 0.2375) < 0.001  # 0.25 * 0.95
+        assert abs(notes[3]["dur"] - 0.95) < 0.001  # 1.0 * 0.95
+
+    def test_position_accumulates(self):
+        notes = self._build_notes("1,0.5,0.5,1", "60,62,64,65", repeats=1)
+        assert abs(notes[0]["pos"] - 0) < 0.001
+        assert abs(notes[1]["pos"] - 1.0) < 0.001
+        assert abs(notes[2]["pos"] - 1.5) < 0.001
+        assert abs(notes[3]["pos"] - 2.0) < 0.001
+
+    def test_total_notes_talea_times_repeats(self):
+        notes = self._build_notes("1,1,0.5", "60,62,64,65,67", repeats=4)
+        assert len(notes) == 12  # 3 * 4
+
+    def test_pitch_cycling_independent(self):
+        """Pitch cycles independently of rhythm."""
+        notes = self._build_notes("1,1", "60,62,64", repeats=3)
+        # 6 notes: pitches should be 60,62,64,60,62,64
+        pitches = [n["pitch"] for n in notes]
+        assert pitches == [60, 62, 64, 60, 62, 64]
+
+    def test_velocity_applied(self):
+        notes = self._build_notes("1,1", "60,62", repeats=1, velocity=0.5)
+        assert all(n["vel"] == 0.5 for n in notes)
+
+    def test_total_duration(self):
+        """Total beats = sum(talea) × repeats."""
+        notes = self._build_notes("1,0.5,0.5,1", "60,62", repeats=2)
+        # sum(talea) = 3, repeats = 2 → 6 beats
+        last_note_end = notes[-1]["pos"] + notes[-1]["dur"] / 0.95
+        assert abs(last_note_end - 6.0) < 0.001
+
+    def test_single_element_talea(self):
+        notes = self._build_notes("1", "60,62,64", repeats=4)
+        assert len(notes) == 4
+        assert all(abs(n["dur"] - 0.95) < 0.001 for n in notes)
+
+    def test_single_element_color(self):
+        notes = self._build_notes("1,0.5,0.5", "60", repeats=2)
+        assert len(notes) == 6
+        assert all(n["pitch"] == 60 for n in notes)

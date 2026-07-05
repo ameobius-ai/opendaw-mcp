@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **301** MCP tools | **75** Python examples (8 genre templates) |
+| **302** MCP tools | **76** Python examples (8 genre templates) |
 | **44** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **272** unit + **24** E2E tests |
+| **3** framework wrappers | **282** unit + **25** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,15 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.53.0 (2026-07-05)
+
+- **`create_isorhythm` orchestration tool (302 MCP tools)** — repeating rhythm (talea) × repeating pitch (color) as independent cycles. When lengths differ, patterns phase-shift until realigning at LCM. Medieval motets (Machaut), Messiaen, Boulez. Distinct from ostinato (which repeats rhythm+pitch together)
+- **E2E verified**: equal lengths (24 notes), phase shift 4×5 (LCM=20), single talea, complex rhythm, bad velocity/repeats/pitch/talea — 8/8 tests passed
+- **+10 unit tests** for isorhythm talea/color independence, phase cycling, position, duration → 282 total
+- **Example script**: `create_isorhythm.py` — classic, phase shift, minimalist
+- **45 orchestration tools** total
+- ruff clean, CI green
 
 ### v1.52.0 (2026-07-05)
 
