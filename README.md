@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-263-brightgreen)](TOOL_CATALOG.md)
-[![Skills](https://img.shields.io/badge/Agent%20Skills-8-blue)](skills/)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-283-brightgreen)](TOOL_CATALOG.md)
+[![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-37-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-93%20unit%20%2B%207%20E2E-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-272%20unit%20%2B%2014%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -16,7 +16,7 @@
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
-**263 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**283 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -58,12 +58,12 @@ await server.mcp_opendaw_render_full(output_path="beat.wav")
 
 | Feature | opendaw-mcp | Other audio MCPs |
 |---------|-------------|-------------------|
-| Full DAW control (263 tools) | ✅ | ❌ (1-10 tools) |
+| Full DAW control (283 tools) | ✅ | ❌ (1-10 tools) |
 | Scriptable DSP (write custom JS effects) | ✅ | ❌ |
 | SOTA stem separation (7 models, GPU local) | ✅ | ❌ |
 | Suno → DAW E2E pipeline | ✅ | ❌ |
 | Genre templates (8 genres) | ✅ | ❌ |
-| Agent skills with decision points | ✅ (8 skills) | ❌ |
+| Agent skills with decision points | ✅ (10 skills) | ❌ |
 | Offline render with LUFS targeting | ✅ | ❌ |
 | Preset save/load (.opb) | ✅ | ❌ |
 | dawproject interchange (Ableton/Bitwig) | ✅ | ❌ |
@@ -452,7 +452,7 @@ See [`examples/crewai_integration.py`](examples/crewai_integration.py) for a ful
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 263 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 283 tools with parameters and descriptions.
 
 ### Orchestration Tools
 
@@ -650,7 +650,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
   - `__init__.py` — public API, all symbols re-exported for backward compat
 - **`OpendawServer` facade** — class providing `bridge` + all `mcp_opendaw_*` tools as methods. Framework wrappers (LangChain, AutoGen, CrewAI) now work via this single interface.
 - **server.py: 13244 → 12955 lines** (infrastructure moved to package modules)
-- **0 regressions** — 93 unit tests pass, ruff clean, all framework wrappers functional, 263 MCP tools intact
+- **0 regressions** — 272 unit tests pass, ruff clean, all framework wrappers functional, 283 MCP tools intact
 
 ### v1.15.2 (2026-07-04)
 
@@ -689,40 +689,40 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ### v1.14.1 (2026-07-04)
 
-- **`opendaw-genres` skill** — 8 genre templates with concrete parameters: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. BPM, track layout, drum patterns, bass lines, chord progressions, effect chains, pan, LUFS targets. Not theory — actual tool calls and values. **8 skills total.**
+- **`opendaw-genres` skill** — 8 genre templates with concrete parameters: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. BPM, track layout, drum patterns, bass lines, chord progressions, effect chains, pan, LUFS targets. Not theory — actual tool calls and values. **10 skills total.**
 
 ### v1.14.0 (2026-07-04)
 
 - **2 new agent skills**: `suno-to-opendaw` (6-stage Suno→stems→openDAW→mix→master→export pipeline) and `dsp-script-authoring` (custom Werkstatt/Apparat/Spielwerk DSP script writing guide with patterns, validation, pitfalls). **7 skills total.**
 - `set_marker_repeat` MCP tool (v1.13.1) — marker repeat count control (0=infinite)
-- **263 MCP tools** (254 low-level + 8 orchestration)
+- **283 MCP tools** (254 low-level + 26 orchestration)
 
 ### v1.13.0 (2026-07-04)
 
 - **Preset Management**: 2 new MCP tools for openDAW preset format (.opb). `save_effect_preset` encodes any audio effect chain into a shareable .opb bundle via PresetEncoder.encodeEffects. `load_effect_preset` decodes .opb and applies it to a project. Enables agent-driven preset creation and reuse.
 - 5 Werkstatt presets published to upstream (PR #284): Dark Saturation, Plate Reverb, Cold Fold Distortion, Stereo Phaser, Stereo Chorus.
-- **263 MCP tools** (254 low-level + 8 orchestration)
+- **283 MCP tools** (254 low-level + 26 orchestration)
 
 ### v1.12.1 (2026-07-04)
 
 - **Stem Splitter**: 2 new MCP tools for SOTA open-source source separation. `split_stems` runs 7 modes locally on GPU (ensemble, scnet, bs6, polarformer, dereverb, drumsep, denoise). Optional auto-import into DAW. Uses BS-Roformer, HTDemucs FT, SCNet XL, MelBand Roformer models.
 - `list_split_modes` — list all separation modes with SDR scores
-- **263 MCP tools** (254 low-level + 8 orchestration)
+- **283 MCP tools** (254 low-level + 26 orchestration)
 
 ### v1.12.0 (2026-07-04)
 
-- **Agent Skills**: 8 structured skill files in `skills/` directory — adaptive mix→master, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP), opendaw-genres (8 genre templates), opendaw-automation (263 tools, 146 ref files), track architecture, sound design, effect routing. Decision points for genre-adaptive workflows. Agent-agnostic.
-- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **Agent Skills**: 10 structured skill files in `skills/` directory — adaptive mix→master, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP), opendaw-genres (8 genre templates), opendaw-automation (283 tools, 146 ref files), track architecture, sound design, effect routing, composition patterns. Decision points for genre-adaptive workflows. Agent-agnostic.
+- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.9 (2026-07-04)
 
 - **CodeRabbit fixes**: reverb stereo width (separate L/R comb banks with decorrelated delay times, M/S width on reverb tail), paulstretch cursor split (independent read/write cursors, proper frame emission gating)
-- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.8 (2026-07-04)
 
 - **New Werkstatt script**: ring modulator with envelope-followed frequency modulation (#277) — workaround for MIDI input limitation in Werkstatt audio effects
-- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.7 (2026-07-04)
 
@@ -732,13 +732,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **4 new Spielwerk MIDI effect scripts**: chord memory, strummer, velocity scaler, MIDI delay
 - **1 new Python example**: Suno→openDAW pipeline (import AI track, mastering chain, reverb send, arp layer, render+stems)
-- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.5 (2026-07-04)
 
 - **7 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138), chord memory, strummer, velocity scaler, MIDI delay
 - **Coldfold fix**: removed unused `range` variable (CodeRabbit review)
-- **27 DSP scripts total** (16 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.4 (2026-07-04)
 
