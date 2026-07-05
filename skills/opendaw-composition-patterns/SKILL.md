@@ -17,6 +17,7 @@ What do you want to create?
 ├── Drum pattern → create_drum_pattern (step-sequencer notation, x/o/.)
 ├── Drum fill/transition → create_drum_fill (build/break/roll/crash/tom)
 ├── Riser (build-up sweep) → create_riser (ascending pitch, exp/linear/log curves)
+├── Stabs (house/disco/funk) → create_stab (rhythmic chord jabs, x-./. grid, ghost notes)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │
@@ -178,10 +179,20 @@ await mcp_opendaw_create_genre_track("house")
 # 2. Sidechain the bass/pad
 await mcp_opendaw_apply_sidechain(unit_index=1, bars=16, depth=0.7, release=0.25)
 
-# 3. Ostinato riff
+# 3. Off-beat stabs — Cm7 on the "and" of each beat
+await mcp_opendaw_create_stab(
+    chords='[["C","min7"]]',
+    rhythm="x-x-x-x-",
+    unit_index=1,
+    octave=4,
+    velocity=0.85,
+    stab_duration=0.5
+)
+
+# 4. Ostinato riff
 await mcp_opendaw_create_ostinato("minor", "F", "1 5 3 5", repeats=16, octave=4)
 
-# 4. Mastering
+# 5. Mastering
 await mcp_opendaw_add_mastering_chain("loud")
 ```
 

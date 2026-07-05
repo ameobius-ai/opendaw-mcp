@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.33.0 (2026-07-05)
+
+- **`create_stab` orchestration tool (285 MCP tools)** — rhythmic chord stabs for house/disco/funk. Grid pattern with 'x' (stab), '-' (rest), '.' (ghost). Cycles through chord progressions. Adjustable octave, velocity, stab duration, pattern length. Ghost stabs use 45% velocity and shorter duration. One call replaces 20-60 manual note creations. Essential for: house off-beat stabs, funk syncopated punches, garage/shuffle patterns
+- **E2E verified**: house Cm7 off-beat (16 notes, 4 stabs), funky F7/Cm7 with ghost notes (28 notes, 7 hits), all-rests error, invalid rhythm error
+- **285 MCP tools** (254 low-level + 28 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.32.0 (2026-07-05)
 
 - **`create_riser` orchestration tool (284 MCP tools)** — ascending pitch sweep for build-up transitions. 3 curves (linear, exp, log). Adjustable pitch range (MIDI 0-127), step count (8-128), length (0.25-16 beats). Velocity ramps up proportionally. One call replaces 10-50 manual note creations. Essential for: build-ups before drops, section transitions, tension creation

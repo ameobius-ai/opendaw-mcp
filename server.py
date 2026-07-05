@@ -14367,6 +14367,167 @@ async def mcp_opendaw_create_riser(unit_index: int = -1, track_index: int = 0, s
 
 
 @mcp.tool()
+async def mcp_opendaw_create_stab(chords: str, rhythm: str = "x-x-", unit_index: int = -1, track_index: int = 0, start_beat: float = 0, octave: int = 4, velocity: float = 0.85, length_beats: float = 4, stab_duration: float = 0.5) -> str:
+    """Create rhythmic stabs — short chord jabs that define house, disco, funk.
+
+    Generates short chord hits on a rhythmic grid. Each 'x' in the rhythm pattern
+    triggers a stab (a short chord with fast decay). Perfect for:
+    - House/disco off-beat stabs
+    - Funk syncopated chord punches
+    - Garage/shuffle stabs
+    - Filling gaps between melody notes
+
+    chords: JSON array of chord specs, cycled through. Each chord is [root_name, chord_type].
+      Root names: C, C#, D, D#, E, F, F#, G, G#, A, A#, B (or flats)
+      Chord types: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug
+      Example: '[["C","min7"],["F","min7"]]' cycles between Cm7 and Fm7.
+      Single chord: '[["F","dom7"]]' — same stab repeated.
+    rhythm: Grid pattern using 'x' (stab), '-' (rest), '.' (ghost/light stab).
+      16th-note grid for one bar (16 chars) or 8th-note grid (8 chars).
+      Examples: "x-x-x-x-" (off-beat 8th stabs), "x---x---" (backbeat),
+                "..x-..x-" (ghost stabs), "xxxx-xxx" (funky busy pattern)
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the pattern starts.
+    octave: Octave for chord voicing (3-6, default 4 = C4 root).
+    velocity: Base velocity for stabs (0-1, ghost stabs use 0.5x).
+    length_beats: Total length of the stab pattern in beats (default 4 = one bar).
+    stab_duration: Duration of each stab in beats (0.0625-1.0, default 0.5 = eighth note).
+
+    Returns notes created, chord voicings, and rhythm hits.
+    """
+    import json as _json
+    try:
+        chord_list = _json.loads(chords)
+        if not isinstance(chord_list, list) or len(chord_list) == 0:
+            return "Error: chords must be a non-empty JSON array"
+    except _json.JSONDecodeError as e:
+        return f"Error parsing chords JSON: {e}"
+
+    if not rhythm or not all(c in "x-." for c in rhythm):
+        return "Error: rhythm must use only 'x' (stab), '-' (rest), '.' (ghost)"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if length_beats < 0.25 or length_beats > 32:
+        return "Error: length_beats must be 0.25-32"
+    if stab_duration < 0.0625 or stab_duration > 1.0:
+        return "Error: stab_duration must be 0.0625-1.0"
+    if octave < 1 or octave > 8:
+        return "Error: octave must be 1-8"
+
+    for ci, cs in enumerate(chord_list):
+        if len(cs) < 2 or cs[0] not in NOTE_TO_PITCH or cs[1] not in CHORD_INTERVALS:
+            return f"Error: invalid chord at index {ci}: {cs}"
+
+    grid_len = len(rhythm)
+    step_duration = length_beats / grid_len
+
+    note_data = []
+    voicing_info = []
+    chord_idx = 0
+    for i, c in enumerate(rhythm):
+        if c == "-":
+            continue
+        chord_spec = chord_list[chord_idx % len(chord_list)]
+        root_pc = NOTE_TO_PITCH[chord_spec[0]]
+        intervals = CHORD_INTERVALS[chord_spec[1]]
+        root_pitch = (octave + 1) * 12 + root_pc
+
+        is_ghost = (c == ".")
+        vel = velocity * (0.45 if is_ghost else 1.0)
+        pos = start_beat + i * step_duration
+        dur = stab_duration * (0.6 if is_ghost else 1.0)
+
+        pitches = [root_pitch + iv for iv in intervals]
+        for p in pitches:
+            note_data.append({"pitch": p, "pos": pos, "dur": dur, "vel": vel})
+        voicing_info.append({"step": i, "chord": f"{chord_spec[0]}{chord_spec[1]}", "pitches": pitches, "ghost": is_ghost})
+        if not is_ghost:
+            chord_idx += 1
+
+    if not note_data:
+        return "Error: rhythm has no stabs (all rests)"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const noteData = {json.dumps(note_data)};
+        const lengthBeats = {length_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if (unitIdx >= 0 && unitIdx < allUnits.length) {{
+            targetAU = allUnits[unitIdx];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min(trackIdx, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(lengthBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Stabs");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            stabs: {len(voicing_info)},
+            chords_used: {len(chord_list)},
+            rhythm: "{rhythm}",
+            length_beats: {length_beats},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ostinato(scale: str, root: str, pattern: str, unit_index: int = 0, track_index: int = 0, start_beat: float = 0, repeats: int = 4, octave: int = 4, velocity: float = 0.7) -> str:
     """Create an ostinato — a repeating melodic/rhythmic pattern as a foundation layer.
 
