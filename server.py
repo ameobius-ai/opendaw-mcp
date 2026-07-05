@@ -32278,7 +32278,312 @@ async def mcp_opendaw_add_suspension(
         }};
     }}""")
     return _wrap_eval(result)
+    return _wrap_eval(result)
 
+
+@mcp.tool()
+async def mcp_opendaw_add_neighbor_tones(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    scale: str = "major",
+    root: str = "C",
+    direction: str = "upper",
+    neighbor_fraction: float = 0.25,
+    neighbor_offset: float = 0.5,
+    neighbor_velocity: float = 0.6,
+    min_duration_beats: float = 1.0,
+    cross_track: int = -1,
+) -> str:
+    """Add upper/lower neighbor tones to embellish existing notes.
+
+    A neighbor tone is a non-chord tone that steps away from the main
+    note by one scale step (up or down) and then returns. Unlike passing
+    tones which connect two different notes, neighbor tones ornament a
+    single sustained note.
+
+    Structure: [main first part] → [neighbor (dissonance)] → [main return]
+
+    The original note is split into three parts:
+    1. First part: original pitch from start to neighbor_offset
+    2. Neighbor: one scale step away, duration = neighbor_fraction of original
+    3. Return: original pitch for the remainder
+
+    This is the third of the four classic non-chord tone techniques:
+    passing tones, suspensions, neighbor tones, and anticipation.
+
+    Bach ornaments, jazz ballad fills, country chicken pickin', and
+    classical cadenzas all use neighbor tones extensively.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        scale: Scale for diatonic neighbor step ("major", "minor",
+               "dorian", "phrygian", "lydian", "mixolydian",
+               "locrian", "harmonic_minor", "melodic_minor",
+               "pentatonic", "blues", "chromatic")
+        root: Root note for scale (C, C#, D, ... B)
+        direction: Neighbor direction —
+            "upper": step up from main note (most common)
+            "lower": step down from main note
+            "alternating": alternate upper/lower per note
+        neighbor_fraction: Duration of neighbor as fraction of original
+            note (0.1-0.5, default 0.25 = quarter of original). Smaller
+            values create subtle ornaments, larger create more prominent
+            embellishments.
+        neighbor_offset: Position of neighbor within the note (0.1-0.9,
+            default 0.5 = middle). 0.15 = near start, 0.5 = middle,
+            0.85 = near end.
+        neighbor_velocity: Velocity of neighbor note (0-1, default 0.6 —
+            softer than the main note, as is traditional for ornaments).
+        min_duration_beats: Minimum note duration in beats to embellish
+            (0.5-4.0, default 1.0). Short notes are skipped — ornaments
+            need room to breathe.
+        cross_track: If >= 0, place neighbors on this track index
+            instead of source track (preserves original notes).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const scaleName = "{scale}";
+        const rootNote = "{root}";
+        const dirMode = "{direction}";
+        const nbrFrac = Math.max(0.1, Math.min(0.5, {neighbor_fraction}));
+        const nbrOffset = Math.max(0.1, Math.min(0.9, {neighbor_offset}));
+        const nbrVel = Math.max(0.01, Math.min(1, {neighbor_velocity}));
+        const minDurBeats = Math.max(0.5, Math.min(4, {min_duration_beats}));
+        const crossTrack = {cross_track};
+
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "pentatonic": [0, 2, 4, 7, 9],
+            "blues": [0, 3, 5, 6, 7, 10],
+            "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{"error": "Invalid root: " + rootNote}};
+        if (!scaleMap[scaleName]) return {{"error": "Invalid scale: " + scaleName}};
+
+        function isInScale(pitch) {{
+            const intervals = scaleMap[scaleName];
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            return intervals.includes(rel);
+        }}
+
+        function getScaleStep(pitch, direction) {{
+            if (direction > 0) {{
+                for (let p = pitch + 1; p <= 127; p++) {{
+                    if (isInScale(p)) return p;
+                }}
+            }} else {{
+                for (let p = pitch - 1; p >= 0; p--) {{
+                    if (isInScale(p)) return p;
+                }}
+            }}
+            return pitch;
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{"error": "No notes to embellish"}};
+
+        // Read and sort by position
+        const noteData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        // Determine destination
+        let destCollection = collection;
+        if (crossTrack >= 0 && crossTrack < noteTracks.length) {{
+            const destTrack = noteTracks[crossTrack];
+            const destRegions = h.regionBoxes(destTrack);
+            if (destRegions.length > 0) {{
+                try {{
+                    const v = destRegions[0].events.targetVertex.unwrap();
+                    destCollection = v.box || v;
+                }} catch(e) {{}}
+            }}
+        }}
+
+        const minDurTicks = Math.round(minDurBeats * Quarter);
+        const neighbors = [];
+        let noteIdx = 0;
+
+        for (let i = 0; i < noteData.length; i++) {{
+            const note = noteData[i];
+            // Skip notes too short for embellishment
+            if (note.dur < minDurTicks) continue;
+
+            // Determine neighbor direction
+            let nbrDir;
+            if (dirMode === "upper") {{
+                nbrDir = 1;
+            }} else if (dirMode === "lower") {{
+                nbrDir = -1;
+            }} else {{ // alternating
+                nbrDir = noteIdx % 2 === 0 ? 1 : -1;
+            }}
+            noteIdx++;
+
+            // Get neighbor pitch (one scale step away)
+            const nbrPitch = getScaleStep(note.pitch, nbrDir);
+            // If no scale step available, skip
+            if (nbrPitch === note.pitch) continue;
+            if (nbrPitch < 0 || nbrPitch > 127) continue;
+
+            // Split note: first_part + neighbor + return
+            const firstPartDur = Math.round(note.dur * nbrOffset);
+            const nbrDur = Math.max(1, Math.round(note.dur * nbrFrac));
+            const lastPartDur = note.dur - firstPartDur - nbrDur;
+            if (lastPartDur < 1) continue; // not enough room for return
+
+            const nbrPos = note.pos + firstPartDur;
+            const lastPos = nbrPos + nbrDur;
+
+            neighbors.push({{
+                original_pos: note.pos,
+                original_dur: note.dur,
+                original_pitch: note.pitch,
+                original_vel: note.vel,
+                first_part_dur: firstPartDur,
+                nbr_pos: nbrPos,
+                nbr_dur: nbrDur,
+                nbr_pitch: nbrPitch,
+                nbr_vel: nbrVel,
+                nbr_dir: nbrDir,
+                last_pos: lastPos,
+                last_dur: lastPartDur,
+                note_index: i,
+            }});
+        }}
+
+        if (neighbors.length === 0) {{
+            return {{
+                success: true,
+                neighbors_added: 0,
+                message: "No suitable notes found for neighbor tones",
+            }};
+        }}
+
+        // Create neighbor notes
+        const editing = h.editing;
+        let created = 0;
+        const createdDetails = [];
+        const skipIndices = new Set(neighbors.map(n => n.note_index));
+
+        await editing.modify(async () => {{
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            // If not cross_track: modify original notes (shorten first part)
+            // and add neighbor + return as new notes
+            // If cross_track: leave originals untouched, create full set on dest
+            for (const nb of neighbors) {{
+                try {{
+                    if (!NoteEventBox || !bg || !uuidGen) continue;
+
+                    if (crossTrack < 0) {{
+                        // Shorten original note to first part
+                        const origNote = srcNotes[nb.note_index];
+                        try {{ origNote.duration.setValue(nb.first_part_dur); }} catch(e) {{}}
+                    }} else {{
+                        // On cross-track: create the first part note too
+                        await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                            box.position.setValue(nb.original_pos);
+                            box.duration.setValue(nb.first_part_dur);
+                            box.pitch.setValue(nb.original_pitch);
+                            box.velocity.setValue(nb.original_vel);
+                            if (destCollection && destCollection.events) {{
+                                box.events.refer(destCollection.events);
+                            }}
+                        }});
+                        created++;
+                    }}
+
+                    // Create neighbor note
+                    await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                        box.position.setValue(nb.nbr_pos);
+                        box.duration.setValue(nb.nbr_dur);
+                        box.pitch.setValue(nb.nbr_pitch);
+                        box.velocity.setValue(nb.nbr_vel);
+                        if (destCollection && destCollection.events) {{
+                            box.events.refer(destCollection.events);
+                        }}
+                    }});
+                    created++;
+
+                    // Create return note (back to original pitch)
+                    await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                        box.position.setValue(nb.last_pos);
+                        box.duration.setValue(nb.last_dur);
+                        box.pitch.setValue(nb.original_pitch);
+                        box.velocity.setValue(nb.original_vel * 0.95);
+                        if (destCollection && destCollection.events) {{
+                            box.events.refer(destCollection.events);
+                        }}
+                    }});
+                    created++;
+
+                    if (createdDetails.length < 10) {{
+                        createdDetails.push({{
+                            beat: Math.round(nb.nbr_pos / Quarter * 100) / 100,
+                            original_pitch: nb.original_pitch,
+                            neighbor_pitch: nb.nbr_pitch,
+                            direction: nb.nbr_dir > 0 ? "upper" : "lower",
+                            neighbor_dur_beats: Math.round(nb.nbr_dur / Quarter * 100) / 100,
+                        }});
+                    }}
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            scale: scaleName,
+            root: rootNote,
+            direction: dirMode,
+            neighbors_added: neighbors.length,
+            notes_created: created,
+            min_duration_beats: minDurBeats,
+            cross_track: crossTrack >= 0,
+            details: createdDetails,
+        }};
+    }}""")
+    return _wrap_eval(result)
 
 
 

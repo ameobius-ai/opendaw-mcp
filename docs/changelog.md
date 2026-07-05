@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.271.0 (2026-07-06)
+
+### Added
+- `add_neighbor_tones` — upper/lower neighbor tone embellishment. Splits note into first_part → neighbor (scale step away) → return. 12 scales, 3 directions (upper/lower/alternating), neighbor_fraction + neighbor_offset control timing. Third of 4 non-chord tone techniques (passing ✅, suspension ✅, neighbor ✅).
+
 ## v1.270.0 (2026-07-06)
 
 ### Added

@@ -193,6 +193,20 @@ Orchestration tools solve this by combining multiple low-level operations into a
 180. `spread_voicing` — chord voicing spread/compact: 4 modes (open/close/drop2/drop3), open widens spacing, close collapses to one octave, drop2/drop3 are jazz comping voicings
 181. `randomize_note_chance` — generative note probability: 5 modes (uniform/decreasing/increasing/sparse/binary), chance 0-100%, seeded PRNG, patterns that evolve per iteration
 182. `add_chord_tension` — jazz chord extension: 7 extensions (9/b9/#9/11/#11/13/b13), calculates pitch from chord root, triad→Cmaj9
+183. `repeat_notes` — note repetition: 1-16 cycles, cumulative transpose + velocity decay
+184. `subdivide_notes` — note subdivision: N parts, 7 pitch + 6 velocity patterns
+185. `merge_consecutive_notes` — same-pitch consecutive merge, 4 velocity modes
+186. `rotate_notes` — cyclic note permutation: 3 axes, preserve_pitch_contour
+187. `randomize_note_durations` — generative duration variation: 5 distributions, seeded PRNG
+188. `expand_intervals` — interval expansion/compression: factor 0.25-4.0, 3 anchors, 9 scale snaps
+189. `insert_rests` — positional rest insertion: 3 modes (delete/truncate/shorten), tolerance matching
+190. `shuffle_notes` — random permutation: 4 modes (pitches/rhythm/full/within_groups), seeded PRNG
+191. `merge_note_tracks` — track consolidation: 6 overlap strategies, transpose, velocity_scale, delete_source
+192. `apply_contour` — melodic contour reshaping: 6 contours, scale snapping, complement to analyze_melody
+193. `explode_chords` — chord-to-voices orchestration: chord detection by position, 3 directions, 4 velocity modes
+194. `add_passing_tones` — diatonic passing tones: 12 scales, 4 directions, max_interval, cross_track
+195. `add_suspension` — suspension-resolution: preparation→suspension→resolution on strong beats, 10 scales, 3 modes
+196. `add_neighbor_tones` — upper/lower neighbor embellishment: 12 scales, 3 directions, neighbor_fraction/offset, cross_track
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
