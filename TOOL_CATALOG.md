@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-373 MCP tools for headless openDAW control via Playwright bridge.
+408 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -128,6 +128,7 @@
 - `set_note_properties` — Edit properties of a single note within a region.
 - `transpose_notes` — Transpose all notes by a number of semitones. Supports region_index and skips out-of-range notes.
 - `copy_notes_to_track` — Copy notes from one track/region to another — MIDI layering and doubling. Optional transpose (semitones), time_offset (beats), velocity_scale. Use cases: layer drums, create octave harmony, echo/call-and-response, doubles. Cross-AU support via dest_unit_index.
+- `double_melody` — Parallel interval doubling — thickens melody at named musical intervals (octave, fifth, fourth, third, sixth, unison, double_octave). Diatonic mode shifts by scale steps (correct major/minor third quality). Same-region or cross-track. velocity_scale, time_offset for delay. Use for octave doubling, power chords, parallel harmony.
 - `reverse_notes` — Reverse note order in a region (retrograde). Positions mirrored, durations/velocities preserved.
 - `invert_notes` — Invert melody around a pitch axis (mirror reflection). newPitch = 2*axis - oldPitch.
 - `augment_notes` — Augment or diminish note durations by a factor (0.25-4.0). The fourth classical transformation. "scale" mode (phrase slows/speeds) or "stretch" mode (durations only).

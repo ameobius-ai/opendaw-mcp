@@ -56,6 +56,7 @@ What do you want to create?
 │
 ├── Chords → create_chord_progression (2-5 chords, scale-aware)
 ├── Harmony (parallel) → create_harmony (thirds/fifths/sixths above melody)
+├── Doubling → double_melody (octave/fifth/fourth/third/sixth, diatonic or chromatic, same-region or cross-track)
 ├── Counter-melody → create_counterpoint (contrary motion, mirror around center)
 │
 ├── Scale run (fill) → create_scale_run (up/down, 1-4 octaves)

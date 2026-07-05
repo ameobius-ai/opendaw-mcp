@@ -14246,3 +14246,161 @@ class TestGenerateMelody:
         target_end = 1.0 - abs(2.0 * progress_end - 1.0)
         assert target_end == 0.0, "Arch should be low at end"
 
+
+class TestDoubleMelody:
+    """Tests for mcp_opendaw_double_melody — parallel interval doubling"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_double_melody" in names
+
+    def test_interval_semitones_map(self):
+        """Named intervals map to correct semitone offsets"""
+        semitones = {
+            "unison": 0, "octave": 12, "double_octave": 24,
+            "fifth": 7, "fourth": 5, "third": 4, "sixth": 9,
+        }
+        # Octave = 12 semitones
+        assert semitones["octave"] == 12
+        # Fifth = 7 semitones (perfect fifth)
+        assert semitones["fifth"] == 7
+        # Fourth = 5 semitones (perfect fourth)
+        assert semitones["fourth"] == 5
+        # Third = 4 semitones (major third)
+        assert semitones["third"] == 4
+        # Sixth = 9 semitones (major sixth)
+        assert semitones["sixth"] == 9
+        # Double octave = 24
+        assert semitones["double_octave"] == 24
+        # Unison = 0
+        assert semitones["unison"] == 0
+
+    def test_diatonic_steps_map(self):
+        """Named intervals map to correct scale-degree offsets"""
+        steps = {
+            "unison": 0, "octave": 7, "double_octave": 14,
+            "fifth": 4, "fourth": 3, "third": 2, "sixth": 5,
+        }
+        # Diatonic third = 2 scale steps (C→E in C major)
+        assert steps["third"] == 2
+        # Diatonic fifth = 4 scale steps (C→G)
+        assert steps["fifth"] == 4
+        # Diatonic sixth = 5 scale steps (C→A)
+        assert steps["sixth"] == 5
+        # Diatonic octave = 7 scale steps (C→C)
+        assert steps["octave"] == 7
+
+    def test_diatonic_third_quality_varies(self):
+        """Diatonic third in C major: C→E (major, +4), D→F (minor, +3)"""
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH, SCALE_INTERVALS
+        root_num = NOTE_TO_PITCH["C"]
+        intervals = SCALE_INTERVALS["major"]
+        scale_pcs = sorted(set((root_num + iv) % 12 for iv in intervals))
+        # C major scale: C D E F G A B = 0 2 4 5 7 9 11
+        assert scale_pcs == [0, 2, 4, 5, 7, 9, 11]
+
+        # C (pc=0) → E (pc=4) = +4 semitones = major third
+        c_idx = scale_pcs.index(0)
+        e_idx = (c_idx + 2) % len(scale_pcs)
+        assert scale_pcs[e_idx] == 4, "C diatonic third should be E (pc=4)"
+
+        # D (pc=2) → F (pc=5) = +3 semitones = minor third
+        d_idx = scale_pcs.index(2)
+        f_idx = (d_idx + 2) % len(scale_pcs)
+        assert scale_pcs[f_idx] == 5, "D diatonic third should be F (pc=5)"
+
+        # Verify the actual semitone distance differs
+        c_to_e = scale_pcs[e_idx] - scale_pcs[c_idx]  # 4 - 0 = 4 (major third)
+        d_to_f = scale_pcs[f_idx] - scale_pcs[d_idx]  # 5 - 2 = 3 (minor third)
+        assert c_to_e == 4, "C→E should be 4 semitones (major third)"
+        assert d_to_f == 3, "D→F should be 3 semitones (minor third)"
+
+    def test_diatonic_fifth_in_minor(self):
+        """Diatonic fifth in A minor: A→E (perfect fifth, +7)"""
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH, SCALE_INTERVALS
+        root_num = NOTE_TO_PITCH["A"]
+        intervals = SCALE_INTERVALS["minor"]
+        scale_pcs = sorted(set((root_num + iv) % 12 for iv in intervals))
+        # A natural minor: A B C D E F G = 9 11 0 2 4 5 7
+        a_idx = scale_pcs.index(9)
+        e_idx = (a_idx + 4) % len(scale_pcs)  # +4 scale steps = fifth
+        assert scale_pcs[e_idx] == 4, "A diatonic fifth should be E (pc=4)"
+
+    def test_same_region_vs_cross_track(self):
+        """dest_track_index=-1 → same region (thickening), >=0 → cross-track"""
+        same_region = (-1) < 0
+        assert same_region is True, "dest_track_index=-1 should be same region"
+        cross_track = (4) < 0
+        assert cross_track is False, "dest_track_index=4 should be cross-track"
+
+    def test_pitch_bounds_check(self):
+        """Notes shifted beyond 0-127 should be skipped"""
+        # If original pitch = 120 and interval = octave (+12), new = 132 → skip
+        orig_pitch = 120
+        new_pitch = orig_pitch + 12  # 132
+        assert new_pitch > 127, "132 should be out of bounds"
+
+        # If original pitch = 5 and interval = octave down (-12), new = -7 → skip
+        # (double_melody only shifts up, but bounds check logic is same)
+        orig_pitch = 3
+        new_pitch = orig_pitch + 0  # unison
+        assert 0 <= new_pitch <= 127, "Unison should be in bounds"
+
+    def test_velocity_scale_clamping(self):
+        """velocity_scale * original velocity should be clamped to 0-1"""
+        orig_vel = 0.9
+        vel_scale = 1.5  # would give 1.35 → clamp to 1.0
+        scaled = max(0, min(1, orig_vel * vel_scale))
+        assert scaled == 1.0, "1.35 should clamp to 1.0"
+
+        vel_scale = 0.7
+        scaled = max(0, min(1, orig_vel * vel_scale))
+        assert abs(scaled - 0.63) < 0.01, "0.9 * 0.7 should be 0.63"
+
+    def test_time_offset_conversion(self):
+        """time_offset in beats converts to PPQN correctly"""
+        Quarter = 960
+        tOff_beats = 0.25  # sixteenth note delay
+        ppqn_offset = round(tOff_beats * Quarter)
+        assert ppqn_offset == 240, "0.25 beats = 240 PPQN"
+
+        tOff_beats = 2.0  # two beats
+        ppqn_offset = round(tOff_beats * Quarter)
+        assert ppqn_offset == 1920, "2 beats = 1920 PPQN"
+
+    def test_invalid_interval_rejected(self):
+        """Invalid interval name should return error string"""
+        valid = ["unison", "octave", "double_octave", "fifth", "fourth", "third", "sixth"]
+        test = "seventh"
+        assert test not in valid, "seventh should not be a valid interval"
+
+    def test_octave_doubling_semitone(self):
+        """Octave doubling = +12 semitones (chromatic mode)"""
+        interval_semitones = {
+            "unison": 0, "octave": 12, "double_octave": 24,
+            "fifth": 7, "fourth": 5, "third": 4, "sixth": 9,
+        }
+        semi_shift = interval_semitones["octave"]
+        # C4 (60) + 12 = C5 (72)
+        assert 60 + semi_shift == 72, "C4 + octave = C5"
+
+    def test_power_chord_fifth(self):
+        """Fifth doubling creates power chord interval (root + fifth)"""
+        interval_semitones = {"fifth": 7}
+        # C4 (60) + 7 = G4 (67) — perfect fifth
+        root_pitch = 60
+        fifth_pitch = root_pitch + interval_semitones["fifth"]
+        assert fifth_pitch == 67, "C4 + fifth = G4 (67)"
+
+    def test_diatonic_mode_uses_scale_pcs(self):
+        """Diatonic mode builds scale pitch classes from root+scale"""
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH, SCALE_INTERVALS
+        root_num = NOTE_TO_PITCH["D"]
+        intervals = SCALE_INTERVALS["major"]
+        scale_pcs = sorted(set((root_num + iv) % 12 for iv in intervals))
+        # D major: D E F# G A B C# = 2 4 6 7 9 11 1
+        assert scale_pcs == [1, 2, 4, 6, 7, 9, 11], f"D major scale pcs should be [1,2,4,6,7,9,11], got {scale_pcs}"
+

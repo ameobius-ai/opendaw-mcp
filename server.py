@@ -3499,6 +3499,222 @@ async def mcp_opendaw_copy_notes_to_track(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_double_melody(
+    unit_index: int,
+    track_index: int,
+    interval: str = "octave",
+    region_index: int = -1,
+    diatonic: bool = False,
+    root: str = "C",
+    scale: str = "major",
+    velocity_scale: float = 0.8,
+    dest_track_index: int = -1,
+    dest_unit_index: int = -1,
+    time_offset: float = 0,
+) -> str:
+    """Double a melody at a parallel interval — thickening and harmonization.
+
+    Creates a copy of every note in the region shifted by the specified interval.
+    Unlike copy_notes_to_track (chromatic transpose only), this supports named
+    musical intervals and diatonic transposition (stays in key).
+
+    Same-region doubling (dest_track_index=-1) thickens the melody in place.
+    Cross-track doubling (dest_track_index set) creates a separate layer —
+    useful for assigning a different instrument to the doubled line.
+
+    Intervals (chromatic mode):
+    - octave: +12 semitones (classic doubling)
+    - double_octave: +24 semitones (organ/pipe effect)
+    - fifth: +7 semitones (power chord, open sound)
+    - fourth: +5 semitones (suspended, ambiguous)
+    - third: +4 semitones (major third — use diatonic for correct quality)
+    - sixth: +9 semitones (wide, romantic)
+    - unison: +0 semitones (thickening only, velocity difference)
+
+    Diatonic mode (diatonic=True):
+    Uses scale-degree offsets instead of fixed semitones. A diatonic third in
+    C major is +2 scale steps (C→E, D→F, E→G), producing the correct quality
+    (major or minor third) depending on the scale degree. Requires root+scale.
+
+    velocity_scale: Doubled line velocity (0.8 = slightly quieter, classic).
+    time_offset: Delay the doubled line (0 = parallel, 0.25 = slight delay).
+
+    unit_index: Source AU index.
+    track_index: Source note track index.
+    interval: Named interval (octave/double_octave/fifth/fourth/third/sixth/unison).
+    region_index: Source region (-1 = first region).
+    diatonic: If True, use scale-degree offset (requires root+scale).
+    root: Scale root note (C, C#, D, ... B).
+    scale: Scale name (major, minor, dorian, phrygian, etc.).
+    velocity_scale: Velocity multiplier for doubled notes (0-2).
+    dest_track_index: Destination track (-1 = same region, thickening in place).
+    dest_unit_index: Destination AU (-1 = same as source).
+    time_offset: Beat offset for doubled notes (0 = parallel).
+
+    Returns count of notes doubled.
+
+    Example:
+      # Octave doubling — thickens melody in place
+      double_melody(0, 3, "octave", velocity_scale=0.7)
+      # Diatonic thirds on separate track — classic harmony
+      double_melody(0, 3, "third", diatonic=True, root="C", scale="major",
+                    dest_track_index=4, velocity_scale=0.8)
+      # Power-chord doubling
+      double_melody(0, 3, "fifth", velocity_scale=0.9)
+    """
+    interval_semitones = {
+        "unison": 0, "octave": 12, "double_octave": 24,
+        "fifth": 7, "fourth": 5, "third": 4, "sixth": 9,
+    }
+    if interval not in interval_semitones:
+        return f"Error: interval must be one of {list(interval_semitones.keys())}, got '{interval}'"
+    if not (0.0 <= velocity_scale <= 2.0):
+        return f"Error: velocity_scale must be 0-2, got {velocity_scale}"
+
+    diatonic_steps = {
+        "unison": 0, "octave": 7, "double_octave": 14,
+        "fifth": 4, "fourth": 3, "third": 2, "sixth": 5,
+    }
+    step_shift = diatonic_steps.get(interval, 0) if diatonic else 0
+    semi_shift = 0 if diatonic else interval_semitones[interval]
+
+    # Build scale pitch classes for diatonic mode
+    scale_pcs_json = "[]"
+    if diatonic:
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH, SCALE_INTERVALS
+        if root not in NOTE_TO_PITCH:
+            return f"Error: invalid root note '{root}'"
+        if scale not in SCALE_INTERVALS:
+            return f"Error: invalid scale '{scale}'. Available: {list(SCALE_INTERVALS.keys())}"
+        root_num = NOTE_TO_PITCH[root]
+        intervals_list = SCALE_INTERVALS[scale]
+        scale_pcs = sorted(set((root_num + iv) % 12 for iv in intervals_list))
+        scale_pcs_json = json.dumps(scale_pcs)
+
+    dest_unit = dest_unit_index if dest_unit_index >= 0 else unit_index
+    same_region = dest_track_index < 0
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const destUnitIdx = {dest_unit};
+        const destTrackIdx = {dest_track_index};
+        const semiShift = {semi_shift};
+        const stepShift = {step_shift};
+        const scalePcs = {scale_pcs_json};
+        const velScale = {velocity_scale};
+        const tOff = {time_offset};
+        const sameRegion = {str(same_region).lower()};
+        const diatonic = {str(diatonic).lower()};
+        const Quarter = 960;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const srcAu = allUnits[unitIdx];
+        const srcTracks = h.trackBoxes(srcAu);
+        if (trackIdx < 0 || trackIdx >= srcTracks.length) return {{error: "track_index out of range"}};
+        const srcTrack = srcTracks[trackIdx];
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (srcRegions.length === 0) return {{error: "No regions on source track"}};
+        const srcRegIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (srcRegIdx >= srcRegions.length) return {{error: "region_index out of range"}};
+        const srcRegion = srcRegions[srcRegIdx];
+
+        // Read source notes
+        const srcEventsField = srcRegion.events.targetVertex.unwrap();
+        const srcCollBox = srcEventsField.box;
+        const srcNotes = [...srcCollBox.events.pointerHub.incoming()];
+        if (srcNotes.length === 0) return {{error: "No notes in source region"}};
+
+        // Determine destination collection
+        let destCollBox;
+        if (sameRegion) {{
+            destCollBox = srcCollBox;
+        }} else {{
+            const destAu = allUnits[destUnitIdx];
+            if (!destAu) return {{error: "dest_unit_index out of range"}};
+            const destTracks = h.trackBoxes(destAu);
+            if (destTrackIdx < 0 || destTrackIdx >= destTracks.length) return {{error: "dest_track_index out of range"}};
+            const destTrack = destTracks[destTrackIdx];
+            const destRegions = h.regionBoxes(destTrack);
+            if (destRegions.length === 0) return {{error: "No regions on dest track — create a region first"}};
+            const destEventsField = destRegions[0].events.targetVertex.unwrap();
+            destCollBox = destEventsField.box;
+        }}
+
+        let doubled = 0;
+        let skipped = 0;
+
+        h.modify(() => {{
+            for (const n of srcNotes) {{
+                const origPitch = n.box.pitch.getValue();
+                let newPitch;
+
+                if (diatonic) {{
+                    const pc = origPitch % 12;
+                    const octave = Math.floor(origPitch / 12);
+                    let scaleIdx = scalePcs.indexOf(pc);
+                    if (scaleIdx === -1) {{
+                        // Note not in scale — fall back to chromatic shift
+                        newPitch = origPitch + semiShift;
+                    }} else {{
+                        let newScaleIdx = scaleIdx + stepShift;
+                        let newOctave = octave;
+                        while (newScaleIdx >= scalePcs.length) {{
+                            newScaleIdx -= scalePcs.length;
+                            newOctave++;
+                        }}
+                        while (newScaleIdx < 0) {{
+                            newScaleIdx += scalePcs.length;
+                            newOctave--;
+                        }}
+                        newPitch = newOctave * 12 + scalePcs[newScaleIdx];
+                    }}
+                }} else {{
+                    newPitch = origPitch + semiShift;
+                }}
+
+                if (newPitch < 0 || newPitch > 127) {{
+                    skipped++;
+                    continue;
+                }}
+
+                const pos = n.box.position.getValue() + Math.round(tOff * Quarter);
+                const dur = n.box.duration.getValue();
+                const vel = Math.max(0, Math.min(1, n.box.velocity.getValue() * velScale));
+
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(pos));
+                    box.duration.setValue(Math.round(dur));
+                    box.velocity.setValue(vel);
+                    box.pitch.setValue(newPitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(destCollBox.events);
+                }});
+                doubled++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_doubled: doubled,
+            notes_skipped: skipped,
+            interval: "{interval}",
+            diatonic: diatonic,
+            shift: diatonic ? {{scale_steps: stepShift}} : {{semitone_shift: semiShift}},
+            velocity_scale: velScale,
+            same_region: sameRegion,
+            destination: sameRegion ? "in-place" : {{unit: destUnitIdx, track: destTrackIdx}},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_reverse_notes(unit_index: int, track_index: int, region_index: int = -1) -> str:
     """Reverse the order of notes in a region — retrograde variation.
 

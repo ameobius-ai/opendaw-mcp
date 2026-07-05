@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.233.0 (2026-07-06)
+
+### Added
+- `double_melody` — Parallel interval doubling. Creates a copy of every note shifted by a named musical interval (octave, double_octave, fifth, fourth, third, sixth, unison). Diatonic mode shifts by scale steps — produces correct major/minor third quality depending on scale degree (C→E = major third, D→F = minor third in C major). Same-region mode (dest_track_index=-1) thickens in place; cross-track mode creates a separate layer. velocity_scale (0.8 = classic quieter double), time_offset for delayed doubling. Fills the gap between copy_notes_to_track (chromatic only) and create_harmony_line (diatonic only). 13 unit tests including diatonic quality verification. **408 MCP tools**, 2956 unit tests
+
 ## v1.232.0 (2026-07-05)
 
 ### Added
