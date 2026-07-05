@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.244.0 (2026-07-06)
+
+### Added
+- `map_velocity_by_pitch` — Map velocity based on pitch position. 4 modes: higher_quieter (high notes softer, natural for piano/orchestra/drums), lower_quieter (highs cut through, lead synths), bell_curve (loudest in middle register, vocal range), inverse_bell (experimental). Intensity 0-1 controls strength. pitch_ref sets neutral pitch (default C4=60). Returns per-octave velocity stats before/after. Use for naturalising flat MIDI velocities.
+
 ## v1.243.0 (2026-07-06)
 
 ### Added

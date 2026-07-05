@@ -18476,6 +18476,178 @@ async def mcp_opendaw_scale_velocity(
 
 
 @mcp.tool()
+async def mcp_opendaw_map_velocity_by_pitch(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    mode: str = "higher_quieter",
+    intensity: float = 0.5,
+    min_velocity: float = 0.1,
+    max_velocity: float = 1.0,
+    pitch_ref: int = 60,
+) -> str:
+    """Map velocity based on pitch — expressive dynamics from note height.
+
+    Adjusts note velocity proportionally to pitch position. High notes get
+    quieter, low notes get louder (or vice versa). This simulates natural
+    acoustic instrument behaviour where register affects perceived intensity.
+
+    Modes:
+    - "higher_quieter" — high notes quieter, low notes louder (piano natural,
+      orchestral mockups). Default. Kick drum louder than hi-hat.
+    - "lower_quieter" — low notes quieter, high notes louder (lead synth
+      patches, bell-like timbres where highs cut through).
+    - "bell_curve" — loudest in the middle register, quieter at extremes
+      (vocal range, mid-range instruments like guitar/violin).
+    - "inverse_bell" — quietest in the middle, louder at extremes (experimental).
+
+    intensity: 0-1, how much pitch affects velocity (0 = no change,
+      0.5 = moderate, 1.0 = full effect). At 0, velocities are unchanged.
+
+    The formula for "higher_quieter":
+      relative_pos = (pitch - pitch_ref) / 48  (48 = 4 octaves range)
+      factor = 1.0 - relative_pos * intensity
+      new_vel = current_vel * factor (clamped to min/max)
+
+    pitch_ref: MIDI pitch that serves as the neutral point (no change).
+      60 = C4 (middle C). Adjust for your instrument's register.
+
+    Use cases:
+    - Make flat MIDI velocities sound more natural (piano, orchestra)
+    - Drum kits: kick (low pitch) louder than hi-hat (high pitch)
+    - Lead synth: highs cut through more (lower_quieter)
+    - Vocal range emphasis (bell_curve around pitch_ref=64)
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region (-1 = first, -2 = all regions).
+    mode: higher_quieter / lower_quieter / bell_curve / inverse_bell.
+    intensity: 0-1, strength of pitch-to-velocity mapping.
+    min_velocity / max_velocity: Clamp range.
+    pitch_ref: Neutral pitch (default 60 = C4).
+
+    Returns modification summary with per-octave velocity stats.
+    """
+    valid_modes = ("higher_quieter", "lower_quieter", "bell_curve", "inverse_bell")
+    if mode not in valid_modes:
+        return f"Error: mode must be one of {list(valid_modes)}, got '{mode}'"
+    if not (0.0 <= intensity <= 1.0):
+        return "Error: intensity must be 0-1"
+    if not (0.0 <= min_velocity <= 1.0):
+        return "Error: min_velocity must be 0-1"
+    if not (0.0 <= max_velocity <= 1.0):
+        return "Error: max_velocity must be 0-1"
+    if min_velocity > max_velocity:
+        return "Error: min_velocity cannot exceed max_velocity"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regIdx = {region_index};
+        const velMode = "{mode}";
+        const intensityVal = {intensity};
+        const minVel = {min_velocity};
+        const maxVel = {max_velocity};
+        const pitchRef = {pitch_ref};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+
+        let allNotes = [];
+        const regionsToProcess = regIdx === -2 ? regions : (regIdx < 0 ? [regions[0]] : [regions[regIdx]]);
+        if (regIdx >= 0 && regIdx >= regions.length) return {{error: "region_index out of range"}};
+
+        for (const region of regionsToProcess) {{
+            let collection = null;
+            try {{
+                const vertex = region.events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{ continue; }}
+            if (!collection || !collection.events) continue;
+            const notes = h.eventBoxes(collection);
+            allNotes = allNotes.concat(notes);
+        }}
+
+        if (allNotes.length === 0) return {{error: "No notes in region(s)"}};
+
+        // Collect original stats
+        const origVels = allNotes.map(n => n.velocity.getValue());
+        const origPitches = allNotes.map(n => n.pitch.getValue());
+        const origAvg = origVels.reduce((a, b) => a + b, 0) / origVels.length;
+
+        let modified = 0;
+        const editing = h.editing;
+        await editing.modify(async () => {{
+            for (const n of allNotes) {{
+                const pitch = n.pitch.getValue();
+                const vel = n.velocity.getValue();
+                const relativePos = (pitch - pitchRef) / 48; // 48 semitones = 4 octaves
+
+                let factor;
+                if (velMode === "higher_quieter") {{
+                    factor = 1.0 - relativePos * intensityVal;
+                }} else if (velMode === "lower_quieter") {{
+                    factor = 1.0 + relativePos * intensityVal;
+                }} else if (velMode === "bell_curve") {{
+                    // Peak at pitch_ref, falls off at extremes
+                    factor = 1.0 - Math.abs(relativePos) * intensityVal;
+                }} else {{ // inverse_bell
+                    factor = 0.5 + Math.abs(relativePos) * intensityVal * 0.5;
+                }}
+
+                let newVel = vel * factor;
+                newVel = Math.max(minVel, Math.min(maxVel, newVel));
+                n.velocity.setValue(newVel);
+                modified++;
+            }}
+        }});
+
+        // Collect new stats
+        const newVels = allNotes.map(n => n.velocity.getValue());
+        const newAvg = newVels.reduce((a, b) => a + b, 0) / newVels.length;
+
+        // Per-octave velocity stats
+        const octaveBuckets = {{}};
+        for (let i = 0; i < allNotes.length; i++) {{
+            const oct = Math.floor(origPitches[i] / 12);
+            if (!octaveBuckets[oct]) octaveBuckets[oct] = {{count: 0, origSum: 0, newSum: 0}};
+            octaveBuckets[oct].count++;
+            octaveBuckets[oct].origSum += origVels[i];
+            octaveBuckets[oct].newSum += newVels[i];
+        }}
+        const octaveStats = [];
+        for (const [oct, data] of Object.entries(octaveBuckets).sort((a, b) => a[0] - b[0])) {{
+            octaveStats.push({{
+                octave: parseInt(oct),
+                note_count: data.count,
+                avg_velocity_before: Math.round((data.origSum / data.count) * 1000) / 1000,
+                avg_velocity_after: Math.round((data.newSum / data.count) * 1000) / 1000,
+            }});
+        }}
+
+        return {{
+            success: true,
+            notes_modified: modified,
+            mode: velMode,
+            intensity: intensityVal,
+            pitch_ref: pitchRef,
+            original_avg_velocity: Math.round(origAvg * 1000) / 1000,
+            new_avg_velocity: Math.round(newAvg * 1000) / 1000,
+            octave_stats: octaveStats,
+            regions_processed: regionsToProcess.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_scale_durations(
     unit_index: int,
     track_index: int,

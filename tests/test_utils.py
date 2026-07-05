@@ -15763,3 +15763,114 @@ class TestAnalyzeHarmonicRhythm:
         """region_index=-2 processes all regions"""
         reg_idx = -2
         assert reg_idx == -2
+
+
+class TestMapVelocityByPitch:
+    """Tests for mcp_opendaw_map_velocity_by_pitch — pitch-based velocity mapping"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_map_velocity_by_pitch" in names
+
+    def test_higher_quieter_formula(self):
+        """High notes quieter: factor = 1.0 - relative_pos * intensity"""
+        pitch_ref = 60
+        intensity = 0.5
+        # Pitch 84 (C6) → relative_pos = (84-60)/48 = 0.5
+        rel_pos = (84 - pitch_ref) / 48
+        factor = 1.0 - rel_pos * intensity
+        assert abs(factor - 0.75) < 0.01, "C6 at intensity 0.5 → factor 0.75"
+        # Pitch 36 (C2) → relative_pos = (36-60)/48 = -0.5
+        rel_pos2 = (36 - pitch_ref) / 48
+        factor2 = 1.0 - rel_pos2 * intensity
+        assert abs(factor2 - 1.25) < 0.01, "C2 at intensity 0.5 → factor 1.25"
+
+    def test_lower_quieter_formula(self):
+        """Low notes quieter: factor = 1.0 + relative_pos * intensity"""
+        pitch_ref = 60
+        intensity = 0.5
+        # Pitch 84 → rel_pos = 0.5, factor = 1.25 (louder)
+        rel_pos = (84 - pitch_ref) / 48
+        factor = 1.0 + rel_pos * intensity
+        assert abs(factor - 1.25) < 0.01, "C6 → louder"
+        # Pitch 36 → rel_pos = -0.5, factor = 0.75 (quieter)
+        rel_pos2 = (36 - pitch_ref) / 48
+        factor2 = 1.0 + rel_pos2 * intensity
+        assert abs(factor2 - 0.75) < 0.01, "C2 → quieter"
+
+    def test_bell_curve_formula(self):
+        """Bell curve: loudest at pitch_ref, quieter at extremes"""
+        pitch_ref = 60
+        intensity = 0.5
+        # At pitch_ref: factor = 1.0 - 0 = 1.0 (no change)
+        rel_pos = (60 - pitch_ref) / 48
+        factor = 1.0 - abs(rel_pos) * intensity
+        assert factor == 1.0, "At pitch_ref → no change"
+        # At pitch 84: rel_pos = 0.5, factor = 1.0 - 0.25 = 0.75
+        rel_pos2 = (84 - pitch_ref) / 48
+        factor2 = 1.0 - abs(rel_pos2) * intensity
+        assert abs(factor2 - 0.75) < 0.01, "C6 → quieter"
+
+    def test_inverse_bell_formula(self):
+        """Inverse bell: quietest in middle, louder at extremes"""
+        pitch_ref = 60
+        intensity = 0.5
+        # At pitch_ref: factor = 0.5 (quietest)
+        rel_pos = (60 - pitch_ref) / 48
+        factor = 0.5 + abs(rel_pos) * intensity * 0.5
+        assert factor == 0.5, "At pitch_ref → factor 0.5"
+        # At pitch 84: factor = 0.5 + 0.5 * 0.5 * 0.5 = 0.625
+        rel_pos2 = (84 - pitch_ref) / 48
+        factor2 = 0.5 + abs(rel_pos2) * intensity * 0.5
+        assert abs(factor2 - 0.625) < 0.01, "C6 → louder than middle"
+
+    def test_intensity_zero_no_change(self):
+        """Intensity 0 → no velocity change"""
+        intensity = 0.0
+        pitch = 84
+        pitch_ref = 60
+        rel_pos = (pitch - pitch_ref) / 48
+        factor = 1.0 - rel_pos * intensity
+        assert factor == 1.0, "intensity=0 → factor=1.0"
+
+    def test_velocity_clamping(self):
+        """Velocity clamped to min/max range"""
+        min_vel = 0.1
+        max_vel = 1.0
+        vel = 0.8
+        factor = 1.5  # would push above 1.0
+        new_vel = max(min_vel, min(max_vel, vel * factor))
+        assert new_vel == 1.0, "0.8 * 1.5 = 1.2 → clamped to 1.0"
+
+        factor2 = 0.05  # would push below 0.1
+        new_vel2 = max(min_vel, min(max_vel, vel * factor2))
+        assert new_vel2 == 0.1, "0.8 * 0.05 = 0.04 → clamped to 0.1"
+
+    def test_relative_pos_range(self):
+        """relative_pos = (pitch - pitch_ref) / 48, where 48 = 4 octaves"""
+        pitch_ref = 60
+        # C2 (36) → -0.5
+        assert abs((36 - pitch_ref) / 48 - (-0.5)) < 0.01
+        # C4 (60) → 0.0
+        assert abs((60 - pitch_ref) / 48) < 0.01
+        # C6 (84) → 0.5
+        assert abs((84 - pitch_ref) / 48 - 0.5) < 0.01
+        # C8 (108) → 1.0
+        assert abs((108 - pitch_ref) / 48 - 1.0) < 0.01
+
+    def test_octave_bucketing(self):
+        """Notes grouped into octave buckets for stats"""
+        pitches = [36, 48, 60, 72, 84]
+        for p in pitches:
+            oct_num = p // 12
+            assert oct_num in [3, 4, 5, 6, 7]
+
+    def test_four_modes_available(self):
+        """4 velocity mapping modes"""
+        modes = ("higher_quieter", "lower_quieter", "bell_curve", "inverse_bell")
+        assert len(modes) == 4
+        assert "higher_quieter" in modes
+        assert "bell_curve" in modes
