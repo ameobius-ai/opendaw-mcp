@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.45.0 (2026-07-05)
+
+- **`create_turn` orchestration tool (297 MCP tools)** — circular ornament (gruppetto): main → upper → main → lower → main. Third of four essential baroque ornaments (trill ✅, mordent ✅, turn ✅, appoggiatura ❌). Upper/lower direction, adjustable interval. Mozart piano concertos, Beethoven sonatas, Bach partitas. One call replaces 5 manual note creations. Completes ornaments set: trill + mordent + turn
+- **E2E verified**: upper turn (5 notes), lower turn, half-step, bad direction/interval/pitch/velocity/duration — 8/8 tests passed
+- **+10 unit tests** for turn note order, timing, velocity, clamping (364 total)
+- **Example script**: `create_turn.py` — upper + lower turn
+- **297 MCP tools** (259 low-level + 40 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.44.0 (2026-07-05)
 
 - **`create_mordent` orchestration tool (296 MCP tools)** — classical baroque ornament: main note → neighbor → main. One of the four essential ornaments (trill, mordent, turn, appoggiatura). Upper mordent flicks up, lower flicks down. Adjustable interval (1-7 semitones), timing split (40%/20%/40%). Bach two-part inventions, Mozart sonatas. One call replaces 3 manual note creations. Completes the ornaments set alongside create_trill

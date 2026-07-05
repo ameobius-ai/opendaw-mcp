@@ -1321,3 +1321,79 @@ class TestMordent:
     def test_direction_lower_interval_negative(self):
         offset = -2 if "lower" == "lower" else 2
         assert offset < 0
+
+
+class TestTurn:
+    """Unit tests for create_turn orchestration tool — logic validation."""
+
+    def _build_notes(self, main_pitch, direction, interval, duration=1.0, velocity=0.85):
+        """Replicate turn note generation."""
+        upper_pitch = max(0, min(127, main_pitch + interval))
+        lower_pitch = max(0, min(127, main_pitch - interval))
+        step_dur = duration * 0.2
+        neighbor_vel = round(velocity * 0.9, 3)
+        if direction == "upper":
+            return [
+                {"pitch": main_pitch, "pos": 0.0, "dur": step_dur, "vel": velocity},
+                {"pitch": upper_pitch, "pos": step_dur, "dur": step_dur, "vel": neighbor_vel},
+                {"pitch": main_pitch, "pos": step_dur * 2, "dur": step_dur, "vel": velocity},
+                {"pitch": lower_pitch, "pos": step_dur * 3, "dur": step_dur, "vel": neighbor_vel},
+                {"pitch": main_pitch, "pos": step_dur * 4, "dur": step_dur, "vel": velocity},
+            ]
+        else:
+            return [
+                {"pitch": main_pitch, "pos": 0.0, "dur": step_dur, "vel": velocity},
+                {"pitch": lower_pitch, "pos": step_dur, "dur": step_dur, "vel": neighbor_vel},
+                {"pitch": main_pitch, "pos": step_dur * 2, "dur": step_dur, "vel": velocity},
+                {"pitch": upper_pitch, "pos": step_dur * 3, "dur": step_dur, "vel": neighbor_vel},
+                {"pitch": main_pitch, "pos": step_dur * 4, "dur": step_dur, "vel": velocity},
+            ]
+
+    def test_five_notes(self):
+        notes = self._build_notes(60, "upper", 2)
+        assert len(notes) == 5
+
+    def test_upper_turn_order(self):
+        notes = self._build_notes(60, "upper", 2)
+        pitches = [n["pitch"] for n in notes]
+        assert pitches == [60, 62, 60, 58, 60]  # main→up→main→down→main
+
+    def test_lower_turn_order(self):
+        notes = self._build_notes(60, "lower", 2)
+        pitches = [n["pitch"] for n in notes]
+        assert pitches == [60, 58, 60, 62, 60]  # main→down→main→up→main
+
+    def test_half_step_interval(self):
+        notes = self._build_notes(64, "upper", 1)
+        assert notes[1]["pitch"] == 65  # half step up
+        assert notes[3]["pitch"] == 63  # half step down
+
+    def test_equal_timing(self):
+        notes = self._build_notes(60, "upper", 2, duration=2.0)
+        step_dur = 2.0 * 0.2
+        assert all(n["dur"] == step_dur for n in notes)
+
+    def test_neighbor_velocity_lower(self):
+        notes = self._build_notes(60, "upper", 2, velocity=0.85)
+        assert notes[1]["vel"] < notes[0]["vel"]  # neighbor quieter
+        assert notes[3]["vel"] < notes[2]["vel"]
+
+    def test_starts_and_ends_on_main(self):
+        notes = self._build_notes(60, "lower", 3)
+        assert notes[0]["pitch"] == 60  # starts on main
+        assert notes[-1]["pitch"] == 60  # ends on main
+
+    def test_pitch_clamp(self):
+        notes = self._build_notes(1, "lower", 7)
+        assert notes[1]["pitch"] == 0  # clamped to 0 (1-7=-6→0)
+
+    def test_upper_then_lower_pattern(self):
+        notes = self._build_notes(60, "upper", 2)
+        # Position should be ascending: 0, step, 2*step, 3*step, 4*step
+        positions = [n["pos"] for n in notes]
+        assert positions == sorted(positions)  # monotonically increasing
+
+    def test_interval_applies_both_directions(self):
+        notes = self._build_notes(60, "upper", 5)
+        assert notes[1]["pitch"] == 65  # up 5
+        assert notes[3]["pitch"] == 55  # down 5

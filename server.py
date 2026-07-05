@@ -16207,6 +16207,154 @@ async def mcp_opendaw_create_mordent(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_turn(
+    main_pitch: int = 60,
+    direction: str = "upper",
+    interval: int = 2,
+    duration_beats: float = 1.0,
+    velocity: float = 0.85,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a turn — circular ornament: main → neighbor → main → other neighbor → main.
+
+    The turn (gruppetto) is one of the four essential baroque ornaments
+    (trill, mordent, turn, appoggiatura). It circles around the main note in a
+    four-note flourish. An upper turn goes up first (main → upper → main → lower → main),
+    a lower turn goes down first (main → lower → main → upper → main).
+
+    Think Mozart piano concertos, Beethoven sonatas, Bach partitas. The turn adds
+    elegance and circular motion to a sustained note.
+
+    main_pitch: The primary MIDI note (default 60 = C4).
+    direction: "upper" (main→up→main→down→main) or "lower" (main→down→main→up→main).
+    interval: Semitones to neighbors (default 2 = whole step). 1 = half step (diatonic).
+    duration_beats: Total length in beats (0.5-4, default 1.0 = quarter note).
+    velocity: Base velocity 0-1 (default 0.85).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the turn begins.
+
+    Returns notes created, pitches used.
+    """
+    if main_pitch < 0 or main_pitch > 127:
+        return "Error: main_pitch must be 0-127"
+    if direction not in ("upper", "lower"):
+        return "Error: direction must be 'upper' or 'lower'"
+    if interval < 1 or interval > 7:
+        return "Error: interval must be 1-7"
+    if duration_beats < 0.5 or duration_beats > 4:
+        return "Error: duration_beats must be 0.5-4"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    upper_pitch = max(0, min(127, main_pitch + interval))
+    lower_pitch = max(0, min(127, main_pitch - interval))
+    if upper_pitch == main_pitch and lower_pitch == main_pitch:
+        return "Error: both neighbors clamped to main — reduce interval"
+
+    # Turn timing: 5 notes, each gets 20% of duration
+    step_dur = duration_beats * 0.2
+    neighbor_vel = round(velocity * 0.9, 3)
+
+    if direction == "upper":
+        note_data = [
+            {"pitch": main_pitch, "pos": 0.0, "dur": step_dur, "vel": velocity},
+            {"pitch": upper_pitch, "pos": step_dur, "dur": step_dur, "vel": neighbor_vel},
+            {"pitch": main_pitch, "pos": step_dur * 2, "dur": step_dur, "vel": velocity},
+            {"pitch": lower_pitch, "pos": step_dur * 3, "dur": step_dur, "vel": neighbor_vel},
+            {"pitch": main_pitch, "pos": step_dur * 4, "dur": step_dur, "vel": velocity},
+        ]
+    else:
+        note_data = [
+            {"pitch": main_pitch, "pos": 0.0, "dur": step_dur, "vel": velocity},
+            {"pitch": lower_pitch, "pos": step_dur, "dur": step_dur, "vel": neighbor_vel},
+            {"pitch": main_pitch, "pos": step_dur * 2, "dur": step_dur, "vel": velocity},
+            {"pitch": upper_pitch, "pos": step_dur * 3, "dur": step_dur, "vel": neighbor_vel},
+            {"pitch": main_pitch, "pos": step_dur * 4, "dur": step_dur, "vel": velocity},
+        ]
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {duration_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Turn");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            main_pitch: {main_pitch},
+            upper_pitch: {upper_pitch},
+            lower_pitch: {lower_pitch},
+            direction: "{direction}",
+            interval: {interval},
+            duration_beats: {duration_beats},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_glissando(
     start_pitch: int = 60,
     end_pitch: int = 72,
