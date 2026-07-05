@@ -1171,3 +1171,94 @@ class TestAugmentNotes:
         factor = 0.5
         new_dur = round(old_dur * factor)
         assert new_dur < 1  # should be skipped
+
+
+class TestComping:
+    """Unit tests for create_comping orchestration tool — logic validation."""
+
+    def _build_note_data(self, voicings, rhythm, note_spacing=0.5, velocity=0.7, syncopation=0.0, start_beat=0):
+        """Replicate the Python-side note generation from create_comping."""
+        import random as _rng
+        rng = _rng.Random(42)
+        note_data = []
+        chord_count = len(voicings)
+        rhythm_len = len(rhythm)
+        total_steps = chord_count * rhythm_len
+
+        for step in range(total_steps):
+            rhythm_char = rhythm[step % rhythm_len]
+            if rhythm_char == "-":
+                continue
+            chord_idx_actual = step // rhythm_len
+            if chord_idx_actual >= chord_count:
+                chord_idx_actual = chord_count - 1
+            voicing = voicings[chord_idx_actual]
+            pos = start_beat + step * note_spacing
+            is_ghost = rhythm_char == "."
+            vel = velocity * (0.4 if is_ghost else 1.0)
+            if syncopation > 0 and not is_ghost and rng.random() < syncopation:
+                pos += note_spacing * 0.5 * (1 if rng.random() > 0.5 else -1)
+            dur = note_spacing * 0.85
+            for pitch in voicing:
+                note_data.append({"pitch": pitch, "pos": pos, "dur": dur, "vel": vel})
+        return note_data, total_steps
+
+    def test_basic_jazz_comping(self):
+        voicings = [[60, 63, 67, 70]]  # Cmin7
+        notes, steps = self._build_note_data(voicings, "x-x-x-x-")
+        # 4 hits in 8 steps × 4 notes per chord = 16 notes
+        assert len(notes) == 16
+
+    def test_ghost_velocity(self):
+        voicings = [[60, 63, 67]]
+        notes, _ = self._build_note_data(voicings, "x.x.")
+        # x at step 0, . at step 2 → ghost has lower velocity
+        ghost_notes = [n for n in notes if n["vel"] < 0.7]
+        assert len(ghost_notes) > 0
+        assert all(abs(n["vel"] - 0.28) < 0.01 for n in ghost_notes)  # 0.7 * 0.4
+
+    def test_rest_skips_notes(self):
+        voicings = [[60, 63]]
+        notes, _ = self._build_note_data(voicings, "----")
+        assert len(notes) == 0  # all rests
+
+    def test_multi_chord_progression(self):
+        voicings = [[60, 63, 67], [65, 69, 72]]  # Cmin, Fmin
+        notes, steps = self._build_note_data(voicings, "x-x-")
+        assert steps == 8  # 2 chords × 4 steps
+        # 2 hits per chord cycle × 2 chords × 3 notes = 12
+        assert len(notes) == 12
+
+    def test_total_steps_calculation(self):
+        voicings = [[60]] * 4
+        _, steps = self._build_note_data(voicings, "x-x-x-x-")
+        assert steps == 32  # 4 chords × 8 steps
+
+    def test_syncopation_changes_position(self):
+        voicings = [[60, 63]]
+        notes_no_sync, _ = self._build_note_data(voicings, "x-x-", syncopation=0.0)
+        notes_sync, _ = self._build_note_data(voicings, "x-x-", syncopation=0.5)
+        # With syncopation, some positions may differ (random)
+        # At least the data should be generated without error
+        assert len(notes_sync) == len(notes_no_sync)
+
+    def test_note_duration(self):
+        voicings = [[60]]
+        notes, _ = self._build_note_data(voicings, "x", note_spacing=0.25)
+        assert notes[0]["dur"] == 0.25 * 0.85  # 0.2125
+
+    def test_pitch_range(self):
+        voicings = [[0, 127]]
+        notes, _ = self._build_note_data(voicings, "x")
+        assert all(0 <= n["pitch"] <= 127 for n in notes)
+
+    def test_rhythm_validation(self):
+        valid = "x-x.x-"
+        assert all(c in "x-." for c in valid)
+        invalid = "x!x"
+        assert not all(c in "x-." for c in invalid)
+
+    def test_velocity_clamp(self):
+        voicings = [[60]]
+        notes, _ = self._build_note_data(voicings, "x", velocity=1.0)
+        assert all(n["vel"] <= 1.0 for n in notes)

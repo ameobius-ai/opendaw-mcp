@@ -26,6 +26,7 @@ What do you want to create?
 ├── Sequence (transposed repeat) → create_sequence (up/down/alternating, baroque/jazz/film score builds)
 ├── Pedal point (sustained bass) → create_pedal_point (bass drone under changing chords, film/organ/rock)
 ├── Canon (imitation) → create_canon (same melody in 2-6 voices with delayed entry + transposition, Pachelbel/rounds/fugues)
+├── Comping (rhythmic chords) → create_comping (chord progression × rhythm grid, jazz/funk/reggae/country/neo-soul)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │

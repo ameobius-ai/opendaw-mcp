@@ -16809,6 +16809,206 @@ async def mcp_opendaw_create_canon(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_comping(
+    chords: str,
+    rhythm: str = "x-x-x-x-",
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    chord_octave: int = 4,
+    velocity: float = 0.7,
+    note_spacing: float = 0.5,
+    syncopation: float = 0.0,
+) -> str:
+    """Create comping — rhythmic chordal accompaniment.
+
+    The most common accompaniment style in modern music: play chords in a rhythmic
+    pattern rather than sustained blocks. Jazz piano comping, funk guitar chops,
+    reggae skanks, country boom-chick, Neo-soul chords. Unlike create_chord_progression
+    (sustained blocks) or create_stab (house stabs), comping gives each chord a
+    rhythmic identity — the chord follows the groove.
+
+    chords: JSON array of chord specs, same as create_chord_progression.
+      Each chord is [root_note_name, chord_type].
+      Root names: C, C#, D, D#, E, F, F#, G, G#, A, A#, B (or flats: Db, Eb, Gb, Ab, Bb)
+      Chord types: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug
+      Example: '[["C","min7"],["F","min7"],["G","dom7"],["C","min7"]]'
+    rhythm: Rhythmic pattern string. Each char = one step of note_spacing beats:
+      'x' = play chord, '-' = rest, '.' = ghost (quiet chord)
+      Default "x-x-x-x-" = off-beat eighths (classic jazz comping)
+      "x--x--x-" = syncopated funk
+      "x...x..." = boom-chick (country)
+      "x-x-x-x-x-x-x-x" = reggae skank (every off-beat 16th)
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Where comping starts.
+    chord_octave: MIDI octave for chord root (4 = C4=60).
+    velocity: Base velocity (0-1, default 0.7).
+    note_spacing: Duration of each rhythm step in beats (0.25=16th, 0.5=8th, default 0.5).
+    syncopation: Probability of pushing a note slightly off-grid (0-0.5, default 0).
+      Adds human feel — 0.1 = subtle, 0.3 = pronounced.
+
+    Returns notes created, chords played, rhythm pattern used.
+    """
+    import json as _json
+    try:
+        chord_list = _json.loads(chords)
+        if not isinstance(chord_list, list) or len(chord_list) == 0:
+            return "Error: chords must be a non-empty JSON array"
+    except _json.JSONDecodeError as e:
+        return f"Error parsing chords JSON: {e}"
+
+    if len(chord_list) > 32:
+        return "Error: maximum 32 chords"
+    if not rhythm or not all(c in "x-." for c in rhythm):
+        return "Error: rhythm must contain only 'x', '-', and '.' characters"
+    if len(rhythm) > 32:
+        return "Error: maximum 32 rhythm steps"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if note_spacing < 0.125 or note_spacing > 2:
+        return "Error: note_spacing must be 0.125-2"
+    if syncopation < 0 or syncopation > 0.5:
+        return "Error: syncopation must be 0-0.5"
+
+    # Parse chords into pitch arrays
+    voicings = []
+    for ci, chord_spec in enumerate(chord_list):
+        if len(chord_spec) < 2:
+            return f"Error: chord {ci} must have [root, type]"
+        root_name = chord_spec[0]
+        chord_type = chord_spec[1]
+        if root_name not in NOTE_TO_PITCH:
+            return f"Error: unknown root '{root_name}'"
+        if chord_type not in CHORD_INTERVALS:
+            return f"Error: unknown chord type '{chord_type}'. Valid: {list(CHORD_INTERVALS.keys())}"
+        root_pc = NOTE_TO_PITCH[root_name]
+        intervals = CHORD_INTERVALS[chord_type]
+        root_pitch = (chord_octave + 1) * 12 + root_pc
+        voicing = [root_pitch + iv for iv in intervals]
+        voicings.append(voicing)
+
+    # Build note data: apply rhythm to each chord
+    import random as _rng
+    rng = _rng.Random(42)
+    note_data = []
+    chord_count = len(chord_list)
+    rhythm_len = len(rhythm)
+    total_steps = chord_count * rhythm_len
+    chord_idx = 0
+
+    for step in range(total_steps):
+        rhythm_char = rhythm[step % rhythm_len]
+        if rhythm_char == "-":
+            # Check if we've completed a rhythm cycle → advance chord
+            if (step + 1) % rhythm_len == 0:
+                chord_idx = min(chord_idx + 1, chord_count - 1)
+            continue
+
+        chord_idx_actual = step // rhythm_len
+        if chord_idx_actual >= chord_count:
+            chord_idx_actual = chord_count - 1
+        voicing = voicings[chord_idx_actual]
+
+        pos = start_beat + step * note_spacing
+        is_ghost = rhythm_char == "."
+        vel = velocity * (0.4 if is_ghost else 1.0)
+
+        # Syncopation: push some notes slightly off-grid
+        if syncopation > 0 and not is_ghost and rng.random() < syncopation:
+            pos += note_spacing * 0.5 * (1 if rng.random() > 0.5 else -1)
+
+        dur = note_spacing * 0.85
+        for pitch in voicing:
+            note_data.append({
+                "pitch": max(0, min(127, pitch)),
+                "pos": max(0, pos),
+                "dur": dur,
+                "vel": round(max(0.1, min(1, vel)), 3),
+            })
+
+    total_beats = total_steps * note_spacing
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Comping");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            chords: {len(chord_list)},
+            rhythm: "{rhythm}",
+            rhythm_steps: {rhythm_len},
+            total_steps: {total_steps},
+            length_beats: totalBeats,
+            syncopation: {syncopation},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,

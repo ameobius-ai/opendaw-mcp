@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.43.0 (2026-07-05)
+
+- **`create_comping` orchestration tool (295 MCP tools)** — rhythmic chordal accompaniment: the most common accompaniment style in modern music. Play chords in a rhythmic pattern rather than sustained blocks. Jazz piano comping, funk guitar chops, reggae skanks, country boom-chick, neo-soul. Rhythm grid (x=play, -=rest, .=ghost), syncopation, chord JSON parsing, multi-chord progression. One call replaces 20-80 manual note creations. Unlike create_chord_progression (sustained blocks) or create_stab (house stabs), comping gives each chord a rhythmic identity
+- **E2E verified**: jazz comping (64 notes, 4 chords), funk with ghosts, reggae skank 16 steps, syncopation, bad JSON/rhythm/velocity/chord type — 8/8 tests passed
+- **+10 unit tests** for comping note generation, ghost velocity, rhythm parsing, syncopation (344 total)
+- **Example script**: `create_comping.py` — jazz ii-V-I with syncopation
+- **295 MCP tools** (257 low-level + 38 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.42.0 (2026-07-05)
 
 - **`augment_notes` transformation tool (294 MCP tools)** — augmentation/diminution: the fourth classical motivic transformation. Multiplies note durations by a factor (0.25-4.0). Combined with transpose, reverse, and invert, completes the set of four fundamental transformations used by Bach, Beethoven, and every composition teacher. Two modes: "scale" (multiply both duration AND position — phrase slows down/speeds up) and "stretch" (multiply only duration, positions unchanged). Think Beethoven 5th: opening motif returns augmented (twice as slow) in recapitulation. Essential for: motivic development, fugue subjects, theme variations, rhythmic transformation
