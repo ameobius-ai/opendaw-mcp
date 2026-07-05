@@ -1,17 +1,17 @@
 ---
 name: opendaw-automation
-description: "openDAW automation — 382 MCP tools via Playwright. 80+ orchestration tools. Full DAW control. v1.206.0. 12 agent skills. 108 DSP scripts (88 Werkstatt + 9 Apparat + 10 Spielwerk). Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 1381 unit tests. Scriptable params mapping-aware. Suno integration pipeline (download → analyze → remix → render). See references/."
+description: "openDAW automation — 385 MCP tools via Playwright. 80+ orchestration tools. Full DAW control. v1.209.0. 12 agent skills. 110 DSP scripts (91 Werkstatt + 9 Apparat + 10 Spielwerk). Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 2687 unit tests. Scriptable params mapping-aware. Suno integration pipeline (download → analyze → remix → render). See references/"
 tags: [opendaw, audio, daw, headless, mcp, playwright]
 ---
 
 # openDAW Automation Meta-Skill
 
-382 MCP tools (mcp_opendaw_* prefix; 380 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.206.0** — 12 agent skills (adaptive-mix-mastering, suno-to-opendaw, dsp-script-authoring, opendaw-automation, opendaw-track-architecture, opendaw-sound-design, opendaw-effect-routing, opendaw-genres, opendaw-composition-patterns, opendaw-dsp-chains, lyrics-pipeline). 108 DSP scripts (88 Werkstatt + 9 Apparat + 10 Spielwerk). 1381 unit tests. Suno integration pipeline: download_audio → remix_track → render_full.
+385 MCP tools (mcp_opendaw_* prefix; 383 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.209.0** — 12 agent skills (adaptive-mix-mastering, suno-to-opendaw, dsp-script-authoring, opendaw-automation, opendaw-track-architecture, opendaw-sound-design, opendaw-effect-routing, opendaw-genres, opendaw-composition-patterns, opendaw-dsp-chains, lyrics-pipeline). 110 DSP scripts (91 Werkstatt + 9 Apparat + 10 Spielwerk). 2687 unit tests. Suno integration pipeline: download_audio → remix_track → render_full.
 
 ## References (read these before working on opendaw-mcp)
 
 - **`references/pitfalls-2026-07-04.md`** — CRITICAL pitfalls: Werkstatt/Apparat/Spielwerk API contracts, Maximizer at index 0, script param mapping, PyPI token location, bridge evaluate returns dict, create_audio_track has no args, Spielwerk ASI semicolon bug
-- **`references/dsp-script-library.md`** — 108 DSP scripts catalog (88 Werkstatt + 9 Apparat + 10 Spielwerk) with patterns for all 3 device types. Includes CodeRabbit DSP review patterns (8 recurring bug categories), per-script implementation notes, and the correct bridge testing workflow for new scripts. **Spielwerk block.from/to vs Werkstatt block.p0/p1 pitfall documented.**
+- **`references/dsp-script-library.md`** — 110 DSP scripts catalog (91 Werkstatt + 9 Apparat + 10 Spielwerk) with patterns for all 3 device types. Includes CodeRabbit DSP review patterns (8 recurring bug categories), per-script implementation notes, and the correct bridge testing workflow for new scripts. **Spielwerk block.from/to vs Werkstatt block.p0/p1 pitfall documented.**
 - **`references/github-api-vpn-workaround.md`** — GitHub API DNS hijack workaround: VPN returns bogus 103.27.157.38 for api.github.com. Fix with `curl --resolve` + token extraction from hosts.yml. gh CLI token command compatibility notes.
 - **`references/upstream-issue-coverage.md`** — mapping of our DSP scripts to 8 open upstream issues (#195, #133, #91, #209, #139, #241, #201, #188) for PR communication. Includes "NOT covered" list for issues requiring core engine/UI work
 - **`references/coderabbit-review-and-release-2026-07-04.md`** — CodeRabbit DSP review cycle (10 bug categories), gh CLI PR management, release workflow with GitHub releases as PyPI fallback
@@ -21,10 +21,10 @@ tags: [opendaw, audio, daw, headless, mcp, playwright]
 ## Key facts
 
 ### Project layout
-- MCP server: `opendaw-mcp/server.py` (~31500 lines, 382 tools)
+- MCP server: `opendaw-mcp/server.py` (~33000 lines, 385 tools)
 - Headless host: `headless-daw/` (Vite on port 5174, COOP/COEP → crossOriginIsolated)
 - openDAW upstream: `openDAW/` (git remote: upstream → andremichelle/openDAW)
-- Tests: `tests/test_utils.py` (1381 unit), `tests/test_integration.py` (E2E, auto-skip if DAW not running)
+- Tests: `tests/test_utils.py` (2687 unit), `tests/test_integration.py` (E2E, auto-skip if DAW not running)
 - DSP scripts: `scripts/werkstatt_*.js`, `scripts/apparat_*.js`, `scripts/spielwerk_*.js`
 
 ### Bridge architecture
@@ -38,7 +38,7 @@ tags: [opendaw, audio, daw, headless, mcp, playwright]
 - main = upstream/main = `e17f7789` (162 commits FF, no divergence)
 - **andremichelle closes AI-generated issues** (#278/#281/#282). Don't open new issues. PRs with real code are OK.
 - PR #280: delay DSP lazy-init fix — **CLOSED** (andremichelle explained: our headless setup imports device processors on main thread before sampleRate is set via worklet globals; this is a bundler issue on our side, not an upstream bug. Do NOT resubmit.)
-- PR #283: 108 DSP script examples in `examples/{werkstatt,apparat,spielwerk}/` — covers 11 open upstream issues (#91, #133, #138, #139, #188, #195, #201, #209, #241, #277). **All 19 CodeRabbit findings fixed** (2 quick fixes: arpeggiator `block.from`/`block.to`, chorus buffer `sr*0.1`→`sr*0.15`; 2 heavy-lift: reverb stereo L/R comb banks with decorrelated delay times + M/S width on wet tail, paulstretch separate read/write cursors + frame emission gating; 15 were stale comments on already-fixed code). 14 commits, 27 files, mergeable=true. `gh pr edit` fails with GraphQL deprecation error — use REST API with `curl --http1.1 --resolve` instead.
+- PR #283: 110 DSP script examples in `examples/{werkstatt,apparat,spielwerk}/` — covers 11 open upstream issues (#91, #133, #138, #139, #188, #195, #201, #209, #241, #277). **All 19 CodeRabbit findings fixed** (2 quick fixes: arpeggiator `block.from`/`block.to`, chorus buffer `sr*0.1`→`sr*0.15`; 2 heavy-lift: reverb stereo L/R comb banks with decorrelated delay times + M/S width on wet tail, paulstretch separate read/write cursors + frame emission gating; 15 were stale comments on already-fixed code). 14 commits, 27 files, mergeable=true. `gh pr edit` fails with GraphQL deprecation error — use REST API with `curl --http1.1 --resolve` instead.
 - `npm install` forbidden in openDAW repo — node_modules empty, turbo/tsc unavailable. Runtime test via bridge.
 - **GitHub API DNS hijack under VPN**: VPN DNS (10.255.255.254) returns `103.27.157.38` for `api.github.com` — a bogus IP that refuses connections. `gh` CLI GraphQL/REST calls fail. **Fix**: `dig +short api.github.com @8.8.8.8` → real IP (e.g. `140.82.121.6`), then `curl --http1.1 --resolve api.github.com:443:140.82.121.6 -H "Authorization: token $(grep oauth_token ~/.config/gh/hosts.yml | awk '{print $2}')" ...`. **`--http1.1` is required** — HTTP/2 through VPN TLS causes `curl: (92) HTTP/2 stream 1 was not closed cleanly`. `gh auth token` may not work in all gh versions — extract from `~/.config/gh/hosts.yml`. Git push/pull works fine (git protocol), only the API is affected.
 - **CodeRabbit stale reviews**: CodeRabbit may post comments on outdated file versions even after fixes were pushed in a later commit. **This session: 17 of 19 CodeRabbit comments were stale** — the code had already been fixed in prior commits. Only 2 were actionable (arpeggiator `block.from`/`block.to`, chorus buffer size). Always read the current file state before acting on a CodeRabbit finding — if the code already looks fixed, the comment is stale. Only act on findings that match current code. To verify which are actionable: fetch the comment's file path, read the current file, check if the reported pattern still exists.

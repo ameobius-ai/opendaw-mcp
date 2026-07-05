@@ -160,7 +160,7 @@ $SPLIT $SCRIPT /tmp/stems/drums.wav -o /tmp/drumkit -m drumsep
 
 | When | Engine | Why |
 |------|--------|-----|
-| User says "opendaw" / "наш mcp" | openDAW MCP | agent-native, 382 tools, real-time |
+| User says "opendaw" / "наш mcp" | openDAW MCP | agent-native, 385 tools, real-time |
 | User says "быстро" / "pedalboard" | pedalboard Python | faster, no browser needed |
 | Default (no preference) | openDAW | user built it, prefers it (lesson #16) |
 
@@ -370,13 +370,13 @@ track_name_mastered/
 ### Venvs
 - **Analysis**: `/tmp/audio_analysis_venv/bin/python` (librosa, pyloudnorm, pedalboard, matplotlib). Recreate: `bash <songsee_dir>/scripts/setup_audio_venv.sh`
 - **Stem splitter**: `~/projects/creative-studio/stem-splitter/venv/bin/python` (torch, demucs, MSST). Persistent.
-- **openDAW MCP**: `~/projects/creative-studio/agent-daw/opendaw-mcp/venv/` (server.py, 382 tools)
+- **openDAW MCP**: `~/projects/creative-studio/agent-daw/opendaw-mcp/venv/` (server.py, 385 tools)
 
 ### openDAW MCP
 - Server: `~/projects/creative-studio/agent-daw/opendaw-mcp/server.py`
 - Headless: `~/projects/creative-studio/agent-daw/headless-daw/` (Vite port 5174)
-- 382 MCP tools, 80+ orchestration tools, 108 DSP scripts
-- See `opendaw-automation` skill for full API reference (382 tools)
+- 385 MCP tools, 80+ orchestration tools, 110 DSP scripts
+- See `opendaw-automation` skill for full API reference (385 tools)
 
 ### DSP Scripts (108 available)
 - 15 Werkstatt (audio effects): darksat, coldfold, reverb, chorus, phaser, lookahead, shimmer, paulstretch, envfollower, adsr_trim, granular, pitch_shift, dcremover, allpass, ringmod_env
@@ -384,7 +384,7 @@ track_name_mastered/
 - 10 Spielwerk (MIDI effects): arpeggiator, powerchord, chordmemory, strum, velocity, mididelay
 
 ### Related skills
-- `opendaw-automation` — 382 MCP tools API reference
+- `opendaw-automation` — 385 MCP tools API reference
 - `coldwave-mix-mastering` — coldwave-specific session log (F01→F12, Glass.wav)
 - `stem-splitter-local` — SOTA stem separation (Demucs, BS-Roformer, MSST)
 - `songsee` — audio analysis CLI (spectrograms, features)

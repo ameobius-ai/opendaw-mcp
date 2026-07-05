@@ -472,7 +472,7 @@ await mcp_opendaw_add_mastering_chain(target_lufs=-16, style="transparent")  # a
 - `opendaw-sound-design` — instruments + DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain
 - `suno-to-opendaw` — Suno→stems→openDAW E2E
-- `opendaw-automation` — 382 MCP tools full API reference
+- `opendaw-automation` — 385 MCP tools full API reference
 
 ## Multi-Track Arrangement Tools (14 genres)
 
@@ -525,6 +525,7 @@ User wants...
 | `create_reggae_arrangement` | Reggae | 4 | 60-100 | A | One-drop + skank + melodic bass lead |
 | `create_lofi_arrangement` | Lofi Hip-Hop | 4 | 65-95 | F | Boom-bap + jazzy ii-V-I + sleepy pentatonic |
 | `create_soul_arrangement` | Soul | 4 | 65-90 | C | Gospel drums + walking bass + Rhodes I-IV-vi-V + Motown horns |
+| `create_rnb_arrangement` | R&B | 4 | 55-85 | C | Half-time drums + sub bass + dark min9 chords + vocal-style lead |
 
 ### Drum Pattern Comparison
 

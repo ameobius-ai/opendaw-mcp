@@ -130,6 +130,9 @@ Orchestration tools solve this by combining multiple low-level operations into a
 117. `transcribe_drums` — audio-to-MIDI drum transcription (band-split onset detection: kick/snare/hat, pure Python)
 118. `transcribe_melody` — audio-to-MIDI melody transcription (autocorrelation pitch detection, cents + clarity, pure Python)
 119. `transcribe_audio` — composite drum + melody transcription in one call (2 tracks, auto-BPM)
+120. `create_rnb_arrangement` — contemporary R&B: half-time drums + sub bass + dark min9 chords + vocal-style lead (68 BPM, C minor)
+121. `scale_velocity` — MIDI dynamics scaling: multiply/add/set/normalize/compress velocity of all notes in region
+122. `copy_notes_to_track` — MIDI layering/doubling: copy notes between tracks with optional transpose + time_offset + velocity_scale
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
