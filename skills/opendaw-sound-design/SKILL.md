@@ -1,6 +1,6 @@
 ---
 name: opendaw-sound-design
-description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 35 DSP scripts. How to synthesize and shape sound with MCP tools."
+description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 36 DSP scripts. How to synthesize and shape sound with MCP tools."
 tags: [opendaw, mcp, sound-design, instruments, synth, dsp, werkstatt, apparat, spielwerk, scriptable]
 ---
 
@@ -255,6 +255,7 @@ class Processor {
 | `werkstatt_multifilter.js` | Multi-mode SVF (LP/HP/BP/Notch) | mode, cutoff, resonance, drive, mix | |
 | `werkstatt_compressor.js` | Soft-knee peak compressor | threshold, ratio, attack, release, makeup, mix, knee | |
 | `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix | |
+| `werkstatt_limiter.js` | Brickwall limiter w/ lookahead | ceiling, release, lookahead, dither, mix | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
 | `werkstatt_paulstretch.js` | Extreme time-stretch | stretch, window, mix | #209 |
@@ -303,6 +304,7 @@ class Processor {
 | EQ (parametric, 3-band) | `werkstatt_paraeq.js` | Werkstatt |
 | Compressor (peak, soft-knee) | `werkstatt_compressor.js` | Werkstatt |
 | Compressor (lookahead) | `werkstatt_lookahead.js` | Werkstatt |
+| Limiter (brickwall) | `werkstatt_limiter.js` | Werkstatt |
 | Chorus/width | `werkstatt_chorus.js` | Werkstatt |
 | Phaser | `werkstatt_phaser.js` | Werkstatt |
 | Flanger | `werkstatt_flanger.js` | Werkstatt |

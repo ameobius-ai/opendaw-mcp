@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.26.0 (2026-07-05)
+
+- **`werkstatt_limiter.js`** — brickwall limiter w/ lookahead + TPDF dither. 5 params: ceiling, release, lookahead, dither, mix. Instant attack, smooth release, circular buffer
+- **36 DSP scripts** (25 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 5 params, ceiling 0.9→0.8, lookahead 0.5→0.9
+
 ## v1.25.1 (2026-07-05)
 
 - **+31 unit tests** for music_theory functions — parse_melody_pattern (11), scale_to_pitches (6), chord_to_pitches (8), GENRE_PRESETS (6)

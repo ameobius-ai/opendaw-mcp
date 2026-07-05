@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-263-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-8-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-35-orange)](scripts/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-36-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-93%20unit%20%2B%207%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -27,8 +27,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **283** MCP tools | **55** Python examples (8 genre templates) |
-| **35** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **272** unit + **11** E2E tests |
+| **36** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **272** unit + **13** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.26.0 (2026-07-05)
+
+- **`werkstatt_limiter.js`** — brickwall limiter with lookahead buffer + TPDF dither. 5 params: ceiling (0-1), release (10-500 ms), lookahead (0.1-5 ms), dither (TPDF on/off), mix. Instant attack, smooth release, circular lookahead buffer. Completes dynamics chain: compressor → limiter. Essential for mastering
+- **36 DSP scripts** (25 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params, ceiling 0.9→0.8, lookahead 0.5→0.9, code header readback OK
+- ruff clean, CI green
 
 ### v1.25.1 (2026-07-05)
 
