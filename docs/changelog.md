@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.75.0 (2026-07-05)
+
+- **`create_variations` orchestration tool** — thematic variation generator: reads source notes, writes N variations to new regions. 9 transforms (transpose/invert/reverse/augment/diminish/fragment/octave). Bach Goldberg, Beethoven Diabelli, jazz reharmonization. Generative (non-destructive). 50 orchestration tools
+- **307 MCP tools** (50 orchestration)
+- **712 unit tests** (+10), E2E 9/9
+- ruff clean, CI green
+
 ## v1.74.0 (2026-07-05)
 
 - **`opendaw-dsp-chains` agent skill** — 10 production-ready DSP signal chain recipes (vocal, guitar, drum bus, synth bass, lofi, mastering, acid, ambient, vocoder, distortion). Exact scripts + order + params. 11 skills total

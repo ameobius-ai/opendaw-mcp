@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **306** MCP tools | **91** Python examples (8 genre templates) |
+| **307** MCP tools | **91** Python examples (8 genre templates) |
 | **60** DSP scripts | **11** agent skills |
-| **3** framework wrappers | **702** unit + E2E tests |
+| **3** framework wrappers | **712** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -507,6 +507,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.75.0 (2026-07-05)
+
+- **`create_variations` orchestration tool** — thematic variation generator. Reads notes from a source region and generates N variations, each as a new region. 9 transformation types: transpose, invert (with axis), reverse, augment, diminish, fragment, octave_up, octave_down. Up to 16 variations per call. This is the fundamental compositional technique of theme-and-variations — Bach Goldberg, Beethoven Diabelli, Brahms, jazz reharmonization. Unlike transpose_notes/invert_notes (destructive, modify in place), create_variations is generative — reads source, writes each variation to a new region. 50 orchestration tools → 50
+- **307 MCP tools** (50 orchestration)
+- **712 unit tests** (+10), E2E 9/9
+- ruff clean, CI green
 
 ## v1.74.0 (2026-07-05)
 

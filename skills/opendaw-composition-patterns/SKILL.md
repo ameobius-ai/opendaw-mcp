@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 49 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue, two_hand_piano. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 50 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue, two_hand_piano, variations. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
 ---
 
 # openDAW Composition Patterns

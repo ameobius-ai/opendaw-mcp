@@ -2603,3 +2603,86 @@ class TestCreateTwoHandPiano:
         from server import mcp_opendaw_create_two_hand_piano
         result = asyncio.run(mcp_opendaw_create_two_hand_piano(chords='[]'))
         assert "Error" in result
+
+
+class TestCreateVariations:
+    """Unit tests for create_variations orchestration tool."""
+
+    def test_signature(self):
+        from server import mcp_opendaw_create_variations
+        sig = inspect.signature(mcp_opendaw_create_variations)
+        assert "source_unit" in sig.parameters
+        assert "source_track" in sig.parameters
+        assert "variations" in sig.parameters
+        assert "target_unit" in sig.parameters
+        assert sig.parameters["target_unit"].default == -1
+        assert sig.parameters["target_track"].default == -1
+
+    def test_default_variations(self):
+        from server import mcp_opendaw_create_variations
+        sig = inspect.signature(mcp_opendaw_create_variations)
+        default = sig.parameters["variations"].default
+        assert "transpose" in default
+        assert "invert" in default
+        assert "reverse" in default
+
+    def test_invalid_empty_variations(self):
+        import asyncio
+        from server import mcp_opendaw_create_variations
+        result = asyncio.run(mcp_opendaw_create_variations(
+            source_unit=0, source_track=0, variations=""
+        ))
+        assert "Error" in result
+
+    def test_too_many_variations(self):
+        import asyncio
+        from server import mcp_opendaw_create_variations
+        many = ",".join(["transpose:1"] * 20)
+        result = asyncio.run(mcp_opendaw_create_variations(
+            source_unit=0, source_track=0, variations=many
+        ))
+        assert "Error" in result
+
+    def test_doc_has_transform_types(self):
+        from server import mcp_opendaw_create_variations
+        doc = mcp_opendaw_create_variations.__doc__
+        assert "transpose" in doc
+        assert "invert" in doc
+        assert "reverse" in doc
+        assert "augment" in doc
+        assert "diminish" in doc
+        assert "fragment" in doc
+        assert "octave_up" in doc
+        assert "octave_down" in doc
+
+    def test_spacing_param(self):
+        from server import mcp_opendaw_create_variations
+        sig = inspect.signature(mcp_opendaw_create_variations)
+        assert "spacing_beats" in sig.parameters
+        assert sig.parameters["spacing_beats"].default == 0
+
+    def test_start_beat_param(self):
+        from server import mcp_opendaw_create_variations
+        sig = inspect.signature(mcp_opendaw_create_variations)
+        assert "start_beat" in sig.parameters
+
+    def test_source_region_param(self):
+        from server import mcp_opendaw_create_variations
+        sig = inspect.signature(mcp_opendaw_create_variations)
+        assert "source_region" in sig.parameters
+        assert sig.parameters["source_region"].default == 0
+
+    def test_composers_mentioned(self):
+        from server import mcp_opendaw_create_variations
+        doc = mcp_opendaw_create_variations.__doc__
+        assert "Bach" in doc
+        assert "Beethoven" in doc
+
+    def test_max_variations_limit(self):
+        import asyncio
+        from server import mcp_opendaw_create_variations
+        many = ",".join(["transpose:1"] * 20)
+        result = asyncio.run(mcp_opendaw_create_variations(
+            source_unit=0, source_track=0, variations=many
+        ))
+        assert "maximum 16" in result

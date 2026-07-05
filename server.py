@@ -19552,5 +19552,225 @@ async def mcp_opendaw_create_two_hand_piano(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_variations(
+    source_unit: int,
+    source_track: int,
+    source_region: int = 0,
+    variations: str = "transpose:5,transpose:-3,invert,reverse,augment:2",
+    target_unit: int = -1,
+    target_track: int = -1,
+    start_beat: float = 0,
+    spacing_beats: float = 0,
+) -> str:
+    """Create thematic variations from an existing note region.
+
+    Reads notes from a source region and generates N variations, each written
+    to a new region on the target track. Each variation applies a transformation:
+    transpose, invert, reverse, augment, diminish, fragment, or octave_shift.
+    This is the fundamental compositional technique of theme-and-variations
+    (Bach Goldberg, Beethoven Diabelli, Brahms, jazz reharmonization).
+
+    source_unit: AU index of the source notes.
+    source_track: Note track index within the source AU.
+    source_region: Region index to read from (0 = first region).
+    variations: Comma-separated variation specs. Each spec is:
+      "transpose:N" — transpose by N semitones (e.g. transpose:5, transpose:-7)
+      "invert" — invert around middle C (axis=60)
+      "invert:N" — invert around pitch N
+      "reverse" — reverse note order (keep positions relative)
+      "augment:N" — multiply durations by N (e.g. augment:2 = double)
+      "diminish:N" — divide durations by N (e.g. diminish:2 = halve)
+      "fragment" — keep only notes on beats (quantize to beat boundaries)
+      "octave_up" — shift up one octave (+12)
+      "octave_down" — shift down one octave (-12)
+      Example: "transpose:5,invert,reverse,augment:2,octave_down"
+    target_unit: AU index for variations (-1 = same as source).
+    target_track: Track index for variations (-1 = same as source).
+    start_beat: Starting beat for first variation.
+    spacing_beats: Gap between variations in beats (0 = each starts after previous ends).
+
+    Returns notes per variation, total notes, variation count.
+    """
+    var_specs = [v.strip() for v in variations.split(",") if v.strip()]
+    if not var_specs:
+        return "Error: variations must be a non-empty comma-separated list"
+    if len(var_specs) > 16:
+        return "Error: maximum 16 variations"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const srcUnitIdx = {source_unit};
+        const srcTrackIdx = {source_track};
+        const srcRegionIdx = {source_region};
+        const tgtUnitIdx = {target_unit} < 0 ? srcUnitIdx : {target_unit};
+        const tgtTrackIdx = {target_track} < 0 ? srcTrackIdx : {target_track};
+        const startBeat = {start_beat};
+        const spacingBeats = {spacing_beats};
+        const varSpecs = {json.dumps(var_specs)};
+
+        const allUnits = h.allAUBoxes();
+        if (srcUnitIdx >= allUnits.length) return {{error: "No source AU at index " + srcUnitIdx}};
+
+        const srcNoteTracks = h.trackBoxes(allUnits[srcUnitIdx])
+            .filter(box => box.type?.getValue?.() === 1);
+        if (srcTrackIdx >= srcNoteTracks.length) return {{error: "No source track " + srcTrackIdx}};
+        const srcTrack = srcNoteTracks[srcTrackIdx];
+
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (srcRegionIdx >= srcRegions.length) return {{error: "No source region " + srcRegionIdx}};
+        const srcRegion = srcRegions[srcRegionIdx];
+
+        // Read source notes
+        let srcNotes = [];
+        try {{
+            const vertex = srcRegion.events.targetVertex.unwrap();
+            const collBox = vertex.box || vertex;
+            if (collBox && collBox.events) {{
+                const noteEvents = h.eventBoxes(collBox);
+                const regionStart = srcRegion.position.getValue();
+                for (const evt of noteEvents) {{
+                    srcNotes.push({{
+                        pos: evt.position.getValue(),
+                        dur: evt.duration.getValue(),
+                        pitch: evt.pitch.getValue(),
+                        vel: evt.velocity.getValue(),
+                    }});
+                }}
+            }}
+        }} catch(e) {{
+            return {{error: "Failed to read source notes: " + e.message}};
+        }}
+
+        if (srcNotes.length === 0) return {{error: "Source region has no notes"}};
+
+        // Sort by position
+        srcNotes.sort((a, b) => a.pos - b.pos);
+
+        // Get target track
+        if (tgtUnitIdx >= allUnits.length) return {{error: "No target AU at index " + tgtUnitIdx}};
+        const tgtNoteTracks = h.trackBoxes(allUnits[tgtUnitIdx])
+            .filter(box => box.type?.getValue?.() === 1);
+        if (tgtTrackIdx >= tgtNoteTracks.length) return {{error: "No target track " + tgtTrackIdx}};
+        const tgtTrack = tgtNoteTracks[tgtTrackIdx];
+
+        // Apply transformation to notes
+        function transform(notes, spec) {{
+            let result = notes.map(n => ({{...n}}));
+
+            if (spec.startsWith("transpose:")) {{
+                const semis = parseInt(spec.split(":")[1]);
+                result = result.map(n => ({{...n, pitch: Math.max(0, Math.min(127, n.pitch + semis))}}));
+            }} else if (spec.startsWith("invert:")) {{
+                const axis = parseInt(spec.split(":")[1]);
+                result = result.map(n => ({{...n, pitch: Math.max(0, Math.min(127, 2 * axis - n.pitch))}}));
+            }} else if (spec === "invert") {{
+                result = result.map(n => ({{...n, pitch: Math.max(0, Math.min(127, 120 - n.pitch))}}));
+            }} else if (spec === "reverse") {{
+                // Reverse order, keep relative positions
+                const positions = result.map(n => n.pos);
+                const pitches = result.map(n => n.pitch);
+                const vels = result.map(n => n.vel);
+                result = result.map((n, i) => ({{...n, pitch: pitches[pitches.length - 1 - i]}}));
+            }} else if (spec.startsWith("augment:")) {{
+                const factor = parseFloat(spec.split(":")[1]);
+                if (factor <= 0) factor = 1;
+                let pos = result[0].pos;
+                result = result.map(n => {{
+                    const newN = {{...n, pos: pos, dur: Math.round(n.dur * factor)}};
+                    pos += newN.dur;
+                    return newN;
+                }});
+            }} else if (spec.startsWith("diminish:")) {{
+                const factor = parseFloat(spec.split(":")[1]);
+                if (factor <= 0) factor = 1;
+                let pos = result[0].pos;
+                result = result.map(n => {{
+                    const newN = {{...n, pos: pos, dur: Math.max(1, Math.round(n.dur / factor))}};
+                    pos += newN.dur;
+                    return newN;
+                }});
+            }} else if (spec === "fragment") {{
+                // Keep only notes near beat boundaries
+                result = result.filter(n => n.pos % Quarter < Quarter / 4);
+            }} else if (spec === "octave_up") {{
+                result = result.map(n => ({{...n, pitch: Math.min(127, n.pitch + 12)}}));
+            }} else if (spec === "octave_down") {{
+                result = result.map(n => ({{...n, pitch: Math.max(0, n.pitch - 12)}}));
+            }}
+
+            return result;
+        }}
+
+        let totalNotes = 0;
+        const variationResults = [];
+        let currentBeat = startBeat;
+
+        h.modify(() => {{
+            for (let vi = 0; vi < varSpecs.length; vi++) {{
+                const spec = varSpecs[vi];
+                const varNotes = transform(srcNotes, spec);
+
+                if (varNotes.length === 0) continue;
+
+                // Calculate region bounds
+                let maxEnd = 0;
+                for (const n of varNotes) {{
+                    maxEnd = Math.max(maxEnd, n.pos + n.dur);
+                }}
+
+                const regionStart = Math.round(currentBeat * Quarter);
+                const regionDur = maxEnd;
+
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(regionStart);
+                    box.label.setValue("Variation " + (vi + 1) + ": " + spec);
+                    box.mute.setValue(false);
+                    box.duration.setValue(regionDur);
+                    box.loopDuration.setValue(regionDur);
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(tgtTrack.regions);
+                }});
+
+                const eventsField = regionBox.events.targetVertex.unwrap();
+                const collBox = eventsField.box;
+
+                for (const n of varNotes) {{
+                    NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                        box.position.setValue(n.pos);
+                        box.duration.setValue(n.dur);
+                        box.velocity.setValue(n.vel);
+                        box.pitch.setValue(n.pitch);
+                        box.chance.setValue(100);
+                        box.cent.setValue(0);
+                        box.events.refer(collBox.events);
+                    }});
+                    totalNotes++;
+                }}
+
+                variationResults.push({{variation: vi + 1, spec: spec, notes: varNotes.length}});
+                currentBeat += maxEnd / Quarter + spacingBeats;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            variations: variationResults.length,
+            variation_details: variationResults,
+            source_notes: srcNotes.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
