@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.89.0 (2026-07-05)
+
+- **`werkstatt_fuzz.js` DSP script** — hard clipping fuzz (Big Muff Pi style): high-gain hard clip with foldback squash, full-wave rectified octave-up content, Muff tone stack (LP/HP blend), noise gate, asymmetrical bias for even harmonics, dry blend. 8 params (sustain/tone/octave/gate/bias/level/dry/output). 71 DSP scripts
+- **807 unit tests** (+13), E2E 8/8
+
 ## v1.88.0 (2026-07-05)
 
 - **`create_phase` orchestration tool** — Steve Reich-style phase shifting: 2-4 voices play the same melodic pattern, but drifting voices gradually shift in time creating evolving phase relationships. 3 drift directions (forward/backward/diverge), phase_rate, phase_amount with reset, per-voice velocity decay. Unlike create_canon (fixed offset) or create_isorhythm (repeating cycles), phasing creates continuous temporal drift. 310 MCP tools

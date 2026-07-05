@@ -3442,3 +3442,88 @@ class TestOctaverDSP:
     def test_stereo_output(self):
         code = self._read_script()
         assert "io.out[0]" in code and "io.out[1]" in code, "Missing stereo output"
+
+
+class TestFuzzDSP:
+    """Unit tests for werkstatt_fuzz.js — hard clipping fuzz (Big Muff Pi style)"""
+
+    SCRIPT = "werkstatt_fuzz.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt fuzz" in code, "Missing @werkstatt fuzz header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_sustain_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "sustain"][0]
+        assert s["min"] == 0 and s["max"] == 1
+        assert s["default"] == 0.7
+
+    def test_octave_param(self):
+        params = self._parse_params(self._read_script())
+        o = [p for p in params if p["name"] == "octave"][0]
+        assert o["min"] == 0 and o["max"] == 1
+        assert o["default"] == 0, "octave default should be 0 (off)"
+
+    def test_tone_param(self):
+        params = self._parse_params(self._read_script())
+        t = [p for p in params if p["name"] == "tone"][0]
+        assert t["min"] == 0 and t["max"] == 1
+
+    def test_hard_clip(self):
+        code = self._read_script()
+        assert "_hardClip" in code, "Missing hard clip method"
+        assert "s > 1" in code or "s > 1)" in code, "Missing hard clipping boundary"
+
+    def test_foldback(self):
+        code = self._read_script()
+        assert "foldback" in code.lower() or "squash" in code.lower() or "0.95" in code, "Missing Muff-style foldback"
+
+    def test_full_wave_rect(self):
+        code = self._read_script()
+        assert "_fullWaveRect" in code, "Missing full-wave rectification for octave-up"
+        assert "x < 0 ? -x : x" in code or "x < 0 ? -x" in code, "Missing rectification logic"
+
+    def test_tone_stack(self):
+        code = self._read_script()
+        assert "toneLp" in code and "toneHp" in code, "Missing tone stack (LP+HP blend)"
+        assert "lpCoeff" in code and "hpCoeff" in code, "Missing tone stack coefficients"
+
+    def test_noise_gate(self):
+        code = self._read_script()
+        assert "gateGain" in code, "Missing noise gate"
+        assert "gateThresh" in code, "Missing gate threshold"
+
+    def test_bias_param(self):
+        code = self._read_script()
+        assert "bias" in code, "Missing asymmetrical bias parameter"
+        params = self._parse_params(code)
+        b = [p for p in params if p["name"] == "bias"][0]
+        assert b["min"] == -0.3 and b["max"] == 0.3
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "process(" in code or "processAudio" in code, "Missing process method"
