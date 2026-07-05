@@ -35076,6 +35076,303 @@ async def mcp_opendaw_modulate_progression(
 
 
 @mcp.tool()
+async def mcp_opendaw_reharmonize_progression(
+    progression: str = "Am-F-C-G",
+    technique: str = "tritone_sub",
+    intensity: str = "medium",
+    target_chord: int = -1,
+) -> str:
+    """Reharmonize a chord progression — substitute chords with functionally
+    equivalent alternatives for richer harmony.
+
+    Reharmonization is the art of replacing chords while preserving (or
+    enhancing) the harmonic function. This tool applies classical and jazz
+    substitution techniques to transform a progression without changing its
+    fundamental direction.
+
+    progression: Hyphen-separated chords (same format as create_chord_pads).
+      "Am-F-C-G" = i-VI-III-VII in A minor.
+      "C-Am-F-G" = I-vi-IV-V in C major.
+
+    technique: Substitution technique:
+      - "tritone_sub" — Replace V7 with ♭II7 (Db7 for G7). Guide tones
+        (3rd+7th) are shared, creates chromatic bass motion. Jazz standard.
+      - "secondary_dominant" — Insert V7 of the target chord before it.
+        e.g. before Am → insert E7 (V7 of Am). Adds forward motion.
+      - "diatonic_sub" — Replace with functionally equivalent diatonic chord.
+        I→iii or I→vi (submediant), IV→ii (supertonic). Shares tones.
+      - "modal_interchange" — Borrow chords from parallel key (minor↔major).
+        In major: ♭VI, ♭III, ♭VII from natural minor. In minor: IV, II from
+        major. Adds color and emotional depth.
+      - "passing_dim" — Insert diminished passing chord for chromatic bass
+        motion between chords a whole step apart. Creates smooth bass lines.
+
+    intensity: How many chords to substitute:
+      - "light" — substitute 1 chord (the most impactful)
+      - "medium" — substitute ~30% of eligible chords
+      - "heavy" — substitute all eligible chords
+
+    target_chord: Index of specific chord to substitute (0-based). -1 = auto
+      select. Only used for tritone_sub and diatonic_sub.
+
+    Returns the reharmonized progression string + per-chord mapping +
+    explanation of each substitution.
+
+    Example:
+      # Tritone substitution on a ii-V-I
+      reharmonize_progression("Dm7-G7-Cmaj7", technique="tritone_sub")
+      # → "Dm7-Db7-Cmaj7" (G7→Db7, guide tones shared)
+
+      # Modal interchange on pop progression
+      reharmonize_progression("C-G-Am-F", technique="modal_interchange")
+      # → "C-G-Am-Fm" (F→Fm, borrowed from C minor)
+
+      # Secondary dominants for jazz
+      reharmonize_progression("C-Am-Dm-G7", technique="secondary_dominant")
+      # → "C-E7-Am-A7-Dm-G7" (E7 before Am, A7 before Dm)
+    """
+    if target_chord < -1:
+        return "Error: target_chord must be -1 (auto) or 0+"
+    valid_techniques = ("tritone_sub", "secondary_dominant", "diatonic_sub",
+                        "modal_interchange", "passing_dim")
+    if technique not in valid_techniques:
+        return f"Error: technique must be one of {list(valid_techniques)}, got '{technique}'"
+    if intensity not in ("light", "medium", "heavy"):
+        return f"Error: intensity must be 'light', 'medium', or 'heavy', got '{intensity}'"
+
+    type_map = {
+        "m": "min", "7": "dom7", "maj7": "maj7", "m7": "min7",
+        "sus2": "sus2", "sus4": "sus4", "add9": "add9",
+        "dim": "dim", "aug": "aug", "maj": "maj",
+    }
+    type_to_suffix = {v: k for k, v in type_map.items()}
+    type_to_suffix["maj"] = ""
+
+    pc_to_note_sharp = {0: "C", 1: "C#", 2: "D", 3: "D#", 4: "E", 5: "F",
+                        6: "F#", 7: "G", 8: "G#", 9: "A", 10: "A#", 11: "B"}
+    pc_to_note_flat = {0: "C", 1: "Db", 2: "D", 3: "Eb", 4: "E", 5: "F",
+                       6: "Gb", 7: "G", 8: "Ab", 9: "A", 10: "Bb", 11: "B"}
+    flat_keys = {"F", "Bb", "Eb", "Ab", "Db", "Gb"}
+
+    # Parse progression
+    chord_specs = []
+    for chord_str in progression.split("-"):
+        chord_str = chord_str.strip()
+        if not chord_str:
+            continue
+        if len(chord_str) >= 2 and chord_str[1] in "#b":
+            root = chord_str[:2]
+            remainder = chord_str[2:]
+        else:
+            root = chord_str[0]
+            remainder = chord_str[1:]
+        chord_type = "maj"
+        if remainder:
+            if remainder not in type_map:
+                return f"Error: unknown chord type '{remainder}' in chord '{chord_str}'"
+            chord_type = type_map[remainder]
+        if root not in NOTE_TO_PITCH:
+            return f"Error: unknown root note '{root}' in chord '{chord_str}'"
+        chord_specs.append({"root": root, "type": chord_type, "pc": NOTE_TO_PITCH[root], "label": chord_str})
+
+    if not chord_specs:
+        return "Error: progression must be a non-empty hyphen-separated chord list"
+    if len(chord_specs) > 16:
+        return "Error: maximum 16 chords per progression"
+
+    def _note_name(pc: int, prefer_flat: bool = False) -> str:
+        return (pc_to_note_flat if prefer_flat else pc_to_note_sharp)[pc % 12]
+
+    def _suffix(chord_type: str) -> str:
+        return type_to_suffix.get(chord_type, "")
+
+    def _is_dominant7(spec: dict) -> bool:
+        return spec["type"] == "dom7"
+
+    def _is_major_type(spec: dict) -> bool:
+        return spec["type"] in ("maj", "maj7", "dom7", "add9", "sus2", "sus4", "aug")
+
+    # Determine intensity count
+    n = len(chord_specs)
+    if intensity == "light":
+        max_subs = 1
+    elif intensity == "medium":
+        max_subs = max(1, n // 3)
+    else:
+        max_subs = n
+
+    substitutions = []
+    new_chords = []
+    sub_count = 0
+
+    def _tritone_sub(spec: dict) -> dict:
+        """Replace V7 with ♭II7 (tritone away, same guide tones)."""
+        if not _is_dominant7(spec):
+            return spec
+        new_pc = (spec["pc"] + 6) % 12  # tritone away
+        prefer_flat = _note_name(new_pc, True) in flat_keys or new_pc in (1, 3, 6, 8, 10)
+        new_root = _note_name(new_pc, prefer_flat)
+        new_label = f"{new_root}7"
+        return {"root": new_root, "type": "dom7", "pc": new_pc, "label": new_label,
+                "substitution": "tritone_sub", "original": spec["label"],
+                "explanation": f"{spec['label']} → {new_label}: tritone substitution, guide tones (3rd+7th) shared"}
+
+    def _diatonic_sub(spec: dict, context: dict) -> dict:
+        """Replace with functionally equivalent diatonic chord."""
+        # I → vi (submediant) or I → iii (mediant)
+        # IV → ii (supertonic)
+        # Only applies to major chords
+        if not _is_major_type(spec):
+            return spec
+        pc = spec["pc"]
+        # Find what function this chord serves in the key
+        # Simple approach: if it's a major triad, try vi (pc+9) or iii (pc+4)
+        options = []
+        # Submediant: +9 semitones (relative minor)
+        vi_pc = (pc + 9) % 12
+        vi_root = _note_name(vi_pc)
+        options.append({"root": vi_root, "type": "min", "pc": vi_pc,
+                        "label": f"{vi_root}m", "substitution": "diatonic_sub",
+                        "original": spec["label"],
+                        "explanation": f"{spec['label']} → {vi_root}m: submediant substitution (I→vi), shared tones"})
+        # Mediant: +4 semitones
+        iii_pc = (pc + 4) % 12
+        iii_root = _note_name(iii_pc)
+        options.append({"root": iii_root, "type": "min", "pc": iii_pc,
+                        "label": f"{iii_root}m", "substitution": "diatonic_sub",
+                        "original": spec["label"],
+                        "explanation": f"{spec['label']} → {iii_root}m: mediant substitution (I→iii), shared tones"})
+        # Pick submediant (more common)
+        return options[0]
+
+    def _modal_interchange(spec: dict) -> dict:
+        """Borrow from parallel key: major→minor or minor→major."""
+        if spec["type"] in ("maj", "maj7"):
+            # I → i (parallel minor)
+            new_label = f"{spec['root']}m"
+            return {"root": spec["root"], "type": "min", "pc": spec["pc"],
+                    "label": new_label, "substitution": "modal_interchange",
+                    "original": spec["label"],
+                    "explanation": f"{spec['label']} → {new_label}: modal interchange, borrowed from parallel minor"}
+        elif spec["type"] in ("min", "min7"):
+            # i → I (parallel major)
+            new_label = spec["root"]
+            return {"root": spec["root"], "type": "maj", "pc": spec["pc"],
+                    "label": new_label, "substitution": "modal_interchange",
+                    "original": spec["label"],
+                    "explanation": f"{spec['label']} → {new_label}: modal interchange, borrowed from parallel major"}
+        return spec
+
+    def _passing_dim(spec: dict, next_spec: dict | None) -> dict | None:
+        """Insert diminished passing chord between chords a whole step apart."""
+        if next_spec is None:
+            return None
+        # Check if bass motion is a whole step (2 semitones) up
+        interval = (next_spec["pc"] - spec["pc"]) % 12
+        if interval != 2:
+            return None
+        # Diminished chord a semitone above current root
+        dim_pc = (spec["pc"] + 1) % 12
+        dim_root = _note_name(dim_pc)
+        dim_label = f"{dim_root}dim"
+        return {"root": dim_root, "type": "dim", "pc": dim_pc,
+                "label": dim_label, "substitution": "passing_dim",
+                "original": f"between {spec['label']} and {next_spec['label']}",
+                "explanation": f"Insert {dim_label}: diminished passing chord, chromatic bass motion {spec['root']}→{dim_root}→{next_spec['root']}"}
+
+    def _secondary_dominant(spec: dict, next_spec: dict | None) -> dict | None:
+        """Insert V7 of the next chord before it."""
+        if next_spec is None:
+            return None
+        # Find V7 of next chord: 7 semitones up from next root
+        v7_pc = (next_spec["pc"] + 7) % 12
+        v7_root = _note_name(v7_pc)
+        v7_label = f"{v7_root}7"
+        # Don't insert if it's the same as the current chord
+        if v7_pc == spec["pc"]:
+            return None
+        return {"root": v7_root, "type": "dom7", "pc": v7_pc,
+                "label": v7_label, "substitution": "secondary_dominant",
+                "original": f"before {next_spec['label']}",
+                "explanation": f"Insert {v7_label}: secondary dominant (V7 of {next_spec['label']}), adds forward motion"}
+
+    # Apply technique
+    if technique == "secondary_dominant":
+        # Insert before each eligible target
+        new_chords = []
+        for i, spec in enumerate(chord_specs):
+            new_chords.append(spec)
+            next_spec = chord_specs[i + 1] if i + 1 < n else None
+            if next_spec and sub_count < max_subs:
+                sec_dom = _secondary_dominant(spec, next_spec)
+                if sec_dom:
+                    new_chords.append(sec_dom)
+                    substitutions.append(sec_dom)
+                    sub_count += 1
+    elif technique == "passing_dim":
+        new_chords = []
+        for i, spec in enumerate(chord_specs):
+            new_chords.append(spec)
+            next_spec = chord_specs[i + 1] if i + 1 < n else None
+            if next_spec and sub_count < max_subs:
+                passing = _passing_dim(spec, next_spec)
+                if passing:
+                    new_chords.append(passing)
+                    substitutions.append(passing)
+                    sub_count += 1
+    else:
+        # tritone_sub, diatonic_sub, modal_interchange — replace in place
+        new_chords = []
+        for i, spec in enumerate(chord_specs):
+            if sub_count >= max_subs:
+                new_chords.append(spec)
+                continue
+            if target_chord >= 0 and i != target_chord:
+                new_chords.append(spec)
+                continue
+            new_spec = spec
+            if technique == "tritone_sub":
+                new_spec = _tritone_sub(spec)
+            elif technique == "diatonic_sub":
+                new_spec = _diatonic_sub(spec, {})
+            elif technique == "modal_interchange":
+                new_spec = _modal_interchange(spec)
+            if new_spec.get("substitution"):
+                substitutions.append(new_spec)
+                sub_count += 1
+            new_chords.append(new_spec)
+
+    # Build output progression string
+    output_labels = [c["label"] for c in new_chords]
+    reharmonized = "-".join(output_labels)
+
+    # Build mapping
+    chord_mapping = []
+    for c in new_chords:
+        entry = {"chord": c["label"]}
+        if c.get("substitution"):
+            entry["substitution"] = c["substitution"]
+            entry["original"] = c["original"]
+            entry["explanation"] = c["explanation"]
+        else:
+            entry["kept"] = True
+        chord_mapping.append(entry)
+
+    return json.dumps({
+        "reharmonize_progression": True,
+        "technique": technique,
+        "intensity": intensity,
+        "source_progression": progression,
+        "reharmonized_progression": reharmonized,
+        "substitutions_made": sub_count,
+        "chord_mapping": chord_mapping,
+        "original_chord_count": len(chord_specs),
+        "new_chord_count": len(new_chords),
+        "next_step": "use reharmonized_progression with create_chord_pads or create_voice_led_progression, then apply_genre_mix",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_counter_melody_from_progression(
     progression: str = "Am-F-C-G",
     pattern: str = "contrary",

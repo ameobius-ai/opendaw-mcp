@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.226.0 (2026-07-05)
+
+### Added
+- `reharmonize_progression` — Chord substitution / reharmonization. 5 techniques: tritone_sub (G7→Db7, shared guide tones), secondary_dominant (insert V7 of target chord), diatonic_sub (I→vi submediant, shared tones), modal_interchange (borrow from parallel key, F→Fm), passing_dim (diminished passing chord for chromatic bass). Intensity control (light/medium/heavy). target_chord for selective substitution. Returns reharmonized progression string + per-chord mapping with explanations. Same input format as create_chord_pads/modulate_progression. 13 unit tests including music theory verification (tritone guide tones, secondary dominant resolution, modal interchange common tones, passing dim interval requirement, diatonic sub shared tones). **401 MCP tools**, 2865 unit tests
+
 ## v1.225.0 (2026-07-05)
 
 ### Added

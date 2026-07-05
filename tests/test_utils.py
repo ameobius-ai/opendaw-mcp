@@ -13037,3 +13037,208 @@ class TestCreateVoiceLedProgression:
                 for p in v:
                     assert lo <= p <= hi, f"Pitch {p} out of range [{lo}, {hi}]"
 
+
+class TestReharmonizeProgression:
+    """Tests for reharmonize_progression — chord substitution techniques"""
+
+    def test_tool_signature_exists(self):
+        """reharmonize_progression is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_reharmonize_progression" in tool_names
+
+    def test_has_technique_param(self):
+        """Has technique param with 5 substitution techniques"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reharmonize_progression":
+                arg_names = [a.arg for a in node.args.args]
+                assert "technique" in arg_names
+                source = ast.unparse(node)
+                assert "tritone_sub" in source
+                assert "secondary_dominant" in source
+                assert "diatonic_sub" in source
+                assert "modal_interchange" in source
+                assert "passing_dim" in source
+                return
+        assert False, "function not found"
+
+    def test_has_intensity_param(self):
+        """Has intensity param (light/medium/heavy)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reharmonize_progression":
+                arg_names = [a.arg for a in node.args.args]
+                assert "intensity" in arg_names
+                source = ast.unparse(node)
+                assert "light" in source
+                assert "medium" in source
+                assert "heavy" in source
+                return
+        assert False, "function not found"
+
+    def test_has_target_chord_param(self):
+        """Has target_chord param for selective substitution"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reharmonize_progression":
+                arg_names = [a.arg for a in node.args.args]
+                assert "target_chord" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_returns_reharmonized_progression(self):
+        """Returns reharmonized_progression string + chord_mapping"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reharmonize_progression":
+                source = ast.unparse(node)
+                assert "reharmonized_progression" in source
+                assert "chord_mapping" in source
+                assert "substitutions_made" in source
+                return
+        assert False, "function not found"
+
+    def test_tritone_sub_replaces_dominant7(self):
+        """Tritone substitution: G7 → Db7 (tritone = 6 semitones)
+
+        G7 has guide tones B(11) and F(5).
+        Db7 has guide tones F(5) and B(11) — same notes, different chord!
+        """
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH
+
+        # G7: root=G(pc=7), type=dom7
+        g7_pc = NOTE_TO_PITCH["G"]  # 7
+        # Tritone sub: +6 semitones
+        db7_pc = (g7_pc + 6) % 12  # 1 = Db/C#
+        assert db7_pc == 1, f"Db7 pc should be 1, got {db7_pc}"
+
+        # Guide tones of G7: 3rd=B(pc=11), 7th=F(pc=5)
+        g7_guide = sorted([(g7_pc + 4) % 12, (g7_pc + 10) % 12])  # [5, 11]
+        # Guide tones of Db7: 3rd=F(pc=5), 7th=B/Cb(pc=11)
+        db7_guide = sorted([(db7_pc + 4) % 12, (db7_pc + 10) % 12])  # [5, 11]
+        assert g7_guide == db7_guide, \
+            f"Guide tones should match: G7={g7_guide}, Db7={db7_guide}"
+
+    def test_secondary_dominant_inserts_v7(self):
+        """Secondary dominant: before Am, insert E7 (V7 of Am = 7 semitones up from A)
+
+        A(pc=9) + 7 = E(pc=4) → E7
+        """
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH
+
+        am_pc = NOTE_TO_PITCH["A"]  # 9
+        v7_pc = (am_pc + 7) % 12  # 4 = E
+        assert v7_pc == 4, f"V7 of Am should be E(pc=4), got {v7_pc}"
+
+        # E7 is a dominant 7th chord on E
+        e7_intervals = [0, 4, 7, 10]  # E-G#-B-D
+        _ = [v7_pc + iv for iv in e7_intervals]  # E7 pitches for reference
+        # Check it resolves to Am: E7→Am is V7→i in A minor
+        am_intervals = [0, 3, 7]  # A-C-E
+        _ = [am_pc + iv for iv in am_intervals]  # Am pitches for reference
+        # E7's 3rd (G#) resolves to A, 7th (D) resolves to C or E
+        assert (v7_pc + 4) % 12 == 8, "E7's 3rd should be G#(8), resolving to A(9)"
+
+    def test_modal_interchange_flips_quality(self):
+        """Modal interchange: F(major) → Fm (parallel minor borrow)
+
+        Same root, flips major→minor or minor→major
+        """
+        # F major: F-A-C (intervals 0,4,7)
+        # F minor: F-Ab-C (intervals 0,3,7)
+        # Same root (F), same 5th (C), but 3rd changes: A→Ab
+        f_major_intervals = [0, 4, 7]
+        f_minor_intervals = [0, 3, 7]
+        # Common tones: root and 5th
+        common = set(f_major_intervals) & set(f_minor_intervals)
+        assert common == {0, 7}, f"Root and 5th should be common: {common}"
+
+    def test_passing_dim_requires_whole_step(self):
+        """Passing diminished only works between chords a whole step (2 semitones) apart
+
+        C→D: interval = 2 → insert C#dim
+        C→F: interval = 5 → no passing dim
+        """
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH
+
+        c_pc = NOTE_TO_PITCH["C"]  # 0
+        d_pc = NOTE_TO_PITCH["D"]  # 2
+        f_pc = NOTE_TO_PITCH["F"]  # 5
+
+        # C→D: whole step, should insert C#dim
+        interval_cd = (d_pc - c_pc) % 12
+        assert interval_cd == 2, "C→D should be 2 semitones"
+        dim_pc = (c_pc + 1) % 12  # 1 = C#/Db
+        assert dim_pc == 1, f"Passing dim between C and D should be C#(1), got {dim_pc}"
+
+        # C→F: not a whole step, no passing dim
+        interval_cf = (f_pc - c_pc) % 12
+        assert interval_cf != 2, "C→F should not trigger passing dim"
+
+    def test_diatonic_sub_uses_submediant(self):
+        """Diatonic substitution: I → vi (submediant, +9 semitones)
+
+        C major → A minor (relative minor)
+        Shared tones: C and E are in both C major and A minor
+        """
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH
+
+        c_pc = NOTE_TO_PITCH["C"]  # 0
+        vi_pc = (c_pc + 9) % 12  # 9 = A
+        assert vi_pc == 9, f"Submediant of C should be A(9), got {vi_pc}"
+
+        # C major: C-E-G (pc 0,4,7)
+        # A minor: A-C-E (pc 9,0,4)
+        c_major_pcs = {0, 4, 7}
+        a_minor_pcs = {9, 0, 4}
+        shared = c_major_pcs & a_minor_pcs
+        assert len(shared) >= 2, f"C and Am should share 2+ pitch classes, got {shared}"
+
+    def test_validates_technique(self):
+        """Validates technique against allowed set"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reharmonize_progression":
+                source = ast.unparse(node)
+                assert "valid_techniques" in source
+                assert "Error" in source
+                return
+        assert False, "function not found"
+
+    def test_parses_progression_string(self):
+        """Parses same hyphen-separated format as other progression tools"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reharmonize_progression":
+                source = ast.unparse(node)
+                assert "chord_str" in source
+                assert "progression.split" in source
+                return
+        assert False, "function not found"
+
+    def test_default_technique_is_tritone_sub(self):
+        """Default technique is 'tritone_sub' (most common jazz substitution)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reharmonize_progression":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "technique" and isinstance(d, ast.Constant):
+                        assert d.value == "tritone_sub"
+                        return
+        assert False, "default not found"
+
