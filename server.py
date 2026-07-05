@@ -16495,6 +16495,103 @@ async def mcp_opendaw_create_appoggiatura(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_hemiola(
+    pattern: str,
+    bars: int = 1,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    primary_pitch: int = 60,
+    secondary_pitch: int = 64,
+    primary_velocity: float = 0.7,
+    secondary_velocity: float = 0.6,
+    duration: float = 0.25,
+) -> str:
+    """Create a hemiola — 3:2 rhythmic displacement creating cross-rhythm illusion.
+
+    A hemiola superimposes a 3-note grouping over a 2-note grouping (or vice versa)
+    within the same time span, creating the illusion of a different meter. The classic
+    3-against-2 pattern is fundamental to West African, Afro-Cuban, jazz, and minimalist
+    music. Brahms, Bernstein, and Glass used it extensively.
+
+    The pattern string defines which beats get primary vs secondary emphasis:
+      "3:2" — 3 primary notes in the time of 2 secondary (classic hemiola)
+      "2:3" — 2 primary notes in the time of 3 secondary (inverse hemiola)
+
+    Creates notes on a single track: primary group uses primary_pitch,
+    secondary group uses secondary_pitch. Both span the same total duration.
+
+    pattern: "3:2" (3 against 2) or "2:3" (2 against 3).
+    bars: Total length in bars (1-4). Each bar = 4 beats.
+    unit_index: AU index.
+    track_index: Note track index.
+    start_beat: Starting beat position.
+    primary_pitch: MIDI pitch for primary group (default 60 = C4).
+    secondary_pitch: MIDI pitch for secondary group (default 64 = E4).
+    primary_velocity: Velocity for primary notes 0-1.
+    secondary_velocity: Velocity for secondary notes 0-1.
+    duration: Note duration in beats.
+
+    Returns total notes created and hemiola ratio.
+
+    Example:
+      create_hemiola(pattern="3:2", bars=2, primary_pitch=60, secondary_pitch=67)
+    """
+    if pattern not in ("3:2", "2:3"):
+        return 'Error: pattern must be "3:2" or "2:3"'
+    if bars < 1 or bars > 4:
+        return "Error: bars must be 1-4"
+    if not (0.0 <= primary_velocity <= 1.0) or not (0.0 <= secondary_velocity <= 1.0):
+        return "Error: velocities must be 0-1"
+    if not (0.03 <= duration <= 4.0):
+        return "Error: duration must be 0.03-4.0 beats"
+    if not (0 <= primary_pitch <= 127) or not (0 <= secondary_pitch <= 127):
+        return "Error: pitches must be 0-127"
+
+    total_beats = bars * 4
+    parts = pattern.split(":")
+    primary_count = int(parts[0])
+    secondary_count = int(parts[1])
+
+    all_notes = []
+
+    # Primary group: primary_count notes evenly spaced across total_beats
+    primary_step = total_beats / primary_count
+    for i in range(primary_count):
+        all_notes.append({
+            "pitch": primary_pitch,
+            "start": round(start_beat + i * primary_step, 6),
+            "duration": duration,
+            "velocity": primary_velocity,
+        })
+
+    # Secondary group: secondary_count notes evenly spaced across total_beats
+    secondary_step = total_beats / secondary_count
+    for i in range(secondary_count):
+        all_notes.append({
+            "pitch": secondary_pitch,
+            "start": round(start_beat + i * secondary_step, 6),
+            "duration": duration,
+            "velocity": secondary_velocity,
+        })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["hemiola"] = True
+        data["ratio"] = pattern
+        data["primary_count"] = primary_count
+        data["secondary_count"] = secondary_count
+        data["bars"] = bars
+        data["total_notes"] = primary_count + secondary_count
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_glissando(
     start_pitch: int = 60,
     end_pitch: int = 72,

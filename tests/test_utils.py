@@ -1611,3 +1611,80 @@ class TestWavetableDSP:
         code = self._read_script()
         assert "noteOn" in code, "Missing noteOn handler"
         assert "noteOff" in code, "Missing noteOff handler"
+
+
+class TestHemiola:
+    """Unit tests for create_hemiola orchestration tool logic."""
+
+    def _build_notes(self, pattern, bars=1, primary_pitch=60, secondary_pitch=64, start_beat=0):
+        """Simulate the hemiola note generation logic."""
+        total_beats = bars * 4
+        parts = pattern.split(":")
+        primary_count = int(parts[0])
+        secondary_count = int(parts[1])
+        notes = []
+        p_step = total_beats / primary_count
+        for i in range(primary_count):
+            notes.append({"pitch": primary_pitch, "start": start_beat + i * p_step, "group": "primary"})
+        s_step = total_beats / secondary_count
+        for i in range(secondary_count):
+            notes.append({"pitch": secondary_pitch, "start": start_beat + i * s_step, "group": "secondary"})
+        return notes
+
+    def test_3_2_note_count(self):
+        notes = self._build_notes("3:2")
+        assert len(notes) == 5  # 3 primary + 2 secondary
+
+    def test_2_3_note_count(self):
+        notes = self._build_notes("2:3")
+        assert len(notes) == 5  # 2 primary + 3 secondary
+
+    def test_3_2_ratio(self):
+        notes = self._build_notes("3:2")
+        primary = [n for n in notes if n["group"] == "primary"]
+        secondary = [n for n in notes if n["group"] == "secondary"]
+        assert len(primary) == 3
+        assert len(secondary) == 2
+
+    def test_primary_timing(self):
+        notes = self._build_notes("3:2", bars=1)
+        primary = [n for n in notes if n["group"] == "primary"]
+        assert abs(primary[0]["start"] - 0) < 0.001
+        assert abs(primary[1]["start"] - 4/3) < 0.001
+        assert abs(primary[2]["start"] - 8/3) < 0.001
+
+    def test_secondary_timing(self):
+        notes = self._build_notes("3:2", bars=1)
+        secondary = [n for n in notes if n["group"] == "secondary"]
+        assert abs(secondary[0]["start"] - 0) < 0.001
+        assert abs(secondary[1]["start"] - 2.0) < 0.001
+
+    def test_bars_2_timing(self):
+        notes = self._build_notes("3:2", bars=2)
+        primary = [n for n in notes if n["group"] == "primary"]
+        assert abs(primary[0]["start"] - 0) < 0.001
+        assert abs(primary[1]["start"] - 8/3) < 0.001
+        assert abs(primary[2]["start"] - 16/3) < 0.001
+
+    def test_pitch_separation(self):
+        notes = self._build_notes("3:2", primary_pitch=60, secondary_pitch=72)
+        pitches = {n["pitch"] for n in notes}
+        assert 60 in pitches
+        assert 72 in pitches
+
+    def test_start_beat_offset(self):
+        notes = self._build_notes("3:2", start_beat=10)
+        assert all(n["start"] >= 10 for n in notes)
+
+    def test_2_3_primary_timing(self):
+        notes = self._build_notes("2:3", bars=1)
+        primary = [n for n in notes if n["group"] == "primary"]
+        assert abs(primary[0]["start"] - 0) < 0.001
+        assert abs(primary[1]["start"] - 2.0) < 0.001
+
+    def test_2_3_secondary_timing(self):
+        notes = self._build_notes("2:3", bars=1)
+        secondary = [n for n in notes if n["group"] == "secondary"]
+        assert abs(secondary[0]["start"] - 0) < 0.001
+        assert abs(secondary[1]["start"] - 4/3) < 0.001
+        assert abs(secondary[2]["start"] - 8/3) < 0.001

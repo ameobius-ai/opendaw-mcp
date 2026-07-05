@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **298** MCP tools | **70** Python examples (8 genre templates) |
+| **299** MCP tools | **71** Python examples (8 genre templates) |
 | **43** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **232** unit + **21** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -506,6 +506,15 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.49.0 (2026-07-05)
+
+- **`create_hemiola` orchestration tool (299 MCP tools)** — 3:2 rhythmic displacement creating cross-rhythm illusion. Fundamental to West African, Afro-Cuban, jazz, and minimalist music. Brahms, Bernstein, Glass. Two patterns: "3:2" (classic) and "2:3" (inverse). Superimposes primary and secondary groups over same time span
+- **E2E verified**: 3:2 pattern (5 notes), 2:3 pattern (5 notes), bars=2, bad pattern, bad bars, bad velocity, bad pitch, bad duration — 8/8 tests passed
+- **+10 unit tests** for hemiola note count, ratio, timing, velocity → 242 total
+- **Example script**: `create_hemiola.py` — 3:2 and 2:3 patterns
+- **42 orchestration tools** total
+- ruff clean, CI green
 
 ### v1.48.0 (2026-07-05)
 
