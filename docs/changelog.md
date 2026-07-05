@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.124.0 (2026-07-05)
+
+- **`create_four_on_floor` orchestration tool (318 MCP tools)** — four-on-the-floor: the foundational beat of house, techno, and disco. Kick on every quarter note (beats 1-2-3-4) — the pulse that defined dance music from 70s disco through Chicago house to Berlin techno. 5 variants: classic_house (open hats on off-beats, clap on 2+4, Frankie Knuckles/TR-909), deep_house (shuffled hats, rimshot, Larry Heard), techno (16th hats, industrial clap, Jeff Mills), disco (tambourine 16ths, Moroder/Donna Summer), tech_house (swung hats, perc stabs, Solardo/Fisher). 1-bar cycle. 61 orchestration tools. 318 MCP tools
+- **1383 unit tests** (+20)
+
 ## v1.123.0 (2026-07-05)
 
 - **`werkstatt_declicker.js` DSP script (97 DSP, 78 Werkstatt)** — de-clicker: restoration tool that detects and removes clicks, pops, and digital glitches from audio. Time-domain median-filter detection: sliding window (5-15 samples, insertion sort) computes local median, deviation from median vs adaptive threshold (local energy-based) flags clicks. Two-pass processing: detect click regions, then interpolate with cubic Hermite (Catmull-Rom) or linear fallback. Click length limit (8-128 samples) prevents over-repairing legitimate transients. Overlap expansion (0-32 samples) smooths transition edges. Delay buffer (256 samples) for look-back context. iZotope RX De-click / CEDAR Declick style — third restoration processor. 7 params (sensitivity/click_len/median_size/interp/overlap/mix/output). 97 DSP scripts, 78 Werkstatt

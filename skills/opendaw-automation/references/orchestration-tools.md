@@ -67,6 +67,13 @@ Orchestration tools solve this by combining multiple low-level operations into a
 54. `create_cross_rhythm` — cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar), cross-rhythm gives each voice its own period. Voices realign at LCM. 2-6 voices (African, Steve Reich, Talking Heads)
 55. `create_clave` — Afro-Cuban clave: 5-note rhythmic skeleton across 2 bars. 6 types (son/rumba/bossa/6-8), direction 3-2 or 2-3. All rhythms align to clave
 56. `create_euclidean_rhythm` — Euclidean rhythm: BJK algorithm distributes k onsets across n steps maximally evenly. E(3,8)=tresillo, E(7,16)=samba, E(7,12)=bembé. Rotation, accents, bars
+57. `create_cross_rhythm` — Cross-rhythm: 2-6 voices with independent periods (not fractions of one bar). LCM alignment. Velocity attenuation per voice
+58. `create_clave` — (see #55 above)
+59. `create_tumbao` — Afro-Cuban conga pattern. 4 types (open/tip/heel/slap strokes). 3 conga pitches
+60. `create_cascara` — Afro-Cuban cáscara: timbale shell rhythm. 4 variants (son 3-2/2-3, guaguanco, mambo). Completes trilogy with clave+tumbao
+61. `create_dembow` — Reggaeton/dancehall 3-3-2 gallop. 5 variants (classic/dancehall/trap_latino/perreo/urbano)
+62. `create_boom_bap` — Hip-hop boom-bap. 5 variants (classic/old_school/trap/lofi/drill). Kick on 1/3, snare on 2/4
+63. `create_four_on_floor` — House/techno/disco four-on-the-floor. Kick on every quarter. 5 variants (classic_house/deep_house/techno/disco/tech_house). Open hats, claps, 16th hats
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

@@ -21334,3 +21334,156 @@ async def mcp_opendaw_create_boom_bap(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_four_on_floor(
+    floor_type: str = "classic_house",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kick_pitch: int = 36,
+    hat_pitch: int = 42,
+    open_hat_pitch: int = 46,
+    clap_pitch: int = 39,
+    perc_pitch: int = 75,
+    velocity: float = 0.85,
+) -> str:
+    """Create a four-on-the-floor pattern — the foundational beat of house, techno, and disco.
+
+    Four-on-the-floor: kick drum on every quarter note (beats 1, 2, 3, 4). This is
+    the pulse that defined dance music from disco (1970s) through Chicago house (1980s)
+    to Berlin techno and beyond. The variation comes from what happens BETWEEN the kicks:
+    off-beat hi-hats, claps on 2+4, percussion, and swing.
+
+    floor_type:
+      "classic_house" — Chicago/Detroit house: kick on every quarter, open hat on
+                        off-beats (the "&" of each beat), clap on 2 and 4. The
+                        Frankie Knuckles / Roland TR-909 sound. 1-bar cycle.
+      "deep_house"    — Deep house: kick on quarters, shuffled hats, rimshot
+                        on 2/4, sparse percussion on the "e" and "a". Soulful
+                        swing. Larry Heard / Kerri Chandler style.
+      "techno"        — Detroit/Berlin techno: relentless kick on quarters,
+                        16th hats, industrial clap on 2+4, metallic percussion
+                        on off-beats. Driving, minimal. Jeff Mills / Surgeson.
+      "disco"         — 70s disco: kick on quarters, open hat on off-beats,
+                        tambourine 16ths, conga fills. Giorgio Moroder /
+                        Donna Summer "I Feel Love" feel.
+      "tech_house"    — Tech house fusion: kick on quarters, swung hats,
+                        clap on 2/4, occasional vocal-style percussion stabs.
+                        Groovy but driving. Solardo / Fisher style.
+
+    bars: Pattern length (1-16, 1 = one bar cycle).
+    kick_pitch: MIDI pitch for kick (36 = C1).
+    hat_pitch: MIDI pitch for closed hi-hat (42 = F#1).
+    open_hat_pitch: MIDI pitch for open hi-hat (46 = A#1).
+    clap_pitch: MIDI pitch for clap (39 = D#1).
+    perc_pitch: MIDI pitch for percussion (75 = high wood block / rim).
+    velocity: Base velocity 0-1. Claps -0.05, hats -0.15, open hats -0.1, ghost -0.3.
+
+    Returns notes created, floor type, and stroke breakdown.
+
+    Example:
+      create_four_on_floor(floor_type="classic_house", track_index=0)
+      create_four_on_floor(floor_type="techno", track_index=1, bars=4)
+    """
+    floor_type = floor_type.strip().lower().replace(" ", "_")
+    valid_types = ["classic_house", "deep_house", "techno", "disco", "tech_house"]
+    if floor_type not in valid_types:
+        return f"Error: unknown floor_type '{floor_type}'. Valid: {', '.join(valid_types)}"
+
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    for p in (kick_pitch, hat_pitch, open_hat_pitch, clap_pitch, perc_pitch):
+        if not (0 <= p <= 127):
+            return "Error: pitches must be 0-127"
+
+    # Patterns: (beat_position, stroke_type)
+    # stroke_type: "kick", "hat", "open", "clap", "perc", "ghost"
+    # Beat positions within a 1-bar cycle (4 beats in 4/4)
+    patterns = {
+        # Chicago house: kick on quarters, open hat on off-beats, clap on 2+4
+        "classic_house": [
+            (0.0, "kick"), (0.5, "open"), (1.0, "kick"), (1.0, "clap"),
+            (1.5, "open"), (2.0, "kick"), (2.5, "open"), (3.0, "kick"),
+            (3.0, "clap"), (3.5, "open"),
+        ],
+        # Deep house: shuffled hats, rimshot on 2/4, sparse percussion
+        "deep_house": [
+            (0.0, "kick"), (0.66, "hat"), (1.0, "kick"), (1.0, "clap"),
+            (1.33, "perc"), (1.66, "hat"), (2.0, "kick"), (2.66, "hat"),
+            (3.0, "kick"), (3.0, "clap"), (3.33, "perc"), (3.66, "hat"),
+        ],
+        # Techno: relentless kick, 16th hats, metallic clap on 2+4, off-beat perc
+        "techno": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "kick"), (1.0, "clap"), (1.25, "hat"), (1.5, "perc"),
+            (1.75, "hat"), (2.0, "kick"), (2.25, "hat"), (2.5, "hat"),
+            (2.75, "hat"), (3.0, "kick"), (3.0, "clap"), (3.25, "hat"),
+            (3.5, "perc"), (3.75, "hat"),
+        ],
+        # Disco: kick quarters, open hat off-beats, tambourine 16ths, conga
+        "disco": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "open"), (0.75, "hat"),
+            (1.0, "kick"), (1.0, "clap"), (1.25, "hat"), (1.5, "open"),
+            (1.75, "hat"), (2.0, "kick"), (2.25, "hat"), (2.5, "open"),
+            (2.75, "hat"), (3.0, "kick"), (3.0, "clap"), (3.25, "hat"),
+            (3.5, "open"), (3.75, "perc"),
+        ],
+        # Tech house: swung hats, clap on 2/4, perc stabs
+        "tech_house": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "kick"), (1.0, "clap"),
+            (1.5, "hat"), (1.75, "perc"), (2.0, "kick"), (2.5, "hat"),
+            (3.0, "kick"), (3.0, "clap"), (3.5, "hat"), (3.75, "ghost"),
+        ],
+    }
+
+    strokes = patterns[floor_type]
+    cycle_len = 4.0  # 1 bar of 4/4
+
+    pitch_map = {
+        "kick": kick_pitch, "hat": hat_pitch, "open": open_hat_pitch,
+        "clap": clap_pitch, "perc": perc_pitch, "ghost": perc_pitch,
+    }
+    vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "clap": max(0.0, velocity - 0.05),
+        "hat": max(0.0, velocity - 0.15),
+        "open": max(0.0, velocity - 0.1),
+        "perc": max(0.0, velocity - 0.2),
+        "ghost": max(0.0, velocity - 0.35),
+    }
+    dur_map = {
+        "kick": 0.2, "hat": 0.05, "open": 0.15, "clap": 0.1, "perc": 0.06, "ghost": 0.04,
+    }
+
+    all_notes = []
+    stroke_counts = {"kick": 0, "hat": 0, "open": 0, "clap": 0, "perc": 0, "ghost": 0}
+
+    for c in range(bars):
+        offset = c * cycle_len
+        for beat, stroke_type in strokes:
+            all_notes.append({
+                "pitch": pitch_map[stroke_type],
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[stroke_type] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["four_on_floor"] = True
+        data["floor_type"] = floor_type
+        data["strokes"] = stroke_counts
+        data["bars"] = bars
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

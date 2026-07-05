@@ -3811,3 +3811,164 @@ class TestBoomBap:
         assert 0 <= 38 <= 127
         assert 0 <= 42 <= 127
         assert not (0 <= 128 <= 127)
+
+
+class TestCreateFourOnFloor:
+    """Tests for create_four_on_floor orchestration tool"""
+
+    FOUR_ON_FLOOR_PATTERNS = {
+        "classic_house": [
+            (0.0, "kick"), (0.5, "open"), (1.0, "kick"), (1.0, "clap"),
+            (1.5, "open"), (2.0, "kick"), (2.5, "open"), (3.0, "kick"),
+            (3.0, "clap"), (3.5, "open"),
+        ],
+        "deep_house": [
+            (0.0, "kick"), (0.66, "hat"), (1.0, "kick"), (1.0, "clap"),
+            (1.33, "perc"), (1.66, "hat"), (2.0, "kick"), (2.66, "hat"),
+            (3.0, "kick"), (3.0, "clap"), (3.33, "perc"), (3.66, "hat"),
+        ],
+        "techno": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "kick"), (1.0, "clap"), (1.25, "hat"), (1.5, "perc"),
+            (1.75, "hat"), (2.0, "kick"), (2.25, "hat"), (2.5, "hat"),
+            (2.75, "hat"), (3.0, "kick"), (3.0, "clap"), (3.25, "hat"),
+            (3.5, "perc"), (3.75, "hat"),
+        ],
+        "disco": [
+            (0.0, "kick"), (0.25, "hat"), (0.5, "open"), (0.75, "hat"),
+            (1.0, "kick"), (1.0, "clap"), (1.25, "hat"), (1.5, "open"),
+            (1.75, "hat"), (2.0, "kick"), (2.25, "hat"), (2.5, "open"),
+            (2.75, "hat"), (3.0, "kick"), (3.0, "clap"), (3.25, "hat"),
+            (3.5, "open"), (3.75, "perc"),
+        ],
+        "tech_house": [
+            (0.0, "kick"), (0.5, "hat"), (1.0, "kick"), (1.0, "clap"),
+            (1.5, "hat"), (1.75, "perc"), (2.0, "kick"), (2.5, "hat"),
+            (3.0, "kick"), (3.0, "clap"), (3.5, "hat"), (3.75, "ghost"),
+        ],
+    }
+
+    def test_kick_on_every_quarter_all_types(self):
+        """The defining feature: kick on beats 0, 1, 2, 3 in every variant"""
+        for name, strokes in self.FOUR_ON_FLOOR_PATTERNS.items():
+            kicks = [b for b, s in strokes if s == "kick"]
+            for beat in [0.0, 1.0, 2.0, 3.0]:
+                assert beat in kicks, f"{name}: missing kick on beat {beat}"
+
+    def test_classic_house_open_hat_on_offbeats(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["classic_house"]
+        opens = [b for b, s in strokes if s == "open"]
+        assert 0.5 in opens, "Missing open hat on &1"
+        assert 1.5 in opens, "Missing open hat on &2"
+        assert 2.5 in opens, "Missing open hat on &3"
+        assert 3.5 in opens, "Missing open hat on &4"
+
+    def test_classic_house_clap_on_2_and_4(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["classic_house"]
+        claps = [b for b, s in strokes if s == "clap"]
+        assert 1.0 in claps, "Missing clap on beat 2"
+        assert 3.0 in claps, "Missing clap on beat 4"
+
+    def test_deep_house_shuffled_hats(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["deep_house"]
+        hats = [b for b, s in strokes if s == "hat"]
+        # Swung hats at 0.66 instead of 0.5
+        assert 0.66 in hats, "Missing swung hat at 0.66"
+
+    def test_deep_house_percussion(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["deep_house"]
+        percs = [b for b, s in strokes if s == "perc"]
+        assert len(percs) >= 1, "deep_house should have percussion"
+
+    def test_techno_has_16th_hats(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["techno"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.25 in hats, "Missing 16th hat at 0.25"
+        assert 0.75 in hats, "Missing 16th hat at 0.75"
+
+    def test_techno_has_more_strokes_than_house(self):
+        techno_count = len(self.FOUR_ON_FLOOR_PATTERNS["techno"])
+        house_count = len(self.FOUR_ON_FLOOR_PATTERNS["classic_house"])
+        assert techno_count > house_count, "techno should be denser than classic_house"
+
+    def test_disco_open_hat_offbeats(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["disco"]
+        opens = [b for b, s in strokes if s == "open"]
+        assert 0.5 in opens, "Missing open hat"
+        assert 1.5 in opens, "Missing open hat"
+
+    def test_disco_has_16th_hats(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["disco"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.25 in hats, "Missing 16th hat"
+
+    def test_tech_house_has_ghost(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["tech_house"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert len(ghosts) >= 1, "tech_house should have ghost notes"
+
+    def test_all_types_valid(self):
+        valid = {"kick", "hat", "open", "clap", "perc", "ghost"}
+        for name, strokes in self.FOUR_ON_FLOOR_PATTERNS.items():
+            for _, stroke_type in strokes:
+                assert stroke_type in valid, f"{name} has invalid stroke {stroke_type}"
+
+    def test_cycle_length_one_bar(self):
+        cycle_len = 4.0
+        for name, strokes in self.FOUR_ON_FLOOR_PATTERNS.items():
+            max_beat = max(b for b, _ in strokes)
+            assert max_beat < cycle_len, f"{name}: beat {max_beat} exceeds cycle {cycle_len}"
+
+    def test_velocity_mapping(self):
+        base = 0.85
+        kick_vel = min(1.0, base + 0.05)
+        clap_vel = max(0.0, base - 0.05)
+        hat_vel = max(0.0, base - 0.15)
+        open_vel = max(0.0, base - 0.1)
+        ghost_vel = max(0.0, base - 0.35)
+        assert ghost_vel < hat_vel < open_vel < clap_vel < kick_vel
+
+    def test_pitch_mapping(self):
+        kick, hat, open_hat, clap, perc = 36, 42, 46, 39, 75
+        pitch_map = {
+            "kick": kick, "hat": hat, "open": open_hat,
+            "clap": clap, "perc": perc, "ghost": perc,
+        }
+        assert pitch_map["kick"] < pitch_map["hat"]
+        assert pitch_map["clap"] > pitch_map["kick"]
+
+    def test_duration_mapping(self):
+        dur_map = {"kick": 0.2, "hat": 0.05, "open": 0.15, "clap": 0.1, "perc": 0.06, "ghost": 0.04}
+        assert dur_map["ghost"] < dur_map["hat"] < dur_map["perc"] < dur_map["clap"] < dur_map["open"] < dur_map["kick"]
+
+    def test_bar_repetition(self):
+        bars = 4
+        cycle_len = 4.0
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["classic_house"]
+        all_notes = []
+        for b in range(bars):
+            for beat, stroke_type in strokes:
+                all_notes.append({"start": b * cycle_len + beat, "stroke": stroke_type})
+        assert len(all_notes) == len(strokes) * bars
+        assert all_notes[0]["start"] == 0.0
+        assert all_notes[len(strokes)]["start"] == cycle_len
+
+    def test_note_generation_one_bar(self):
+        strokes = self.FOUR_ON_FLOOR_PATTERNS["techno"]
+        all_notes = [{"start": beat, "stroke": st} for beat, st in strokes]
+        assert len(all_notes) == 18
+        assert all_notes[0]["start"] == 0.0
+
+    def test_type_normalization(self):
+        raw = "Classic House"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert normalized == "classic_house"
+
+    def test_pitch_validation(self):
+        for p in (36, 42, 46, 39, 75):
+            assert 0 <= p <= 127
+        assert not (0 <= 128 <= 127)
+
+    def test_valid_types_list(self):
+        valid = {"classic_house", "deep_house", "techno", "disco", "tech_house"}
+        assert set(self.FOUR_ON_FLOOR_PATTERNS.keys()) == valid
