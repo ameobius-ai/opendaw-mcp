@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.160.0 (2026-07-05)
+
+- **create_harmonic_arrangement: counter-melody integrated** — 5th layer (counter-melody) now built into the one-call harmonic arrangement. New params: `counter_melody_pattern` (contrary/oblique/parallel_third/parallel_sixth/call_response, default ""=skip) and `counter_melody_octave` (default 4). Track auto-routing: counter-melody placed on track 3+layers_before (3 if no arp/melody, 4 if one, 5 if both). Velocity auto-scaled to 0.6x (supportive, below melody 0.75x). Backward compatible — default counter_melody_pattern="" skips. Example `harmonic_quintet.py` updated to one-call. 2123 tests.
+
 ## v1.159.0 (2026-07-05)
 
 - **create_counter_melody_from_progression** — new harmonic quintet layer. Second melodic line (counterpoint) from chord progression string. 5 contrapuntal patterns: contrary (opposite root motion), oblique (sustained tone), parallel_third (sweet consonance), parallel_sixth (open cinematic), call_response (gospel/soul antiphonal). Default velocity 0.6 (supportive), track 4 (above melody), octave 4 (below melody). 349 MCP tools, 2118 tests.

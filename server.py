@@ -27502,23 +27502,26 @@ async def mcp_opendaw_create_harmonic_arrangement(
     bass_octave: int = 2,
     melody_pattern: str = "chord_tones",
     melody_octave: int = 5,
+    counter_melody_pattern: str = "",
+    counter_melody_octave: int = 4,
     bars_per_chord: int = 4,
     velocity: float = 0.7,
     unit_index: int = 0,
     start_beat: float = 0,
 ) -> str:
-    """Create all four harmonic layers from one progression string in one call.
+    """Create all five harmonic layers from one progression string in one call.
 
-    Replaces 4 separate calls (chord_pads + arpeggiated_progression +
-    bass_from_progression + melody_from_progression) with a single call.
+    Replaces 5 separate calls (chord_pads + arpeggiated_progression +
+    bass_from_progression + melody_from_progression +
+    counter_melody_from_progression) with a single call.
     All layers take the same "Am-F-C-G" progression and are placed on
     separate tracks: pads (track 2), arp (track 3), bass (track 1),
-    melody (track 3 — same as arp if you want them merged, or use
-    create_melody_from_progression separately on track 4).
+    melody (track 3 or 4), counter-melody (track 4 or 5).
 
     By default arp and melody share track 3 (melody track). Set
     melody_pattern to "" to skip melody, arp_pattern to "" to skip arp,
-    bass_pattern to "" to skip bass, pad_octave to -1 to skip pads.
+    bass_pattern to "" to skip bass, pad_octave to -1 to skip pads,
+    counter_melody_pattern to "" to skip counter-melody (default).
 
     progression: Hyphen-separated chords (same format as the quartet tools).
     pad_octave: Octave for chord pads (default 3).
@@ -27529,6 +27532,9 @@ async def mcp_opendaw_create_harmonic_arrangement(
     bass_octave: Octave for bass (default 2).
     melody_pattern: Melody pattern: chord_tones/sustained/syncopated/triadic/stepwise.
     melody_octave: Octave for melody (default 5).
+    counter_melody_pattern: Counter-melody pattern: contrary/oblique/parallel_third/
+        parallel_sixth/call_response, or "" to skip (default "").
+    counter_melody_octave: Octave for counter-melody (default 4).
     bars_per_chord: Bars per chord (default 4).
     velocity: Base velocity for all layers (0-1).
 
@@ -27546,6 +27552,11 @@ async def mcp_opendaw_create_harmonic_arrangement(
       create_harmonic_arrangement("Fm-Fm-Db-Ab",
           arp_pattern="bass", bass_pattern="pedal",
           bass_octave=1, melody_pattern="", pad_octave=3)
+
+      # Full quintet with counter-melody
+      create_harmonic_arrangement("Am-F-C-G", arp_pattern="up",
+          bass_pattern="root", melody_pattern="chord_tones",
+          counter_melody_pattern="contrary")
     """
     results = {}
     total_notes = 0
@@ -27604,7 +27615,25 @@ async def mcp_opendaw_create_harmonic_arrangement(
         except Exception:
             results["melody"] = {"error": "failed"}
 
-    layers_created = [k for k in ("pads", "bass", "arp", "melody") if k in results and "error" not in results.get(k, {})]
+    # 5. Counter-melody (optional — skip if pattern is "")
+    if counter_melody_pattern:
+        # Track 5 if both arp+melody, track 4 if only one, track 3 if neither
+        layers_before = sum(1 for x in (arp_pattern, melody_pattern) if x)
+        cm_track = 3 + layers_before
+        r = await mcp_opendaw_create_counter_melody_from_progression(
+            progression, counter_melody_pattern, bars_per_chord,
+            counter_melody_octave, velocity * 0.6, unit_index, cm_track, start_beat)
+        try:
+            d = json.loads(r)
+            results["counter_melody"] = {"notes": d.get("notes_created", 0),
+                                         "pattern": counter_melody_pattern,
+                                         "octave": counter_melody_octave,
+                                         "track": cm_track}
+            total_notes += d.get("notes_created", 0)
+        except Exception:
+            results["counter_melody"] = {"error": "failed"}
+
+    layers_created = [k for k in ("pads", "bass", "arp", "melody", "counter_melody") if k in results and "error" not in results.get(k, {})]
 
     return json.dumps({
         "harmonic_arrangement": True,

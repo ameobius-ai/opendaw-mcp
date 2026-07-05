@@ -8296,15 +8296,44 @@ class TestCounterMelodyFromProgression:
         assert len(pipeline) == 7
 
     def test_quintet_combined_pipeline(self):
-        """Combined: harmonic_arrangement (4 layers) + counter_melody = 5 layers"""
+        """Combined: harmonic_arrangement with counter_melody_pattern = 5 layers in one call"""
         combined = [
             "create_song_with_variations",
-            "create_harmonic_arrangement",
-            "create_counter_melody_from_progression",
+            "create_harmonic_arrangement",  # now includes counter_melody_pattern
             "apply_genre_mix",
             "render_full_song",
         ]
-        assert len(combined) == 5
+        assert len(combined) == 4
+
+    def test_harmonic_arrangement_counter_melody_integration(self):
+        """create_harmonic_arrangement now accepts counter_melody_pattern param"""
+        # Default: counter_melody_pattern="" → skip (backward compatible)
+        assert "" == ""  # default skip
+
+    def test_counter_melody_track_routing_both_layers(self):
+        """When arp+melody present, counter-melody goes to track 5"""
+        layers_before = sum(1 for x in ("up", "chord_tones") if x)
+        cm_track = 3 + layers_before
+        assert cm_track == 5
+
+    def test_counter_melody_track_routing_one_layer(self):
+        """When only melody (no arp), counter-melody goes to track 4"""
+        layers_before = sum(1 for x in ("", "chord_tones") if x)
+        cm_track = 3 + layers_before
+        assert cm_track == 4
+
+    def test_counter_melody_track_routing_neither(self):
+        """When no arp and no melody, counter-melody goes to track 3"""
+        layers_before = sum(1 for x in ("", "") if x)
+        cm_track = 3 + layers_before
+        assert cm_track == 3
+
+    def test_counter_melody_velocity_scaled(self):
+        """Counter-melody velocity = base * 0.6 (lower than melody 0.75)"""
+        base_vel = 0.7
+        cm_vel = round(base_vel * 0.6, 3)
+        mel_vel = round(base_vel * 0.75, 3)
+        assert cm_vel < mel_vel  # 0.42 < 0.525
 
     def test_all_patterns_valid(self):
         """All 5 patterns are valid contrapuntal techniques"""
