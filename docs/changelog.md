@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.173.0 (2026-07-05)
+
+### Added
+- `create_impact` — transition hit tool for EDM drops and section changes. 5 types: sub_boom (C1 deep), impact_hit (C3 punch), downlifter (descending glissando), sub_drop (B0 cinematic), punch (C5 snappy). Pairs with `create_riser` for build-up → drop transitions
+
 ## v1.172.0 (2026-07-05)
 
 ### Added

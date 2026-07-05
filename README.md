@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-356-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-357-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-104-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-2311%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-2322%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Examples](https://img.shields.io/badge/Examples-121-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -27,9 +27,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **356** MCP tools | **121** Python examples (8 genre templates) |
+| **357** MCP tools | **121** Python examples (8 genre templates) |
 | **104** DSP scripts | **11** agent skills |
-| **3** framework wrappers | **2311** unit + E2E tests |
+| **3** framework wrappers | **2322** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -676,7 +676,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **`werkstatt_formant_filter.js` DSP script** — 3-band parallel formant filter simulating vocal tract resonances. 5 vowel presets (/a/, /i/, /u/, /o/) with smooth interpolation, or manual F1/F2/F3 control. Bandwidth and resonance parameters shape the vocal character. Biquad bandpass filters in parallel. Classic for vocoder-like vocal coloring, talk-box effects, and synth voice synthesis. 9 params: 3 formant freqs, 3 bandwidths, vowel, resonance, mix
 - **51 DSP scripts** (38 Werkstatt + 7 Apparat + 6 Spielwerk)
-- **356 unit tests** (+10), E2E 8/8
+- **357 unit tests** (+10), E2E 8/8
 - ruff clean, CI green
 
 ### v1.59.0 (2026-07-05)

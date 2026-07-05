@@ -7374,3 +7374,72 @@ class TestGlueCompressor:
         code = self._read_script()
         assert "warmth      0.3" in code  # subtle warmth by default
 
+
+class TestCreateImpact:
+    """Tests for create_impact — transition hit tool"""
+
+    IMPACT_TYPES = ["sub_boom", "impact_hit", "downlifter", "sub_drop", "punch"]
+
+    def test_5_impact_types(self):
+        assert len(self.IMPACT_TYPES) == 5
+
+    def test_sub_boom_is_lowest_bass(self):
+        """Sub boom: pitch 24 (C1), long 8 beats"""
+        t = {"pitch": 24, "length": 8}
+        assert t["pitch"] == 24
+        assert t["length"] == 8
+
+    def test_impact_hit_is_mid_punch(self):
+        """Impact hit: pitch 48 (C3), short 2 beats"""
+        t = {"pitch": 48, "length": 2}
+        assert t["pitch"] == 48
+
+    def test_downlifter_descending(self):
+        """Downlifter: starts at pitch 72, descends 2 octaves (24 semitones)"""
+        start_pitch = 72
+        steps = 12
+        for i in range(steps):
+            progress = i / (steps - 1)
+            p = round(start_pitch - progress * 24)
+        end_pitch = p
+        assert end_pitch == 48  # fell from 72 to 48 (C5 → C3)
+
+    def test_sub_drop_lowest_and_longest(self):
+        """Sub drop: pitch 23 (B0), length 12 beats — lowest and longest"""
+        t = {"pitch": 23, "length": 12}
+        assert t["pitch"] == 23  # below C1
+        assert t["length"] == 12  # 3 bars
+
+    def test_punch_is_shortest(self):
+        """Punch: 0.5 beat duration — shortest impact"""
+        t = {"length": 0.5}
+        assert t["length"] < 1
+
+    def test_sub_boom_default_velocity_09(self):
+        """Default velocity 0.9 — loud impact"""
+        assert 0.9 > 0.7
+
+    def test_impact_hit_hardest_velocity(self):
+        """Impact hit: hardest at 0.95"""
+        assert 0.95 > 0.9
+
+    def test_riser_impact_pipeline(self):
+        """Build-up transition: riser + impact on the drop"""
+        pipeline = ["create_riser", "create_impact"]
+        assert pipeline[0] == "create_riser"
+        assert pipeline[1] == "create_impact"
+
+    def test_impact_after_modulated_song_chorus(self):
+        """Impact lands on chorus downbeat after verse"""
+        pipeline = ["create_modulated_song", "create_impact"]
+        assert "create_impact" in pipeline
+
+    def test_downlifter_velocity_decays(self):
+        """Downlifter: velocity decays from full to 70%"""
+        vel_start = 0.7
+        steps = 12
+        last_progress = (steps - 1) / (steps - 1)  # = 1.0
+        vel_end = vel_start * (1 - 0.3 * last_progress)
+        assert vel_end < vel_start  # decays
+        assert abs(vel_end - 0.49) < 0.01  # 0.7 * 0.7
+

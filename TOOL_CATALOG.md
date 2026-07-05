@@ -342,6 +342,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_counterpoint` — Generate counter-melody in contrary motion. Mirrors melody around center pitch. Adjustable interval. Auto-creates target track.
 - `create_drum_fill` — Generate drum fills/transitions with 5 types (build, break, roll, crash, tom). Adjustable density and bar length. One call replaces 10-30 note creations.
 - `create_riser` — Generate ascending pitch sweep for build-up transitions. 3 curves (linear, exp, log). Adjustable pitch range, step count, and length. Velocity ramps up proportionally.
+- `create_impact` — Single hit transition element for drops and section changes. 5 types: sub_boom, impact_hit, downlifter, sub_drop, punch.
 - `create_stab` — Generate rhythmic chord stabs for house/disco/funk. Grid pattern with 'x' (stab), '-' (rest), '.' (ghost). Cycles through chord progressions. Adjustable octave, velocity, stab duration.
 - `create_break` — Generate classic drum breaks (Amen, Think, Ashanti, Funky Drummer, When the Levee, Synthetic). 1-8 bars with variation modes (none/fill/humanize/drop) and swing.
 - `create_bass_drop` — Generate descending pitch sweep into sustained sub bass for dubstep/EDM/trap drops. 3 curves (linear/exp/log), adjustable sweep/hold duration.
@@ -426,7 +427,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 356 tools**
+**Total: 357 tools**
 
 ## DSP Scripts (scripts/) — 90 scripts
 

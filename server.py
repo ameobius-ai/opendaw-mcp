@@ -15213,6 +15213,152 @@ async def mcp_opendaw_create_riser(unit_index: int = -1, track_index: int = 0, s
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_create_impact(
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    impact_type: str = "sub_boom",
+    pitch: int = 36,
+    length_beats: float = 4,
+    velocity: float = 0.9,
+) -> str:
+    """Create an impact — single hit transition element for drops and section changes.
+
+    Generates a single sustained note with type-specific pitch, duration, and velocity.
+    Essential for EDM transitions: the "hit" that lands after a riser/build-up.
+
+    impact_type: Type of impact:
+      - "sub_boom" — deep sub bass hit (C1, long decay, dark)
+      - "impact_hit" — mid-range punch (C3, medium decay, aggressive)
+      - "downlifter" — descending pitch from high to low (glissando fall)
+      - "sub_drop" — lowest sub with long tail (B0, very long, cinematic)
+      - "punch" — short bright hit (C5, short decay, snappy)
+
+    unit_index: AU index (-1 = find first AU with note tracks).
+    track_index: Note track index.
+    start_beat: Position in beats where the impact lands.
+    pitch: Base MIDI pitch (default 36 = C2, overridden by type).
+    length_beats: Duration in beats (default 4 = one bar).
+    velocity: Hit velocity (0-1, default 0.9 = loud).
+
+    Returns notes created and impact parameters.
+
+    Example:
+      # Sub boom on the downbeat
+      create_impact(start_beat=0, impact_type="sub_boom")
+      # Downlifter after riser
+      create_impact(start_beat=4, impact_type="downlifter", length_beats=2)
+    """
+    impact_types = {
+        "sub_boom":    {"pitch": 24,  "length": 8,  "velocity": 0.9, "desc": "Deep sub bass boom (C1)"},
+        "impact_hit":  {"pitch": 48,  "length": 2,  "velocity": 0.95, "desc": "Mid-range punch (C3)"},
+        "downlifter":  {"pitch": 72,  "length": 2,  "velocity": 0.7, "desc": "Descending pitch fall"},
+        "sub_drop":    {"pitch": 23,  "length": 12, "velocity": 0.95, "desc": "Lowest sub with long tail (B0)"},
+        "punch":       {"pitch": 72,  "length": 0.5, "velocity": 0.85, "desc": "Short bright hit (C5)"},
+    }
+    if impact_type not in impact_types:
+        return f"Error: unknown impact_type '{impact_type}'. Valid: {list(impact_types.keys())}"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if length_beats < 0.25 or length_beats > 16:
+        return "Error: length_beats must be 0.25-16"
+
+    it = impact_types[impact_type]
+    actual_pitch = pitch if pitch != 36 else it["pitch"]
+    actual_length = length_beats if length_beats != 4 else it["length"]
+    actual_vel = velocity
+
+    note_data = []
+    if impact_type == "downlifter":
+        steps = 12
+        for i in range(steps):
+            progress = i / max(1, steps - 1)
+            p = round(actual_pitch - progress * 24)
+            pos = start_beat + progress * actual_length
+            v = actual_vel * (1 - 0.3 * progress)
+            note_data.append({"pitch": p, "pos": pos, "vel": v, "dur": actual_length / steps})
+    else:
+        note_data.append({"pitch": actual_pitch, "pos": start_beat, "vel": actual_vel, "dur": actual_length})
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const noteData = {json.dumps(note_data)};
+        const lengthBeats = {actual_length};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if (unitIdx >= 0 && unitIdx < allUnits.length) {{
+            targetAU = allUnits[unitIdx];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min(trackIdx, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(lengthBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Impact");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (let i = 0; i < noteData.length; i++) {{
+                const nd = noteData[i];
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            impact_type: "{impact_type}",
+            pitch: {actual_pitch},
+            length_beats: {actual_length},
+            velocity: {actual_vel},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
 
 @mcp.tool()
 async def mcp_opendaw_create_stab(chords: str, rhythm: str = "x-x-", unit_index: int = -1, track_index: int = 0, start_beat: float = 0, octave: int = 4, velocity: float = 0.85, length_beats: float = 4, stab_duration: float = 0.5) -> str:
