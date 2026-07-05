@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.51.0 (2026-07-05)
+
+- **`create_bordun` orchestration tool (300 MCP tools)** — continuously sustained drone chord as a textural layer. Unlike pedal_point (single anchored note), bordun is a sustained chord — open fifths, octaves, or drone chords. Found in Scottish bagpipes, Indian tanpura, hurdy-gurdy, ambient drone, folk. Configurable intervals (1-8), retrigger mode (every N bars), 3/4 time support
+- **E2E verified**: open fifth (2 notes), octave+fifth (3 notes), retrigger (4 notes), single drone, 3/4 time, bad root/octave/velocity — 8/8 tests passed
+- **+10 unit tests** for bordun note generation, pitch mapping, retrigger, duration → 262 total
+- **Example script**: `create_bordun.py` — open fifth, octave+fifth, minor triad, single drone
+- **43 orchestration tools** total
+- ruff clean, CI green
+
 ## v1.50.0 (2026-07-05)
 
 - **`werkstatt_bitcrusher.js` DSP script** — standalone bitcrusher with bit-depth quantization (1-16 bits) and sample-rate reduction. Drive, DC offset, dry/wet mix. Dedicated bitcrusher separate from coldfold's combined wavefold+crush. Lo-fi, chiptune, industrial, vaporwave

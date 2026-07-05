@@ -17163,6 +17163,181 @@ async def mcp_opendaw_create_pedal_point(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_bordun(
+    root: str = "C",
+    octave: int = 3,
+    intervals: str = "0,7",
+    bars: int = 4,
+    beats_per_bar: int = 4,
+    velocity: float = 0.55,
+    retrigger_bars: int = 0,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a bordun — continuously sustained drone chord as a textural layer.
+
+    A bordun (bourdon) is a continuously sounding tone or chord that provides
+    a harmonic foundation beneath changing melody. Unlike pedal_point (which
+    is a single repeated/anchored note), the bordun is a *sustained textural
+    layer* — often an open fifth, octave, or drone chord. Found in Scottish
+    bagpipes, Indian tanpura, hurdy-gurdy, ambient drone music, and folk.
+
+    root: Root note name (e.g. "C", "Ab", "F#").
+    octave: Octave for the bordun (1-6, default 3 = low register).
+    intervals: Comma-separated semitone intervals from root (e.g. "0,7" = open fifth,
+      "0,7,12" = octave+fifth, "0,3,7" = minor triad drone, "0,5" = open fourth).
+    bars: Total length in bars (1-16, default 4).
+    beats_per_bar: Time signature beats (3/4=3, 4/4=4, 6/8=6, default 4).
+    velocity: Velocity of bordun notes (0-1, default 0.55 — softer than melody).
+    retrigger_bars: If >0, re-triggers the bordun every N bars (e.g. 2 = retrigger
+      every 2 bars). If 0, one continuous sustained note for entire duration.
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the bordun begins.
+
+    Returns notes created, pitches, total duration.
+    """
+    if octave < 1 or octave > 6:
+        return "Error: octave must be 1-6"
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if beats_per_bar < 2 or beats_per_bar > 12:
+        return "Error: beats_per_bar must be 2-12"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if retrigger_bars < 0 or retrigger_bars > bars:
+        return "Error: retrigger_bars must be 0 or 1..bars"
+
+    NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                  "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                  "A#": 10, "Bb": 10, "B": 11}
+
+    root_clean = root.strip()
+    if root_clean not in NOTE_TO_PC:
+        return f"Error: cannot parse root note '{root_clean}'"
+
+    root_pc = NOTE_TO_PC[root_clean]
+
+    try:
+        iv_list = [int(x.strip()) for x in intervals.split(",")]
+    except ValueError:
+        return "Error: intervals must be comma-separated integers"
+
+    if not iv_list or len(iv_list) > 8:
+        return "Error: intervals must have 1-8 values"
+
+    pitches = []
+    base = (octave + 1) * 12 + root_pc
+    for iv in iv_list:
+        p = base + iv
+        if p < 0 or p > 127:
+            return f"Error: pitch {p} out of range (adjust octave/intervals)"
+        pitches.append(p)
+
+    total_beats = bars * beats_per_bar
+    note_data = []
+
+    if retrigger_bars > 0:
+        chunk_beats = retrigger_bars * beats_per_bar
+        num_chunks = bars // retrigger_bars
+        for i in range(num_chunks):
+            pos = start_beat + i * chunk_beats
+            for p in pitches:
+                note_data.append({
+                    "pitch": p,
+                    "pos": pos,
+                    "dur": chunk_beats * 0.98,
+                    "vel": velocity,
+                })
+    else:
+        for p in pitches:
+            note_data.append({
+                "pitch": p,
+                "pos": start_beat,
+                "dur": total_beats * 0.98,
+                "vel": velocity,
+            })
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = window.DAW_NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Bordun");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            pitches: {json.dumps(pitches)},
+            root: "{root_clean}",
+            intervals: "{intervals}",
+            bars: {bars},
+            retrigger_bars: {retrigger_bars},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_canon(
     melody: str = "60,62,64,67,64,62,60,57",
     voices: int = 3,

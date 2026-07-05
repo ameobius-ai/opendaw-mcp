@@ -1769,3 +1769,92 @@ class TestBitcrusherDSP:
     def test_dry_wet_mix(self):
         code = self._read_script()
         assert "1 - mix" in code, "Missing dry/wet mix"
+
+
+class TestBordun:
+    """Unit tests for create_bordun orchestration tool — note generation logic."""
+
+    NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                  "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                  "A#": 10, "Bb": 10, "B": 11}
+
+    def _build_notes(self, root="C", octave=3, intervals="0,7", bars=4, beats_per_bar=4, velocity=0.55, retrigger_bars=0):
+        """Simulate create_bordun note generation without bridge."""
+        root_pc = self.NOTE_TO_PC[root.strip()]
+        iv_list = [int(x.strip()) for x in intervals.split(",")]
+        base = (octave + 1) * 12 + root_pc
+        pitches = [base + iv for iv in iv_list]
+        total_beats = bars * beats_per_bar
+        notes = []
+        if retrigger_bars > 0:
+            chunk_beats = retrigger_bars * beats_per_bar
+            num_chunks = bars // retrigger_bars
+            for i in range(num_chunks):
+                pos = i * chunk_beats
+                for p in pitches:
+                    notes.append({"pitch": p, "pos": pos, "dur": chunk_beats * 0.98, "vel": velocity})
+        else:
+            for p in pitches:
+                notes.append({"pitch": p, "pos": 0, "dur": total_beats * 0.98, "vel": velocity})
+        return notes
+
+    def test_open_fifth_continuous(self):
+        notes = self._build_notes("C", 3, "0,7", bars=4, beats_per_bar=4)
+        assert len(notes) == 2  # 2 pitches, 1 sustained note each
+        assert notes[0]["pitch"] == 48  # C3
+        assert notes[1]["pitch"] == 55  # G3
+        assert abs(notes[0]["dur"] - 15.68) < 0.01  # 16 * 0.98
+
+    def test_octave_fifth(self):
+        notes = self._build_notes("D", 2, "0,7,12", bars=2)
+        assert len(notes) == 3
+        assert notes[0]["pitch"] == 38  # D2
+        assert notes[1]["pitch"] == 45  # A2
+        assert notes[2]["pitch"] == 50  # D3
+
+    def test_minor_triad_drone(self):
+        notes = self._build_notes("A", 3, "0,3,7", bars=4)
+        assert len(notes) == 3
+        assert notes[0]["pitch"] == 57  # A3
+        assert notes[1]["pitch"] == 60  # C4
+        assert notes[2]["pitch"] == 64  # E4
+
+    def test_retrigger_mode(self):
+        notes = self._build_notes("C", 3, "0,7", bars=4, beats_per_bar=4, retrigger_bars=2)
+        # 2 pitches × 2 chunks (bars 4 / retrigger 2) = 4 notes
+        assert len(notes) == 4
+        assert abs(notes[0]["dur"] - 7.84) < 0.01  # 8 * 0.98
+        assert abs(notes[2]["pos"] - 8) < 0.01  # second chunk at beat 8
+
+    def test_single_note_drone(self):
+        notes = self._build_notes("G", 2, "0", bars=8, beats_per_bar=4)
+        assert len(notes) == 1
+        assert notes[0]["pitch"] == 43  # G2
+        assert abs(notes[0]["dur"] - 31.36) < 0.01  # 32 * 0.98
+
+    def test_velocity_applied(self):
+        notes = self._build_notes("C", 3, "0,7", velocity=0.4)
+        assert all(n["vel"] == 0.4 for n in notes)
+
+    def test_flat_root(self):
+        notes = self._build_notes("Ab", 3, "0,7", bars=2)
+        assert notes[0]["pitch"] == 56  # Ab3
+        assert notes[1]["pitch"] == 63  # Eb4
+
+    def test_34_time(self):
+        notes = self._build_notes("C", 3, "0", bars=4, beats_per_bar=3)
+        assert len(notes) == 1
+        assert abs(notes[0]["dur"] - 11.76) < 0.01  # 12 * 0.98
+
+    def test_duration_slightly_less_than_total(self):
+        """Bordun notes use 0.98 multiplier to avoid overlap with next region."""
+        notes = self._build_notes("C", 3, "0", bars=4, beats_per_bar=4)
+        total_beats = 16
+        assert notes[0]["dur"] < total_beats  # not full duration
+        assert notes[0]["dur"] > total_beats * 0.95  # but close
+
+    def test_retrigger_even_chunks(self):
+        notes = self._build_notes("C", 3, "0,7", bars=6, beats_per_bar=4, retrigger_bars=2)
+        # 2 pitches × 3 chunks (6 / 2) = 6 notes
+        assert len(notes) == 6
+        assert abs(notes[4]["pos"] - 16) < 0.01  # third chunk at beat 16
