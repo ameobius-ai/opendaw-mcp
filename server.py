@@ -30587,3 +30587,115 @@ async def mcp_opendaw_apply_velocity_pattern(unit_index: int, track_index: int, 
         }}
     }}""")
     return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_move_section(from_beat: float, to_beat: float, target_beat: float, unit_indices: str = "") -> str:
+    """Move all regions within a beat range to a new position (non-destructive rearrangement).
+
+    Scans all tracks across all specified audio units, finds every region that
+    overlaps the [from_beat, to_beat) range, and moves each one to target_beat
+    with the same relative offset. Unlike duplicate_section, this removes the
+    original — a true cut-and-paste operation.
+
+    This is the arrangement tool for restructuring: "move the bridge from bar 33
+    to bar 17" or "shift this 4-bar fill 8 bars earlier". One call replaces N
+    delete + N create sequences.
+
+    from_beat: Start of the source section in beats.
+    to_beat: End of the source section in beats (exclusive).
+    target_beat: Where to move the section (beat 0 = start of project).
+    unit_indices: Comma-separated AU indices to scan (default: all AUs).
+
+    Returns number of regions moved, per-track details, and old/new positions.
+
+    Examples:
+      move_section(from_beat=32, to_beat=48, target_beat=16)
+        -> Move bars 9-12 to bar 5 (shift 16 beats earlier)
+      move_section(from_beat=0, to_beat=16, target_beat=32, unit_indices="0,1")
+        -> Move first 4 bars from AUs 0,1 to beat 32
+    """
+    if to_beat <= from_beat:
+        return "Error: to_beat must be after from_beat"
+    if target_beat < 0:
+        return "Error: target_beat must be >= 0"
+
+    offset = target_beat - from_beat
+    unit_list = unit_indices.strip() if unit_indices else ""
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const TrackBoxAdapter = window.DAW_TrackBoxAdapter;
+        try {{
+            const fromBeat = {from_beat};
+            const toBeat = {to_beat};
+            const offset = {offset};
+            const Quarter = h.ppqn.Quarter;
+
+            let unitsToScan;
+            const unitList = "{unit_list}";
+            if (unitList) {{
+                const idxs = unitList.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                const allUnits = h.allAUBoxes();
+                unitsToScan = idxs.map(i => allUnits[i]).filter(u => u);
+            }} else {{
+                unitsToScan = h.allAUBoxes();
+            }}
+
+            const moved = [];
+            let totalMoved = 0;
+
+            for (let uIdx = 0; uIdx < unitsToScan.length; uIdx++) {{
+                const au = unitsToScan[uIdx];
+                const tracks = h.trackBoxes(au);
+
+                for (let tIdx = 0; tIdx < tracks.length; tIdx++) {{
+                    const trackBox = tracks[tIdx];
+                    const trackAdapter = h.project.boxAdapters.adapterFor(trackBox, TrackBoxAdapter);
+                    if (!trackAdapter) continue;
+                    const regionAdapters = trackAdapter.regions.collection.asArray();
+
+                    // Collect regions to move first, then move — avoids index invalidation
+                    const toMove = [];
+                    for (let rIdx = 0; rIdx < regionAdapters.length; rIdx++) {{
+                        const reg = regionAdapters[rIdx];
+                        const regPosBeats = reg.position / Quarter;
+                        const regDurBeats = reg.duration / Quarter;
+                        const regEndBeats = regPosBeats + regDurBeats;
+
+                        if (regEndBeats <= fromBeat || regPosBeats >= toBeat) continue;
+                        toMove.push({{adapter: reg, oldPos: regPosBeats, dur: regDurBeats, idx: rIdx}});
+                    }}
+
+                    // Move each region: set position to oldPos + offset
+                    h.modify(() => {{
+                        for (const item of toMove) {{
+                            const newPosBeats = item.oldPos + offset;
+                            item.adapter.position = Math.round(newPosBeats * Quarter);
+                            totalMoved++;
+                            moved.push({{
+                                unit: uIdx,
+                                track: tIdx,
+                                old_position_beats: Math.round(item.oldPos * 100) / 100,
+                                new_position_beats: Math.round(newPosBeats * 100) / 100,
+                                duration_beats: Math.round(item.dur * 100) / 100,
+                            }});
+                        }}
+                    }});
+                }}
+            }}
+
+            return {{
+                success: true,
+                from_beat: fromBeat,
+                to_beat: toBeat,
+                target_beat: {target_beat},
+                offset_beats: offset,
+                regions_moved: totalMoved,
+                details: moved.slice(0, 50),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)

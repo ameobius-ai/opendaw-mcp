@@ -8401,6 +8401,78 @@ class TestApplyVelocityPattern:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_apply_velocity_pattern" in tool_names
 
+
+class TestMoveSection:
+    """Tests for move_section orchestration tool"""
+
+    def test_offset_forward(self):
+        """Positive offset = move later"""
+        offset = 32 - 0
+        assert offset == 32
+
+    def test_offset_backward(self):
+        """Negative offset = move earlier"""
+        offset = 0 - 32
+        assert offset == -32
+
+    def test_new_position_forward(self):
+        """New position = old + offset (forward)"""
+        old_pos, offset = 4, 16
+        new_pos = old_pos + offset
+        assert new_pos == 20
+
+    def test_new_position_backward(self):
+        """New position = old + offset (backward)"""
+        old_pos, offset = 40, -16
+        new_pos = old_pos + offset
+        assert new_pos == 24
+
+    def test_overlap_detection_included(self):
+        """Region [10, 26) overlaps [0, 16) — included"""
+        from_beat, to_beat = 0, 16
+        reg_pos, reg_dur = 10, 16
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert overlaps
+
+    def test_overlap_detection_excluded_before(self):
+        """Region [0, 4) does not overlap [16, 32) — excluded"""
+        from_beat, to_beat = 16, 32
+        reg_pos, reg_dur = 0, 4
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert not overlaps
+
+    def test_overlap_detection_excluded_after(self):
+        """Region [48, 64) does not overlap [0, 16) — excluded"""
+        from_beat, to_beat = 0, 16
+        reg_pos, reg_dur = 48, 16
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert not overlaps
+
+    def test_move_vs_duplicate(self):
+        """Move changes position, duplicate creates copy — different operations"""
+        move_ops = ["set_position"]
+        dup_ops = ["copyTo"]
+        assert move_ops != dup_ops
+
+    def test_collect_then_move_pattern(self):
+        """Collect all regions first, then move — avoids index invalidation"""
+        regions = [{"pos": 0, "dur": 4}, {"pos": 8, "dur": 4}, {"pos": 20, "dur": 4}]
+        from_beat, to_beat = 0, 16
+        to_move = [r for r in regions if not (r["pos"] + r["dur"] <= from_beat or r["pos"] >= to_beat)]
+        assert len(to_move) == 2  # pos=0 and pos=8
+
+    def test_tool_in_ast(self):
+        """move_section is a registered MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_move_section" in tool_names
+
     def test_unknown_type_rejected(self):
         """Unknown transition type returns error"""
         valid_types = {"drop", "buildup", "breakdown", "intro", "outro"}

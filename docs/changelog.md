@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.187.0 (2026-07-05)
+
+### Added
+- `move_section` — move all regions in a beat range to a new position. Cut-and-paste for arrangement restructuring. Scans all tracks across all AUs, collects overlapping regions first (avoids index invalidation), then moves each with offset. Pairs with duplicate_section (copy vs move). 367 MCP tools total
+
 ## v1.186.0 (2026-07-05)
 
 ### Added

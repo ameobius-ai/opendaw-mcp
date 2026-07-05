@@ -436,8 +436,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_tempo_ramp` — Smooth tempo ramp (ritardando/accelerando). Series of ValueEventBox on tempo track. 3 curves (linear/exp/log), configurable steps. Auto-detects ramp type.
 - `duplicate_section` — Duplicate all regions in a beat range to a new position. Scans all tracks across all AUs, copies each overlapping region with offset. Replaces N duplicate_region calls with one.
 - `apply_velocity_pattern` — Cyclic velocity accent pattern on existing notes. JSON array of multipliers cycled across notes. 2 modes: cycle (repeat) and stretch (distribute). The groove tool — replaces manual per-note velocity editing.
+- `move_section` — Move all regions in a beat range to a new position. Cut-and-paste for arrangement restructuring. Collect-then-move pattern avoids index invalidation. Pairs with duplicate_section.
 
-**Total: 366 tools**
+**Total: 367 tools**
 
 ## DSP Scripts (scripts/) — 107 scripts
 

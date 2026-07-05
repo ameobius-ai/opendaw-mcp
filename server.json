@@ -3,7 +3,7 @@
   "name": "io.github.AMEOBIUS/opendaw-mcp",
   "title": "openDAW MCP",
   "description": "302 MCP tools for agent-native control of openDAW — 21 instruments/effects, scriptable DSP, stem splitting, preset management, offline render",
-  "version": "1.186.0",
+  "version": "1.187.0",
   "repository": {
     "url": "https://github.com/AMEOBIUS/opendaw-mcp",
     "source": "github"
