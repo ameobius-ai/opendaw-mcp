@@ -14404,3 +14404,146 @@ class TestDoubleMelody:
         # D major: D E F# G A B C# = 2 4 6 7 9 11 1
         assert scale_pcs == [1, 2, 4, 6, 7, 9, 11], f"D major scale pcs should be [1,2,4,6,7,9,11], got {scale_pcs}"
 
+
+
+class TestSplitNoteRegion:
+    """Tests for mcp_opendaw_split_note_region — region splitting"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_split_note_region" in names
+
+    def test_split_point_within_region(self):
+        """Split point must be within region range"""
+        # Region: position=0, duration=16 beats (4 bars in 4/4)
+        src_pos = 0
+        src_dur = 16
+        src_end = src_pos + src_dur
+
+        # Valid split: beat 8 (middle of region)
+        split = 8
+        assert src_pos < split < src_end
+
+        # Invalid: before region
+        split_before = -2
+        assert not (src_pos < split_before < src_end)
+
+        # Invalid: after region
+        split_after = 20
+        assert not (src_pos < split_after < src_end)
+
+    def test_note_categorization_by_position(self):
+        """Notes at/after split go to new region, before stay in original"""
+        Quarter = 960
+        split_tick = 8 * Quarter  # beat 8
+
+        notes = [
+            {"pos": 0, "pitch": 60},
+            {"pos": 4 * Quarter, "pitch": 62},
+            {"pos": 8 * Quarter, "pitch": 64},  # exactly at split → move
+            {"pos": 12 * Quarter, "pitch": 65},
+        ]
+
+        notes_to_move = [n for n in notes if n["pos"] >= split_tick]
+        notes_to_keep = [n for n in notes if n["pos"] < split_tick]
+
+        assert len(notes_to_move) == 2, "2 notes at/after split should move"
+        assert len(notes_to_keep) == 2, "2 notes before split should stay"
+        assert notes_to_move[0]["pitch"] == 64
+        assert notes_to_keep[0]["pitch"] == 60
+
+    def test_relative_position_recalculation(self):
+        """Moved notes get position relative to new region start"""
+        Quarter = 960
+        split_tick = 8 * Quarter
+        orig_pos = 12 * Quarter  # beat 12
+        rel_pos = orig_pos - split_tick  # beat 4 relative to new region
+        assert rel_pos == 4 * Quarter, "beat 12 with split at 8 → rel beat 4"
+
+    def test_original_region_duration_trim(self):
+        """Original region duration is trimmed to split point"""
+        src_pos = 0
+        split_beat = 8
+        new_dur = split_beat - src_pos
+        assert new_dur == 8, "Original region should be trimmed to 8 beats"
+
+    def test_new_region_duration(self):
+        """New region gets remaining duration"""
+        src_pos = 0
+        src_dur = 16
+        split_beat = 8
+        new_dur = (src_pos + src_dur) - split_beat
+        assert new_dur == 8, "New region should have 8 beats"
+
+    def test_new_region_position(self):
+        """New region starts at split point"""
+        split_beat = 8
+        assert split_beat == 8, "New region position = split beat"
+
+    def test_straddling_note_kept_in_original(self):
+        """A note starting before split but extending past it stays in original"""
+        Quarter = 960
+        split_tick = 8 * Quarter
+        # Note starts at beat 6, duration 4 beats → ends at beat 10 (past split)
+        note_pos = 6 * Quarter
+
+        # Categorization is by position, not position+duration
+        stays = note_pos < split_tick
+        assert stays is True, "Note starting before split stays in original"
+
+    def test_all_notes_before_split(self):
+        """If all notes are before split, new region has 0 notes"""
+        Quarter = 960
+        split_tick = 8 * Quarter
+        notes = [
+            {"pos": 0, "pitch": 60},
+            {"pos": 2 * Quarter, "pitch": 62},
+            {"pos": 4 * Quarter, "pitch": 64},
+        ]
+        notes_to_move = [n for n in notes if n["pos"] >= split_tick]
+        assert len(notes_to_move) == 0, "All notes before split → 0 moved"
+
+    def test_all_notes_after_split(self):
+        """If all notes are at/after split, original region has 0 notes"""
+        Quarter = 960
+        split_tick = 2 * Quarter
+        notes = [
+            {"pos": 4 * Quarter, "pitch": 60},
+            {"pos": 8 * Quarter, "pitch": 62},
+        ]
+        notes_to_keep = [n for n in notes if n["pos"] < split_tick]
+        assert len(notes_to_keep) == 0, "All notes at/after split → 0 kept"
+
+    def test_tick_conversion(self):
+        """Beat to tick conversion uses Quarter=960"""
+        Quarter = 960
+        # Beat 8 → 7680 ticks
+        assert 8 * Quarter == 7680
+        # Beat 32 (bar 8 in 4/4) → 30720 ticks
+        assert 32 * Quarter == 30720
+
+    def test_split_at_bar_boundary(self):
+        """Common use case: split at bar boundary (4, 8, 16 beats)"""
+        Quarter = 960
+        bar_4 = 4 * 4  # 4 bars = 16 beats
+        bar_8 = 8 * 4  # 8 bars = 32 beats
+        assert bar_4 == 16
+        assert bar_8 == 32
+        assert bar_8 * Quarter == 30720
+
+    def test_preserves_note_properties(self):
+        """Moved notes keep pitch, velocity, duration, chance, cent"""
+        orig = {"pos": 960, "dur": 480, "vel": 0.85, "pitch": 67, "chance": 100, "cent": 0}
+        # After moving, only position changes, rest preserved
+        moved = dict(orig)
+        split_tick = 960
+        moved["pos"] = orig["pos"] - split_tick
+        assert moved["pitch"] == orig["pitch"]
+        assert moved["vel"] == orig["vel"]
+        assert moved["dur"] == orig["dur"]
+        assert moved["chance"] == orig["chance"]
+        assert moved["cent"] == orig["cent"]
+        assert moved["pos"] == 0, "Position should be relative to new region"

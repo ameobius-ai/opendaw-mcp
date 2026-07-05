@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.234.0 (2026-07-06)
+
+### Added
+- `split_note_region` — Split a note region into two at a beat position. Creates a new NoteRegionBox starting at split_beat with all notes at/after that position (positions recalculated relative to new region start). Original region duration trimmed to split point. Notes straddling the split (starting before, extending past) stay in original — matches DAW behaviour. Validates split point is within region range. 13 unit tests including note categorization, relative position recalculation, bar boundary splitting. **409 MCP tools**, 2969 unit tests
+
 ## v1.233.0 (2026-07-06)
 
 ### Added

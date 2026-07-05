@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-408 MCP tools for headless openDAW control via Playwright bridge.
+409 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -147,6 +147,7 @@
 - `delete_note_region` — Delete a note region from the timeline.
 - `delete_region` — Delete a region from a track.
 - `duplicate_note_region` — Duplicate a note region to a new position.
+- `split_note_region` — Split a note region into two at a beat position. Notes at/after split move to new region (positions recalculated relative to new start). Original region trimmed. Straddling notes stay in original. Use for sectioning, trimming, arrangement edits.
 - `duplicate_region` — Duplicate any region (audio, note, or value) using the DAW's built-in duplicateRegion API.
 - `get_region_info` — Get detailed info about a single region — position, duration, loop, mute, content.
 - `move_region_content` — Shift the content start of a region without moving the region itself.

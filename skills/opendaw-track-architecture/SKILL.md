@@ -262,7 +262,7 @@ await mcp_opendaw_create_genre_track(genre, bpm=None)
 Start minimal — add tracks as needed. Don't over-architect before the user hears anything.
 
 ## Related skills
-- `opendaw-automation` — 408 MCP tools full API reference + pitfalls
+- `opendaw-automation` — 409 MCP tools full API reference + pitfalls
 - `opendaw-sound-design` — instruments + scriptable DSP
 - `opendaw-effect-routing` — effect chains, sends, buses, sidechain
 - `adaptive-mix-mastering` — full mix→master pipeline with decision points

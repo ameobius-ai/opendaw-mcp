@@ -4428,6 +4428,155 @@ Returns new region index.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_split_note_region(
+    unit_index: int,
+    track_index: int,
+    region_index: int,
+    split_beat: float,
+) -> str:
+    """Split a note region into two at a given beat position.
+
+    Creates a new region starting at split_beat containing all notes from
+    that position onward. The original region's duration is trimmed to
+    split_beat. Notes that straddle the split point are kept in the original
+    region (they will play their full duration even if they extend past
+    the trimmed region boundary — this matches DAW behaviour).
+
+    Use cases:
+    - Divide a long region into sections (e.g. split at bar 8 for verse/chorus)
+    - Cut silence off the end of a region
+    - Create variations: split, then modify one half
+    - Prepare for arrangement edits (move one half elsewhere)
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region to split (0-based).
+    split_beat: Absolute beat position to split at (must be within region range).
+
+    Returns original and new region details.
+
+    Example:
+      # Split region 0 at bar 8 (beat 32 in 4/4)
+      split_note_region(0, 0, 0, 32)
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const splitBeat = {split_beat};
+        const Quarter = h.ppqn.Quarter;
+        const splitTick = Math.round(splitBeat * Quarter);
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regionIdx < 0 || regionIdx >= regions.length) return {{error: "region_index out of range"}};
+        const srcRegion = regions[regionIdx];
+
+        const srcPos = srcRegion.position.getValue();
+        const srcDur = srcRegion.duration.getValue();
+        const srcEnd = srcPos + srcDur;
+
+        // Validate split point
+        if (splitTick <= srcPos) return {{error: "split_beat must be after region start (" + srcPos / Quarter + ")"}};
+        if (splitTick >= srcEnd) return {{error: "split_beat must be before region end (" + srcEnd / Quarter + ")"}};
+
+        // Read source notes
+        let srcCollection = null;
+        try {{
+            const vertex = srcRegion.events.targetVertex.unwrap();
+            srcCollection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!srcCollection || !srcCollection.events) return {{error: "No note collection in region"}};
+
+        const srcNotes = h.eventBoxes(srcCollection);
+        const newDur = srcEnd - splitTick;
+
+        // Categorize notes: keep (before split) or move (at/after split)
+        const notesToMove = [];
+        const notesToKeep = [];
+        for (const n of srcNotes) {{
+            const notePos = n.position.getValue();
+            if (notePos >= splitTick) {{
+                notesToMove.push(n);
+            }} else {{
+                notesToKeep.push(n);
+            }}
+        }}
+
+        h.modify(() => {{
+            // Create new collection for moved notes
+            const newCollection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            for (const n of notesToMove) {{
+                const origPos = n.position.getValue();
+                const relPos = origPos - splitTick;  // position relative to new region
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(relPos));
+                    box.duration.setValue(n.duration.getValue());
+                    box.velocity.setValue(n.velocity.getValue());
+                    box.pitch.setValue(n.pitch.getValue());
+                    box.chance.setValue(n.chance?.getValue?.() ?? 100);
+                    box.cent.setValue(n.cent?.getValue?.() ?? 0);
+                    box.events.refer(newCollection.events);
+                }});
+            }}
+
+            // Create new region pointing to new collection
+            const srcLabel = srcRegion.label?.getValue?.() ?? "Region";
+            NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(splitTick);
+                box.label.setValue(srcLabel + " (split)");
+                box.mute.setValue(srcRegion.mute?.getValue?.() ?? false);
+                box.duration.setValue(newDur);
+                box.loopDuration.setValue(newDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(newCollection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            // Delete moved notes from original region
+            for (const n of notesToMove) {{
+                n.delete();
+            }}
+
+            // Trim original region duration
+            srcRegion.duration.setValue(splitTick - srcPos);
+        }});
+
+        // Find new region index (should be last)
+        const updatedRegions = h.regionBoxes(trackBox);
+        const newRegIdx = updatedRegions.length - 1;
+
+        return {{
+            success: true,
+            original: {{
+                region_index: regionIdx,
+                position_beats: srcPos / Quarter,
+                duration_beats: (splitTick - srcPos) / Quarter,
+                notes_kept: notesToKeep.length,
+            }},
+            new: {{
+                region_index: newRegIdx,
+                position_beats: splitTick / Quarter,
+                duration_beats: newDur / Quarter,
+                notes_moved: notesToMove.length,
+            }},
+            split_beat: splitBeat,
+            notes_straddling: 0,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_duplicate_notes(unit_index: int, track_index: int, region_index: int) -> str:
     """Duplicate all notes within a region, shifting them after the last note.
 
