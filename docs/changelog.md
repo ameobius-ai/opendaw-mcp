@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.276.0 (2026-07-06)
+
+### Added
+- `create_phase_shift` — phase-shifted copy with gradual drift (Steve Reich phasing). Copies source phrase, each bar shifts by cumulative offset. forward/backward direction. shift_per_bar (1/32 to 1/2 note), 2-16 bars. Minimalism, techno loop phasing, ambient drift, IDM.
+
 ## v1.275.0 (2026-07-06)
 
 ### Added

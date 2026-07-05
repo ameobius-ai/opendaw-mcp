@@ -33619,6 +33619,195 @@ async def mcp_opendaw_create_melodic_polyrhythm(
         }};
     }}""")
     return _wrap_eval(result)
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_phase_shift(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    shift_per_bar: float = 0.0625,
+    bars: int = 8,
+    direction: str = "forward",
+    cross_track: int = -1,
+    velocity_scale: float = 0.85,
+) -> str:
+    """Create a phase-shifted copy of a region — Steve Reich phasing.
+
+    Copies the source phrase and places it on a parallel track (or
+    cross-track) with a gradually accumulating time offset. Each bar,
+    the copy shifts by shift_per_bar beats, creating the classic
+    "slipping" phase pattern of minimalism.
+
+    Steve Reich's "It's Gonna Rain", "Piano Phase", and "Clapping
+    Music" use this technique. Also the foundation of techno loop
+    phasing, ambient drift, and IDM polyrhythmic evolution.
+
+    Unlike displace_rhythm (single fixed offset), phase_shift creates
+    a SECOND copy that drifts further each bar — the two streams start
+    in unison and gradually separate.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index with source phrase
+        region_index: Region index (-1 = first region)
+        shift_per_bar: Time shift per bar in beats (0.03125-0.5,
+            default 0.0625 = 1/16 note per bar). Smaller = slower
+            drift, larger = faster separation.
+        bars: Number of bars to generate (2-16, default 8). Each bar
+            is one repeat of the source phrase with cumulative offset.
+        direction: Phase drift direction —
+            "forward": copy moves later each bar (lags behind)
+            "backward": copy moves earlier each bar (anticipates)
+        cross_track: If >= 0, place the phased copy on this track.
+            If -1 (default), creates a new track on the same AU for
+            the copy. Recommended: use cross_track for explicit control.
+        velocity_scale: Velocity multiplier for the phased copy
+            (0.1-1.0, default 0.85 — slightly softer to distinguish
+            from the original).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const shiftPerBar = Math.max(0.03125, Math.min(0.5, {shift_per_bar}));
+        const numBars = Math.max(2, Math.min(16, {bars}));
+        const dirMode = "{direction}";
+        const crossTrack = {cross_track};
+        const velScale = Math.max(0.1, Math.min(1, {velocity_scale}));
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{"error": "No notes in source region"}};
+
+        // Read source phrase
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        const phraseStart = srcData[0].pos;
+        const phraseEnd = Math.max(...srcData.map(n => n.pos + n.dur));
+        const phraseLen = phraseEnd - phraseStart;
+        const barTicks = phraseLen; // assume 1 phrase = 1 bar
+
+        // Determine destination
+        let destCollection = collection;
+        if (crossTrack >= 0 && crossTrack < noteTracks.length) {{
+            const destTrack = noteTracks[crossTrack];
+            const destRegions = h.regionBoxes(destTrack);
+            if (destRegions.length > 0) {{
+                try {{
+                    const v = destRegions[0].events.targetVertex.unwrap();
+                    destCollection = v.box || v;
+                }} catch(e) {{}}
+            }}
+        }}
+
+        // Build phased copies: bar i has cumulative offset of i * shiftPerBar
+        const shiftSign = dirMode === "backward" ? -1 : 1;
+        const phasedNotes = [];
+
+        for (let bar = 0; bar < numBars; bar++) {{
+            const cumulativeOffset = bar * Math.round(shiftPerBar * Quarter) * shiftSign;
+            const barStart = bar * barTicks; // each bar starts one phrase-length later
+
+            for (const note of srcData) {{
+                const newPos = note.pos - phraseStart + barStart + cumulativeOffset;
+                if (newPos < 0) continue; // skip notes that go negative
+
+                phasedNotes.push({{
+                    pos: Math.round(newPos),
+                    dur: note.dur,
+                    pitch: note.pitch,
+                    vel: Math.max(0.01, Math.min(1, note.vel * velScale)),
+                }});
+            }}
+        }}
+
+        if (phasedNotes.length === 0) {{
+            return {{
+                success: true,
+                phased_notes_created: 0,
+                message: "No valid notes after phasing (offsets too large?)",
+            }};
+        }}
+
+        // Create phased notes
+        const editing = h.editing;
+        let created = 0;
+        const barDetails = [];
+
+        await editing.modify(async () => {{
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            if (!NoteEventBox || !bg || !uuidGen) return;
+
+            for (const pn of phasedNotes) {{
+                try {{
+                    await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                        box.position.setValue(pn.pos);
+                        box.duration.setValue(pn.dur);
+                        box.pitch.setValue(pn.pitch);
+                        box.velocity.setValue(pn.vel);
+                        if (destCollection && destCollection.events) {{
+                            box.events.refer(destCollection.events);
+                        }}
+                    }});
+                    created++;
+                }} catch(e) {{}}
+            }}
+        }});
+
+        // Summary: show cumulative offset per bar
+        for (let b = 0; b < Math.min(numBars, 8); b++) {{
+            const offset = b * Math.round(shiftPerBar * Quarter) * shiftSign;
+            barDetails.push({{
+                bar: b,
+                offset_beats: Math.round(offset / Quarter * 100) / 100,
+                offset_ticks: offset,
+            }});
+        }}
+
+        return {{
+            success: true,
+            shift_per_bar: shiftPerBar,
+            bars: numBars,
+            direction: dirMode,
+            source_notes: srcData.length,
+            phased_notes_created: created,
+            velocity_scale: velScale,
+            cross_track: crossTrack >= 0,
+            bar_offsets: barDetails,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 
 
 

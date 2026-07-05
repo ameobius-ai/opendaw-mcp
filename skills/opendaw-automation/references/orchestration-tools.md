@@ -211,6 +211,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 198. `repeat_phrase` — repeat melodic phrase N times with transposition: diatonic/chromatic, 5 velocity patterns, time_stretch, cross_track
 199. `clone_track` — full track duplication: new track + regions + notes, transpose, velocity_scale, time_offset, new_unit option
 200. `create_melodic_polyrhythm` — melodic polyrhythm: N notes across M beats, scale-based or custom pitches, 4 velocity patterns, 1-8 bars
+201. `create_phase_shift` — Steve Reich phasing: gradual cumulative time drift per bar, forward/backward, 2-16 bars, cross_track
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

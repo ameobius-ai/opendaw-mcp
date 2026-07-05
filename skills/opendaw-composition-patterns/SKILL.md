@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.275.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.276.0"
 ---
 
 # openDAW Composition Patterns
@@ -121,6 +121,7 @@ What do you want to create?
 ├── Sequence → repeat_phrase (repeat phrase N times with transposition, diatonic/chromatic, 5 velocity patterns, time_stretch)
 ├── Clone → clone_track (full track duplication, transpose/velocity_scale/time_offset, new_unit option)
 ├── Polyrhythm → create_melodic_polyrhythm (N notes across M beats, 3:4/5:4/7:4, scale-based or custom, 4 velocity patterns)
+├── Phasing → create_phase_shift (Steve Reich phasing, gradual cumulative drift per bar, forward/backward, 2-16 bars)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
