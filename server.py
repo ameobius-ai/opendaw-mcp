@@ -20580,3 +20580,94 @@ async def mcp_opendaw_create_cross_rhythm(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_clave(
+    clave_type: str = "son_3_2",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    pitch: int = 76,
+    velocity: float = 0.8,
+    duration: float = 0.25,
+) -> str:
+    """Create an Afro-Cuban clave pattern — the 5-note rhythmic skeleton that defines the feel.
+
+    The clave is not a drum pattern — it's a timeline pattern that all other rhythms align to.
+    Every Afro-Cuban rhythm has a clave direction (3-2 or 2-3) that determines where the
+    downbeats fall relative to the clave strokes.
+
+    clave_type:
+      "son_3_2"    — Son clave, 3-side first (forward clave). Beats: 0, 0.5, 1, 2.5, 3
+      "son_2_3"    — Son clave, 2-side first (reverse clave). Beats: 0, 1.5, 3, 3.5, 4
+      "rumba_3_2"  — Rumba clave, 3-side first. Last stroke shifted to 3.5 (and 2.5→2.66)
+      "rumba_2_3"  — Rumba clave, 2-side first.
+      "bossa_nova" — Bossa nova clave. Beats: 0, 2.5, 3, 4.5, 5 (over 2 bars)
+      "6_8"        — 6/8 Afro-Cuban clave. 5 strokes across 2 bars of 6/8.
+
+    bars: Pattern length in bars (2 for son/rumba, 2 for bossa, 2 for 6/8).
+    pitch: MIDI pitch for clave strokes (76 = high wood block).
+    velocity: Velocity 0-1.
+    duration: Note duration in beats.
+
+    Returns notes created, clave type, and direction (3-2 or 2-3).
+
+    Example:
+      create_clave(clave_type="son_3_2", track_index=0)
+      create_clave(clave_type="bossa_nova", track_index=1)
+    """
+    clave_patterns = {
+        # (beat_positions_within_2_bars, direction)
+        "son_3_2": ([0, 0.5, 1, 2.5, 3], "3-2"),
+        "son_2_3": ([0, 1.5, 3, 3.5, 4], "2-3"),
+        "rumba_3_2": ([0, 0.5, 1, 2.66, 3.5], "3-2"),
+        "rumba_2_3": ([0, 1.5, 3, 3.66, 4.5], "2-3"),
+        "bossa_nova": ([0, 2.5, 3, 4.5, 5], "2-3"),
+        "6_8": ([0, 1.33, 2.66, 4, 5.33], "3-2"),
+    }
+
+    clave_type = clave_type.strip().lower().replace(" ", "_")
+    if clave_type not in clave_patterns:
+        valid = ", ".join(clave_patterns.keys())
+        return f"Error: unknown clave_type '{clave_type}'. Valid: {valid}"
+
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if bars < 2 or bars > 8:
+        return "Error: bars must be 2-8 (2 = one clave cycle)"
+    if not (0 <= pitch <= 127):
+        return "Error: pitch must be 0-127"
+
+    beats, direction = clave_patterns[clave_type]
+
+    all_notes = []
+    cycle_len = 8.0  # 2 bars of 4/4 = 8 beats (one clave cycle)
+
+    # If bars > 2, repeat the clave cycle
+    cycles = bars // 2
+    for c in range(cycles):
+        offset = c * cycle_len
+        for b in beats:
+            all_notes.append({
+                "pitch": pitch,
+                "start": round(start_beat + offset + b, 4),
+                "duration": duration,
+                "velocity": round(velocity, 3),
+            })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["clave"] = True
+        data["clave_type"] = clave_type
+        data["direction"] = direction
+        data["strokes"] = len(beats)
+        data["cycles"] = cycles
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

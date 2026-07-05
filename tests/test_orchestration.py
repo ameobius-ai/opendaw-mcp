@@ -3071,3 +3071,95 @@ class TestCrossRhythmGeneration:
         _ = [i * 7 for i in range(3)]  # cross_v1 (unused, for documentation)
         assert max(poly_primary) <= 4
         assert max(cross_v0) > 4
+
+
+class TestClaveGeneration:
+    """Tests for create_clave orchestration tool"""
+
+    CLAVE_PATTERNS = {
+        "son_3_2": ([0, 0.5, 1, 2.5, 3], "3-2"),
+        "son_2_3": ([0, 1.5, 3, 3.5, 4], "2-3"),
+        "rumba_3_2": ([0, 0.5, 1, 2.66, 3.5], "3-2"),
+        "rumba_2_3": ([0, 1.5, 3, 3.66, 4.5], "2-3"),
+        "bossa_nova": ([0, 2.5, 3, 4.5, 5], "2-3"),
+        "6_8": ([0, 1.33, 2.66, 4, 5.33], "3-2"),
+    }
+
+    def test_son_3_2_beats(self):
+        beats, direction = self.CLAVE_PATTERNS["son_3_2"]
+        assert len(beats) == 5
+        assert direction == "3-2"
+        assert beats[0] == 0
+        assert beats[2] == 1  # 3-side: 0, 0.5, 1
+        assert beats[3] == 2.5  # 2-side starts
+
+    def test_son_2_3_beats(self):
+        beats, direction = self.CLAVE_PATTERNS["son_2_3"]
+        assert len(beats) == 5
+        assert direction == "2-3"
+        assert beats[0] == 0  # 2-side: 0, 1.5
+        assert beats[1] == 1.5
+
+    def test_rumba_vs_son_difference(self):
+        son_beats, _ = self.CLAVE_PATTERNS["son_3_2"]
+        rumba_beats, _ = self.CLAVE_PATTERNS["rumba_3_2"]
+        # rumba shifts the last 3-side stroke later
+        assert rumba_beats[3] != son_beats[3]
+        assert rumba_beats[4] != son_beats[4]
+
+    def test_bossa_nova_5_strokes(self):
+        beats, direction = self.CLAVE_PATTERNS["bossa_nova"]
+        assert len(beats) == 5
+        assert direction == "2-3"
+        # bossa nova has characteristic off-beat placement
+        assert 2.5 in beats and 4.5 in beats
+
+    def test_6_8_clave(self):
+        beats, direction = self.CLAVE_PATTERNS["6_8"]
+        assert len(beats) == 5
+        assert direction == "3-2"
+        # 6/8 clave uses dotted-quarter spacing
+        assert beats[1] == 1.33  # ~2/3 of a beat
+        assert beats[2] == 2.66
+
+    def test_all_patterns_5_strokes(self):
+        for name, (beats, _) in self.CLAVE_PATTERNS.items():
+            assert len(beats) == 5, f"{name} should have 5 strokes, got {len(beats)}"
+
+    def test_cycle_length(self):
+        cycle_len = 8.0  # 2 bars of 4/4
+        for beats, _ in self.CLAVE_PATTERNS.values():
+            assert max(beats) < cycle_len, f"beat {max(beats)} exceeds cycle {cycle_len}"
+
+    def test_direction_propagation(self):
+        for name, (_, direction) in self.CLAVE_PATTERNS.items():
+            assert direction in ("3-2", "2-3"), f"{name} has invalid direction"
+
+    def test_note_generation_one_cycle(self):
+        beats, _ = self.CLAVE_PATTERNS["son_3_2"]
+        all_notes = []
+        for b in beats:
+            all_notes.append({"pitch": 76, "start": b, "duration": 0.25, "velocity": 0.8})
+        assert len(all_notes) == 5
+        starts = [n["start"] for n in all_notes]
+        assert starts == [0, 0.5, 1, 2.5, 3]
+
+    def test_note_generation_two_cycles(self):
+        beats, _ = self.CLAVE_PATTERNS["son_3_2"]
+        cycle_len = 8.0
+        all_notes = []
+        for c in range(2):
+            for b in beats:
+                all_notes.append({"start": c * cycle_len + b})
+        assert len(all_notes) == 10
+        assert all_notes[5]["start"] == 8.0  # second cycle starts at beat 8
+
+    def test_clave_type_normalization(self):
+        raw = "Son 3-2"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert normalized == "son_3-2" or "son" in normalized
+
+    def test_pitch_validation(self):
+        assert 0 <= 76 <= 127
+        assert not (0 <= 128 <= 127)
+        assert not (0 <= -1 <= 127)

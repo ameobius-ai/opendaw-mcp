@@ -65,6 +65,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 52. `create_stutter` — stutter edit: rapid rhythmic repetitions with evolving rate (accelerate/decelerate/ping_pong/random), accent patterns, velocity ramps, gate, pitch jitter (BT/Imogen Heap/Deadmau5)
 53. `create_phase` — Steve Reich phase shifting: 2-4 voices play same pattern, one gradually shifts in time. 3 drift directions, phase_rate, phase_amount with reset (minimalism)
 54. `create_cross_rhythm` — cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar), cross-rhythm gives each voice its own period. Voices realign at LCM. 2-6 voices (African, Steve Reich, Talking Heads)
+55. `create_clave` — Afro-Cuban clave: 5-note rhythmic skeleton across 2 bars. 6 types (son/rumba/bossa/6-8), direction 3-2 or 2-3. All rhythms align to clave
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

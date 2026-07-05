@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.103.0 (2026-07-05)
+
+- **`create_clave` orchestration tool (312 MCP tools)** — Afro-Cuban clave pattern: 5-note rhythmic skeleton across 2 bars that defines the feel. 6 clave types: son 3-2, son 2-3, rumba 3-2, rumba 2-3, bossa nova, 6/8. Clave direction (3-2 forward vs 2-3 reverse) determines where downbeats fall. All other rhythms align to the clave. Cycle repeats for bars > 2. 312 MCP tools, 55 orchestration
+- **998 unit tests** (+12)
+
 ## v1.102.0 (2026-07-05)
 
 - **`werkstatt_multiband_saturator.js` DSP script (83 DSP, 65 Werkstatt)** — multiband saturator: LR4 Linkwitz-Riley crossover splits into 3 bands, each with independent drive and saturation character (tape=tanh warm, tube=asymmetric soft clip even harmonics, transistor=hard cubic odd harmonics). Per-band drive 1..10x gain into saturation curve. Band summation + dry/wet mix. FabFilter Saturn / iZotope Trash style. 10 params (crossover1/crossover2/low_drive/mid_drive/high_drive/low_char/mid_char/high_char/output/mix). 83 DSP scripts, 65 Werkstatt
