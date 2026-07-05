@@ -4,7 +4,6 @@ Demonstrates inverting a C major chord from root position to
 1st inversion (E in bass) and then to 2nd inversion (G in bass).
 """
 import asyncio
-import json
 from server import (
     mcp_opendaw_create_note_track,
     mcp_opendaw_create_chord_pads,
