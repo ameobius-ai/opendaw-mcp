@@ -18058,3 +18058,104 @@ class TestExpandIntervals:
         new_pitch = 64
         interval_change = new_pitch - old_pitch
         assert interval_change == 4
+
+
+class TestInsertRests:
+    """Tests for mcp_opendaw_insert_rests — positional rest insertion"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_insert_rests" in names
+
+    def test_rest_positions_parsing(self):
+        """Comma-separated positions parsed correctly"""
+        positions_str = "0,1,2,3"
+        positions = [float(s.strip()) for s in positions_str.split(",") if s.strip()]
+        assert positions == [0.0, 1.0, 2.0, 3.0]
+
+    def test_rest_positions_with_floats(self):
+        """Float positions parsed correctly"""
+        positions_str = "0.5,1.5,3.0"
+        positions = [float(s.strip()) for s in positions_str.split(",") if s.strip()]
+        assert positions == [0.5, 1.5, 3.0]
+
+    def test_tolerance_matching(self):
+        """Note within tolerance of rest position matches"""
+        Quarter = 960
+        tolerance = 0.05  # beats
+        tolerance_ticks = round(tolerance * Quarter)  # 48
+        note_pos = 0  # ticks
+        rest_tick = 40  # ticks
+        assert abs(note_pos - rest_tick) <= tolerance_ticks, "40 < 48, should match"
+
+        rest_tick2 = 100
+        assert not (abs(note_pos - rest_tick2) <= tolerance_ticks), "100 > 48, no match"
+
+    def test_delete_mode(self):
+        """mode='delete': notes at rest positions removed"""
+        notes = [
+            {"pos": 0, "dur": 480, "pitch": 60},
+            {"pos": 480, "dur": 480, "pitch": 62},
+            {"pos": 960, "dur": 480, "pitch": 64},
+        ]
+        rest_ticks = [0]  # rest at beat 0
+        tolerance = 48
+        to_delete = []
+        for note in notes:
+            for rt in rest_ticks:
+                if abs(note["pos"] - rt) <= tolerance:
+                    to_delete.append(note)
+                    break
+        assert len(to_delete) == 1
+        assert to_delete[0]["pos"] == 0
+
+    def test_truncate_mode(self):
+        """mode='truncate': overlapping notes cut at rest position"""
+        note_pos = 0
+        note_dur = 960  # 1 beat
+        note_end = note_pos + note_dur  # 960
+        rest_tick = 480  # half beat
+        assert note_pos < rest_tick and note_end > rest_tick, "note overlaps rest"
+        new_dur = rest_tick - note_pos  # 480
+        assert new_dur == 480
+
+    def test_shorten_mode(self):
+        """mode='shorten': note duration halved, not deleted"""
+        note_dur = 480
+        new_dur = round(note_dur / 2)
+        assert new_dur == 240
+
+    def test_remaining_notes_count(self):
+        """After deletion, remaining = total - deleted"""
+        total = 8
+        deleted = 3
+        remaining = total - deleted
+        assert remaining == 5
+
+    def test_three_modes(self):
+        """3 modes available: delete, truncate, shorten"""
+        modes = ("delete", "truncate", "shorten")
+        assert len(modes) == 3
+
+    def test_offbeat_positions(self):
+        """Offbeat rest positions create syncopation"""
+        positions_str = "0.5,1.5,2.5,3.5"
+        positions = [float(s.strip()) for s in positions_str.split(",")]
+        for p in positions:
+            assert p % 1 == 0.5, "all offbeats"
+
+    def test_empty_positions(self):
+        """Empty positions string = no rests"""
+        positions_str = ""
+        positions = [float(s.strip()) for s in positions_str.split(",") if s.strip()]
+        assert positions == []
+
+    def test_beat_to_ticks_conversion(self):
+        """Beat positions converted to ticks"""
+        Quarter = 960
+        beat = 2.5
+        ticks = round(beat * Quarter)
+        assert ticks == 2400

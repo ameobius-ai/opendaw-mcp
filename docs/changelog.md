@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.264.0 (2026-07-06)
+
+### Added
+- `insert_rests` — Insert rests at specified beat positions. 3 modes: delete (remove notes at positions), truncate (cut overlapping notes at rest point), shorten (halve duration). Tolerance matching, shorten_neighbors for cleaner separation. Positional space creation, syncopation, breathing room in dense patterns.
+
 ## v1.263.0 (2026-07-06)
 
 ### Added

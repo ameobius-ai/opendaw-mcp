@@ -30565,6 +30565,168 @@ async def mcp_opendaw_expand_intervals(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_insert_rests(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    rest_positions: str = "0,1,2,3",
+    tolerance_beats: float = 0.05,
+    mode: str = "delete",
+    shorten_neighbors: bool = False,
+) -> str:
+    """Insert rests at specified beat positions by removing notes.
+
+    Deletes notes at given beat positions to create space, syncopation,
+    or breathing room in dense patterns. Unlike thin_notes (which
+    removes by interval/velocity/random strategy), this works
+    positionally — you specify exactly where rests should appear.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        rest_positions: Comma-separated beat positions where rests
+                        should be inserted (e.g. "0,1,2,3" = every
+                        beat, "1.5,3.5" = offbeats only).
+        tolerance_beats: Tolerance for matching note start to rest
+                         position (0.05 = within a 32nd note,
+                         0.25 = within a 16th).
+        mode: Deletion mode —
+            "delete" = remove notes starting at rest positions,
+            "truncate" = shorten notes that overlap rest positions
+                         (cut them at the rest point),
+            "shorten" = reduce duration of notes near rest positions
+                        by half but don't delete them.
+        shorten_neighbors: If True, also shorten notes immediately
+                           before rest positions to create cleaner
+                           separation. Only with mode="delete".
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{error: "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const toleranceTicks = Math.round({tolerance_beats} * Quarter);
+        const restPositions = "{rest_positions}".split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+        const delMode = "{mode}";
+        const shortenNeighbors = {shorten_neighbors};
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{error: "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{error: "No notes in region"}};
+
+        // Convert rest positions to ticks
+        const restTicks = restPositions.map(b => Math.round(b * Quarter));
+
+        // Find notes to process
+        const notesToDelete = [];
+        const notesToTruncate = [];  // note + newEnd
+        const notesToShorten = [];   // note + newDur
+        const notesToShortenNeighbor = []; // note + newDur
+
+        for (const note of srcNotes) {{
+            const notePos = note.position.getValue();
+            const noteDur = note.duration.getValue();
+            const noteEnd = notePos + noteDur;
+
+            for (const restTick of restTicks) {{
+                if (delMode === "delete") {{
+                    // Delete if note starts within tolerance of rest position
+                    if (Math.abs(notePos - restTick) <= toleranceTicks) {{
+                        notesToDelete.push(note);
+                        break;
+                    }}
+                    // Shorten previous neighbor if requested
+                    if (shortenNeighbors && noteEnd <= restTick && (restTick - noteEnd) <= toleranceTicks * 2) {{
+                        const newDur = restTick - notePos - Quarter * 0.0625;
+                        if (newDur > 0 && newDur < noteDur) {{
+                            notesToShortenNeighbor.push({{note, newDur}});
+                        }}
+                    }}
+                }} else if (delMode === "truncate") {{
+                    // Truncate if note overlaps rest position
+                    if (notePos < restTick && noteEnd > restTick) {{
+                        notesToTruncate.push({{note, newEnd: restTick}});
+                        break;
+                    }}
+                }} else {{ // shorten
+                    // Shorten if note starts near rest position
+                    if (Math.abs(notePos - restTick) <= toleranceTicks) {{
+                        notesToShorten.push({{note, newDur: Math.round(noteDur / 2)}});
+                        break;
+                    }}
+                }}
+            }}
+        }}
+
+        // Apply changes
+        const editing = h.editing;
+        let deleted = 0;
+        let truncated = 0;
+        let shortened = 0;
+        let neighborShortened = 0;
+
+        await editing.modify(async () => {{
+            // Delete notes
+            for (const note of notesToDelete) {{
+                note.delete();
+                deleted++;
+            }}
+            // Truncate notes
+            for (const t of notesToTruncate) {{
+                const newDur = t.newEnd - t.note.position.getValue();
+                t.note.duration.setValue(Math.max(1, newDur));
+                truncated++;
+            }}
+            // Shorten notes
+            for (const s of notesToShorten) {{
+                s.note.duration.setValue(s.newDur);
+                shortened++;
+            }}
+            // Shorten neighbors
+            for (const s of notesToShortenNeighbor) {{
+                s.note.duration.setValue(Math.round(s.newDur));
+                neighborShortened++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            rest_positions: restPositions,
+            tolerance_beats: toleranceTicks / Quarter,
+            mode: delMode,
+            shorten_neighbors: shortenNeighbors,
+            notes_deleted: deleted,
+            notes_truncated: truncated,
+            notes_shortened: shortened,
+            neighbors_shortened: neighborShortened,
+            total_affected: deleted + truncated + shortened + neighborShortened,
+            remaining_notes: srcNotes.length - deleted,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 
