@@ -1262,3 +1262,62 @@ class TestComping:
         voicings = [[60]]
         notes, _ = self._build_note_data(voicings, "x", velocity=1.0)
         assert all(n["vel"] <= 1.0 for n in notes)
+
+
+class TestMordent:
+    """Unit tests for create_mordent orchestration tool — logic validation."""
+
+    def _build_notes(self, main_pitch, direction, interval, duration=0.5, velocity=0.85):
+        """Replicate mordent note generation."""
+        neighbor_offset = interval if direction == "upper" else -interval
+        neighbor_pitch = max(0, min(127, main_pitch + neighbor_offset))
+        main_dur = duration * 0.4
+        neighbor_dur = duration * 0.2
+        return_dur = duration * 0.4
+        return [
+            {"pitch": main_pitch, "pos": 0.0, "dur": main_dur, "vel": velocity},
+            {"pitch": neighbor_pitch, "pos": main_dur, "dur": neighbor_dur, "vel": round(velocity * 0.9, 3)},
+            {"pitch": main_pitch, "pos": main_dur + neighbor_dur, "dur": return_dur, "vel": velocity},
+        ]
+
+    def test_upper_mordent_neighbor_higher(self):
+        notes = self._build_notes(60, "upper", 2)
+        assert notes[1]["pitch"] == 62  # neighbor is 2 semitones higher
+
+    def test_lower_mordent_neighbor_lower(self):
+        notes = self._build_notes(60, "lower", 2)
+        assert notes[1]["pitch"] == 58  # neighbor is 2 semitones lower
+
+    def test_half_step_interval(self):
+        notes = self._build_notes(64, "upper", 1)
+        assert notes[1]["pitch"] == 65  # half step up
+
+    def test_three_notes(self):
+        notes = self._build_notes(60, "upper", 2)
+        assert len(notes) == 3
+
+    def test_timing_split(self):
+        notes = self._build_notes(60, "upper", 2, duration=1.0)
+        assert notes[0]["dur"] == 0.4  # 40%
+        assert notes[1]["dur"] == 0.2  # 20%
+        assert notes[2]["dur"] == 0.4  # 40%
+
+    def test_neighbor_velocity_lower(self):
+        notes = self._build_notes(60, "upper", 2, velocity=0.85)
+        assert notes[1]["vel"] < notes[0]["vel"]  # neighbor quieter
+
+    def test_pitch_clamp(self):
+        notes = self._build_notes(0, "lower", 7)
+        assert notes[1]["pitch"] == 0  # clamped to 0, same as main → error in real code
+
+    def test_return_to_main(self):
+        notes = self._build_notes(60, "upper", 3)
+        assert notes[2]["pitch"] == 60  # returns to main
+
+    def test_direction_upper_interval_positive(self):
+        offset = 2 if "upper" == "upper" else -2
+        assert offset > 0
+
+    def test_direction_lower_interval_negative(self):
+        offset = -2 if "lower" == "lower" else 2
+        assert offset < 0

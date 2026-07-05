@@ -16067,6 +16067,146 @@ async def mcp_opendaw_create_trill(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_mordent(
+    main_pitch: int = 60,
+    direction: str = "upper",
+    interval: int = 2,
+    duration_beats: float = 0.5,
+    velocity: float = 0.85,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a mordent — main note → neighbor → back. A classical ornament.
+
+    The mordent is one of the four essential baroque ornaments (trill, mordent,
+    turn, appoggiatura). It's a rapid single alternation: play the main note
+    briefly, flick to a neighbor note, then return to the main note — all within
+    the space of one note duration. Think Bach two-part inventions, Mozart sonatas.
+
+    An upper mordent flicks UP (main → upper neighbor → main).
+    A lower mordent flicks DOWN (main → lower neighbor → main).
+    The neighbor note is very short — just a flicker.
+
+    main_pitch: The primary MIDI note (default 60 = C4).
+    direction: "upper" (main→higher→main) or "lower" (main→lower→main).
+    interval: Semitones to the neighbor note (default 2 = whole step).
+      Upper: 1 = half step (diatonic), 2 = whole step.
+      Lower: -1, -2 mirror.
+    duration_beats: Total length of the mordent in beats (0.25-4, default 0.5 = one 8th).
+    velocity: Base velocity 0-1 (default 0.85).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the mordent begins.
+
+    Returns notes created, pitches used.
+    """
+    if main_pitch < 0 or main_pitch > 127:
+        return "Error: main_pitch must be 0-127"
+    if direction not in ("upper", "lower"):
+        return "Error: direction must be 'upper' or 'lower'"
+    if interval < 1 or interval > 7:
+        return "Error: interval must be 1-7"
+    if duration_beats < 0.25 or duration_beats > 4:
+        return "Error: duration_beats must be 0.25-4"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    neighbor_offset = interval if direction == "upper" else -interval
+    neighbor_pitch = max(0, min(127, main_pitch + neighbor_offset))
+    if neighbor_pitch == main_pitch:
+        return "Error: neighbor pitch clamped to same as main — reduce interval"
+
+    # Mordent timing: main (40%) → neighbor (20%) → main (40%)
+    main_dur = duration_beats * 0.4
+    neighbor_dur = duration_beats * 0.2
+    return_dur = duration_beats * 0.4
+
+    note_data = [
+        {"pitch": main_pitch, "pos": 0.0, "dur": main_dur, "vel": velocity},
+        {"pitch": neighbor_pitch, "pos": main_dur, "dur": neighbor_dur, "vel": round(velocity * 0.9, 3)},
+        {"pitch": main_pitch, "pos": main_dur + neighbor_dur, "dur": return_dur, "vel": velocity},
+    ]
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {duration_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Mordent");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            main_pitch: {main_pitch},
+            neighbor_pitch: {neighbor_pitch},
+            direction: "{direction}",
+            interval: {interval},
+            duration_beats: {duration_beats},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_glissando(
     start_pitch: int = 60,
     end_pitch: int = 72,

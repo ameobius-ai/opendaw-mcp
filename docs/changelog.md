@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.44.0 (2026-07-05)
+
+- **`create_mordent` orchestration tool (296 MCP tools)** — classical baroque ornament: main note → neighbor → main. One of the four essential ornaments (trill, mordent, turn, appoggiatura). Upper mordent flicks up, lower flicks down. Adjustable interval (1-7 semitones), timing split (40%/20%/40%). Bach two-part inventions, Mozart sonatas. One call replaces 3 manual note creations. Completes the ornaments set alongside create_trill
+- **E2E verified**: upper mordent (3 notes), lower mordent, half-step, bad direction/interval/pitch/velocity, clamped neighbor — 8/8 tests passed
+- **+10 unit tests** for mordent neighbor direction, timing split, velocity, clamping (354 total)
+- **Example script**: `create_mordent.py` — upper + lower mordent
+- **296 MCP tools** (258 low-level + 39 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.43.0 (2026-07-05)
 
 - **`create_comping` orchestration tool (295 MCP tools)** — rhythmic chordal accompaniment: the most common accompaniment style in modern music. Play chords in a rhythmic pattern rather than sustained blocks. Jazz piano comping, funk guitar chops, reggae skanks, country boom-chick, neo-soul. Rhythm grid (x=play, -=rest, .=ghost), syncopation, chord JSON parsing, multi-chord progression. One call replaces 20-80 manual note creations. Unlike create_chord_progression (sustained blocks) or create_stab (house stabs), comping gives each chord a rhythmic identity

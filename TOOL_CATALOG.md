@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-295 MCP tools for headless openDAW control via Playwright bridge.
+296 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -347,6 +347,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_bass_drop` — Generate descending pitch sweep into sustained sub bass for dubstep/EDM/trap drops. 3 curves (linear/exp/log), adjustable sweep/hold duration.
 - `create_chop` — Slice source pitches into segments and rearrange. 5 modes: reverse (Dilla flip), stutter (glitch repeat), shuffle (Madlib random), ping-pong (ABBA), gate (chopped break). Octave shift, velocity variation, inner-pitch reverse.
 - `create_trill` — Create rapid two-note alternation (ornament). 5 rates (32nd/16th/8th/32t/16t). Upper note accent (baroque style). Start on upper or lower. Classical, jazz, metal, electronic.
+- `create_mordent` — Classical ornament: main → neighbor → main. Upper/lower direction, adjustable interval (1-7 semitones). One of four essential baroque ornaments. Bach, Mozart.
 - `create_glissando` — Smooth scale run between two pitches. 6 scale types (chromatic/major/minor/pentatonic/whole_tone). 5 rates. 4 velocity curves (flat/ramp_up/ramp_down/arc). Ascending or descending.
 - `create_sequence` — Repeat a melodic pattern at transposed pitch levels. 3 directions (up/down/alternating). Adjustable transposition (semitones), repeats (1-8), velocity decay. The fundamental compositional technique — baroque sequences, jazz chains, film score builds.
 - `create_pedal_point` — Sustained bass note under changing chords. Retrigger or sustained mode. Chord name parsing (maj/min/m7/maj7/sus2/sus4/dim/aug). Adjustable time signatures. Film scoring, organ preludes, rock ballads.
