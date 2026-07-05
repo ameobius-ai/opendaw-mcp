@@ -175,13 +175,14 @@ Orchestration tools solve this by combining multiple low-level operations into a
 162. `create_ratchet` — ratchet (accelerando repeat): 4 modes (accelerate/decelerate/constant/exponential), changing subdivision rate, velocity_decay, pitch_drift
 163. `repeat_notes` — repeat existing notes N times (1-16): cumulative transpose (direction up/down), velocity decay, time gap, cross-track destination
 164. `subdivide_notes` — subdivide each note into N parts (2-16): pitch patterns (same/scale/octave/chromatic), velocity patterns (decrescendo/crescendo/accent), diminution, fragmentation
-165. `swap_sections` — swap two sections on timeline: exchange positions, song structure experimentation, handles different-length sections
-166. `invert_chord_notes` — chord inversion: 1st-6th inversion at beat position, up (bottom notes up) or down (drop voicing), returns pitches + root
-167. `humanize_pitch` — micro-detune (cents) intonation humanization: cents_depth 0-50, bias -20..+20, seeded PRNG, complements humanize_notes
-168. `reorder_sections` — full song structure rearrangement: JSON array of section boundaries in new order, rearranges note content back-to-back, complements swap_sections
-169. `spread_voicing` — chord voicing spread/compact: 4 modes (open/close/drop2/drop3), open widens spacing, close collapses to one octave, drop2/drop3 are jazz comping voicings
-170. `randomize_note_chance` — generative note probability: 5 modes (uniform/decreasing/increasing/sparse/binary), chance 0-100%, seeded PRNG, patterns that evolve per iteration
-171. `add_chord_tension` — jazz chord extension: 7 extensions (9/b9/#9/11/#11/13/b13), calculates pitch from chord root, triad→Cmaj9
+165. `merge_consecutive_notes` — merge same-pitch consecutive notes: same_pitch_only, max_gap_beats, 4 velocity modes (first/last/max/avg), cleanup/sustain
+166. `swap_sections` — swap two sections on timeline: exchange positions, song structure experimentation, handles different-length sections
+167. `invert_chord_notes` — chord inversion: 1st-6th inversion at beat position, up (bottom notes up) or down (drop voicing), returns pitches + root
+168. `humanize_pitch` — micro-detune (cents) intonation humanization: cents_depth 0-50, bias -20..+20, seeded PRNG, complements humanize_notes
+169. `reorder_sections` — full song structure rearrangement: JSON array of section boundaries in new order, rearranges note content back-to-back, complements swap_sections
+170. `spread_voicing` — chord voicing spread/compact: 4 modes (open/close/drop2/drop3), open widens spacing, close collapses to one octave, drop2/drop3 are jazz comping voicings
+171. `randomize_note_chance` — generative note probability: 5 modes (uniform/decreasing/increasing/sparse/binary), chance 0-100%, seeded PRNG, patterns that evolve per iteration
+172. `add_chord_tension` — jazz chord extension: 7 extensions (9/b9/#9/11/#11/13/b13), calculates pitch from chord root, triad→Cmaj9
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

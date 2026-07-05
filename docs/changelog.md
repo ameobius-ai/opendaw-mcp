@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.260.0 (2026-07-06)
+
+### Added
+- `merge_consecutive_notes` — Merge consecutive notes of the same pitch into sustained notes. same_pitch_only mode, max_gap_beats threshold (0=touching only, 0.25=16th gap), 4 velocity modes (first/last/max/avg). Cleans up repeated hits, converts staccato to sustained, simplifies busy passages.
+
 ## v1.259.0 (2026-07-06)
 
 ### Added

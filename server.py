@@ -29844,6 +29844,182 @@ async def mcp_opendaw_subdivide_notes(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_merge_consecutive_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    same_pitch_only: bool = True,
+    max_gap_beats: float = 0.0,
+    velocity_mode: str = "first",
+) -> str:
+    """Merge consecutive notes of the same pitch into single sustained notes.
+
+    Scans notes sorted by position. When two notes have the same pitch
+    and the gap between them is within max_gap_beats, they are merged
+    into one note spanning from the first note's start to the last
+    note's end. Useful for cleaning up repeated hits, converting
+    staccato patterns to sustained notes, or simplifying busy passages.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        same_pitch_only: If True, only merge notes with identical pitch.
+                         If False, merge any consecutive notes regardless of pitch
+                         (uses first note's pitch for the merged result).
+        max_gap_beats: Maximum gap between note end and next note start
+                       to qualify for merging (0.0 = touching/overlapping only,
+                       0.25 = up to a 16th note gap, 1.0 = up to 1 beat gap).
+        velocity_mode: Velocity for merged note —
+            "first" = use first note's velocity,
+            "last" = use last note's velocity,
+            "max" = use highest velocity,
+            "avg" = use average velocity across merged notes.
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{error: "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const samePitch = {same_pitch_only};
+        const maxGapTicks = Math.round({max_gap_beats} * Quarter);
+        const velMode = "{velocity_mode}";
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{error: "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{error: "No notes in region"}};
+
+        // Read and sort by position
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        // Group consecutive notes for merging
+        const groups = [];
+        let currentGroup = [srcData[0]];
+
+        for (let i = 1; i < srcData.length; i++) {{
+            const prev = currentGroup[currentGroup.length - 1];
+            const curr = srcData[i];
+            const prevEnd = prev.pos + prev.dur;
+            const gap = curr.pos - prevEnd;
+
+            const pitchMatch = samePitch ? (curr.pitch === prev.pitch) : true;
+            const gapOk = gap <= maxGapTicks;
+
+            if (pitchMatch && gapOk && gap >= -prev.dur) {{
+                // Consecutive: add to current group
+                currentGroup.push(curr);
+            }} else {{
+                // Break: save current group, start new
+                groups.push(currentGroup);
+                currentGroup = [curr];
+            }}
+        }}
+        groups.push(currentGroup);
+
+        // Build merged notes
+        const mergedNotes = [];
+        let mergeCount = 0;
+
+        for (const group of groups) {{
+            if (group.length === 1) {{
+                // No merge needed
+                mergedNotes.push(group[0]);
+            }} else {{
+                const startPos = group[0].pos;
+                let endPos = 0;
+                for (const n of group) {{
+                    const e = n.pos + n.dur;
+                    if (e > endPos) endPos = e;
+                }}
+
+                let vel;
+                if (velMode === "first") {{
+                    vel = group[0].vel;
+                }} else if (velMode === "last") {{
+                    vel = group[group.length - 1].vel;
+                }} else if (velMode === "max") {{
+                    vel = Math.max(...group.map(n => n.vel));
+                }} else {{ // avg
+                    vel = group.reduce((sum, n) => sum + n.vel, 0) / group.length;
+                }}
+                vel = Math.max(0.01, Math.min(1.0, vel));
+
+                mergedNotes.push({{
+                    pos: startPos,
+                    dur: endPos - startPos,
+                    pitch: group[0].pitch,
+                    vel: vel,
+                }});
+                mergeCount++;
+            }}
+        }}
+
+        // Replace notes: delete all originals, create merged
+        const bg = h.boxGraph;
+        const editing = h.editing;
+        let deleted = 0;
+        let created = 0;
+
+        await editing.modify(async () => {{
+            // Delete all original notes
+            for (const n of srcNotes) {{
+                n.delete();
+                deleted++;
+            }}
+            // Create merged notes
+            for (const mn of mergedNotes) {{
+                h.NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(mn.pos));
+                    box.duration.setValue(Math.round(mn.dur));
+                    box.pitch.setValue(mn.pitch);
+                    box.velocity.setValue(mn.vel);
+                    box.cent.setValue(0);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_before: srcData.length,
+            notes_after: mergedNotes.length,
+            notes_deleted: deleted,
+            notes_created: created,
+            merges_performed: mergeCount,
+            same_pitch_only: samePitch,
+            max_gap_beats: maxGapTicks / Quarter,
+            velocity_mode: velMode,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 @mcp.tool()
 async def mcp_opendaw_create_stutter(

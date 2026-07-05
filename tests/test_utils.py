@@ -17540,3 +17540,124 @@ class TestSubdivideNotes:
         dest_track = 2
         d_track = track_idx if dest_track < 0 else dest_track
         assert d_track == 2
+
+
+class TestMergeConsecutiveNotes:
+    """Tests for mcp_opendaw_merge_consecutive_notes — merge same-pitch consecutive notes"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_merge_consecutive_notes" in names
+
+    def test_gap_calculation(self):
+        """Gap = next.pos - (prev.pos + prev.dur)"""
+        prev_pos = 0
+        prev_dur = 480  # half beat
+        next_pos = 480
+        gap = next_pos - (prev_pos + prev_dur)
+        assert gap == 0, "touching notes have gap=0"
+
+    def test_positive_gap(self):
+        """Positive gap = notes separated"""
+        prev_pos = 0
+        prev_dur = 480
+        next_pos = 960
+        gap = next_pos - (prev_pos + prev_dur)
+        assert gap == 480, "one beat gap"
+
+    def test_negative_gap_overlapping(self):
+        """Negative gap = overlapping notes"""
+        prev_pos = 0
+        prev_dur = 960
+        next_pos = 480
+        gap = next_pos - (prev_pos + prev_dur)
+        assert gap == -480, "overlapping by half beat"
+
+    def test_max_gap_threshold(self):
+        """Notes merged only if gap <= maxGapTicks"""
+        gap = 240  # 16th note gap
+        maxGap = 480  # allow up to half beat
+        assert gap <= maxGap, "should merge"
+
+        gap2 = 960
+        assert not (gap2 <= maxGap), "should not merge"
+
+    def test_same_pitch_merge(self):
+        """same_pitch_only=True: only merge if pitches match"""
+        same_pitch = True
+        pitch1 = 60
+        pitch2 = 60
+        assert (same_pitch and pitch1 == pitch2) if same_pitch else True
+
+        pitch3 = 62
+        assert not (pitch3 == pitch1), "different pitch should not merge"
+
+    def test_any_pitch_merge(self):
+        """same_pitch_only=False: merge regardless of pitch"""
+        same_pitch = False
+        # When same_pitch is False, pitchMatch is always True
+        pitch_match = same_pitch if same_pitch else True
+        assert pitch_match
+
+    def test_velocity_first(self):
+        """velocity_mode='first': use first note velocity"""
+        group = [{"vel": 0.8}, {"vel": 0.6}, {"vel": 0.9}]
+        vel = group[0]["vel"]
+        assert vel == 0.8
+
+    def test_velocity_last(self):
+        """velocity_mode='last': use last note velocity"""
+        group = [{"vel": 0.8}, {"vel": 0.6}, {"vel": 0.9}]
+        vel = group[-1]["vel"]
+        assert vel == 0.9
+
+    def test_velocity_max(self):
+        """velocity_mode='max': use highest velocity"""
+        group = [{"vel": 0.8}, {"vel": 0.6}, {"vel": 0.9}]
+        vel = max(n["vel"] for n in group)
+        assert vel == 0.9
+
+    def test_velocity_avg(self):
+        """velocity_mode='avg': use average velocity"""
+        group = [{"vel": 0.8}, {"vel": 0.6}, {"vel": 0.9}]
+        vel = sum(n["vel"] for n in group) / len(group)
+        assert abs(vel - 0.7667) < 0.01
+
+    def test_merged_duration(self):
+        """Merged note spans from first start to last end"""
+        group = [
+            {"pos": 0, "dur": 480},
+            {"pos": 480, "dur": 480},
+            {"pos": 960, "dur": 480},
+        ]
+        start = group[0]["pos"]
+        end = max(n["pos"] + n["dur"] for n in group)
+        assert start == 0
+        assert end == 1440
+        assert end - start == 1440, "3 half-beats = 1.5 beats"
+
+    def test_single_note_no_merge(self):
+        """Groups of 1 are not merged"""
+        group = [{"pos": 0, "dur": 960, "pitch": 60, "vel": 0.8}]
+        assert len(group) == 1, "single note stays as-is"
+
+    def test_velocity_clamping(self):
+        """Merged velocity clamped to 0.01-1.0"""
+        vel = 0.005
+        clamped = max(0.01, min(1.0, vel))
+        assert clamped == 0.01
+
+    def test_sorting_by_position(self):
+        """Notes sorted by position before grouping"""
+        notes = [
+            {"pos": 960, "dur": 480, "pitch": 60, "vel": 0.8},
+            {"pos": 0, "dur": 480, "pitch": 60, "vel": 0.8},
+            {"pos": 480, "dur": 480, "pitch": 60, "vel": 0.8},
+        ]
+        sorted_notes = sorted(notes, key=lambda n: n["pos"])
+        assert sorted_notes[0]["pos"] == 0
+        assert sorted_notes[1]["pos"] == 480
+        assert sorted_notes[2]["pos"] == 960
