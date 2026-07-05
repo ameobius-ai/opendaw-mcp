@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.130.0 (2026-07-05)
+
+- **`create_house_arrangement` orchestration tool (323 MCP tools)** — second multi-track genre arrangement. Complete house music section across 3 tracks: drums (four-on-the-floor kick, open hats on off-beats, clap on 2+4), bass (off-beat sustained between kicks — the "untz-untz" groove), stabs (minor triad on beats 1+3 with off-beant variant). Kick and bass perfectly interleaved — never overlap. Stabs 2 octaves above bass. Tempo-aware 110-140 BPM, default 124. 4-32 bars. 66 orchestration tools. 323 MCP tools
+- **1497 unit tests** (+18)
+
 ## v1.129.0 (2026-07-05)
 
 - **`create_dnb_arrangement` orchestration tool (322 MCP tools)** — first multi-track genre arrangement. Generates a complete DnB section across 3 tracks in one call: drums (Amen-style breakbeat with syncopated kicks, ghost notes), bass (Reese-style with sustained notes + syncopated stabs + octave jump), pad (sustained minor triad, 2 bars per chord). Elements lock rhythmically — bass sustains when drums break, stabs when drums roll. Pad 2 octaves above bass. Tempo-aware (140-200 BPM, default 174). Configurable track indices. 4-32 bars. 65 orchestration tools. 322 MCP tools

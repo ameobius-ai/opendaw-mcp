@@ -78,6 +78,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 65. `create_trap_rolls` — Trap hi-hat rolls: evolving density. 5 variants (modern/migos/bubble/skrrt/evolving). Triplet bursts, 32nd doubles, stutter patterns. Travis Scott, Migos, Metro Boomin
 66. `create_electronic_bass` — Genre-specific electronic basslines. 6 variants (house_offbeat/techno_sub/dnb_reese/dubstep_wobble/acid_303/garage_2step). Root/fifth/octave. House off-beat, techno sub, DnB Reese, dubstep wobble, TB-303 acid, UK 2-step
 67. `create_dnb_arrangement` — First multi-track genre arrangement: complete DnB section (drums+bass+pad) across 3 tracks. Amen breakbeat, Reese bass, minor triad pad. Tempo-aware. One call = full section
+68. `create_house_arrangement` — Second multi-track arrangement: house section (drums+bass+stabs). Four-on-floor, off-beat bass (interleaved with kick), minor triad stabs. Tempo-aware 110-140 BPM
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

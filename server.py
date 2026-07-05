@@ -22141,3 +22141,157 @@ async def mcp_opendaw_create_dnb_arrangement(
         "bass_pattern": "reese",
         "pad_type": "minor_triad",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_house_arrangement(
+    bpm: float = 124,
+    bars: int = 8,
+    root: str = "C",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    stab_track: int = 2,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full house music arrangement — drums + bass + stabs across 3 tracks in one call.
+
+    House music arrangement with all elements locked together:
+    - Track 0: Drums — four-on-the-floor kick, open hats on off-beats, clap on 2+4
+    - Track 1: Bass — off-beat sustained bass between kicks
+    - Track 2: Stabs — short minor chord stabs on beats 1 and 3, with occasional off-beat stabs
+
+    At 124 BPM (default), this creates the classic Chicago/Detroit house feel.
+    The bass and drums lock — bass hits exactly between kicks, creating the "untz-untz" groove.
+    Stabs provide harmonic movement on top.
+
+    bpm: Tempo (115-135, default 124 = classic house).
+    bars: Arrangement length (4-32, default 8).
+    root: Root note for bass and stabs.
+    octave: MIDI octave for bass (2 = C2=36).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / stab_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_house_arrangement(bpm=124, root="C", bars=8)
+      create_house_arrangement(bpm=128, root="F#", bars=16)
+    """
+    if not (110 <= bpm <= 140):
+        return "Error: bpm must be 110-140"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    stab_base = (octave + 3) * 12 + root_pc  # stabs 2 octaves above bass
+
+    # --- DRUMS: Four-on-the-floor (1-bar cycle) ---
+    drum_pattern = [
+        (0.0, "kick"), (0.5, "open"), (1.0, "kick"), (1.0, "clap"),
+        (1.5, "open"), (2.0, "kick"), (2.5, "open"), (3.0, "kick"),
+        (3.0, "clap"), (3.5, "open"),
+    ]
+    kick_p, open_p, clap_p = 36, 46, 39
+    drum_pitch_map = {"kick": kick_p, "open": open_p, "clap": clap_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "clap": max(0.0, velocity - 0.05),
+        "open": max(0.0, velocity - 0.1),
+    }
+    drum_dur_map = {"kick": 0.2, "open": 0.15, "clap": 0.1}
+
+    drum_notes = []
+    drum_cycle = 4.0
+    for b in range(bars):
+        off = b * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: Off-beat sustained (1-bar cycle) ---
+    bass_pattern = [
+        (0.5, 0, 0.4, 1.0), (1.5, 0, 0.4, 1.0),
+        (2.5, 0, 0.4, 1.0), (3.5, 0, 0.4, 1.0),
+    ]
+    bass_notes = []
+    bass_cycle = 4.0
+    for b in range(bars):
+        off = b * bass_cycle
+        for beat, po, dur, vm in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- STABS: Minor chord stabs on 1 and 3, off-beat on 2.5 (1-bar cycle) ---
+    stab_intervals = [0, 3, 7]  # root, minor third, fifth
+    stab_pattern = [
+        (0.0, 0.3, 1.0),     # stab on beat 1
+        (2.0, 0.3, 1.0),     # stab on beat 3
+        (2.5, 0.15, 0.7),    # light off-beat stab
+    ]
+    stab_notes = []
+    stab_cycle = 4.0
+    for b in range(bars):
+        off = b * stab_cycle
+        for beat, dur, vm in stab_pattern:
+            for interval in stab_intervals:
+                stab_notes.append({
+                    "pitch": stab_base + interval,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm * 0.7, 3),
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    stab_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(stab_notes), unit_index, stab_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        stab_data = json.loads(stab_result)
+    except Exception:
+        stab_data = {"raw": stab_result}
+
+    return json.dumps({
+        "house_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "stabs": {"track": stab_track, "notes": len(stab_notes), "result": stab_data.get("notes_created", len(stab_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(stab_notes),
+        "drum_pattern": "four_on_floor",
+        "bass_pattern": "offbeat",
+        "stab_type": "minor_triad",
+    }, indent=2)

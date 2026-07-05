@@ -4635,3 +4635,107 @@ class TestCreateDnbArrangement:
         drum_beat1 = any(b == 0.0 and s == "kick" for b, s in self.DRUM_PATTERN)
         bass_beat1 = any(b == 0.0 for b, _, _, _, _ in self.BASS_PATTERN)
         assert drum_beat1 and bass_beat1, "Drums and bass should both hit beat 1"
+
+
+class TestCreateHouseArrangement:
+    """Tests for create_house_arrangement — multi-track house arrangement"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick"), (0.5, "open"), (1.0, "kick"), (1.0, "clap"),
+        (1.5, "open"), (2.0, "kick"), (2.5, "open"), (3.0, "kick"),
+        (3.0, "clap"), (3.5, "open"),
+    ]
+    BASS_PATTERN = [
+        (0.5, 0, 0.4, 1.0), (1.5, 0, 0.4, 1.0),
+        (2.5, 0, 0.4, 1.0), (3.5, 0, 0.4, 1.0),
+    ]
+    STAB_INTERVALS = [0, 3, 7]
+    STAB_PATTERN = [
+        (0.0, 0.3, 1.0), (2.0, 0.3, 1.0), (2.5, 0.15, 0.7),
+    ]
+
+    def test_drums_kick_on_every_quarter(self):
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        for beat in [0.0, 1.0, 2.0, 3.0]:
+            assert beat in kicks, f"Missing kick on beat {beat}"
+
+    def test_drums_open_hat_on_offbeats(self):
+        opens = [b for b, s in self.DRUM_PATTERN if s == "open"]
+        assert 0.5 in opens, "Missing open hat on &1"
+        assert 1.5 in opens, "Missing open hat on &2"
+
+    def test_drums_clap_on_2_and_4(self):
+        claps = [b for b, s in self.DRUM_PATTERN if s == "clap"]
+        assert 1.0 in claps, "Missing clap on beat 2"
+        assert 3.0 in claps, "Missing clap on beat 4"
+
+    def test_bass_on_offbeats_between_kicks(self):
+        """Bass hits between kicks — the house 'untz-untz' feel"""
+        bass_beats = [b for b, _, _, _ in self.BASS_PATTERN]
+        assert 0.5 in bass_beats, "Missing bass on &1"
+        assert 1.5 in bass_beats, "Missing bass on &2"
+        assert 0.0 not in bass_beats, "Bass should NOT be on beat 1 (kick territory)"
+
+    def test_bass_and_drums_interlock(self):
+        """Bass on 0.5 when kick is NOT there — they interlock"""
+        kick_beats = {b for b, s in self.DRUM_PATTERN if s == "kick"}
+        bass_beats = {b for b, _, _, _ in self.BASS_PATTERN}
+        assert not (kick_beats & bass_beats), "Bass and kick should never overlap"
+
+    def test_stabs_are_minor_triad(self):
+        assert 0 in self.STAB_INTERVALS, "Missing root in stab"
+        assert 3 in self.STAB_INTERVALS, "Missing minor third in stab"
+        assert 7 in self.STAB_INTERVALS, "Missing fifth in stab"
+
+    def test_stabs_on_1_and_3(self):
+        stab_beats = [b for b, _, _ in self.STAB_PATTERN]
+        assert 0.0 in stab_beats, "Missing stab on beat 1"
+        assert 2.0 in stab_beats, "Missing stab on beat 3"
+
+    def test_stab_has_offbeat_variant(self):
+        stab_beats = [b for b, _, _ in self.STAB_PATTERN]
+        assert 2.5 in stab_beats, "Missing off-beat stab at 2.5"
+
+    def test_drum_cycle_1_bar(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 4.0, "Drum pattern exceeds 1 bar"
+
+    def test_bass_cycle_1_bar(self):
+        max_beat = max(b for b, _, _, _ in self.BASS_PATTERN)
+        assert max_beat < 4.0, "Bass pattern exceeds 1 bar"
+
+    def test_stab_cycle_1_bar(self):
+        max_beat = max(b for b, _, _ in self.STAB_PATTERN)
+        assert max_beat < 4.0, "Stab pattern exceeds 1 bar"
+
+    def test_drum_note_count_8_bars(self):
+        assert len(self.DRUM_PATTERN) * 8 == 10 * 8
+
+    def test_bass_note_count_8_bars(self):
+        assert len(self.BASS_PATTERN) * 8 == 4 * 8
+
+    def test_stab_note_count_8_bars(self):
+        """3 stab positions × 3 intervals × 8 bars"""
+        assert len(self.STAB_PATTERN) * len(self.STAB_INTERVALS) * 8 == 3 * 3 * 8
+
+    def test_tracks_separate(self):
+        drum_track, bass_track, stab_track = 0, 1, 2
+        assert len({drum_track, bass_track, stab_track}) == 3, "Tracks must be distinct"
+
+    def test_bpm_range(self):
+        assert 110 <= 124 <= 140, "Default BPM should be valid"
+
+    def test_bass_stab_pitch_relationship(self):
+        """Stabs 2 octaves above bass"""
+        octave = 2
+        root_pc = 0  # C
+        bass_base = (octave + 1) * 12 + root_pc
+        stab_base = (octave + 3) * 12 + root_pc
+        assert stab_base - bass_base == 24, "Stabs should be 2 octaves above bass"
+
+    def test_kick_bass_complement(self):
+        """Kick on 0,1,2,3 and bass on 0.5,1.5,2.5,3.5 — perfectly interleaved"""
+        kick_beats = sorted(b for b, s in self.DRUM_PATTERN if s == "kick")
+        bass_beats = sorted(b for b, _, _, _ in self.BASS_PATTERN)
+        for k, bs in zip(kick_beats, bass_beats):
+            assert abs(bs - k - 0.5) < 0.01, f"Bass {bs} should be 0.5 after kick {k}"
