@@ -2391,3 +2391,88 @@ class TestGraphicEqDSP:
         assert "_processSample" in code, "Missing series sample processing"
         assert "this.coeffs" in code, "Missing coefficients array"
         assert "this.stateL" in code or "this.stateR" in code, "Missing per-band filter state"
+
+
+class TestAutoPanDSP:
+    """Unit tests for werkstatt_auto_pan.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_auto_pan.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt auto_pan" in code, "Missing @werkstatt auto_pan header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 6, f"Expected 6 params, got {len(params)}"
+
+    def test_rate_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        rate = [p for p in params if p["name"] == "rate"][0]
+        assert rate["min"] > 0, "Rate min should be > 0"
+        assert rate["max"] >= 20, "Rate max should reach at least 20 Hz"
+        assert rate["scale"] == "exp", "Rate should be exponential scale"
+
+    def test_depth_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        depth = [p for p in params if p["name"] == "depth"][0]
+        assert depth["min"] == 0
+        assert depth["max"] == 1
+
+    def test_shape_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        shape = [p for p in params if p["name"] == "shape"][0]
+        assert shape["min"] == 0
+        assert shape["max"] == 1
+
+    def test_phase_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        phase = [p for p in params if p["name"] == "phase"][0]
+        assert phase["min"] == 0
+        assert phase["max"] == 360
+        assert phase["scale"] == "linear"
+
+    def test_waveform_morph(self):
+        code = self._read_script()
+        assert "_waveform" in code, "Missing waveform morph function"
+        assert "Math.sin" in code, "Missing sine wave"
+        assert "Math.asin" in code, "Missing triangle wave (asin of sin)"
+        assert "Math.sign" in code, "Missing square wave (sign)"
+
+    def test_equal_power_pan(self):
+        code = self._read_script()
+        assert "Math.cos" in code, "Missing equal-power pan law (cosine)"
+        assert "pan" in code, "Missing pan position calculation"
+        assert "panClamped" in code or "Math.max" in code, "Missing pan clamping"
+
+    def test_lfo_phase_accumulator(self):
+        code = self._read_script()
+        assert "phasePos" in code, "Missing LFO phase accumulator"
+        assert "2 * Math.PI" in code, "Missing 2*pi frequency calculation"
+
+    def test_stereo_output(self):
+        code = self._read_script()
+        assert "out[0]" in code and "out[1]" in code, "Missing stereo output"
+        assert "stereo" in code, "Missing stereo detection"

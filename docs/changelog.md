@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.58.0 (2026-07-05)
+
+- **`werkstatt_auto_pan.js` DSP script** — auto-pan with LFO-driven stereo positioning. Waveform morph (sine→triangle→square), rate (0.1-20 Hz), depth, phase offset (0-360°), width, and offset. Equal-power pan law. Distinct from stereowidth (which expands existing stereo) — auto-pan moves the signal between channels. Classic for guitars, synths, percussion. 6 params: rate, depth, shape, phase, width, offset
+- **49 DSP scripts** (36 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **334 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.57.0 (2026-07-05)
 
 - **`werkstatt_graphic_eq.js` DSP script** — 10-band graphic EQ with ISO frequency bands (32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz), each ±12 dB gain, plus master output ±6 dB. Biquad peaking filters (Q=1.41, ⅔ octave) in series. Distinct from parametric EQ (fixed bands vs movable). Classic rack-mount EQ for tone shaping, mixing, and live sound. 11 params: 10 bands + master

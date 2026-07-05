@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-302-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-48-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-324%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-49-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-334%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **302** MCP tools | **76** Python examples (8 genre templates) |
-| **48** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **324** unit + E2E tests |
+| **302** MCP tools | **77** Python examples (8 genre templates) |
+| **49** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **334** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.58.0 (2026-07-05)
+
+- **`werkstatt_auto_pan.js` DSP script** — auto-pan with LFO-driven stereo positioning. Waveform morph (sine→triangle→square), rate (0.1-20 Hz), depth, phase offset (0-360°), width, and offset. Equal-power pan law. Distinct from stereowidth (which expands existing stereo) — auto-pan moves the signal between channels. Classic for guitars, synths, percussion. 6 params: rate, depth, shape, phase, width, offset
+- **49 DSP scripts** (36 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **334 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ### v1.57.0 (2026-07-05)
 
