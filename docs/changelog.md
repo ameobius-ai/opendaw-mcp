@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.265.0 (2026-07-06)
+
+### Added
+- `shuffle_notes` — Random permutation of notes within a region. 4 modes: pitches (keep rhythm, shuffle melody), rhythm (keep pitches, shuffle timing), full (shuffle all attributes), within_groups (shuffle within beat groups). Seeded mulberry32 PRNG for reproducibility. shuffle_amount 0-1 controls fraction shuffled. preserve_first/last anchors. Generative melodic/rhythmic variation from existing note material.
+
 ## v1.264.0 (2026-07-06)
 
 ### Added

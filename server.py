@@ -30727,6 +30727,253 @@ async def mcp_opendaw_insert_rests(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_shuffle_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    mode: str = "pitches",
+    seed: int = 0,
+    shuffle_amount: float = 1.0,
+    preserve_first: bool = False,
+    preserve_last: bool = False,
+    group_beats: float = 4.0,
+) -> str:
+    """Shuffle note data randomly within a region.
+
+    Random permutation of notes — unlike rotate_notes (deterministic
+    cyclic shift), this creates non-repeating orderings. Seeded for
+    reproducibility: same seed = same shuffle.
+
+    Modes:
+    - "pitches": shuffle which pitch goes to which position (keeps
+      rhythm, changes melody). Most musical — generates melodic
+      variations from existing note set.
+    - "rhythm": shuffle which position+duration goes to which pitch
+      (keeps pitches, changes rhythm). Reassigns onset times among
+      existing pitch values.
+    - "full": shuffle pitch + position + duration + velocity together
+      (complete randomization of all note attributes).
+    - "within_groups": shuffle pitches within groups of group_beats
+      beats. Notes stay in their time window but pitches get
+      randomized within each group. Creates localized variation.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        mode: Shuffle mode — "pitches", "rhythm", "full", "within_groups"
+        seed: PRNG seed (0 = random each call, >0 = reproducible)
+        shuffle_amount: 0.0-1.0, fraction of notes to shuffle
+          (0=no change, 1=full shuffle, 0.5=shuffle half)
+        preserve_first: Keep first note unchanged (anchor point)
+        preserve_last: Keep last note unchanged (resolution point)
+        group_beats: Group size in beats for within_groups mode
+          (e.g. 4 = shuffle within each bar, 2 = within half bars)
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const shuffleMode = "{mode}";
+        const seedVal = {seed};
+        const amount = Math.max(0, Math.min(1, {shuffle_amount}));
+        const preserveFirst = {preserve_first};
+        const preserveLast = {preserve_last};
+        const groupBeats = {group_beats};
+
+        // mulberry32 PRNG seeded for reproducibility
+        function mulberry32(a) {{
+            return function() {{
+                a |= 0; a = a + 0x6D2B79F5 | 0;
+                let t = Math.imul(a ^ a >>> 15, 1 | a);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }};
+        }}
+        const rng = mulberry32(seedVal > 0 ? seedVal : Math.floor(Math.random() * 1e9));
+
+        // Fisher-Yates partial shuffle
+        function partialShuffle(arr, amt, keepFirst, keepLast) {{
+            const n = arr.length;
+            if (n < 2) return arr;
+            const start = keepFirst ? 1 : 0;
+            const end = keepLast ? n - 1 : n;
+            const range = end - start;
+            if (range < 2) return arr;
+            const indices = [];
+            for (let i = start; i < end; i++) indices.push(i);
+            for (let i = indices.length - 1; i > 0; i--) {{
+                const j = Math.floor(rng() * (i + 1));
+                const tmp = indices[i]; indices[i] = indices[j]; indices[j] = tmp;
+            }}
+            const swaps = Math.floor(range * amt);
+            const result = arr.slice();
+            for (let i = 0; i < swaps && i < indices.length; i++) {{
+                const srcIdx = start + i;
+                const dstIdx = indices[i];
+                if (dstIdx >= start && dstIdx < end) {{
+                    const tmp = result[srcIdx]; result[srcIdx] = result[dstIdx]; result[dstIdx] = tmp;
+                }}
+            }}
+            return result;
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIndex;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length < 2) return {{"error": "Need at least 2 notes to shuffle"}};
+
+        // Read note data, sorted by position
+        const noteData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        const n = noteData.length;
+        const origPitches = noteData.map(d => d.pitch);
+        const origPositions = noteData.map(d => d.pos);
+
+        let newPitches, newPositions, newDurations, newVelocities;
+        let groupDetails = null;
+
+        if (shuffleMode === "pitches") {{
+            newPitches = partialShuffle(noteData.map(d => d.pitch), amount, preserveFirst, preserveLast);
+            newPositions = noteData.map(d => d.pos);
+            newDurations = noteData.map(d => d.dur);
+            newVelocities = noteData.map(d => d.vel);
+        }} else if (shuffleMode === "rhythm") {{
+            const pairs = noteData.map(d => ({{pos: d.pos, dur: d.dur}}));
+            const shuffledPairs = partialShuffle(pairs, amount, preserveFirst, preserveLast);
+            newPitches = noteData.map(d => d.pitch);
+            newPositions = shuffledPairs.map(p => p.pos);
+            newDurations = shuffledPairs.map(p => p.dur);
+            newVelocities = noteData.map(d => d.vel);
+        }} else if (shuffleMode === "full") {{
+            const allData = noteData.map(d => ({{pitch: d.pitch, pos: d.pos, dur: d.dur, vel: d.vel}}));
+            const shuffled = partialShuffle(allData, amount, preserveFirst, preserveLast);
+            newPitches = shuffled.map(d => d.pitch);
+            newPositions = shuffled.map(d => d.pos);
+            newDurations = shuffled.map(d => d.dur);
+            newVelocities = shuffled.map(d => d.vel);
+        }} else if (shuffleMode === "within_groups") {{
+            newPitches = noteData.map(d => d.pitch);
+            newPositions = noteData.map(d => d.pos);
+            newDurations = noteData.map(d => d.dur);
+            newVelocities = noteData.map(d => d.vel);
+            const groupSize = Math.max(0.25, groupBeats) * Quarter;
+            const groups = {{}};
+            for (let i = 0; i < n; i++) {{
+                const groupId = Math.floor(noteData[i].pos / groupSize);
+                if (!groups[groupId]) groups[groupId] = [];
+                groups[groupId].push(i);
+            }}
+            groupDetails = [];
+            for (const gid of Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b))) {{
+                const indices = groups[gid];
+                if (indices.length < 2) continue;
+                const swaps = Math.floor(indices.length * amount);
+                for (let i = 0; i < swaps; i++) {{
+                    const aIdx = Math.floor(rng() * indices.length);
+                    const bIdx = Math.floor(rng() * indices.length);
+                    const tmp = newPitches[indices[aIdx]];
+                    newPitches[indices[aIdx]] = newPitches[indices[bIdx]];
+                    newPitches[indices[bIdx]] = tmp;
+                }}
+                groupDetails.push({{
+                    group: parseInt(gid),
+                    start_beat: Math.round(parseInt(gid) * groupSize / Quarter * 100) / 100,
+                    note_count: indices.length,
+                }});
+            }}
+        }} else {{
+            return {{"error": "Invalid mode. Use: pitches, rhythm, full, within_groups"}};
+        }}
+
+        // Apply changes
+        const editing = h.editing;
+        let updated = 0;
+        const changes = [];
+
+        await editing.modify(async () => {{
+            for (let i = 0; i < srcNotes.length; i++) {{
+                const notePos = srcNotes[i].position.getValue();
+                const sortedIdx = noteData.findIndex(d => d.pos === notePos);
+                if (sortedIdx >= 0) {{
+                    const oldPitch = srcNotes[i].pitch.getValue();
+                    const oldPos = srcNotes[i].position.getValue();
+                    const oldDur = srcNotes[i].duration.getValue();
+                    const oldVel = srcNotes[i].velocity.getValue();
+
+                    if (newPitches[sortedIdx] !== oldPitch) {{
+                        srcNotes[i].pitch.setValue(Math.max(0, Math.min(127, newPitches[sortedIdx])));
+                    }}
+                    if (newPositions[sortedIdx] !== oldPos) {{
+                        srcNotes[i].position.setValue(Math.max(0, newPositions[sortedIdx]));
+                    }}
+                    if (newDurations[sortedIdx] !== oldDur) {{
+                        srcNotes[i].duration.setValue(Math.max(1, newDurations[sortedIdx]));
+                    }}
+                    if (newVelocities[sortedIdx] !== oldVel) {{
+                        srcNotes[i].velocity.setValue(Math.max(0.01, Math.min(1, newVelocities[sortedIdx])));
+                    }}
+
+                    const changed = newPitches[sortedIdx] !== oldPitch || newPositions[sortedIdx] !== oldPos ||
+                                   newDurations[sortedIdx] !== oldDur || newVelocities[sortedIdx] !== oldVel;
+                    if (changed) {{
+                        updated++;
+                        if (changes.length < 10) {{
+                            changes.push({{
+                                note: sortedIdx,
+                                old_pitch: oldPitch, new_pitch: newPitches[sortedIdx],
+                                old_pos_beats: Math.round(oldPos / Quarter * 100) / 100,
+                                new_pos_beats: Math.round(newPositions[sortedIdx] / Quarter * 100) / 100,
+                            }});
+                        }}
+                    }}
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            mode: shuffleMode,
+            seed: seedVal,
+            shuffle_amount: amount,
+            preserve_first: preserveFirst,
+            preserve_last: preserveLast,
+            notes_shuffled: updated,
+            total_notes: n,
+            original_pitches: origPitches,
+            new_pitches: newPitches,
+            groups: groupDetails,
+            changes: changes,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 
