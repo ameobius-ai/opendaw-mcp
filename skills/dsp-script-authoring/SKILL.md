@@ -509,59 +509,189 @@ process(io, block) {
 }
 ```
 
-## Example Scripts (85 in library)
+## Example Scripts (111 in library)
 
-### Werkstatt (67 audio effects)
+### Werkstatt (92 audio effects)
+
+#### Dynamics (12)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_compressor.js` | Peak compressor | envelope follower + soft knee + makeup gain |
+| `werkstatt_lookahead.js` | Lookahead compressor | envelope follower + lookahead delay buffer |
+| `werkstatt_limiter.js` | Brickwall limiter | instant attack + lookahead + release envelope |
+| `werkstatt_maximizer.js` | Maximizer | loudness boost + soft clip + stereo link |
+| `werkstatt_exciter.js` | Harmonic exciter | HPF → saturation → blend with dry |
+| `werkstatt_deesser.js` | De-esser | bandpass + envelope follower + gain reduction |
+| `werkstatt_transient.js` | Transient designer | attack/sustain envelope analysis + differential gain |
+| `werkstatt_noisegate.js` | Noise gate | threshold + attack/hold/release envelope |
+| `werkstatt_multiband_comp.js` | 3-band comp | LR4 crossover → per-band compression → recombine |
+| `werkstatt_expander.js` | Expander | downward expansion below threshold + soft knee |
+| `werkstatt_glue_comp.js` | Glue compressor | bus comp + slow attack + warmth (saturation) |
+| `werkstatt_bass_enhancer.js` | Bass enhancer | LPF isolate → full-wave rect → sub-harmonic → tanh saturation |
+
+#### Saturation (8)
 
 | Script | Pattern | Key technique |
 |--------|---------|---------------|
 | `werkstatt_darksat.js` | Tape saturation | tanh + DC blocker + tone shelving |
+| `werkstatt_overdrive.js` | Tube overdrive | soft clip + tone stack + bias offset |
 | `werkstatt_coldfold.js` | Wavefolding | mirror reflection + bitcrush |
-| `werkstatt_reverb.js` | Plate reverb | 4 comb + 2 allpass per channel |
-| `werkstatt_convolution_reverb.js` | Convolution reverb | generated stereo IR + time-domain direct convolution |
-| `werkstatt_dynamic_eq.js` | Dynamic EQ | peaking biquad + envelope follower per band |
-| `werkstatt_multitap_delay.js` | Multitap delay | single buffer + 4 parallel taps + equal-power pan |
-| `werkstatt_dimension_chorus.js` | Dimension chorus | dual detuned delay lines + independent triangle LFOs + no feedback |
-| `werkstatt_autowah.js` | Autowah (env-followed) | envelope follower → biquad cutoff modulation (3 modes) |
-| `werkstatt_octaver.js` | Octaver (sub-octave) | zero-crossing flip-flop /2 and /4, envelope tracking, hysteresis |
+| `werkstatt_bitcrusher.js` | Bitcrusher | quantize + sample-rate reduction |
+| `werkstatt_tube_saturator.js` | Tube saturation | harmonic generation + warmth + bias |
 | `werkstatt_fuzz.js` | Fuzz (Big Muff) | hard clip + foldback squash + full-wave rect octave-up + Muff tone stack + noise gate |
-| `werkstatt_tape_stop.js` | Tape stop | exponential speed decay to zero + pitch drop + state machine + fractional buffer read |
-| `werkstatt_multiband_imager.js` | Multiband imager | LR4 crossover → 3-band M/S width control, mono bass default, link mode |
-| `werkstatt_modal_resonator.js` | Modal resonator | parallel bandpass biquads at modal frequency ratios, 5 materials, inharmonicity stretch |
+| `werkstatt_waveshaper.js` | Waveshaper | custom curve function + harmonics + tone |
 | `werkstatt_multiband_saturator.js` | Multiband saturator | LR4 crossover 3-band + per-band drive + 3 saturation characters (tape/tube/transistor) |
-| `werkstatt_vinyl.js` | Vinyl simulator | crackle/pops via LCG envelopes + surface noise + wow/flutter pitch wobble + wear HF rolloff |
-| `werkstatt_grain_delay.js` | Grain delay | Hann-windowed grains from delay buffer + pitch shift + scatter + reverse + pan + feedback |
-| `werkstatt_gated_reverb.js` | Gated reverb | Schroeder plate + envelope-followed gate on dry input → hard tail cutoff, 80s drum sound |
-| `werkstatt_reverse_delay.js` | Reverse delay | reads delay buffer backwards + fade ramps at boundaries + damped feedback for cascading reverse repeats |
-| `werkstatt_freq_shifter.js` | Frequency shifter (SSB) | Hilbert transform allpass pair + complex carrier oscillator → shifts all frequencies by fixed Hz, breaks harmonic ratios |
-| `werkstatt_bass_enhancer.js` | Bass enhancer | LPF isolates bass → full-wave rectification → sub-harmonic LPF + HPF DC removal → tanh harmonic saturation → band replacement, psychoacoustic missing fundamental |
-| `werkstatt_tilt_eq.js` | Tilt EQ | low shelf (RBJ) + high shelf (RBJ) with single tilt knob, pivot freq, steepness slope, coefficient caching |
-| `werkstatt_svf.js` | State variable filter | Chamberlin topology: HP=input-LP-q*BP, BP+=f*HP, LP+=f*BP, morph blend LP→BP→HP, notch/allpass modes, tanh soft-clip |
-| `werkstatt_chorus.js` | Modulated delay | LFO + fractional read |
-| `werkstatt_phaser.js` | Allpass cascade | 6-stage allpass + quadrature LFO |
-| `werkstatt_spectral_enhancer.js` | Spectral enhancer | STFT radix-2 FFT, Hann window, high-freq air boost above crossover, spectral peak emphasis, transient enhancement, stereo widening |
-| `werkstatt_formant_shifter.js` | Formant shifter | LPC Levinson-Durbin, lattice filter, formant frequency scaling independent of pitch, gender/age morphing |
-| `werkstatt_lookahead.js` | Compressor | envelope follower + lookahead buffer |
-| `werkstatt_shimmer.js` | Pitch-shift delay | delay buffer + pitch shift + feedback |
-| `werkstatt_paulstretch.js` | Extreme stretch | FFT phase randomization |
-| `werkstatt_envfollower.js` | Envelope follower | attack/release coefficients |
-| `werkstatt_adsr_trim.js` | ADSR trim | envelope detection + gate |
-| `werkstatt_granular_stretch.js` | Granular | grain windows + overlap |
-| `werkstatt_pitch_shift.js` | Pitch shift | delay buffer + head ratio |
-| `werkstatt_dcremover.js` | DC + width | one-pole HPF + M/S |
-| `werkstatt_allpass.js` | Allpass filter | nested allpass stages |
-| `werkstatt_ringmod_env.js` | Ring mod | env follower + sine oscillator |
 
-### Apparat (5 instruments)
+#### Modulation (10)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_chorus.js` | Modulated delay | LFO + fractional read |
+| `werkstatt_dimension_chorus.js` | Dimension chorus | dual detuned delay lines + independent triangle LFOs + no feedback |
+| `werkstatt_flanger.js` | Flanger | comb filter sweep + feedback |
+| `werkstatt_phaser.js` | Allpass cascade | 6-stage allpass + quadrature LFO |
+| `werkstatt_tremolo.js` | Tremolo | amplitude LFO + shape morph |
+| `werkstatt_harmonic_tremolo.js` | Harmonic tremolo | freq-split + amplitude LFO per band + phase offset |
+| `werkstatt_vibrato.js` | Vibrato | pitch LFO + fractional delay + stereo phase |
+| `werkstatt_rotary_speaker.js` | Rotary speaker | Doppler + amplitude + crossover + acceleration |
+| `werkstatt_auto_pan.js` | Auto-pan | LFO-driven stereo position + waveform shape |
+| `werkstatt_auto_wah.js` | Auto-wah | envelope follower → biquad cutoff modulation |
+
+#### Reverb (6)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_reverb.js` | Plate reverb | 4 comb + 2 allpass per channel |
+| `werkstatt_shimmer.js` | Pitch-shift delay | delay buffer + pitch shift + feedback |
+| `werkstatt_spring_reverb.js` | Spring reverb | physical model + tension + damp + boing |
+| `werkstatt_convolution_reverb.js` | Convolution reverb | generated stereo IR + time-domain direct convolution |
+| `werkstatt_gated_reverb.js` | Gated reverb | Schroeder plate + envelope-followed gate on dry input → hard tail cutoff, 80s drum sound |
+| `werkstatt_dereverb.js` | De-reverb | reverb reduction via envelope estimation + spectral subtraction |
+
+#### Delay (5)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_stereo_delay.js` | Stereo delay | dual delay lines + ping-pong + tone |
+| `werkstatt_tape_delay.js` | Tape delay | wow/flutter modulation + saturation + feedback |
+| `werkstatt_multitap_delay.js` | Multitap delay | single buffer + 4 parallel taps + equal-power pan |
+| `werkstatt_reverse_delay.js` | Reverse delay | reads delay buffer backwards + fade ramps at boundaries + damped feedback for cascading reverse repeats |
+| `werkstatt_grain_delay.js` | Grain delay | Hann-windowed grains from delay buffer + pitch shift + scatter + reverse + pan + feedback |
+
+#### EQ (5)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_paraeq.js` | Parametric EQ | 3-band peaking biquad + HP/LP shelf |
+| `werkstatt_graphic_eq.js` | Graphic EQ | 10-band ISO centers + per-band gain |
+| `werkstatt_dynamic_eq.js` | Dynamic EQ | peaking biquad + envelope follower per band |
+| `werkstatt_tilt_eq.js` | Tilt EQ | low shelf (RBJ) + high shelf (RBJ) with single tilt knob, pivot freq, steepness slope, coefficient caching |
+| `werkstatt_matching_eq.js` | Matching EQ | auto-match target spectrum via adaptive filter |
+
+#### Filter (12)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_multifilter.js` | Multi-mode filter | LP/HP/BP/BR switch + resonance + drive |
+| `werkstatt_moog_ladder.js` | Moog ladder | 4-pole cascade + resonance feedback + warmth |
+| `werkstatt_svf.js` | State variable filter | Chamberlin topology: HP=input-LP-q*BP, BP+=f*HP, LP+=f*BP, morph blend LP→BP→HP, notch/allpass modes, tanh soft-clip |
+| `werkstatt_allpass.js` | Allpass filter | nested allpass stages + cascade |
+| `werkstatt_dcremover.js` | DC + width | one-pole HPF + M/S |
+| `werkstatt_comb_filter.js` | Comb filter | feedback + damping + polarity |
+| `werkstatt_formant_filter.js` | Formant filter | 3 bandpass biquads at vowel formant frequencies |
+| `werkstatt_autowah.js` | Autowah (env-followed) | envelope follower → biquad cutoff modulation (3 modes) |
+| `werkstatt_modal_resonator.js` | Modal resonator | parallel bandpass biquads at modal frequency ratios, 5 materials, inharmonicity stretch |
+| `werkstatt_envelope_follower.js` | Envelope follower | attack/release coefficients + gain |
+| `werkstatt_envfollower.js` | Env follower (depth) | attack/release + threshold + invert + makeup |
+| `werkstatt_adsr_trim.js` | ADSR trim | envelope detection + gate |
+
+#### Pitch (9)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_pitch_shift.js` | Pitch shift | delay buffer + head ratio |
+| `werkstatt_phase_vocoder.js` | Phase vocoder | STFT + phase locking + formant preservation |
+| `werkstatt_harmonizer.js` | Harmonizer | dual-voice pitch shift + detune + delay |
+| `werkstatt_octaver.js` | Octaver (sub-octave) | zero-crossing flip-flop /2 and /4, envelope tracking, hysteresis |
+| `werkstatt_ringmod_env.js` | Ring mod | env follower + sine oscillator |
+| `werkstatt_freq_shifter.js` | Frequency shifter (SSB) | Hilbert transform allpass pair + complex carrier oscillator → shifts all frequencies by fixed Hz, breaks harmonic ratios |
+| `werkstatt_auto_tune.js` | Auto-tune | scale-aware pitch detection + retune + strength + detune |
+| `werkstatt_formant_shifter.js` | Formant shifter | LPC Levinson-Durbin, lattice filter, formant frequency scaling independent of pitch, gender/age morphing |
+| `werkstatt_vowel_morph.js` | Vowel morph | formant interpolation between vowel targets + resonance + tilt |
+
+#### Time (4)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_granular_stretch.js` | Granular | grain windows + overlap |
+| `werkstatt_paulstretch.js` | Extreme stretch | FFT phase randomization |
+| `werkstatt_time_stretch.js` | Time stretch | phase-locked + transient preservation |
+| `werkstatt_phase_vocoder.js` | Phase vocoder (also time) | STFT + phase locking |
+
+#### Stereo (5)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_stereowidth.js` | Stereo width | M/S processing + low-freq trim |
+| `werkstatt_multiband_imager.js` | Multiband imager | LR4 crossover → 3-band M/S width control, mono bass default, link mode |
+| `werkstatt_haas_widener.js` | Haas widener | short delay on one channel + feedback |
+| `werkstatt_mid_side_processor.js` | M/S processor | mid/side gain + per-channel EQ |
+| `werkstatt_binaural.js` | Binaural spatializer | HRTF approximation + azimuth/elevation + distance + head size |
+
+#### Spectral / FX (6)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_spectral_freezer.js` | Spectral freeze | STFT + magnitude hold + phase smoothing |
+| `werkstatt_spectral_blur.js` | Spectral blur | STFT + frequency smearing + time smearing + phase randomization |
+| `werkstatt_spectral_compressor.js` | Spectral compressor | per-bin compression + tilt + smoothing |
+| `werkstatt_spectral_enhancer.js` | Spectral enhancer | STFT radix-2 FFT, Hann window, high-freq air boost above crossover, spectral peak emphasis, transient enhancement, stereo widening |
+| `werkstatt_spectral_denoise.js` | Spectral denoiser | noise profile learning + spectral subtraction + oversubtraction + floor |
+| `werkstatt_spectral_gate.js` | Spectral gate | frequency-band threshold gating + tilt + reduction |
+
+#### Restoration (6)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_de_plosive.js` | De-plosive | HPF + envelope detection + gain reduction on plosive transients |
+| `werkstatt_declicker.js` | Declicker | median filter + interpolation + sensitivity threshold |
+| `werkstatt_decrackle.js` | Decrackler | adaptive estimation + frequency tracking + smoothing |
+| `werkstatt_dereverb.js` | De-reverb | reverb reduction via envelope estimation + spectral subtraction |
+| `werkstatt_spectral_denoise.js` | Spectral denoiser | noise profile learning + spectral subtraction |
+| `werkstatt_spectral_gate.js` | Spectral gate | frequency-band threshold gating |
+
+#### Physical Modeling (2)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_karplus_strong.js` | Karplus-Strong | delay line + feedback filter + excitation burst |
+| `werkstatt_waveguide_string.js` | Waveguide | digital waveguide + bidirectional delay + pick position + inharmonicity |
+
+#### Creative FX (6)
+
+| Script | Pattern | Key technique |
+|--------|---------|---------------|
+| `werkstatt_vocoder.js` | Channel vocoder | bandpass bank + carrier + modulator + emphasis |
+| `werkstatt_reverse.js` | Reverse playback | chunk buffer + fractional read + trigger mode + crossfade |
+| `werkstatt_scratch.js` | DJ vinyl scratch | turntable physics + pullback + friction + wow/flutter + crackle |
+| `werkstatt_vinyl.js` | Vinyl simulator | crackle/pops via LCG envelopes + surface noise + wow/flutter pitch wobble + wear HF rolloff |
+| `werkstatt_tape_stop.js` | Tape stop | exponential speed decay to zero + pitch drop + state machine + fractional buffer read |
+| `werkstatt_looper.js` | Looper | circular buffer + overdub + varispeed + reverse + fade edges |
+
+### Apparat (9 instruments)
 
 | Script | Pattern | Key technique |
 |--------|---------|---------------|
 | `apparat_darkbass.js` | Subtractive bass | saw + one-pole LPF + ADSR |
 | `apparat_subcrusher.js` | Sub-bass | sub-osc + drive + filter |
 | `apparat_coldlead.js` | Lead with glide | portamento + SVF + ADSR |
-| `apparat_ringmod.js` | Ring mod synth | sine carrier × modulator |
+| `apparat_pluck.js` | Plucked string | Karplus-Strong + damping + brightness |
+| `apparat_wavetable.js` | Wavetable synth | table interpolation + LFO position + unison detune |
 | `apparat_fm.js` | 2-op FM | carrier + modulator + feedback |
+| `apparat_ringmod.js` | Ring mod synth | sine carrier × modulator |
 | `apparat_supersaw.js` | Supersaw (7-voice) | 7 detuned saws + per-voice stereo pan + resonant LPF |
+| `apparat_bowed_string.js` | Bowed string | physical model + bow pressure/speed/position + body resonance + vibrato |
 
 ### Spielwerk (10 MIDI effects)
 
