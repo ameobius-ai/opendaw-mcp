@@ -23868,3 +23868,239 @@ async def mcp_opendaw_create_pop_arrangement(
         "melody_type": "section_aware_hook",
         "harmony": "I_V_vi_IV_diatonic",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_funk_arrangement(
+    bpm: float = 100,
+    bars: int = 8,
+    root: str = "D",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    guitar_track: int = 2,
+    horn_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full funk arrangement — funky drummer + slap bass + scratch guitar + horn stabs across 4 tracks.
+
+    James Brown / Parliament-Funkadelic style funk — vamp-based, not chord-progression-based:
+    - Track 0: Drums — "Funky Drummer" pattern (Clyde Stubblefield, most sampled break
+                     in history): syncopated kick with ghost notes, snare with strong
+                     ghost accents, hi-hat with 16th-note syncopation. The groove
+                     that built hip-hop.
+    - Track 1: Bass — slap bass: thumb (root, low) + pluck (octave/fifth, high)
+                     alternating, with dead notes (ghost) for percussive attack.
+                     The signature Larry Graham technique.
+    - Track 2: Guitar — "scratch guitar" / "chank": 16th-note muted strumming
+                     on a single chord, with accents on specific 16ths. The
+                     rhythmic glue that makes funk tick — Niles Rodgers style.
+    - Track 3: Horns — stabs: short, tight horn hits on the "and" of beats,
+                     responding to the vocal/instrumental lead. Brown-style
+                     section horn hits.
+
+    At 100 BPM (default), this creates the classic funk pocket — not too fast,
+    deep in the groove. The vamp (one chord groove, not progression) is the
+    fundamental difference from all other arrangements: pop/rock/jazz change
+    chords, funk stays on one and makes it groove. 16th-note syncopation is
+    the rhythmic DNA — every instrument plays 16ths with different accent patterns.
+
+    bpm: Tempo (90-115, default 100 = classic funk pocket).
+    bars: Arrangement length (4-16, default 8). Funk vamps can go long.
+    root: Root note (D is a classic funk key — D minor/D dominant).
+    octave: MIDI octave for bass (2 = D2=38, standard funk bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / guitar_track / horn_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_funk_arrangement(bpm=100, root="D", bars=8)
+      create_funk_arrangement(bpm=108, root="G", bars=16)
+    """
+    if not (85 <= bpm <= 120):
+        return "Error: bpm must be 85-120"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    guitar_base = (octave + 3) * 12 + root_pc
+    horn_base = (octave + 4) * 12 + root_pc
+
+    # Vamp: single chord (dominant 7: root + 3 + 7 + 10 = D7 voicing)
+    # No chord changes — the whole arrangement stays on one chord
+
+    # --- DRUMS: Funky Drummer pattern (1-bar cycle) ---
+    # Clyde Stubblefield's pattern: the most sampled break in history
+    # Key: syncopated kick, strong ghost snare, 16th-note hi-hat
+    # 16th positions: 0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75
+    drum_pattern = [
+        # Kick: syncopated — beat 1, "e" of 2, "a" of 2, beat 3
+        (0.0, "kick", 1.0), (1.25, "kick", 0.85), (1.75, "kick", 0.75),
+        (2.0, "kick", 0.9), (2.75, "kick", 0.7),
+        # Snare: backbeat on 2 and 4, with strong ghost notes
+        (1.0, "snare", 0.95), (3.0, "snare", 0.95),
+        (0.75, "ghost_snare", 0.3), (1.5, "ghost_snare", 0.4),
+        (2.5, "ghost_snare", 0.35), (2.75, "ghost_snare", 0.3),
+        # Hi-hat: 16th notes with varying dynamics
+        (0.0, "hat", 0.6), (0.25, "hat", 0.4), (0.5, "hat", 0.7), (0.75, "hat", 0.5),
+        (1.0, "hat", 0.6), (1.25, "hat", 0.45), (1.5, "hat", 0.65), (1.75, "hat", 0.5),
+        (2.0, "hat", 0.6), (2.25, "hat", 0.4), (2.5, "hat", 0.7), (2.75, "hat", 0.5),
+        (3.0, "hat", 0.6), (3.25, "hat", 0.45), (3.5, "hat", 0.65), (3.75, "hat", 0.55),
+    ]
+    kick_p, snare_p, hat_p, ghost_p = 36, 38, 42, 37
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "ghost_snare": ghost_p}
+    drum_dur_map = {"kick": 0.15, "snare": 0.12, "hat": 0.04, "ghost_snare": 0.03}
+
+    drum_notes = []
+    drum_cycle = 4.0  # 1-bar cycle — funk is 1-bar vamps
+    drum_cycles = bars
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st, vm in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- BASS: slap bass — thumb/pluck alternation (1-bar cycle) ---
+    # Thumb = root (low, percussive), Pluck = octave/fifth (high, punchy)
+    # Dead notes (ghost) for percussive attack between thumb and pluck
+    bass_pattern = [
+        (0.0, 0, 0.25, 1.0, "thumb"),      # root — thumb
+        (0.25, 12, 0.2, 0.85, "pluck"),    # octave — pluck
+        (0.5, 0, 0.2, 0.9, "thumb"),       # root — thumb
+        (0.75, 7, 0.2, 0.8, "pluck"),      # fifth — pluck
+        (1.0, 0, 0.25, 1.0, "thumb"),      # root — thumb
+        (1.25, 12, 0.15, 0.75, "pluck"),   # octave — pluck
+        (1.5, 0, 0.2, 0.85, "thumb"),      # root
+        (1.75, 10, 0.15, 0.7, "pluck"),    # min7 — funky
+        (2.0, 0, 0.25, 0.95, "thumb"),     # root
+        (2.25, 12, 0.2, 0.85, "pluck"),    # octave
+        (2.5, 0, 0.15, 0.8, "thumb"),      # root
+        (2.75, 7, 0.15, 0.75, "pluck"),    # fifth
+        (3.0, 0, 0.25, 0.9, "thumb"),      # root
+        (3.25, 12, 0.15, 0.7, "pluck"),    # octave
+        (3.5, 0, 0.2, 0.85, "thumb"),      # root
+        (3.75, 10, 0.15, 0.65, "pluck"),   # min7 — funky turnaround
+    ]
+    bass_notes = []
+    bass_cycle = 4.0
+    bass_cycles = bars
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for beat, po, dur, vm, _tech in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- GUITAR: scratch guitar — 16th-note chank (1-bar cycle) ---
+    # All 16ths played, accents on specific ones — the funk guitar DNA
+    # Voicing: root + fifth (power chord) or root + min7 (funk chord)
+    # Accent pattern (Niles Rodgers / Jimmy Nolen style):
+    # GRAVE-acute-acute-GRAVE-acute-GRAVE-acute-acute (repeating)
+    guitar_accents = [
+        (0.0, 0.9), (0.25, 0.3), (0.5, 0.4), (0.75, 0.8),  # GRAVE-aa-GRAVE
+        (1.0, 0.35), (1.25, 0.7), (1.5, 0.3), (1.75, 0.5),  # a-GRAVE-aa
+        (2.0, 0.85), (2.25, 0.3), (2.5, 0.45), (2.75, 0.75),  # GRAVE-aa-GRAVE
+        (3.0, 0.35), (3.25, 0.65), (3.5, 0.3), (3.75, 0.55),  # a-GRAVE-aa
+    ]
+    # Two-note voicing: root + min7 (classic funk chord)
+    guitar_voicing = [0, 10]
+    guitar_notes = []
+    guitar_cycle = 4.0
+    guitar_cycles = bars
+    for c in range(guitar_cycles):
+        off = c * guitar_cycle
+        for beat, accent in guitar_accents:
+            for interval in guitar_voicing:
+                guitar_notes.append({
+                    "pitch": guitar_base + interval,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": 0.08,  # very short — scratch
+                    "velocity": round(velocity * accent * 0.6, 3),  # guitar is percussive
+                })
+
+    # --- HORNS: stabs on the "and" of beats (1-bar cycle) ---
+    # Short, tight hits responding to the groove
+    # Voicing: root + maj3 + min7 (dominant 7 chord = funk)
+    horn_voicing = [0, 4, 10]  # root + major third + minor seventh = 7 chord
+    horn_stabs = [
+        (0.5, 0.15, 0.85),   # "and" of 1
+        (1.5, 0.15, 0.75),   # "and" of 2
+        (2.5, 0.15, 0.8),    # "and" of 3
+        (3.5, 0.2, 0.7),     # "and" of 4 (slightly longer)
+    ]
+    horn_notes = []
+    horn_cycle = 4.0
+    horn_cycles = bars
+    for c in range(horn_cycles):
+        off = c * horn_cycle
+        for beat, dur, vm in horn_stabs:
+            for interval in horn_voicing:
+                horn_notes.append({
+                    "pitch": horn_base + interval,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm * 0.7, 3),
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    guitar_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(guitar_notes), unit_index, guitar_track)
+    horn_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(horn_notes), unit_index, horn_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        guitar_data = json.loads(guitar_result)
+    except Exception:
+        guitar_data = {"raw": guitar_result}
+    try:
+        horn_data = json.loads(horn_result)
+    except Exception:
+        horn_data = {"raw": horn_result}
+
+    return json.dumps({
+        "funk_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "guitar": {"track": guitar_track, "notes": len(guitar_notes), "result": guitar_data.get("notes_created", len(guitar_notes))},
+            "horns": {"track": horn_track, "notes": len(horn_notes), "result": horn_data.get("notes_created", len(horn_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(guitar_notes) + len(horn_notes),
+        "drum_pattern": "funky_drummer_16th_syncopation",
+        "bass_pattern": "slap_bass_thumb_pluck",
+        "guitar_type": "scratch_chank_16ths",
+        "horn_type": "dominant7_stabs",
+        "harmony": "vamp_single_chord",
+    }, indent=2)

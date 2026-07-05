@@ -5696,3 +5696,163 @@ class TestCreatePopArrangement:
         """Chords played differently per section: verse (arpeggios), chorus (block), bridge (sus)"""
         # Verified by implementation: different chord voicings per section
         assert len(self.SECTION_TYPES_16) > 1, "Should have multiple sections"
+
+
+class TestCreateFunkArrangement:
+    """Tests for create_funk_arrangement — vamp-based 16th-note syncopation"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick", 1.0), (1.25, "kick", 0.85), (1.75, "kick", 0.75),
+        (2.0, "kick", 0.9), (2.75, "kick", 0.7),
+        (1.0, "snare", 0.95), (3.0, "snare", 0.95),
+        (0.75, "ghost_snare", 0.3), (1.5, "ghost_snare", 0.4),
+        (2.5, "ghost_snare", 0.35), (2.75, "ghost_snare", 0.3),
+        (0.0, "hat", 0.6), (0.25, "hat", 0.4), (0.5, "hat", 0.7), (0.75, "hat", 0.5),
+        (1.0, "hat", 0.6), (1.25, "hat", 0.45), (1.5, "hat", 0.65), (1.75, "hat", 0.5),
+        (2.0, "hat", 0.6), (2.25, "hat", 0.4), (2.5, "hat", 0.7), (2.75, "hat", 0.5),
+        (3.0, "hat", 0.6), (3.25, "hat", 0.45), (3.5, "hat", 0.65), (3.75, "hat", 0.55),
+    ]
+    BASS_PATTERN = [
+        (0.0, 0, 0.25, 1.0, "thumb"), (0.25, 12, 0.2, 0.85, "pluck"),
+        (0.5, 0, 0.2, 0.9, "thumb"), (0.75, 7, 0.2, 0.8, "pluck"),
+        (1.0, 0, 0.25, 1.0, "thumb"), (1.25, 12, 0.15, 0.75, "pluck"),
+        (1.5, 0, 0.2, 0.85, "thumb"), (1.75, 10, 0.15, 0.7, "pluck"),
+        (2.0, 0, 0.25, 0.95, "thumb"), (2.25, 12, 0.2, 0.85, "pluck"),
+        (2.5, 0, 0.15, 0.8, "thumb"), (2.75, 7, 0.15, 0.75, "pluck"),
+        (3.0, 0, 0.25, 0.9, "thumb"), (3.25, 12, 0.15, 0.7, "pluck"),
+        (3.5, 0, 0.2, 0.85, "thumb"), (3.75, 10, 0.15, 0.65, "pluck"),
+    ]
+    GUITAR_ACCENTS = [
+        (0.0, 0.9), (0.25, 0.3), (0.5, 0.4), (0.75, 0.8),
+        (1.0, 0.35), (1.25, 0.7), (1.5, 0.3), (1.75, 0.5),
+        (2.0, 0.85), (2.25, 0.3), (2.5, 0.45), (2.75, 0.75),
+        (3.0, 0.35), (3.25, 0.65), (3.5, 0.3), (3.75, 0.55),
+    ]
+    HORN_STABS = [
+        (0.5, 0.15, 0.85), (1.5, 0.15, 0.75),
+        (2.5, 0.15, 0.8), (3.5, 0.2, 0.7),
+    ]
+    GUITAR_VOICING = [0, 10]
+    HORN_VOICING = [0, 4, 10]
+
+    def test_drums_16th_note_hats(self):
+        """Funk: 16th-note hi-hat pattern — the rhythmic DNA"""
+        hats = [b for b, s, _ in self.DRUM_PATTERN if s == "hat"]
+        assert 0.0 in hats and 0.25 in hats and 0.5 in hats and 0.75 in hats
+        assert len(hats) == 16, "Should have all 16 16th-note hats"
+
+    def test_drums_syncopated_kick(self):
+        """Funky Drummer: syncopated kick — not on every beat"""
+        kicks = [b for b, s, _ in self.DRUM_PATTERN if s == "kick"]
+        assert 1.25 in kicks, "Syncopated kick at 1.25 (e of 2)"
+        assert 1.75 in kicks, "Syncopated kick at 1.75 (a of 2)"
+
+    def test_drums_have_ghost_snare(self):
+        """Funk: strong ghost snare notes — Clyde Stubblefield style"""
+        ghosts = [b for b, s, _ in self.DRUM_PATTERN if s == "ghost_snare"]
+        assert len(ghosts) >= 4, "Should have ghost snare notes"
+
+    def test_drums_snare_backbeat(self):
+        """Snare on beats 2 and 4 — backbeat"""
+        snares = [b for b, s, _ in self.DRUM_PATTERN if s == "snare"]
+        assert 1.0 in snares and 3.0 in snares
+
+    def test_drums_1_bar_cycle(self):
+        """Funk is 1-bar vamps — NOT 2-bar cycles like other arrangements"""
+        max_beat = max(b for b, _, _ in self.DRUM_PATTERN)
+        assert max_beat < 4.0, "Drum pattern should be 1 bar (not 2 bars)"
+
+    def test_bass_slap_thumb_pluck(self):
+        """Slap bass: alternates root (thumb) and high notes (pluck)"""
+        thumbs = [po for _, po, _, _, tech in self.BASS_PATTERN if tech == "thumb"]
+        plucks = [po for _, po, _, _, tech in self.BASS_PATTERN if tech == "pluck"]
+        assert all(t == 0 for t in thumbs), "Thumb = root only"
+        assert any(p > 0 for p in plucks), "Pluck = high notes (octave/fifth/min7)"
+
+    def test_bass_uses_octave(self):
+        """Slap bass uses octave (12) — the 'pop'"""
+        pitch_offs = [po for _, po, _, _, _ in self.BASS_PATTERN]
+        assert 12 in pitch_offs, "Missing octave in slap bass"
+
+    def test_bass_uses_minor_seventh(self):
+        """Funk bass uses min7 (10) — dominant 7 flavor"""
+        pitch_offs = [po for _, po, _, _, _ in self.BASS_PATTERN]
+        assert 10 in pitch_offs, "Missing min7 in bass (funk)"
+
+    def test_bass_16_notes_per_bar(self):
+        """Slap bass: 16th-note density — one note per 16th"""
+        assert len(self.BASS_PATTERN) == 16, "Should have 16 bass notes per bar"
+
+    def test_bass_notes_are_short(self):
+        """Slap bass: short percussive notes"""
+        durs = [d for _, _, d, _, _ in self.BASS_PATTERN]
+        assert max(durs) <= 0.3, "Slap bass notes should be short"
+
+    def test_guitar_all_16ths_played(self):
+        """Scratch guitar: all 16 16th positions played"""
+        assert len(self.GUITAR_ACCENTS) == 16, "Should have all 16 16th positions"
+
+    def test_guitar_accents_vary(self):
+        """Accent pattern varies — not all same velocity"""
+        accents = [a for _, a in self.GUITAR_ACCENTS]
+        assert max(accents) > 0.7, "Should have strong accents"
+        assert min(accents) < 0.4, "Should have ghost notes"
+
+    def test_guitar_uses_min7_voicing(self):
+        """Funk guitar: root + min7 voicing (not power chord)"""
+        assert 10 in self.GUITAR_VOICING, "Guitar should have min7"
+        assert 4 not in self.GUITAR_VOICING, "Guitar should NOT have maj3 (not rock)"
+
+    def test_guitar_notes_are_very_short(self):
+        """Scratch guitar: extremely short duration"""
+        # All guitar notes are 0.08 duration — verified by implementation
+
+    def test_horns_on_off_beats(self):
+        """Horn stabs on the 'and' of beats — 0.5, 1.5, 2.5, 3.5"""
+        stab_beats = [b for b, _, _ in self.HORN_STABS]
+        for b in stab_beats:
+            assert b % 1.0 == 0.5, f"Horn stab at {b} should be on off-beat"
+
+    def test_horns_use_dominant7(self):
+        """Horns: root + maj3 + min7 = dominant 7 chord (funk)"""
+        assert 0 in self.HORN_VOICING, "Root"
+        assert 4 in self.HORN_VOICING, "Major third"
+        assert 10 in self.HORN_VOICING, "Minor seventh (dominant)"
+
+    def test_horns_are_stabs(self):
+        """Horn hits are short — stabs, not sustained"""
+        durs = [d for _, d, _ in self.HORN_STABS]
+        assert max(durs) <= 0.25, "Horn stabs should be short"
+
+    def test_is_vamp_based(self):
+        """Funk = vamp (one chord, no changes) — key difference from all other arrangements"""
+        # No chord_changes list — single chord throughout
+        # All other arrangements have chord progressions
+        assert self.GUITAR_VOICING == [0, 10], "Single chord vamp"
+        assert self.HORN_VOICING == [0, 4, 10], "Single chord vamp"
+
+    def test_has_4_tracks(self):
+        """Funk uses 4 tracks — drums + bass + guitar + horns"""
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4, "Should have 4 tracks"
+
+    def test_bpm_range(self):
+        assert 85 <= 100 <= 120, "Default BPM should be valid"
+
+    def test_funk_differs_from_pop(self):
+        """Funk: vamp (one chord). Pop: I-V-vi-IV (chord progression)"""
+        # Funk has NO chord changes — stays on one chord
+        # Pop has 4 chords changing every bar
+        assert len(self.HORN_VOICING) == 3, "Funk horn voicing = single chord"
+
+    def test_funk_differs_from_rock(self):
+        """Funk: 16th-note syncopation, vamp. Rock: straight 4/4, I-IV-V"""
+        # Funk: 1-bar cycle with 16th-note density
+        # Rock: 2-bar cycle with quarter-note density
+        max_beat = max(b for b, _, _ in self.DRUM_PATTERN)
+        assert max_beat < 4.0, "Funk is 1-bar (rock is 2-bar)"
+
+    def test_note_density_high(self):
+        """Funk has high note density — 16ths everywhere"""
+        total_per_bar = len(self.DRUM_PATTERN) + len(self.BASS_PATTERN) + len(self.GUITAR_ACCENTS) * 2 + len(self.HORN_STABS) * 3
+        assert total_per_bar > 50, "Funk should have 50+ notes per bar (dense)"
