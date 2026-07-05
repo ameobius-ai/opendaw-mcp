@@ -281,6 +281,7 @@ class Processor {
 | `apparat_coldlead.js` | Lead synth with glide | waveform, cutoff, resonance, ADSR, glide, volume | |
 | `apparat_ringmod.js` | Ring modulator synth | frequency, waveform, ADSR, adsrAmount, subOsc, volume | #277 |
 | `apparat_fm.js` | 2-operator FM synth | carrier, ratio, mod_depth, waveform, ADSR, volume | #138 |
+| `apparat_pluck.js` | Karplus-Strong plucked string | decay, damping, brightness, attack, release, detune, volume | |
 
 ### Spielwerk (6 MIDI effects)
 
@@ -327,6 +328,7 @@ class Processor {
 | Lead synth | `apparat_coldlead.js` | Apparat |
 | FM synth | `apparat_fm.js` | Apparat |
 | Ring mod (MIDI) | `apparat_ringmod.js` | Apparat |
+| Plucked string (KS) | `apparat_pluck.js` | Apparat |
 | Ring mod (audio) | `werkstatt_ringmod_env.js` | Werkstatt |
 | Arpeggiator | `spielwerk_arpeggiator.js` | Spielwerk |
 | Power chords | `spielwerk_powerchord.js` | Spielwerk |

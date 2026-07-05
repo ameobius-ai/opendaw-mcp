@@ -35,7 +35,7 @@
 | `werkstatt_ringmod_env.js` | Ring modulator with envelope | frequency, depth, mix |
 | `werkstatt_adsr_trim.js` | ADSR-based trim | attack, decay, sustain, release |
 
-## Apparat (Instruments) — 5 scripts
+## Apparat (Instruments) — 6 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -44,6 +44,7 @@
 | `apparat_subcrusher.js` | Sub crusher (distorted bass) | oscillator, distortion, envelope |
 | `apparat_fm.js` | FM synthesis | carrier, modulator, ratio, depth |
 | `apparat_ringmod.js` | Ring modulation synth | carrier, modulator, depth |
+| `apparat_pluck.js` | Karplus-Strong plucked string | decay, damping, brightness, attack, release, detune, volume |
 
 ## Spielwerk (MIDI Effects) — 6 scripts
 

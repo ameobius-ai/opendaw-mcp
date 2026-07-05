@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.30.0 (2026-07-05)
+
+- **`apparat_pluck.js`** — Karplus-Strong plucked string synth. 7 params: decay (string decay rate), damping (lowpass strength), brightness (noise burst spectral content), attack, release, detune, volume. Noise burst excites delay line, averaging filter creates natural string decay. Unique physical modeling sound unavailable in other Apparat scripts
+- **40 DSP scripts** (28 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 7 params, brightness 0.7→0.9, code header readback OK
+
 ## v1.29.0 (2026-07-05)
 
 - **`werkstatt_transient.js`** — transient shaper with dual envelope followers. 4 params: attack (±12 dB transient boost/cut), sustain (±12 dB sustain boost/cut), mix, output. Fast envelope (~5ms) detects transients, slow envelope (~80ms) detects sustain, independent gain on each component. No threshold needed — works on any material. Essential for drum mixing

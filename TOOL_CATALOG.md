@@ -391,12 +391,13 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_deesser.js` — De-esser, dynamic high-frequency compressor (freq, threshold, ratio, attack, release, mix, output)
 - `werkstatt_transient.js` — Transient shaper, dual envelope (attack, sustain, mix, output)
 
-### Apparat (Instruments) — 5 scripts
+### Apparat (Instruments) — 6 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
-- `apparat_coldlead.js` — Cold lead synth (waveform, cutoff, resonance, envelope)
-- `apparat_subcrusher.js` — Sub crusher bass (wave, cutoff, resonance, distortion)
-- `apparat_fm.js` — 2-operator FM synth (carrier, ratio, mod_depth)
-- `apparat_ringmod.js` — Ring modulator synth (frequency, waveform, envelope)
+- `apparat_coldlead.js` — Cold lead synth (oscillator, envelope, filter)
+- `apparat_subcrusher.js` — Sub crusher (distorted bass, oscillator, distortion)
+- `apparat_fm.js` — FM synthesis (carrier, modulator, ratio, depth)
+- `apparat_ringmod.js` — Ring modulation synth (carrier, modulator, depth)
+- `apparat_pluck.js` — Karplus-Strong plucked string (decay, damping, brightness, attack, release, detune, volume)
 
 ### Spielwerk (MIDI Effects) — 6 scripts
 - `spielwerk_arpeggiator.js` — MIDI arpeggiator (rate, octave, pattern)
