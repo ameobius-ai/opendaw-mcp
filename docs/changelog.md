@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.259.0 (2026-07-06)
+
+### Added
+- `subdivide_notes` — Subdivide each note into N smaller parts (2-16). Pitch patterns (same, scale_up/down, octave_up/down, chromatic_up/down) and velocity patterns (decrescendo, crescendo, accent_first/last, alternating). Diminution, rhythmic fragmentation, passagework creation. Same-track replaces originals; cross-track preserves source.
+
 ## v1.258.0 (2026-07-06)
 
 ### Added

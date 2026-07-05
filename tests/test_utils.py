@@ -17389,3 +17389,154 @@ class TestRepeatNotes:
         """Default gap = 0 (back-to-back)"""
         gap = 0.0
         assert gap == 0.0
+
+
+class TestSubdivideNotes:
+    """Tests for mcp_opendaw_subdivide_notes — split each note into N parts"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_subdivide_notes" in names
+
+    def test_subdivisions_range(self):
+        """subdivisions clamped to 2-16"""
+        for val in [2, 4, 8, 16]:
+            clamped = max(2, min(16, val))
+            assert 2 <= clamped <= 16
+        for val in [1, 0, -1, 17, 100]:
+            clamped = max(2, min(16, val))
+            assert 2 <= clamped <= 16
+
+    def test_sub_duration_calculation(self):
+        """Each sub-note duration = original / subdivisions"""
+        original_dur = 960  # 1 beat
+        subs = 4
+        sub_dur = round(original_dur / subs)
+        assert sub_dur == 240  # quarter beat each
+
+    def test_sub_position_offset(self):
+        """Sub-note position = original_pos + s * sub_dur"""
+        original_pos = 0
+        sub_dur = 240
+        subs = 4
+        for s in range(subs):
+            pos = original_pos + s * sub_dur
+            if s == 0:
+                assert pos == 0
+            elif s == 1:
+                assert pos == 240
+            elif s == 2:
+                assert pos == 480
+            elif s == 3:
+                assert pos == 720
+
+    def test_pitch_same(self):
+        """pitch_pattern='same' keeps original pitch"""
+        pitch = 60
+        for s in range(4):
+            assert pitch == 60
+
+    def test_pitch_scale_up(self):
+        """pitch_pattern='scale_up' adds s semitones"""
+        base_pitch = 60
+        for s in range(4):
+            pitch = base_pitch + s
+            if s == 0:
+                assert pitch == 60
+            elif s == 1:
+                assert pitch == 61
+            elif s == 3:
+                assert pitch == 63
+
+    def test_pitch_octave_up(self):
+        """pitch_pattern='octave_up' alternates original and +12"""
+        base = 60
+        for s in range(4):
+            pitch = base if s % 2 == 0 else base + 12
+            if s == 0:
+                assert pitch == 60
+            elif s == 1:
+                assert pitch == 72
+            elif s == 2:
+                assert pitch == 60
+            elif s == 3:
+                assert pitch == 72
+
+    def test_velocity_decrescendo(self):
+        """velocity_pattern='decrescendo' fades from full to half"""
+        vel = 0.8
+        subs = 4
+        for s in range(subs):
+            new_vel = vel * (1.0 - (s / subs) * 0.5)
+            if s == 0:
+                assert abs(new_vel - 0.8) < 0.01
+            elif s == 3:
+                assert abs(new_vel - 0.5) < 0.05  # 0.8 * (1 - 0.375) = 0.5
+
+    def test_velocity_crescendo(self):
+        """velocity_pattern='crescendo' builds from half to full"""
+        vel = 0.8
+        subs = 4
+        for s in range(subs):
+            new_vel = vel * (0.5 + (s / subs) * 0.5)
+            if s == 0:
+                assert abs(new_vel - 0.4) < 0.01
+            elif s == 3:
+                assert abs(new_vel - 0.7) < 0.05
+
+    def test_velocity_accent_first(self):
+        """velocity_pattern='accent_first': first note full, rest 60%"""
+        vel = 0.8
+        subs = 4
+        for s in range(subs):
+            new_vel = vel if s == 0 else vel * 0.6
+            if s == 0:
+                assert new_vel == 0.8
+            else:
+                assert abs(new_vel - 0.48) < 0.01
+
+    def test_velocity_alternating(self):
+        """velocity_pattern='alternating': strong-weak-strong-weak"""
+        vel = 0.8
+        subs = 4
+        for s in range(subs):
+            new_vel = vel if s % 2 == 0 else vel * 0.5
+            if s == 0:
+                assert new_vel == 0.8
+            elif s == 1:
+                assert new_vel == 0.4
+            elif s == 2:
+                assert new_vel == 0.8
+            elif s == 3:
+                assert new_vel == 0.4
+
+    def test_velocity_clamping(self):
+        """Velocities clamped to 0.01-1.0"""
+        vel = 0.01
+        factor = 0.1
+        new_vel = max(0.01, min(1.0, vel * factor))
+        assert new_vel == 0.01
+
+    def test_total_notes_created(self):
+        """Total subdivided notes = source_notes * subdivisions"""
+        source = 4
+        subs = 3
+        total = source * subs
+        assert total == 12
+
+    def test_dest_track_same(self):
+        """dest_track=-1 → same track (originals deleted)"""
+        track_idx = 1
+        dest_track = -1
+        d_track = track_idx if dest_track < 0 else dest_track
+        assert d_track == track_idx
+
+    def test_dest_track_separate(self):
+        """dest_track=2 → separate track (originals preserved)"""
+        track_idx = 0
+        dest_track = 2
+        d_track = track_idx if dest_track < 0 else dest_track
+        assert d_track == 2

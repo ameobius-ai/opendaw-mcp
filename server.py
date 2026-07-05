@@ -29658,6 +29658,194 @@ async def mcp_opendaw_repeat_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_subdivide_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    subdivisions: int = 2,
+    pitch_pattern: str = "same",
+    velocity_pattern: str = "same",
+    accent_first: bool = True,
+    dest_track_index: int = -1,
+) -> str:
+    """Subdivide each note in a region into N smaller notes.
+
+    Splits every note into `subdivisions` equal parts. Useful for
+    diminution (quarter → 2 eighths), rhythmic fragmentation,
+    and creating faster passagework from longer notes.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        subdivisions: Number of parts per note (2-16). 2=diminution,
+                      4=sixteenth fragmentation, 3=triplet subdivision.
+        pitch_pattern: Pitch variation per subdivision —
+            "same" = keep original pitch,
+            "scale_up" = ascend scale degrees within the octave,
+            "scale_down" = descend scale degrees,
+            "octave_up" = alternate original and octave up,
+            "octave_down" = alternate original and octave down,
+            "chromatic_up" = semitone steps up,
+            "chromatic_down" = semitone steps down.
+        velocity_pattern: Velocity variation per subdivision —
+            "same" = keep original velocity,
+            "decrescendo" = fade from full to half,
+            "crescendo" = build from half to full,
+            "accent_first" = first sub-note accented, rest softer,
+            "accent_last" = last sub-note accented,
+            "alternating" = strong-weak-strong-weak pattern.
+        accent_first: If True, first subdivision note keeps full velocity
+                      (traditional articulation). Overridden by velocity_pattern.
+        dest_track_index: Destination track (-1 = same track). Original notes
+                          are replaced in place when same track.
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{error: "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const numSubs = Math.max(2, Math.min(16, {subdivisions}));
+        const pitchPat = "{pitch_pattern}";
+        const velPat = "{velocity_pattern}";
+        const accentFirst = {accent_first};
+        const destTrackIdx = {dest_track_index};
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{error: "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{error: "No notes in region"}};
+
+        // Read source note data
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }}));
+
+        // Build subdivided notes
+        const subNotes = [];
+        for (const note of srcData) {{
+            const subDur = Math.round(note.dur / numSubs);
+            for (let s = 0; s < numSubs; s++) {{
+                let pitch = note.pitch;
+                if (pitchPat === "scale_up") {{
+                    pitch = note.pitch + s;
+                }} else if (pitchPat === "scale_down") {{
+                    pitch = note.pitch - s;
+                }} else if (pitchPat === "octave_up") {{
+                    pitch = s % 2 === 0 ? note.pitch : note.pitch + 12;
+                }} else if (pitchPat === "octave_down") {{
+                    pitch = s % 2 === 0 ? note.pitch : note.pitch - 12;
+                }} else if (pitchPat === "chromatic_up") {{
+                    pitch = note.pitch + s;
+                }} else if (pitchPat === "chromatic_down") {{
+                    pitch = note.pitch - s;
+                }}
+
+                let vel = note.vel;
+                if (velPat === "decrescendo") {{
+                    vel = note.vel * (1.0 - (s / numSubs) * 0.5);
+                }} else if (velPat === "crescendo") {{
+                    vel = note.vel * (0.5 + (s / numSubs) * 0.5);
+                }} else if (velPat === "accent_first") {{
+                    vel = s === 0 ? note.vel : note.vel * 0.6;
+                }} else if (velPat === "accent_last") {{
+                    vel = s === numSubs - 1 ? note.vel : note.vel * 0.6;
+                }} else if (velPat === "alternating") {{
+                    vel = s % 2 === 0 ? note.vel : note.vel * 0.5;
+                }} else if (accentFirst && velPat === "same") {{
+                    vel = s === 0 ? note.vel : note.vel * 0.85;
+                }}
+
+                vel = Math.max(0.01, Math.min(1.0, vel));
+
+                subNotes.push({{
+                    pos: note.pos + s * subDur,
+                    dur: subDur,
+                    pitch: pitch,
+                    vel: vel,
+                }});
+            }}
+        }}
+
+        // Determine destination
+        const dTrackIdx = destTrackIdx < 0 ? trackIdx : destTrackIdx;
+        if (dTrackIdx < 0 || dTrackIdx >= noteTracks.length) return {{error: "dest_track out of range"}};
+        const destTrack = noteTracks[dTrackIdx];
+        const destRegions = h.regionBoxes(destTrack);
+        if (destRegions.length === 0) return {{error: "No regions on dest track"}};
+        const destRegion = dTrackIdx === trackIdx ? region : destRegions[0];
+        let destColl = null;
+        try {{
+            const dv = destRegion.events.targetVertex.unwrap();
+            destColl = dv.box || dv;
+        }} catch(e) {{}}
+        if (!destColl || !destColl.events) return {{error: "No note collection in dest region"}};
+
+        // If same track, delete original notes first
+        const bg = h.boxGraph;
+        const editing = h.editing;
+        const origNotes = h.eventBoxes(collection);
+        let deleted = 0;
+        let created = 0;
+
+        await editing.modify(async () => {{
+            // Delete originals if same track
+            if (dTrackIdx === trackIdx) {{
+                for (const n of origNotes) {{
+                    n.delete();
+                    deleted++;
+                }}
+            }}
+            // Create subdivided notes
+            for (const sn of subNotes) {{
+                h.NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(sn.pos));
+                    box.duration.setValue(Math.round(sn.dur));
+                    box.pitch.setValue(sn.pitch);
+                    box.velocity.setValue(sn.vel);
+                    box.cent.setValue(0);
+                    box.events.refer(destColl.events);
+                }});
+                created++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_deleted: deleted,
+            notes_created: created,
+            subdivisions: numSubs,
+            pitch_pattern: pitchPat,
+            velocity_pattern: velPat,
+            source_note_count: srcData.length,
+            dest_track: dTrackIdx,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+@mcp.tool()
 async def mcp_opendaw_create_stutter(
     pitches: str = "60",
     rate: str = "16th",

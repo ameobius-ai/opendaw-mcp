@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-432 MCP tools for headless openDAW control via Playwright bridge.
+433 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -454,6 +454,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_midi_echo` — Create MIDI echo — repeat notes with decaying velocity and optional pitch shift. 4 feedback modes: linear (geometric decay), exponential (faster decay), constant (stutter feel), reverse (build-up). pitch_shift per repeat creates cascading echoes. dest_track for separate echo track. 1-8 repeats, configurable delay. Use for guitar delay throws, synth echo fills, creative repetitions.
 - `create_ratchet` — Create ratchet — repeated notes with changing subdivision rate (accelerando/decelerando). 4 modes: accelerate (slow→fast), decelerate (fast→slow), constant (roll), exponential. max_subdivisions (2-64 notes/beat), velocity_decay, pitch_drift (semitones per note). Bach cadences, electronic build-ups, drum fills, baroque ornamentation.
 - `repeat_notes` — Repeat existing notes in a region N times with per-repeat transformations. Takes notes already in the region and copies them 1-16 times, each cycle offset in pitch (cumulative transpose, direction up/down), velocity (decay multiplier), and time (gap between cycles). Unlike create_midi_echo (feedback decay) — preserves structure, applies uniform transform. Ideal for sequences, ostinato patterns, motivic development.
+- `subdivide_notes` — Subdivide each note into N smaller notes (2-16 parts). Pitch patterns: same, scale_up/down, octave_up/down, chromatic_up/down. Velocity patterns: same, decrescendo, crescendo, accent_first, accent_last, alternating. Diminution, rhythmic fragmentation, passagework creation. Same-track replaces originals; cross-track preserves source.
 - `scale_durations` — Scale duration of all notes in a region — MIDI note length control. 5 modes: multiply (×0.5 staccato), add (+0.5 beats), set (uniform), quantize (snap to 16th/8th/quarter/half grid), legato (extend to next note with gap). Returns original + new duration min/max/avg. Clamp via min_duration/max_duration.
 - `groove_transfer` — Transfer groove (timing + velocity feel) from a source region to a destination region. Extracts groove template (per-grid-slot timing offsets + velocity ratios) from source notes, then applies to destination notes. Groove cycles every groove_length beats (4=1 bar, 3=waltz). timing_strength + velocity_strength control blend. 16th/8th grid. NOT copying notes — transfers the feel.
 - `time_warp_notes` — Warp note positions AND durations by a factor — true half-time (0.5×) or double-time (2.0×) feel without changing BPM. Unlike scale_durations (only duration), this moves notes in time. 1-bar pattern → 2 bars (half-time) or 1 bar (from 2-bar, double-time). origin: "start" (region start) or "zero" (absolute). Range 0.1-8.0.
@@ -504,7 +505,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `spread_voicing` — Chord voicing spread/compact. 4 modes: open (widen spacing), close (collapse to one octave), drop2 (jazz piano comping), drop3 (wider jazz voicing). spread_octaves 1-3.
 - `randomize_note_chance` — Randomize note playback probability (chance 0-100%). 5 distribution modes: uniform, decreasing, increasing, sparse, binary. Seeded PRNG. Generative MIDI — patterns that evolve per iteration.
 - `add_chord_tension` — Add jazz extension note to existing chord. 7 extensions: 9, b9, #9, 11, #11, 13, b13. Calculates pitch from chord root. Triad → Cmaj9, G7 → G7b13.
-**Total: 432 tools**
+**Total: 433 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 
