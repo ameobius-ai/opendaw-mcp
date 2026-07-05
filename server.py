@@ -30699,3 +30699,111 @@ async def mcp_opendaw_move_section(from_beat: float, to_beat: float, target_beat
         }}
     }}""")
     return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_delete_section(from_beat: float, to_beat: float, unit_indices: str = "") -> str:
+    """Delete all regions within a beat range across all tracks.
+
+    Scans all tracks across all specified audio units, finds every region that
+    overlaps the [from_beat, to_beat) range, and deletes each one. This is the
+    arrangement cleanup tool: "clear bars 9-12 so I can put something else there"
+    or "remove the intro (bars 1-4) from all tracks".
+
+    Completes the section CRUD trilogy: duplicate (copy), move (cut-paste),
+    delete (remove). One call replaces N delete_region calls.
+
+    from_beat: Start of the section to delete (beats).
+    to_beat: End of the section to delete (beats, exclusive).
+    unit_indices: Comma-separated AU indices to scan (default: all AUs).
+
+    Returns number of regions deleted, per-track details, and remaining counts.
+
+    Examples:
+      delete_section(from_beat=0, to_beat=16)
+        -> Remove first 4 bars from ALL tracks across ALL audio units
+      delete_section(from_beat=32, to_beat=48, unit_indices="0,1")
+        -> Remove bars 9-12 from AUs 0 and 1 only
+    """
+    if to_beat <= from_beat:
+        return "Error: to_beat must be after from_beat"
+
+    unit_list = unit_indices.strip() if unit_indices else ""
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const TrackBoxAdapter = window.DAW_TrackBoxAdapter;
+        try {{
+            const fromBeat = {from_beat};
+            const toBeat = {to_beat};
+            const Quarter = h.ppqn.Quarter;
+
+            let unitsToScan;
+            const unitList = "{unit_list}";
+            if (unitList) {{
+                const idxs = unitList.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                const allUnits = h.allAUBoxes();
+                unitsToScan = idxs.map(i => allUnits[i]).filter(u => u);
+            }} else {{
+                unitsToScan = h.allAUBoxes();
+            }}
+
+            const deleted = [];
+            let totalDeleted = 0;
+
+            for (let uIdx = 0; uIdx < unitsToScan.length; uIdx++) {{
+                const au = unitsToScan[uIdx];
+                const tracks = h.trackBoxes(au);
+
+                for (let tIdx = 0; tIdx < tracks.length; tIdx++) {{
+                    const trackBox = tracks[tIdx];
+                    const trackAdapter = h.project.boxAdapters.adapterFor(trackBox, TrackBoxAdapter);
+                    if (!trackAdapter) continue;
+                    const regionAdapters = trackAdapter.regions.collection.asArray();
+
+                    // Collect regions to delete first, then delete — avoids index invalidation
+                    const toDelete = [];
+                    for (let rIdx = 0; rIdx < regionAdapters.length; rIdx++) {{
+                        const reg = regionAdapters[rIdx];
+                        const regPosBeats = reg.position / Quarter;
+                        const regDurBeats = reg.duration / Quarter;
+                        const regEndBeats = regPosBeats + regDurBeats;
+
+                        if (regEndBeats <= fromBeat || regPosBeats >= toBeat) continue;
+                        toDelete.push({{adapter: reg, pos: regPosBeats, dur: regDurBeats, idx: rIdx}});
+                    }}
+
+                    h.modify(() => {{
+                        for (const item of toDelete) {{
+                            item.adapter.delete();
+                            totalDeleted++;
+                            deleted.push({{
+                                unit: uIdx,
+                                track: tIdx,
+                                position_beats: Math.round(item.pos * 100) / 100,
+                                duration_beats: Math.round(item.dur * 100) / 100,
+                            }});
+                        }}
+                    }});
+
+                    // Count remaining regions on this track
+                    const remaining = trackAdapter.regions.collection.asArray().length;
+                    if (deleted.length > 0) {{
+                        const lastEntry = deleted[deleted.length - 1];
+                        lastEntry.remaining_on_track = remaining;
+                    }}
+                }}
+            }}
+
+            return {{
+                success: true,
+                from_beat: fromBeat,
+                to_beat: toBeat,
+                regions_deleted: totalDeleted,
+                details: deleted.slice(0, 50),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)

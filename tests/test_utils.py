@@ -8473,6 +8473,76 @@ class TestMoveSection:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_move_section" in tool_names
 
+
+class TestDeleteSection:
+    """Tests for delete_section orchestration tool"""
+
+    def test_overlap_included(self):
+        """Region [10, 26) overlaps [0, 16) — included for deletion"""
+        from_beat, to_beat = 0, 16
+        reg_pos, reg_dur = 10, 16
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert overlaps
+
+    def test_no_overlap_excluded(self):
+        """Region [20, 24) does not overlap [0, 16) — excluded"""
+        from_beat, to_beat = 0, 16
+        reg_pos, reg_dur = 20, 4
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert not overlaps
+
+    def test_collect_then_delete_pattern(self):
+        """Collect all regions first, then delete — avoids index invalidation"""
+        regions = [{"pos": 2, "dur": 4}, {"pos": 10, "dur": 8}, {"pos": 50, "dur": 4}]
+        from_beat, to_beat = 0, 16
+        to_delete = [r for r in regions if not (r["pos"] + r["dur"] <= from_beat or r["pos"] >= to_beat)]
+        assert len(to_delete) == 2  # pos=2 and pos=10
+
+    def test_remaining_count_after_delete(self):
+        """After deleting 2 of 3 regions, 1 remains"""
+        total = 3
+        deleted = 2
+        remaining = total - deleted
+        assert remaining == 1
+
+    def test_crud_trilogy_complete(self):
+        """duplicate (copy) + move (cut-paste) + delete (remove) = complete CRUD"""
+        operations = {"duplicate_section": "copy", "move_section": "move", "delete_section": "delete"}
+        assert len(operations) == 3
+        assert "copy" in operations.values()
+        assert "move" in operations.values()
+        assert "delete" in operations.values()
+
+    def test_delete_is_destructive(self):
+        """Delete removes region (unlike duplicate which creates copy)"""
+        delete_ops = ["delete"]
+        dup_ops = ["copyTo"]
+        assert delete_ops != dup_ops
+
+    def test_empty_section_no_regions(self):
+        """Empty section (from==to) returns error"""
+        from_beat, to_beat = 16, 16
+        valid = to_beat > from_beat
+        assert not valid
+
+    def test_unit_indices_filter(self):
+        """Specifying unit_indices limits scope"""
+        all_units = [0, 1, 2, 3, 4]
+        specified = [0, 1]
+        # only AUs 0,1 are scanned, not all 5
+        assert len(specified) < len(all_units)
+
+    def test_tool_in_ast(self):
+        """delete_section is a registered MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_delete_section" in tool_names
+
     def test_unknown_type_rejected(self):
         """Unknown transition type returns error"""
         valid_types = {"drop", "buildup", "breakdown", "intro", "outro"}

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.188.0 (2026-07-05)
+
+### Added
+- `delete_section` — delete all regions in a beat range across all tracks. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern avoids index invalidation. One call replaces N delete_region calls. 368 MCP tools total
+
 ## v1.187.0 (2026-07-05)
 
 ### Added
