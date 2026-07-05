@@ -18648,6 +18648,190 @@ async def mcp_opendaw_map_velocity_by_pitch(
 
 
 @mcp.tool()
+async def mcp_opendaw_balance_track_velocities(
+    unit_index: int,
+    track_indices: str,
+    preset: str = "mix_balanced",
+    target_velocities: str = "",
+    region_index: int = -1,
+) -> str:
+    """Balance velocities across multiple tracks — MIDI mix leveling.
+
+    Sets relative velocity levels across multiple note tracks so they sit
+    correctly in the mix. Unlike scale_velocity (one track at a time), this
+    operates on multiple tracks simultaneously and establishes the *relative*
+    balance between them.
+
+    Presets:
+    - "mix_balanced" — all tracks equal (~0.75). Neutral starting point.
+    - "drums_forward" — drums loudest (0.95), bass (0.80), harmony (0.65),
+      lead (0.70). Hip-hop, rock, electronic.
+    - "vocal_forward" — vocal/lead loudest (0.95), pads (0.60), bass (0.75),
+      drums (0.80). Pop, ballad, singer-songwriter.
+    - "pads_quiet" — pads very quiet (0.50), arp (0.65), bass (0.80),
+      drums (0.90), lead (0.85). Ambient, cinematic.
+    - "bass_heavy" — bass loudest (0.95), drums (0.85), lead (0.70),
+      harmony (0.55). Reggae, dub, trap.
+    - "custom" — use target_velocities parameter (comma-separated 0-1 values,
+      one per track in track_indices order).
+
+    The tool reads current average velocities, computes scale factors to reach
+    targets, and applies them. Original relative dynamics within each track
+    are preserved (multiply mode).
+
+    track_indices: Comma-separated track indices (e.g. "0,1,2,3").
+    preset: One of the presets above, or "custom".
+    target_velocities: For custom mode — comma-separated target avg velocities
+      (e.g. "0.9,0.7,0.6,0.8"). Must match track_indices count.
+    region_index: Region (-1 = first, -2 = all regions).
+
+    Returns per-track velocity stats before/after.
+
+    Example:
+      # Balance 4 tracks: drums, bass, pads, lead
+      balance_track_velocities(0, "0,1,2,3", preset="drums_forward")
+      # Custom: drums=0.9, bass=0.7, pads=0.5, lead=0.8
+      balance_track_velocities(0, "0,1,2,3", preset="custom",
+                               target_velocities="0.9,0.7,0.5,0.8")
+    """
+    presets = {
+        "mix_balanced": [0.75, 0.75, 0.75, 0.75],
+        "drums_forward": [0.95, 0.80, 0.65, 0.70],
+        "vocal_forward": [0.80, 0.75, 0.60, 0.95],
+        "pads_quiet": [0.90, 0.80, 0.50, 0.85],
+        "bass_heavy": [0.85, 0.95, 0.55, 0.70],
+    }
+
+    try:
+        track_list = [int(t.strip()) for t in track_indices.split(",") if t.strip()]
+    except ValueError:
+        return "Error: track_indices must be comma-separated integers"
+    if not track_list:
+        return "Error: must provide at least one track index"
+
+    if preset == "custom":
+        if not target_velocities:
+            return "Error: custom preset requires target_velocities"
+        try:
+            targets = [float(v.strip()) for v in target_velocities.split(",") if v.strip()]
+        except ValueError:
+            return "Error: target_velocities must be comma-separated floats"
+        if len(targets) != len(track_list):
+            return f"Error: {len(targets)} targets for {len(track_list)} tracks — must match"
+        for t in targets:
+            if not (0.0 <= t <= 1.0):
+                return "Error: target velocities must be 0-1"
+    else:
+        if preset not in presets:
+            return f"Error: preset must be one of {list(presets.keys())} or 'custom', got '{preset}'"
+        targets = presets[preset]
+        if len(track_list) > len(targets):
+            return f"Error: preset '{preset}' has {len(targets)} targets but {len(track_list)} tracks given"
+
+    targets_json = json.dumps(targets[:len(track_list)])
+    tracks_json = json.dumps(track_list)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackList = {tracks_json};
+        const targetVels = {targets_json};
+        const regIdx = {region_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+
+        const trackResults = [];
+        let totalModified = 0;
+
+        for (let ti = 0; ti < trackList.length; ti++) {{
+            const trackIdx = trackList[ti];
+            if (trackIdx < 0 || trackIdx >= noteTracks.length) {{
+                trackResults.push({{track_index: trackIdx, error: "track_index out of range"}});
+                continue;
+            }}
+            const trackBox = noteTracks[trackIdx];
+            const regions = h.regionBoxes(trackBox);
+            if (regions.length === 0) {{
+                trackResults.push({{track_index: trackIdx, error: "No regions on track"}});
+                continue;
+            }}
+
+            let allNotes = [];
+            const regionsToProcess = regIdx === -2 ? regions : (regIdx < 0 ? [regions[0]] : [regions[regIdx]]);
+            if (regIdx >= 0 && regIdx >= regions.length) {{
+                trackResults.push({{track_index: trackIdx, error: "region_index out of range"}});
+                continue;
+            }}
+
+            for (const region of regionsToProcess) {{
+                let collection = null;
+                try {{
+                    const vertex = region.events.targetVertex.unwrap();
+                    collection = vertex.box || vertex;
+                }} catch(e) {{ continue; }}
+                if (!collection || !collection.events) continue;
+                const notes = h.eventBoxes(collection);
+                allNotes = allNotes.concat(notes);
+            }}
+
+            if (allNotes.length === 0) {{
+                trackResults.push({{track_index: trackIdx, error: "No notes", target: targetVels[ti]}});
+                continue;
+            }}
+
+            // Current average velocity
+            const origVels = allNotes.map(n => n.velocity.getValue());
+            const origAvg = origVels.reduce((a, b) => a + b, 0) / origVels.length;
+            const origMax = Math.max(...origVels);
+
+            // Scale factor to reach target average
+            const target = targetVels[ti];
+            const scaleFactor = origAvg > 0 ? target / origAvg : 1.0;
+
+            let modified = 0;
+            const editing = h.editing;
+            await editing.modify(async () => {{
+                for (const n of allNotes) {{
+                    let v = n.velocity.getValue() * scaleFactor;
+                    v = Math.max(0.01, Math.min(1.0, v));
+                    n.velocity.setValue(v);
+                    modified++;
+                }}
+            }});
+
+            const newVels = allNotes.map(n => n.velocity.getValue());
+            const newAvg = newVels.reduce((a, b) => a + b, 0) / newVels.length;
+            const newMax = Math.max(...newVels);
+
+            trackResults.push({{
+                track_index: trackIdx,
+                note_count: allNotes.length,
+                target_velocity: target,
+                scale_factor: Math.round(scaleFactor * 1000) / 1000,
+                original_avg: Math.round(origAvg * 1000) / 1000,
+                original_max: Math.round(origMax * 1000) / 1000,
+                new_avg: Math.round(newAvg * 1000) / 1000,
+                new_max: Math.round(newMax * 1000) / 1000,
+                notes_modified: modified,
+            }});
+            totalModified += modified;
+        }}
+
+        return {{
+            success: true,
+            preset: "{preset}",
+            total_notes_modified: totalModified,
+            tracks_balanced: trackResults.filter(r => !r.error).length,
+            track_results: trackResults,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_scale_durations(
     unit_index: int,
     track_index: int,

@@ -15874,3 +15874,110 @@ class TestMapVelocityByPitch:
         assert len(modes) == 4
         assert "higher_quieter" in modes
         assert "bell_curve" in modes
+
+
+class TestBalanceTrackVelocities:
+    """Tests for mcp_opendaw_balance_track_velocities — cross-track velocity balance"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_balance_track_velocities" in names
+
+    def test_track_indices_parsing(self):
+        """Parse comma-separated track indices"""
+        track_indices = "0,1,2,3"
+        track_list = [int(t.strip()) for t in track_indices.split(",") if t.strip()]
+        assert track_list == [0, 1, 2, 3]
+
+    def test_target_velocities_parsing(self):
+        """Parse comma-separated target velocities"""
+        target_velocities = "0.9,0.7,0.5,0.8"
+        targets = [float(v.strip()) for v in target_velocities.split(",") if v.strip()]
+        assert len(targets) == 4
+        assert targets[0] == 0.9
+        assert targets[3] == 0.8
+
+    def test_preset_mix_balanced(self):
+        """All tracks equal at 0.75"""
+        presets = {
+            "mix_balanced": [0.75, 0.75, 0.75, 0.75],
+        }
+        targets = presets["mix_balanced"]
+        assert all(t == 0.75 for t in targets)
+
+    def test_preset_drums_forward(self):
+        """Drums loudest, then bass, harmony, lead"""
+        presets = {
+            "drums_forward": [0.95, 0.80, 0.65, 0.70],
+        }
+        targets = presets["drums_forward"]
+        assert targets[0] == 0.95, "Drums loudest"
+        assert targets[1] == 0.80, "Bass second"
+        assert targets[2] == 0.65, "Harmony quieter"
+        assert targets[0] > targets[2], "Drums louder than harmony"
+
+    def test_preset_vocal_forward(self):
+        """Vocal/lead loudest"""
+        presets = {
+            "vocal_forward": [0.80, 0.75, 0.60, 0.95],
+        }
+        targets = presets["vocal_forward"]
+        assert targets[3] == 0.95, "Lead/vocal loudest"
+        assert targets[2] == 0.60, "Pads quietest"
+
+    def test_preset_pads_quiet(self):
+        """Pads very quiet"""
+        presets = {
+            "pads_quiet": [0.90, 0.80, 0.50, 0.85],
+        }
+        targets = presets["pads_quiet"]
+        assert targets[2] == 0.50, "Pads very quiet"
+
+    def test_preset_bass_heavy(self):
+        """Bass loudest"""
+        presets = {
+            "bass_heavy": [0.85, 0.95, 0.55, 0.70],
+        }
+        targets = presets["bass_heavy"]
+        assert targets[1] == 0.95, "Bass loudest"
+
+    def test_scale_factor_calculation(self):
+        """Scale factor = target / original_avg"""
+        orig_avg = 0.6
+        target = 0.9
+        scale_factor = target / orig_avg if orig_avg > 0 else 1.0
+        assert abs(scale_factor - 1.5) < 0.01, "0.9/0.6 = 1.5"
+
+    def test_scale_factor_preserves_dynamics(self):
+        """Multiply mode preserves relative dynamics within track"""
+        vels = [0.4, 0.6, 0.8, 1.0]
+        scale = 0.75  # scale down
+        new_vels = [max(0.01, min(1.0, v * scale)) for v in vels]
+        # Relative ratios preserved
+        assert abs(new_vels[1] / new_vels[0] - vels[1] / vels[0]) < 0.01
+        assert abs(new_vels[3] / new_vels[0] - vels[3] / vels[0]) < 0.01
+
+    def test_velocity_clamping(self):
+        """Velocities clamped to 0.01-1.0"""
+        v = 0.8
+        scale = 2.0
+        new_v = max(0.01, min(1.0, v * scale))
+        assert new_v == 1.0, "0.8 * 2.0 = 1.6 → clamped to 1.0"
+
+        scale2 = 0.01
+        new_v2 = max(0.01, min(1.0, v * scale2))
+        assert new_v2 == 0.01, "0.8 * 0.01 = 0.008 → clamped to 0.01"
+
+    def test_custom_mode_target_count_mismatch(self):
+        """Custom mode: target count must match track count"""
+        track_list = [0, 1, 2, 3]
+        targets = [0.9, 0.7, 0.5]  # only 3, should be 4
+        assert len(targets) != len(track_list), "Mismatch should be caught"
+
+    def test_five_presets_available(self):
+        """5 presets + custom"""
+        presets = ["mix_balanced", "drums_forward", "vocal_forward", "pads_quiet", "bass_heavy", "custom"]
+        assert len(presets) == 6

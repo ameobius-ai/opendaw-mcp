@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.245.0 (2026-07-06)
+
+### Added
+- `balance_track_velocities` — Balance velocities across multiple tracks simultaneously. 5 presets: mix_balanced (equal 0.75), drums_forward (drums 0.95/bass 0.80/harmony 0.65/lead 0.70), vocal_forward (lead 0.95/pads 0.60), pads_quiet (pads 0.50/lead 0.85), bass_heavy (bass 0.95). Custom mode with comma-separated target velocities. Preserves relative dynamics within each track via multiply scaling. Returns per-track stats before/after.
+
 ## v1.244.0 (2026-07-06)
 
 ### Added
