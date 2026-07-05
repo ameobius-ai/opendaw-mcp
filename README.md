@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **274** MCP tools | **43** Python examples (8 genre templates) |
+| **274** MCP tools | **46** Python examples (8 genre templates) |
 | **27** DSP scripts | **9** agent skills |
 | **3** framework wrappers | **150** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -338,7 +338,7 @@ The `scripts/` directory contains 27 example DSP scripts (16 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 43 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 46 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -379,6 +379,9 @@ The `examples/` directory contains 43 Python scripts demonstrating the full work
 | `create_harmony.py` | Generate harmony parts — diatonic (3rds/5ths/6ths) + chromatic intervals, up/down |
 | `create_counterpoint.py` | Counter-melody in contrary motion — mirrors melody around center pitch |
 | `reverse_invert_notes.py` | Melodic variation: retrograde (reverse) + mirror inversion around axis |
+| `create_drum_fill.py` | Drum fills/transitions: 5 types (build, break, roll, crash, tom), adjustable density |
+| `create_ostinato.py` | Repeating melodic pattern as foundation layer (minimalism, electronic, film) |
+| `create_crescendo.py` | Crescendo/decrescendo on existing notes: linear, exponential, logarithmic curves |
 | `custom_dsp_script.py` | DSP authoring: custom Werkstatt analog saturation script (tanh + DC blocker + tone filter), compile via ScriptCompiler, set params, verify |
 | `langchain_integration.py` | LangChain toolkit: use opendaw-mcp tools as LangChain Tool objects with any LLM agent |
 | `autogen_integration.py` | AutoGen toolkit: use opendaw-mcp tools with Microsoft AutoGen agents |

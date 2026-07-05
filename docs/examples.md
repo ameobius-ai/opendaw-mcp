@@ -80,6 +80,9 @@ python examples/genre_house.py
 | `create_harmony.py` | Generate harmony parts — diatonic + chromatic intervals |
 | `create_counterpoint.py` | Counter-melody in contrary motion |
 | `reverse_invert_notes.py` | Melodic variation: retrograde + mirror inversion |
+| `create_drum_fill.py` | Drum fills/transitions: 5 types, adjustable density |
+| `create_ostinato.py` | Repeating melodic pattern as foundation layer |
+| `create_crescendo.py` | Crescendo/decrescendo: linear, exp, log curves |
 
 ## Running examples
 
