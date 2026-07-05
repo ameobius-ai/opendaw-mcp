@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-358-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-104-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-2335%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-105-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-2351%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Examples](https://img.shields.io/badge/Examples-121-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -28,8 +28,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **358** MCP tools | **121** Python examples (8 genre templates) |
-| **104** DSP scripts | **11** agent skills |
-| **3** framework wrappers | **2335** unit + E2E tests |
+| **105** DSP scripts | **11** agent skills |
+| **3** framework wrappers | **2351** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo

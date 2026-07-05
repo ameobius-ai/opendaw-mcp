@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.175.0 (2026-07-05)
+
+### Added
+- `werkstatt_vowel_morph.js` — formant vowel morph DSP. Morphs between 5 vowels (A, E, I, O, U) via 3 cascaded resonant biquad bandpass filters. Auto-morph LFO for talking/chatter effects. Spectral tilt for darken/brighten. 105 DSP scripts total
+
 ## v1.174.0 (2026-07-05)
 
 ### Added

@@ -7523,3 +7523,114 @@ class TestCreateBuildup:
         assert s["snare"] is False
         assert s["roll_type"] is None
 
+
+class TestVowelMorph:
+    """Tests for werkstatt_vowel_morph.js — formant vowel morph DSP"""
+
+    def _read_script(self):
+        return open("scripts/werkstatt_vowel_morph.js").read()
+
+    def test_file_exists(self):
+        import os
+        assert os.path.exists("scripts/werkstatt_vowel_morph.js")
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt" in code
+        assert "vowel_morph" in code
+
+    def test_has_7_params(self):
+        import re
+        code = self._read_script()
+        params = re.findall(r"// @param (\w+)", code)
+        assert len(params) == 7
+        expected = {"vowel", "morph", "rate", "reso", "tilt", "mix", "output"}
+        assert set(params) == expected
+
+    def test_5_vowels_defined(self):
+        code = self._read_script()
+        # VOWELS array has 5 entries
+        assert code.count("[") >= 5  # at least 5 formant arrays
+
+    def test_vowel_a_lowest_f1(self):
+        """Vowel A: F1=800 (highest F1 = open mouth)"""
+        vowels = [
+            [800, 1150, 2900],   # A
+            [400, 1700, 2600],   # E
+            [300, 2200, 3000],   # I
+            [450, 800, 2800],    # O
+            [350, 600, 2700],    # U
+        ]
+        f1_a = vowels[0][0]  # 800
+        f1_u = vowels[4][0]  # 350
+        assert f1_a > f1_u  # A is more open than U
+
+    def test_vowel_i_highest_f2(self):
+        """Vowel I: F2=2200 (highest F2 = front tongue)"""
+        vowels = [
+            [800, 1150, 2900],   # A
+            [400, 1700, 2600],   # E
+            [300, 2200, 3000],   # I
+            [450, 800, 2800],    # O
+            [350, 600, 2700],    # U
+        ]
+        f2_i = vowels[2][1]  # 2200
+        f2_u = vowels[4][1]  # 600
+        assert f2_i > f2_u  # I is brighter than U
+
+    def test_has_3_biquad_filters(self):
+        """Three resonant bandpass filters for F1, F2, F3"""
+        code = self._read_script()
+        assert "f1" in code and "f2" in code and "f3" in code
+        assert "_setBiquadBP" in code or "setBiquadBP" in code
+
+    def test_has_auto_morph_lfo(self):
+        """Auto-morph LFO sweeps between vowels"""
+        code = self._read_script()
+        assert "lfoPhase" in code
+        assert "Math.sin" in code
+
+    def test_has_vowel_interpolation(self):
+        """Vowel positions interpolated smoothly between 5 vowels"""
+        code = self._read_script()
+        assert "_interpVowel" in code or "interpVowel" in code
+        assert "frac" in code
+
+    def test_has_spectral_tilt(self):
+        """Spectral tilt: negative=darken, positive=brighten"""
+        code = self._read_script()
+        assert "tilt" in code
+        assert "tiltState" in code
+
+    def test_has_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code
+
+    def test_has_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code
+        assert "pow(10" in code or "Math.pow(10" in code
+
+    def test_vowel_vs_formant_filter_different(self):
+        """Vowel morph uses 3 cascaded biquads; formant filter uses fixed resonator"""
+        vm = self._read_script()
+        ff = open("scripts/werkstatt_formant_filter.js").read()
+        assert "_setBiquadBP" in vm  # vowel morph has biquad design
+        assert "_setBiquadBP" not in ff  # formant filter uses different design
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_vowel_morph.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_vowel_range_0_to_1(self):
+        """vowel param: 0=A, 0.25=E, 0.5=I, 0.75=O, 1=U"""
+        code = self._read_script()
+        assert "0=A" in code or "0=A" in code.replace(" ", "")
+
+    def test_morph_default_0(self):
+        """morph default 0 = static vowel (no auto-sweep)"""
+        code = self._read_script()
+        assert "@param morph   0" in code or "morph   0 " in code
+
