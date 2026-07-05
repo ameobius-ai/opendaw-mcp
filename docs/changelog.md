@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.29.0 (2026-07-05)
+
+- **`werkstatt_transient.js`** — transient shaper with dual envelope followers. 4 params: attack (±12 dB transient boost/cut), sustain (±12 dB sustain boost/cut), mix, output. Fast envelope (~5ms) detects transients, slow envelope (~80ms) detects sustain, independent gain on each component. No threshold needed — works on any material. Essential for drum mixing
+- **39 DSP scripts** (28 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 4 params, attack 0.5→0.8, sustain 0.5→0.3
+
 ## v1.28.0 (2026-07-05)
 
 - **`werkstatt_deesser.js`** — dynamic de-esser, band-split architecture. 7 params: freq (2-12kHz crossover), threshold (-40..0 dB), ratio (1:1..10:1), attack, release, mix, output. 2nd-order Linkwitz-Riley HPF isolates sibilance, envelope-followed gain reduction on high band only. Completes vocal chain: EQ → compressor → de-esser → exciter → limiter

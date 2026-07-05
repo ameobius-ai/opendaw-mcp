@@ -1,8 +1,8 @@
 # DSP Scripts
 
-38 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+39 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 27 scripts
+## Werkstatt (Audio Effects) — 28 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -16,6 +16,7 @@
 | `werkstatt_limiter.js` | Brickwall limiter w/ lookahead | ceiling, release, lookahead, dither, mix |
 | `werkstatt_exciter.js` | Harmonic exciter (band-split) | freq, harmonics, drive, mix, output |
 | `werkstatt_deesser.js` | De-esser (dynamic HF compressor) | freq, threshold, ratio, attack, release, mix, output |
+| `werkstatt_transient.js` | Transient shaper (dual envelope) | attack, sustain, mix, output |
 | `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix |
 | `werkstatt_reverb.js` | Algorithmic reverb | room, decay, damp, mix |
 | `werkstatt_chorus.js` | Stereo chorus | rate, depth, mix |

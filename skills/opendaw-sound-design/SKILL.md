@@ -258,6 +258,7 @@ class Processor {
 | `werkstatt_limiter.js` | Brickwall limiter w/ lookahead | ceiling, release, lookahead, dither, mix | |
 | `werkstatt_exciter.js` | Harmonic exciter (band-split) | freq, harmonics, drive, mix, output | |
 | `werkstatt_deesser.js` | De-esser (dynamic HF compressor) | freq, threshold, ratio, attack, release, mix, output | |
+| `werkstatt_transient.js` | Transient shaper (dual envelope) | attack, sustain, mix, output | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
 | `werkstatt_paulstretch.js` | Extreme time-stretch | stretch, window, mix | #209 |
@@ -309,6 +310,7 @@ class Processor {
 | Limiter (brickwall) | `werkstatt_limiter.js` | Werkstatt |
 | Exciter (harmonic) | `werkstatt_exciter.js` | Werkstatt |
 | De-esser (dynamic HF) | `werkstatt_deesser.js` | Werkstatt |
+| Transient shaper | `werkstatt_transient.js` | Werkstatt |
 | Chorus/width | `werkstatt_chorus.js` | Werkstatt |
 | Phaser | `werkstatt_phaser.js` | Werkstatt |
 | Flanger | `werkstatt_flanger.js` | Werkstatt |
