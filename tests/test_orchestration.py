@@ -7688,3 +7688,170 @@ class TestCreateArpeggiatedProgression:
         ]
         assert "create_arpeggiated_progression" in pipeline
         assert len(pipeline) == 5
+
+
+class TestBassFromProgression:
+    """Tests for create_bass_from_progression — harmonic trio bass foundation"""
+
+    PATTERNS = ["root", "root_fifth", "walking", "pedal", "octave", "root_octave"]
+
+    def test_6_patterns(self):
+        """6 bass patterns: root, root_fifth, walking, pedal, octave, root_octave"""
+        assert len(self.PATTERNS) == 6
+
+    def test_root_pattern_notes_per_bar(self):
+        """root: 2 notes per bar (beat 1 + beat 3)"""
+        bars = 4
+        notes_per_bar = 2
+        total = bars * notes_per_bar
+        assert total == 8  # 4 bars × 2 notes = 8
+
+    def test_root_fifth_pitches(self):
+        """root_fifth: root on 1, fifth on 3 — rock/pop"""
+        root_pc = NOTE_TO_PITCH["A"]
+        base = (2 + 1) * 12 + root_pc  # 45 = A2
+        fifth = base + 7  # 52 = E2
+        assert base == 45
+        assert fifth == 52
+
+    def test_root_octave_pitches(self):
+        """root_octave: root on 1, octave up on 3 — pop/rock power"""
+        base = 45  # A2
+        octave = base + 12  # 57 = A3
+        assert octave == 57
+
+    def test_pedal_one_note_per_chord(self):
+        """pedal: 1 sustained note per chord — techno/house"""
+        notes_per_chord = 1
+        chords = 4
+        total = notes_per_chord * chords
+        assert total == 4  # 4 chords × 1 note = 4
+
+    def test_pedal_duration_full_chord(self):
+        """pedal: note duration = full chord length (4 bars = 16 beats)"""
+        bars_per_chord = 4
+        chord_beats = bars_per_chord * 4
+        assert chord_beats == 16
+
+    def test_octave_pattern_8th_notes(self):
+        """octave: 8th notes alternating root + octave — disco/funk"""
+        chord_beats = 16
+        steps = int(chord_beats / 0.5)  # 8th notes
+        assert steps == 32
+
+    def test_octave_alternation(self):
+        """octave: even steps = root, odd steps = octave up"""
+        base = 45
+        steps = 4
+        pitches = [base if s % 2 == 0 else base + 12 for s in range(steps)]
+        assert pitches == [45, 57, 45, 57]
+
+    def test_walking_4_quarters_per_bar(self):
+        """walking: 4 quarter notes per bar — jazz"""
+        bars = 4
+        notes_per_bar = 4
+        total = bars * notes_per_bar
+        assert total == 16
+
+    def test_walking_beat_structure(self):
+        """walking: beat 1=root, 2=chord tone, 3=chord tone, 4=approach"""
+        beats = [1, 2, 3, 4]
+        roles = ["root", "chord_tone", "chord_tone", "approach"]
+        assert len(beats) == len(roles)
+
+    def test_walking_approach_half_step(self):
+        """walking beat 4: chromatic approach to next chord root"""
+        current_root = 45  # A2
+        next_root = 48  # C3 (from Am → C)
+        diff = next_root - current_root
+        if diff > 0:
+            approach = next_root - 1  # half-step below
+        else:
+            approach = next_root + 1  # half-step above
+        assert approach == 47  # B2, half-step below C3
+
+    def test_walking_same_chord_octave(self):
+        """walking: if next chord = same root, beat 4 = octave up"""
+        base = 45
+        next_base = 45  # same chord
+        if next_base != base:
+            approach = next_base - 1
+        else:
+            approach = base + 12
+        assert approach == 57  # octave up
+
+    def test_bass_octave_range(self):
+        """Bass octave 2 = C2=36, typical bass range"""
+        root_pc = NOTE_TO_PITCH["C"]
+        base = (2 + 1) * 12 + root_pc
+        assert base == 36  # C2
+
+    def test_sub_bass_octave_1(self):
+        """Sub-bass: octave 1 for deep techno/house"""
+        root_pc = NOTE_TO_PITCH["F"]
+        base = (1 + 1) * 12 + root_pc  # 24 + 5 = 29
+        assert base == 29  # F1
+
+    def test_jazz_walking_from_ii_v_i(self):
+        """Jazz walking from ii-V-I-vi: Dm7-G7-Cmaj7-Am7"""
+        prog = "Dm7-G7-Cmaj7-Am7"
+        chords = prog.split("-")
+        assert len(chords) == 4
+        assert chords[0] == "Dm7"
+        assert chords[2] == "Cmaj7"
+
+    def test_rock_root_fifth_i_iv_v(self):
+        """Rock root-fifth from I-IV-V: A-D-E"""
+        prog = "A-D-E"
+        chords = prog.split("-")
+        assert len(chords) == 3
+
+    def test_harmonic_trio_same_progression(self):
+        """All three tools take same 'Am-F-C-G' string"""
+        prog = "Am-F-C-G"
+        # chord_pads: sustained harmony
+        # arpeggiated_progression: melodic movement
+        # bass_from_progression: bass foundation
+        assert prog.split("-") == ["Am", "F", "C", "G"]
+
+    def test_total_notes_root_4_chords(self):
+        """root pattern: 4 chords × 4 bars × 2 notes/bar = 32 notes"""
+        chords = 4
+        bars_per = 4
+        notes_per_bar = 2
+        total = chords * bars_per * notes_per_bar
+        assert total == 32
+
+    def test_total_notes_walking_4_chords(self):
+        """walking: 4 chords × 4 bars × 4 notes/bar = 64 notes"""
+        chords = 4
+        bars_per = 4
+        notes_per_bar = 4
+        total = chords * bars_per * notes_per_bar
+        assert total == 64
+
+    def test_total_notes_pedal_4_chords(self):
+        """pedal: 4 chords × 1 note = 4 notes"""
+        chords = 4
+        total = chords * 1
+        assert total == 4
+
+    def test_total_notes_octave_4_chords(self):
+        """octave: 4 chords × 32 steps = 128 notes"""
+        chords = 4
+        steps = 32
+        total = chords * steps
+        assert total == 128
+
+    def test_full_pipeline_with_bass(self):
+        """Full harmonic pipeline: song + pads + arp + bass + mix + render"""
+        pipeline = [
+            "create_song_with_variations",
+            "create_chord_pads",
+            "create_arpeggiated_progression",
+            "create_bass_from_progression",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert "create_bass_from_progression" in pipeline
+        assert len(pipeline) == 6

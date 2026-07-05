@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.152.0 (2026-07-05)
+
+- **`create_bass_from_progression` orchestration tool (345 MCP tools)** — new capability: bass line from chord progression. Completes the harmonic trio: create_chord_pads (sustained harmony) + create_arpeggiated_progression (melodic movement) + this (bass foundation). All three take the same "Am-F-C-G" string. 6 patterns: root (beat 1+3 quarter notes), root_fifth (root on 1, fifth on 3 — rock/pop), walking (jazz: root→chord tone→chord tone→chromatic approach to next root), pedal (one sustained root per chord — techno/house sub-bass), octave (8th notes alternating root+octave — disco/funk), root_octave (root on 1, octave up on 3 — pop/rock power). Walking bass uses chromatic approach notes (half-step below/above next chord root). Configurable octave (1=sub-bass, 2=bass, 3=mid), velocity, bars_per_chord. 71 orchestration tools. 345 MCP tools
+- **2012 unit tests** (+22)
+
 ## v1.151.0 (2026-07-05)
 
 - **`create_arpeggiated_progression` orchestration tool (344 MCP tools)** — new capability: arpeggiated chord progression engine. Takes a progression string ("Am-F-C-G") and generates arpeggiated notes cycling through chord tones, changing chords every bars_per_chord bars. 5 patterns: up (root→3rd→5th→oct — classic synthwave), down (oct→5th→3rd→root), updown (full cycle), random (dreamy, picks from chord tones), bass (root only, driving — synthwave bass engine). Configurable octave (2=bass arp, 4=mid, 5=lead), step_duration (16th/8th/32nd), bars_per_chord. Unlike create_arpeggio (single chord repeated), this cycles through a full progression. Pairs with create_chord_pads (sustained) for the complete harmonic layer: chord_pads (harmony) + arpeggiated_progression (melodic movement from same chords). 70 orchestration tools. 344 MCP tools
