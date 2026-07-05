@@ -6,7 +6,37 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.10.1, 260 total)
+## Tools Added (v1.10.0, 255 total → v1.23.3, 283 total)
+
+26 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+
+### Full orchestration tool list (v1.23.3)
+1. `create_notes_batch` — batch note creation from JSON
+2. `create_drum_pattern` — step-sequencer drum notation
+3. `create_chord_progression` — scale-aware chord sequences
+4. `add_mastering_chain` — EQ+Comp+Maximizer on output bus
+5. `create_genre_track` — full genre starting point
+6. `create_song_structure` — arrangement markers
+7. `automation_sweep` — smooth parameter ramps
+8. `create_melody` — scale-based melodic phrases
+9. `create_bassline` — root-fifth/octave/walk-up bass
+10. `create_arpeggio` — up/down/updown/random arps
+11. `create_harmony` — parallel harmony (thirds/fifths/sixths)
+12. `create_counterpoint` — contrary motion counter-melody
+13. `humanize_notes` — random velocity/timing/duration/swing
+14. `create_arp_pattern` — arpeggio pattern sequencer
+15. `create_drum_fill` — build/break/roll/crash/tom fills
+16. `create_ostinato` — repeating pattern × N
+17. `create_crescendo` — velocity ramp via automation (linear/exp/log)
+18. `apply_swing` — deterministic swing (16th/8th grid)
+19. `create_polyrhythm` — cross-rhythms (3:4, 2:3, 5:7)
+20. `create_scale_run` — ascending/descending scale fills
+21. `create_call_response` — antecedent/consequent phrases
+22. `create_walking_bass` — walking bass over chord changes
+23. `apply_sidechain` — volume automation ducking on kick
+24. `create_ghost_notes` — quiet grace notes for groove
+25. `apply_velocity_curve` — deterministic velocity envelope (ramp/arc/trough/power)
+26. `apply_articulation` — staccato/legato/tenuto/accent
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
@@ -90,7 +120,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## CI Threshold
 
-CI assertion updated: `assert count >= 258` (was 255, before that 250). AST count verified via `python3 -c "import ast; ..."`. The AST counts ALL async functions including non-tool helpers (`start`, `stop`, `evaluate`), so the threshold should be set ~2-3 below the real tool count to account for these.
+CI assertion updated: `assert count >= 283` (was 258, 260, 263, etc.). AST count verified via `python3 -c "import ast; ..."`. The AST counts ALL async functions including non-tool helpers (`start`, `stop`, `evaluate`), so the threshold should be set to the exact `mcp_opendaw_` prefix count. Use the prefix filter for accurate count: `[n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]`.
 
 ## Runtime Pitfalls (discovered during end-to-end testing)
 
