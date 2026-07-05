@@ -24104,3 +24104,246 @@ async def mcp_opendaw_create_funk_arrangement(
         "horn_type": "dominant7_stabs",
         "harmony": "vamp_single_chord",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_reggae_arrangement(
+    bpm: float = 80,
+    bars: int = 8,
+    root: str = "A",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    guitar_track: int = 2,
+    keys_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+) -> str:
+    """Create a full reggae arrangement — one-drop drums + melodic bass + skank guitar + organ across 4 tracks.
+
+    Roots reggae with the signature one-drop feel — fundamentally different from all other arrangements:
+    - Track 0: Drums — one-drop pattern: kick AND snare TOGETHER on beat 3 (the "drop"),
+                     with hi-hat on all 8ths. No kick on beat 1 — the emptiness on 1
+                     is the reggae feel. Organ bubble on 8th off-beats.
+    - Track 1: Bass — THE lead instrument in reggae: melodic, repetitive, driving.
+                     Root-based with octave and fifth walks, full bar sustain.
+                     In reggae, bass carries the melody — not the guitar.
+    - Track 2: Guitar — skank: staccato chops on the off-beats (the "and" of 1,
+                     the "and" of 2, etc.). The signature reggae guitar sound —
+                     short, percussive, on every off-beat. This is the rhythmic
+                     backbone, not the drums.
+    - Track 3: Keys — organ bubble: Hammond-style sustained chords with a
+                     shuffle feel, filling the space between guitar skanks.
+                     Adds harmonic richness and the classic roots sound.
+
+    At 80 BPM (default), this creates the classic roots reggae pocket — slow,
+    heavy, meditative. The one-drop (kick+snare together on 3) is the fundamental
+    difference from all 10 other arrangements: rock puts kick on 1 & 3, funk puts
+    kick on 1 with syncopation, reggae drops everything on 3 and leaves 1 empty.
+    The bass is the lead instrument — unique among all genres.
+
+    bpm: Tempo (65-95, default 80 = classic roots reggae).
+    bars: Arrangement length (4-16, default 8).
+    root: Root note (A is a classic reggae key — Am).
+    octave: MIDI octave for bass (2 = A2=45, standard reggae bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / guitar_track / keys_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_reggae_arrangement(bpm=80, root="A", bars=8)
+      create_reggae_arrangement(bpm=72, root="D", bars=16)
+    """
+    if not (60 <= bpm <= 100):
+        return "Error: bpm must be 60-100"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    guitar_base = (octave + 3) * 12 + root_pc
+    keys_base = (octave + 2) * 12 + root_pc
+
+    # Vamp on minor chord (Am: root + min3 + fifth) — reggae often vamps
+    # I-IV vamp possible but keeping it simple: one chord, like funk
+    # Actually, reggae often uses I-IV progression. Let's do I-IV (2-bar cycle)
+    chord_changes = [
+        (0, 0, "I"),    # I — 1 bar
+        (4, 5, "IV"),   # IV — 1 bar
+    ]
+
+    # --- DRUMS: one-drop pattern (2-bar cycle) ---
+    # One-drop: kick + snare TOGETHER on beat 3 (position 2.0)
+    # Hi-hat on all 8th notes
+    # No kick on beat 1 — the emptiness IS the feel
+    drum_pattern = [
+        # Bar 1 (I chord)
+        (0.0, "hat"), (0.5, "hat"), (1.0, "hat"), (1.5, "hat"),
+        (2.0, "kick"), (2.0, "snare"),  # THE DROP — kick + snare together
+        (2.5, "hat"), (3.0, "hat"), (3.5, "hat"),
+        # Bar 2 (IV chord)
+        (4.0, "hat"), (4.5, "hat"), (5.0, "hat"), (5.5, "hat"),
+        (6.0, "kick"), (6.0, "snare"),  # THE DROP
+        (6.5, "hat"), (7.0, "hat"), (7.5, "hat"),
+    ]
+    kick_p, snare_p, hat_p = 36, 38, 42
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.1),
+        "snare": max(0.0, velocity - 0.02),
+        "hat": max(0.0, velocity - 0.2),
+    }
+    drum_dur_map = {"kick": 0.2, "snare": 0.15, "hat": 0.05}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: melodic, repetitive, full-bar sustain (2-bar cycle) ---
+    # Reggae bass = lead instrument: melodic phrases over each chord
+    # I chord: root → octave → fifth → root (melodic walk)
+    # IV chord: root(fourth) → octave → fifth → root
+    bass_pattern_I = [
+        (0.0, 0, 1.5, 1.0),    # root, sustained
+        (1.5, 12, 0.5, 0.85),  # octave
+        (2.0, 7, 1.0, 0.9),    # fifth
+        (3.0, 0, 1.0, 0.85),   # root
+    ]
+    bass_pattern_IV = [
+        (0.0, 5, 1.5, 1.0),    # fourth root
+        (1.5, 17, 0.5, 0.85),  # fourth octave
+        (2.0, 12, 1.0, 0.9),   # fifth (relative to IV)
+        (3.0, 5, 1.0, 0.85),   # fourth root
+    ]
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        # I chord (bar 1)
+        for beat, po, dur, vm in bass_pattern_I:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+        # IV chord (bar 2)
+        for beat, po, dur, vm in bass_pattern_IV:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + 4 + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- GUITAR: skank — staccato chops on off-beats (2-bar cycle) ---
+    # The signature reggae guitar: short stabs on the "and" of every beat
+    # Voicing: root + min3 (minor chord skank)
+    guitar_skank = [0.5, 1.5, 2.5, 3.5]  # off-beats within a bar
+    guitar_voicing = [0, 3]  # root + minor third (Am skank)
+    guitar_notes = []
+    guitar_cycle = 8.0
+    guitar_cycles = bars // 2
+    for c in range(guitar_cycles):
+        off = c * guitar_cycle
+        for bar_start, chord_root, _ in chord_changes:
+            bar_off = off + bar_start
+            for sk in guitar_skank:
+                for interval in guitar_voicing:
+                    guitar_notes.append({
+                        "pitch": guitar_base + chord_root + interval,
+                        "start": round(bar_off + sk, 4),
+                        "duration": 0.1,  # staccato — very short
+                        "velocity": round(velocity * 0.7, 3),
+                    })
+
+    # --- KEYS: organ bubble — sustained chords with shuffle (2-bar cycle) ---
+    # Hammond organ: full minor chord sustained, with slight shuffle feel
+    # Voicing: root + min3 + fifth (full minor triad)
+    keys_voicing_I = [0, 3, 7]    # Am
+    keys_voicing_IV = [5, 8, 12]  # Dm (IV in Am = Dm)
+    keys_notes = []
+    keys_cycle = 8.0
+    keys_cycles = bars // 2
+    for c in range(keys_cycles):
+        off = c * keys_cycle
+        # I chord (bar 1) — sustained with shuffle
+        for interval in keys_voicing_I:
+            keys_notes.append({
+                "pitch": keys_base + interval,
+                "start": round(start_beat + off + 0.0, 4),
+                "duration": 3.5,
+                "velocity": round(velocity * 0.5, 3),
+            })
+        # IV chord (bar 2)
+        for interval in keys_voicing_IV:
+            keys_notes.append({
+                "pitch": keys_base + interval,
+                "start": round(start_beat + off + 4.0, 4),
+                "duration": 3.5,
+                "velocity": round(velocity * 0.5, 3),
+            })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    guitar_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(guitar_notes), unit_index, guitar_track)
+    keys_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(keys_notes), unit_index, keys_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        guitar_data = json.loads(guitar_result)
+    except Exception:
+        guitar_data = {"raw": guitar_result}
+    try:
+        keys_data = json.loads(keys_result)
+    except Exception:
+        keys_data = {"raw": keys_result}
+
+    return json.dumps({
+        "reggae_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "guitar": {"track": guitar_track, "notes": len(guitar_notes), "result": guitar_data.get("notes_created", len(guitar_notes))},
+            "keys": {"track": keys_track, "notes": len(keys_notes), "result": keys_data.get("notes_created", len(keys_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(guitar_notes) + len(keys_notes),
+        "drum_pattern": "one_drop_kick_snare_on_3",
+        "bass_pattern": "melodic_lead",
+        "guitar_type": "skank_off_beat_chops",
+        "keys_type": "organ_bubble_minor_triad",
+        "harmony": "I_IV_vamp_minor",
+    }, indent=2)

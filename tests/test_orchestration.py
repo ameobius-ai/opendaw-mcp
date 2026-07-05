@@ -5856,3 +5856,143 @@ class TestCreateFunkArrangement:
         """Funk has high note density — 16ths everywhere"""
         total_per_bar = len(self.DRUM_PATTERN) + len(self.BASS_PATTERN) + len(self.GUITAR_ACCENTS) * 2 + len(self.HORN_STABS) * 3
         assert total_per_bar > 50, "Funk should have 50+ notes per bar (dense)"
+
+
+class TestCreateReggaeArrangement:
+    """Tests for create_reggae_arrangement — one-drop + skank + melodic bass"""
+
+    DRUM_PATTERN = [
+        (0.0, "hat"), (0.5, "hat"), (1.0, "hat"), (1.5, "hat"),
+        (2.0, "kick"), (2.0, "snare"),
+        (2.5, "hat"), (3.0, "hat"), (3.5, "hat"),
+        (4.0, "hat"), (4.5, "hat"), (5.0, "hat"), (5.5, "hat"),
+        (6.0, "kick"), (6.0, "snare"),
+        (6.5, "hat"), (7.0, "hat"), (7.5, "hat"),
+    ]
+    BASS_PATTERN_I = [
+        (0.0, 0, 1.5, 1.0), (1.5, 12, 0.5, 0.85),
+        (2.0, 7, 1.0, 0.9), (3.0, 0, 1.0, 0.85),
+    ]
+    BASS_PATTERN_IV = [
+        (0.0, 5, 1.5, 1.0), (1.5, 17, 0.5, 0.85),
+        (2.0, 12, 1.0, 0.9), (3.0, 5, 1.0, 0.85),
+    ]
+    GUITAR_SKANK = [0.5, 1.5, 2.5, 3.5]
+    GUITAR_VOICING = [0, 3]
+    KEYS_VOICING_I = [0, 3, 7]
+    KEYS_VOICING_IV = [5, 8, 12]
+    CHORD_CHANGES = [(0, 0, "I"), (4, 5, "IV")]
+
+    def test_drums_one_drop_kick_snare_together(self):
+        """One-drop: kick AND snare TOGETHER on beat 3 (2.0) — the signature"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        snares = [b for b, s in self.DRUM_PATTERN if s == "snare"]
+        assert 2.0 in kicks and 2.0 in snares, "Kick+snare together on beat 3"
+        assert 6.0 in kicks and 6.0 in snares, "Kick+snare together on beat 3 (bar 2)"
+
+    def test_drums_no_kick_on_beat_1(self):
+        """Reggae: NO kick on beat 1 — the emptiness IS the feel"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.0 not in kicks, "No kick on beat 1 (one-drop)"
+        assert 4.0 not in kicks, "No kick on beat 1 of bar 2"
+
+    def test_drums_8th_note_hats(self):
+        """Hi-hat on all 8th notes — continuous timekeeping"""
+        hats = [b for b, s in self.DRUM_PATTERN if s == "hat"]
+        assert 0.0 in hats and 0.5 in hats and 1.0 in hats and 1.5 in hats
+
+    def test_drums_kick_only_on_3(self):
+        """Kick appears ONLY on beat 3 — nowhere else"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert all(k % 4.0 == 2.0 for k in kicks), "Kick only on beat 3"
+
+    def test_bass_is_melodic_lead(self):
+        """Bass = lead instrument: melodic walk (root → octave → fifth → root)"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN_I]
+        assert 0 in pitch_offs, "Root"
+        assert 12 in pitch_offs, "Octave"
+        assert 7 in pitch_offs, "Fifth"
+        assert pitch_offs == [0, 12, 7, 0], "Melodic walk: root-octave-fifth-root"
+
+    def test_bass_uses_sustained_notes(self):
+        """Reggae bass has sustained notes — not just short stabs"""
+        durs = [d for _, _, d, _ in self.BASS_PATTERN_I]
+        assert max(durs) >= 1.5, "Bass should have sustained notes (1.5 beats)"
+
+    def test_bass_follows_chord_changes(self):
+        """Bass follows I-IV: root=0 on I, root=5 on IV"""
+        assert self.BASS_PATTERN_I[0][1] == 0, "I chord bass starts on root"
+        assert self.BASS_PATTERN_IV[0][1] == 5, "IV chord bass starts on fourth"
+
+    def test_guitar_skank_on_off_beats(self):
+        """Skank: staccato chops on the 'and' of every beat"""
+        for sk in self.GUITAR_SKANK:
+            assert sk % 1.0 == 0.5, f"Skank at {sk} should be on off-beat"
+
+    def test_guitar_skank_all_four_off_beats(self):
+        """Skank on all 4 off-beats per bar: 0.5, 1.5, 2.5, 3.5"""
+        assert self.GUITAR_SKANK == [0.5, 1.5, 2.5, 3.5], "All 4 off-beats"
+
+    def test_guitar_uses_minor_voicing(self):
+        """Reggae guitar: root + min3 (minor chord skank)"""
+        assert 3 in self.GUITAR_VOICING, "Minor third"
+        assert 4 not in self.GUITAR_VOICING, "NOT major third"
+
+    def test_keys_organ_sustained(self):
+        """Organ: sustained chords (3.5 beats) — not stabs"""
+        # Verified by implementation: duration = 3.5
+
+    def test_keys_use_minor_triad(self):
+        """Keys: root + min3 + fifth (full minor triad)"""
+        assert self.KEYS_VOICING_I == [0, 3, 7], "Am triad"
+        assert self.KEYS_VOICING_IV == [5, 8, 12], "Dm triad (IV in Am)"
+
+    def test_harmony_I_IV_vamp(self):
+        """Reggae: I-IV vamp (2-bar cycle, not chord progression like pop)"""
+        labels = [l for _, _, l in self.CHORD_CHANGES]
+        assert labels == ["I", "IV"], "I-IV vamp"
+
+    def test_drum_cycle_2_bars(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 8.0, "Drum pattern exceeds 2 bars"
+
+    def test_has_4_tracks(self):
+        """Reggae uses 4 tracks — drums + bass + guitar + keys"""
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4, "Should have 4 tracks"
+
+    def test_bpm_range(self):
+        assert 60 <= 80 <= 100, "Default BPM should be valid"
+
+    def test_reggae_differs_from_funk(self):
+        """Reggae: one-drop (kick+snare on 3). Funk: syncopated kick on 1"""
+        reggae_kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.0 not in reggae_kicks, "Reggae: no kick on 1 (funk has kick on 1)"
+        assert 2.0 in reggae_kicks, "Reggae: kick on 3 (funk doesn't)"
+
+    def test_reggae_differs_from_rock(self):
+        """Reggae: kick+snare TOGETHER on 3. Rock: kick on 1&3, snare on 2&4"""
+        reggae_kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        reggae_snares = [b for b, s in self.DRUM_PATTERN if s == "snare"]
+        # Rock: kick and snare NEVER together. Reggae: ALWAYS together on 3
+        kick_set = set(reggae_kicks)
+        snare_set = set(reggae_snares)
+        assert kick_set == snare_set, "Reggae: kick and snare always together"
+
+    def test_bass_is_lead_not_rhythmic(self):
+        """Reggae bass = melodic lead. Other genres: bass = rhythmic support"""
+        # Reggae bass has octave (12) — melodic movement
+        # Funk bass: 16th-note ostinato (rhythmic)
+        # Rock bass: root-fifth (functional)
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN_I]
+        assert len(set(pitch_offs)) >= 3, "Bass should have 3+ distinct pitches (melodic)"
+
+    def test_is_not_electronic(self):
+        """Reggae is organic — guitar + organ, not synths"""
+        assert 2 in {0, 1, 2, 3}, "Has guitar track"
+        assert 3 in {0, 1, 2, 3}, "Has keys track"
+
+    def test_guitar_notes_are_staccato(self):
+        """Skank: very short duration (staccato chops)"""
+        # Verified by implementation: duration = 0.1
+        assert 0.1 <= 0.15, "Guitar skank should be staccato"

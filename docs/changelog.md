@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.139.0 (2026-07-05)
+
+- **`create_reggae_arrangement` orchestration tool (332 MCP tools)** — eleventh multi-track genre arrangement. Roots reggae with one-drop feel across 4 tracks: drums (one-drop — kick AND snare TOGETHER on beat 3, no kick on beat 1, 8th-note hi-hat throughout), bass (THE lead instrument — melodic walk root→octave→fifth→root with sustained notes, follows I-IV chord changes), guitar (skank — staccato chops on ALL 4 off-beats per bar, root+min3 minor voicing, very short 0.1 duration), keys (organ bubble — sustained minor triad, Hammond-style, 3.5 beat sustain). One-drop (kick+snare together on 3, empty on 1) is unique among all 11 arrangements — no other genre puts kick and snare together. Bass as lead instrument (melodic, not rhythmic) is unique — in all other genres bass is rhythmic support. I-IV minor vamp. A minor default (classic reggae key). 60-100 BPM, default 80. 4-16 bars. 75 orchestration tools. 332 MCP tools
+- **1744 unit tests** (+21)
+
 ## v1.138.0 (2026-07-05)
 
 - **`create_funk_arrangement` orchestration tool (331 MCP tools)** — tenth multi-track genre arrangement. James Brown / Parliament-Funkadelic style — vamp-based (one chord, no progression). Across 4 tracks: drums (Funky Drummer — Clyde Stubblefield's most sampled break in history: syncopated kick at 1.25/1.75, strong ghost snare, 16th-note hi-hat with varying dynamics), bass (slap bass — Larry Graham thumb/pluck technique: thumb=root, pluck=octave/fifth/min7, 16th-note density, 16 notes per bar), guitar (scratch "chank" — all 16 16ths played with accent pattern, root+min7 voicing, extremely short 0.08 duration), horns (dominant7 stabs — root+maj3+min7, on the "and" of beats, short and tight). Vamp (one chord groove, no changes) is the fundamental difference from all 9 other arrangements — pop/rock/jazz change chords, funk stays on one. 1-bar cycle (not 2-bar like others). 16th-note syncopation is the rhythmic DNA — every instrument plays 16ths. D default (classic funk key). 85-120 BPM, default 100. 4-16 bars. 74 orchestration tools. 331 MCP tools

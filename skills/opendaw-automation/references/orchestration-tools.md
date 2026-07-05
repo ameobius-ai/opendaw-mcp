@@ -87,6 +87,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 74. `create_jazz_arrangement` — Eighth multi-track arrangement: jazz (drums+bass+piano+horn). Swing ride (spang-a-lang), walking bass (ii-V-I), shell voicing comping, bluesy horn head. F default. 50-220 BPM
 75. `create_pop_arrangement` — Ninth multi-track arrangement: pop (drums+bass+chords+melody). First with song structure (verse-chorus-bridge). I-V-vi-IV, section-aware energy. C default. 85-145 BPM. Min 16 bars
 76. `create_funk_arrangement` — Tenth multi-track arrangement: funk (drums+bass+guitar+horns). Vamp-based (one chord), Funky Drummer pattern, slap bass, scratch guitar, dominant7 stabs. D default. 85-120 BPM
+77. `create_reggae_arrangement` — Eleventh multi-track arrangement: reggae (drums+bass+guitar+keys). One-drop (kick+snare on 3), skank guitar, melodic bass lead, organ bubble. A minor default. 60-100 BPM
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
