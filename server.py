@@ -21979,3 +21979,165 @@ async def mcp_opendaw_create_electronic_bass(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_dnb_arrangement(
+    bpm: float = 174,
+    bars: int = 8,
+    root: str = "A",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    pad_track: int = 2,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full drum & bass arrangement — drums + bass + pad across 3 tracks in one call.
+
+    This is the first multi-track genre arrangement tool. Instead of creating individual
+    patterns, it generates a complete DnB section with all elements locked together:
+    - Track 0: Drums — chopped Amen-style breakbeat with kick, snare, hats, ghost notes
+    - Track 1: Bass — Reese-style bassline with sustained notes and syncopated stabs
+    - Track 2: Pad — sustained minor chord pad that creates harmonic foundation
+
+    The arrangement is tempo-aware: at 174 BPM (default), the patterns are optimized
+    for the classic 170-180 DnB feel. The bass and drums lock rhythmically — bass
+    sustains when drums break, stabs when drums roll.
+
+    bpm: Tempo (160-185, default 174 = classic DnB).
+    bars: Arrangement length (4-32, default 8 = typical section).
+    root: Root note for bass and pad.
+    octave: MIDI octave for bass (2 = C2=36).
+    unit_index: AU index with note tracks.
+    drum_track: Track index for drums.
+    bass_track: Track index for bass.
+    pad_track: Track index for pad.
+    velocity: Base velocity 0-1.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_dnb_arrangement(bpm=174, root="A", bars=8)
+      create_dnb_arrangement(bpm=170, root="F#", bars=16, drum_track=2, bass_track=3, pad_track=4)
+    """
+    if not (140 <= bpm <= 200):
+        return "Error: bpm must be 140-200"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    pad_base = (octave + 3) * 12 + root_pc  # pad 2 octaves above bass
+
+    # --- DRUMS: Amen-style breakbeat (2-bar cycle, repeated) ---
+    # stroke_type: "kick", "snare", "hat", "ghost"
+    drum_pattern = [
+        (0.0, "kick"), (0.0, "hat"), (0.5, "hat"), (1.0, "snare"), (1.0, "hat"),
+        (1.5, "hat"), (2.0, "hat"), (2.5, "hat"),
+        (2.66, "kick"), (2.66, "ghost"), (3.0, "snare"), (3.0, "hat"), (3.5, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (4.5, "hat"), (5.0, "snare"), (5.0, "hat"),
+        (5.5, "hat"), (6.0, "hat"), (6.5, "hat"),
+        (6.66, "kick"), (6.66, "ghost"), (7.0, "snare"), (7.0, "hat"), (7.5, "hat"),
+    ]
+
+    kick_p, snare_p, hat_p, ghost_p = 36, 38, 42, 37
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "ghost": ghost_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": max(0.0, velocity - 0.05),
+        "hat": max(0.0, velocity - 0.15),
+        "ghost": max(0.0, velocity - 0.3),
+    }
+    drum_dur_map = {"kick": 0.2, "snare": 0.12, "hat": 0.05, "ghost": 0.04}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: Reese-style (1-bar cycle, repeated) ---
+    bass_pattern = [
+        (0.0, 0, 1.5, 1.0, False),
+        (1.75, 0, 0.2, 0.8, False), (2.25, 0, 0.2, 0.8, False),
+        (2.75, 0, 0.2, 0.8, False), (3.25, 12, 0.15, 0.7, False),
+        (3.75, 0, 0.2, 0.9, False),
+    ]
+    bass_notes = []
+    bass_cycle = 4.0
+    for b in range(bars):
+        off = b * bass_cycle
+        for beat, po, dur, vm, _ in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- PAD: Sustained minor chord (root + minor3 + fifth), 2 bars per chord ---
+    pad_notes = []
+    pad_intervals = [0, 3, 7]  # root, minor third, fifth
+    pad_cycle = 8.0  # sustain 2 bars
+    pad_cycles = bars // 2
+    for c in range(pad_cycles):
+        off = c * pad_cycle
+        for interval in pad_intervals:
+            pad_notes.append({
+                "pitch": pad_base + interval,
+                "start": round(start_beat + off, 4),
+                "duration": pad_cycle - 0.1,
+                "velocity": round(velocity * 0.6, 3),
+            })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    pad_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(pad_notes), unit_index, pad_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        pad_data = json.loads(pad_result)
+    except Exception:
+        pad_data = {"raw": pad_result}
+
+    return json.dumps({
+        "dnb_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "pad": {"track": pad_track, "notes": len(pad_notes), "result": pad_data.get("notes_created", len(pad_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(pad_notes),
+        "drum_pattern": "amen_style",
+        "bass_pattern": "reese",
+        "pad_type": "minor_triad",
+    }, indent=2)

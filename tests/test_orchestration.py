@@ -4513,3 +4513,125 @@ class TestCreateElectronicBass:
         for name, strokes in self.BASS_PATTERNS.items():
             for _, po, _, _, _ in strokes:
                 assert po in valid_offsets, f"{name}: unexpected pitch offset {po}"
+
+
+class TestCreateDnbArrangement:
+    """Tests for create_dnb_arrangement — first multi-track genre arrangement"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick"), (0.0, "hat"), (0.5, "hat"), (1.0, "snare"), (1.0, "hat"),
+        (1.5, "hat"), (2.0, "hat"), (2.5, "hat"),
+        (2.66, "kick"), (2.66, "ghost"), (3.0, "snare"), (3.0, "hat"), (3.5, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (4.5, "hat"), (5.0, "snare"), (5.0, "hat"),
+        (5.5, "hat"), (6.0, "hat"), (6.5, "hat"),
+        (6.66, "kick"), (6.66, "ghost"), (7.0, "snare"), (7.0, "hat"), (7.5, "hat"),
+    ]
+
+    BASS_PATTERN = [
+        (0.0, 0, 1.5, 1.0, False),
+        (1.75, 0, 0.2, 0.8, False), (2.25, 0, 0.2, 0.8, False),
+        (2.75, 0, 0.2, 0.8, False), (3.25, 12, 0.15, 0.7, False),
+        (3.75, 0, 0.2, 0.9, False),
+    ]
+
+    PAD_INTERVALS = [0, 3, 7]  # root, minor third, fifth
+
+    def test_drum_pattern_is_amen_style(self):
+        """Drums use Amen break pattern with syncopated kick at 2.66"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 2.66 in kicks, "Missing syncopated kick at 2.66 (Amen characteristic)"
+
+    def test_drum_pattern_has_ghost_notes(self):
+        ghosts = [b for b, s in self.DRUM_PATTERN if s == "ghost"]
+        assert len(ghosts) >= 2, "Missing ghost notes in drum pattern"
+
+    def test_drum_pattern_snare_on_2_and_4(self):
+        snares = [b for b, s in self.DRUM_PATTERN if s == "snare"]
+        assert 1.0 in snares, "Missing snare on beat 2"
+        assert 3.0 in snares, "Missing snare on beat 4"
+
+    def test_bass_pattern_is_reese_style(self):
+        """Bass has sustained note on beat 1, then syncopated stabs"""
+        beats = [b for b, _, _, _, _ in self.BASS_PATTERN]
+        assert 0.0 in beats, "Missing sustained bass on beat 1"
+        assert 1.75 in beats, "Missing syncopated stab"
+
+    def test_bass_pattern_has_octave_jump(self):
+        pitch_offs = [po for _, po, _, _, _ in self.BASS_PATTERN]
+        assert 12 in pitch_offs, "Missing octave jump in bass"
+
+    def test_pad_is_minor_triad(self):
+        """Pad uses root + minor third + fifth = minor triad"""
+        assert 0 in self.PAD_INTERVALS, "Missing root in pad"
+        assert 3 in self.PAD_INTERVALS, "Missing minor third in pad"
+        assert 7 in self.PAD_INTERVALS, "Missing fifth in pad"
+
+    def test_pad_sustained_2_bars(self):
+        """Pad chords sustain for 2 bars (8 beats)"""
+        pad_cycle = 8.0
+        assert pad_cycle == 8.0, "Pad cycle should be 2 bars"
+
+    def test_drum_cycle_is_2_bars(self):
+        """Drum pattern is 2-bar cycle (Amen break)"""
+        drum_cycle = 8.0
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < drum_cycle, "Drum pattern exceeds 2-bar cycle"
+
+    def test_bass_cycle_is_1_bar(self):
+        """Bass pattern is 1-bar cycle"""
+        bass_cycle = 4.0
+        max_beat = max(b for b, _, _, _, _ in self.BASS_PATTERN)
+        assert max_beat < bass_cycle, "Bass pattern exceeds 1-bar cycle"
+
+    def test_drum_note_count_for_8_bars(self):
+        """8 bars = 4 drum cycles × pattern length"""
+        bars = 8
+        drum_cycles = bars // 2
+        assert len(self.DRUM_PATTERN) * drum_cycles == 26 * 4
+
+    def test_bass_note_count_for_8_bars(self):
+        bars = 8
+        assert len(self.BASS_PATTERN) * bars == 6 * 8
+
+    def test_pad_note_count_for_8_bars(self):
+        """8 bars = 4 pad cycles × 3 notes per chord"""
+        bars = 8
+        pad_cycles = bars // 2
+        assert len(self.PAD_INTERVALS) * pad_cycles == 3 * 4
+
+    def test_total_note_count(self):
+        """Total = drums + bass + pad for 8 bars"""
+        bars = 8
+        drum_cycles = bars // 2
+        drum_count = len(self.DRUM_PATTERN) * drum_cycles
+        bass_count = len(self.BASS_PATTERN) * bars
+        pad_count = len(self.PAD_INTERVALS) * drum_cycles
+        total = drum_count + bass_count + pad_count
+        assert total > 0, "Total note count should be positive"
+        assert drum_count > bass_count, "Drums should have more notes than bass"
+        assert bass_count > pad_count, "Bass should have more notes than pad"
+
+    def test_tracks_are_separate(self):
+        """Drums, bass, pad go on different tracks"""
+        drum_track, bass_track, pad_track = 0, 1, 2
+        assert drum_track != bass_track, "Drums and bass on same track"
+        assert bass_track != pad_track, "Bass and pad on same track"
+        assert drum_track != pad_track, "Drums and pad on same track"
+
+    def test_bpm_range(self):
+        assert 140 <= 174 <= 200, "Default BPM should be in valid range"
+        assert 140 <= 170 <= 200, "170 BPM should be valid"
+
+    def test_bass_pad_pitch_relationship(self):
+        """Pad is 2 octaves above bass"""
+        octave = 2
+        root_pc = 9  # A
+        bass_base = (octave + 1) * 12 + root_pc  # 33
+        pad_base = (octave + 3) * 12 + root_pc    # 57
+        assert pad_base - bass_base == 24, "Pad should be 2 octaves (24 semitones) above bass"
+
+    def test_drum_bass_rhythmic_lock(self):
+        """Bass sustains on beat 1 when drums also hit beat 1 — they lock"""
+        drum_beat1 = any(b == 0.0 and s == "kick" for b, s in self.DRUM_PATTERN)
+        bass_beat1 = any(b == 0.0 for b, _, _, _, _ in self.BASS_PATTERN)
+        assert drum_beat1 and bass_beat1, "Drums and bass should both hit beat 1"

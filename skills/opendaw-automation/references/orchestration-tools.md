@@ -77,6 +77,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 64. `create_breakbeat` — Breakbeat: syncopated skeleton of jungle/DnB/big beat/2-step. 5 variants (amen/dnb/big_beat/2_step/funky_drummer). The Amen break, Funky Drummer. All patterns syncopated (off-grid kicks/snares)
 65. `create_trap_rolls` — Trap hi-hat rolls: evolving density. 5 variants (modern/migos/bubble/skrrt/evolving). Triplet bursts, 32nd doubles, stutter patterns. Travis Scott, Migos, Metro Boomin
 66. `create_electronic_bass` — Genre-specific electronic basslines. 6 variants (house_offbeat/techno_sub/dnb_reese/dubstep_wobble/acid_303/garage_2step). Root/fifth/octave. House off-beat, techno sub, DnB Reese, dubstep wobble, TB-303 acid, UK 2-step
+67. `create_dnb_arrangement` — First multi-track genre arrangement: complete DnB section (drums+bass+pad) across 3 tracks. Amen breakbeat, Reese bass, minor triad pad. Tempo-aware. One call = full section
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

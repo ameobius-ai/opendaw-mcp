@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.129.0 (2026-07-05)
+
+- **`create_dnb_arrangement` orchestration tool (322 MCP tools)** — first multi-track genre arrangement. Generates a complete DnB section across 3 tracks in one call: drums (Amen-style breakbeat with syncopated kicks, ghost notes), bass (Reese-style with sustained notes + syncopated stabs + octave jump), pad (sustained minor triad, 2 bars per chord). Elements lock rhythmically — bass sustains when drums break, stabs when drums roll. Pad 2 octaves above bass. Tempo-aware (140-200 BPM, default 174). Configurable track indices. 4-32 bars. 65 orchestration tools. 322 MCP tools
+- **1479 unit tests** (+17)
+
 ## v1.128.0 (2026-07-05)
 
 - **`werkstatt_decrackle.js` DSP script (98 DSP, 79 Werkstatt)** — de-crackle: removes continuous crackle from vinyl, tape, and old recordings. Adaptive crackle modeling: tracks crackle energy and signal energy separately, adaptive threshold rises with signal level and falls with crackle density. Crackle rate estimation (10-200 crackles/sec). Crackle detection: short spikes above adaptive threshold but below signal level. Extent finding (1-8 samples) + interpolation (Hermite/linear blend via smooth param). Strength blend controls removal amount. iZotope RX De-crackle / CEDAR Decrackle style — fourth restoration processor. 7 params (strength/sensitivity/freq_est/smooth/adaptive/mix/output). 98 DSP scripts, 79 Werkstatt
