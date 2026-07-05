@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **299** MCP tools | **71** Python examples (8 genre templates) |
-| **43** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **232** unit + **21** E2E tests |
+| **299** MCP tools | **73** Python examples (8 genre templates) |
+| **44** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **242** unit + **22** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -342,7 +342,7 @@ The `scripts/` directory contains 30 example DSP scripts (19 Werkstatt + 5 Appar
 
 ## Examples
 
-The `examples/` directory contains 64 Python scripts demonstrating the full workflow:
+The `examples/` directory contains 73 Python scripts demonstrating the full workflow:
 
 | Example | Description |
 |---------|-------------|
@@ -507,6 +507,14 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.50.0 (2026-07-05)
+
+- **`werkstatt_bitcrusher.js` DSP script** — standalone bitcrusher with bit-depth quantization (1-16 bits) and sample-rate reduction. Drive, DC offset, dry/wet mix. Dedicated bitcrusher separate from coldfold's combined wavefold+crush
+- **44 DSP scripts** (31 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params (bits/rate/drive/offset/mix), param values set
+- **Example script**: `werkstatt_bitcrusher.py` — lo-fi and extreme degradation presets
+- ruff clean, CI green
+
 ### v1.49.0 (2026-07-05)
 
 - **`create_hemiola` orchestration tool (299 MCP tools)** — 3:2 rhythmic displacement creating cross-rhythm illusion. Fundamental to West African, Afro-Cuban, jazz, and minimalist music. Brahms, Bernstein, Glass. Two patterns: "3:2" (classic) and "2:3" (inverse). Superimposes primary and secondary groups over same time span
@@ -519,7 +527,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.48.0 (2026-07-05)
 
 - **`apparat_wavetable.js` DSP script** — wavetable synthesizer with 8 interpolated wavetables (sine, triangle, saw, square, pulse, double-sine, saw+tri, noise-sine). Scan position with LFO modulation, unison detune (1-7 voices), ADSR envelope. Completes Apparat synthesis methods: subtractive ✅ FM ✅ ring mod ✅ Karplus-Strong ✅ wavetable ✅
-- **43 DSP scripts** (30 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **44 DSP scripts** (31 Werkstatt + 7 Apparat + 6 Spielwerk)
 - **E2E verified**: compiled via ScriptCompiler, 10 params, pos/unison/pos_lfo_depth set
 - **+10 unit tests** (TestWavetableDSP: header, params, tables, scan, unison, ADSR) → 232 total
 - **Example script**: `apparat_wavetable.py` — scan + unison presets

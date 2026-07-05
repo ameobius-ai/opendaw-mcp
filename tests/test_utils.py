@@ -1688,3 +1688,84 @@ class TestHemiola:
         assert abs(secondary[0]["start"] - 0) < 0.001
         assert abs(secondary[1]["start"] - 4/3) < 0.001
         assert abs(secondary[2]["start"] - 8/3) < 0.001
+
+
+class TestBitcrusherDSP:
+    """Unit tests for werkstatt_bitcrusher.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_bitcrusher.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt bitcrusher" in code, "Missing @werkstatt bitcrusher header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 5, f"Expected 5 params, got {len(params)}"
+
+    def test_bits_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        bits = [p for p in params if p["name"] == "bits"][0]
+        assert bits["min"] == 1
+        assert bits["max"] == 16
+        assert bits["default"] == 8
+
+    def test_rate_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        rate = [p for p in params if p["name"] == "rate"][0]
+        assert rate["min"] == 0
+        assert rate["max"] == 1
+
+    def test_drive_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        drive = [p for p in params if p["name"] == "drive"][0]
+        assert drive["min"] == 0
+        assert drive["max"] == 2
+
+    def test_offset_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        offset = [p for p in params if p["name"] == "offset"][0]
+        assert offset["min"] == -1
+        assert offset["max"] == 1
+
+    def test_mix_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mix = [p for p in params if p["name"] == "mix"][0]
+        assert mix["min"] == 0
+        assert mix["max"] == 1
+
+    def test_quantization_logic(self):
+        code = self._read_script()
+        assert "Math.round" in code, "Missing quantization (Math.round)"
+        assert "levels" in code, "Missing quantization levels"
+
+    def test_rate_reduction_logic(self):
+        code = self._read_script()
+        assert "holdEvery" in code or "holdCounter" in code, "Missing sample-rate reduction (hold/counter)"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"

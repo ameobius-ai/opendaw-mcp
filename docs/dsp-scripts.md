@@ -1,8 +1,8 @@
 # DSP Scripts
 
-43 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+44 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 30 scripts
+## Werkstatt (Audio Effects) — 31 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -36,6 +36,7 @@
 | `werkstatt_noisegate.js` | Noise gate | threshold, attack, release, range |
 | `werkstatt_ringmod_env.js` | Ring modulator with envelope | frequency, depth, mix |
 | `werkstatt_adsr_trim.js` | ADSR-based trim | attack, decay, sustain, release |
+| `werkstatt_bitcrusher.js` | Standalone bitcrusher (quantize + rate reduce) | bits, rate, drive, offset, mix |
 
 ## Apparat (Instruments) — 7 scripts
 

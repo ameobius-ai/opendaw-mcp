@@ -1,5 +1,38 @@
 # Changelog
 
+## v1.50.0 (2026-07-05)
+
+- **`werkstatt_bitcrusher.js` DSP script** — standalone bitcrusher with bit-depth quantization (1-16 bits) and sample-rate reduction. Drive, DC offset, dry/wet mix. Dedicated bitcrusher separate from coldfold's combined wavefold+crush. Lo-fi, chiptune, industrial, vaporwave
+- **44 DSP scripts** (31 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params (bits/rate/drive/offset/mix), param values set
+- **Example script**: `werkstatt_bitcrusher.py` — lo-fi and extreme degradation presets
+- ruff clean, CI green
+
+## v1.49.0 (2026-07-05)
+
+- **`create_hemiola` orchestration tool (299 MCP tools)** — 3:2 rhythmic displacement creating cross-rhythm illusion. Fundamental to West African, Afro-Cuban, jazz, and minimalist music. Brahms, Bernstein, Glass. Two patterns: "3:2" (classic) and "2:3" (inverse). Superimposes primary and secondary groups over same time span
+- **E2E verified**: 3:2 pattern (5 notes), 2:3 pattern (5 notes), bars=2, bad pattern/bars/velocity/pitch/duration — 8/8 tests passed
+- **+10 unit tests** for hemiola note count, ratio, timing, velocity → 242 total
+- **Example script**: `create_hemiola.py` — 3:2 and 2:3 patterns
+- **42 orchestration tools** total
+- ruff clean, CI green
+
+## v1.48.0 (2026-07-05)
+
+- **`apparat_wavetable.js` DSP script** — wavetable synthesizer with 8 interpolated wavetables, scan position + LFO, unison detune (1-7 voices), ADSR. Completes Apparat synthesis methods: subtractive ✅ FM ✅ ring mod ✅ Karplus-Strong ✅ wavetable ✅
+- **43 DSP scripts** (30 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 10 params, pos/unison/pos_lfo_depth set
+- **+10 unit tests** (TestWavetableDSP: header, params, tables, scan, unison, ADSR) → 232 total
+- **Example script**: `apparat_wavetable.py`
+
+## v1.47.0 (2026-07-05)
+
+- **`werkstatt_vibrato.js` DSP script** — pitch vibrato via modulated delay line. Rate (0.1-20 Hz exp), depth (0.5-20 ms), shape (sine→triangle morph), stereo phase offset. Completes modulation family: chorus ✅ flanger ✅ phaser ✅ tremolo ✅ vibrato ✅
+- **43 DSP scripts** (30 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 4 params, rate/depth/shape/stereo set
+- **+10 unit tests** (TestVibratoDSP: header, params, LFO, depth, shape, stereo) → 222 total
+- **Example script**: `werkstatt_vibrato.py`
+
 ## v1.46.0 (2026-07-05)
 
 - **`create_appoggiatura` orchestration tool (298 MCP tools)** — expressive leaning grace note: approach → main. The fourth and final essential baroque ornament (trill ✅, mordent ✅, turn ✅, appoggiatura ✅). Plays a neighbor note FIRST (usually 2/3 of duration), then resolves into main. Creates harmonic tension → release. Adjustable ratio (0.5-0.9), approach from above or below, slight accent on approach. Bach cello suites, Mozart operas, Chopin nocturnes. Completes the full ornaments set
