@@ -1298,3 +1298,115 @@ class TestTrillPatternGeneration:
     def test_start_beat_offset(self):
         notes = self._generate_trill(rate="8th", duration_beats=2, start_beat=8)
         assert abs(notes[0]["pos"] - 8) < 0.01
+
+
+class TestGlissandoPatternGeneration:
+    """Test the Python-side pattern generation logic of create_glissando."""
+
+    def _generate_glissando(self, start_pitch=60, end_pitch=72, scale_type="chromatic",
+                            duration_beats=2, rate="16th", velocity=0.8,
+                            velocity_curve="ramp_up", start_beat=0):
+        """Replicate the pattern generation logic from create_glissando."""
+        scale_intervals = {
+            "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "pentatonic_minor": [0, 3, 5, 7, 10],
+            "pentatonic_major": [0, 2, 4, 7, 9],
+            "whole_tone": [0, 2, 4, 6, 8, 10],
+        }
+        intervals = scale_intervals[scale_type]
+        direction = 1 if end_pitch > start_pitch else -1
+        pitches = []
+        root_pc = start_pitch % 12
+        current = start_pitch
+        while current != end_pitch:
+            pc = current % 12
+            rel = (pc - root_pc) % 12
+            if rel in intervals:
+                pitches.append(current)
+            current += direction
+        pitches.append(end_pitch)
+
+        rate_map = {"32nd": 0.125, "16th": 0.25, "8th": 0.5, "32t": 1/12, "16t": 1/6}
+        note_dur = rate_map[rate]
+        total_notes = len(pitches)
+        actual_dur = min(note_dur, duration_beats / max(1, total_notes))
+
+        note_data = []
+        for i, pitch in enumerate(pitches):
+            progress = i / max(1, total_notes - 1)
+            pos = start_beat + i * actual_dur
+            if velocity_curve == "flat":
+                vel = velocity
+            elif velocity_curve == "ramp_up":
+                vel = velocity * (0.6 + 0.4 * progress)
+            elif velocity_curve == "ramp_down":
+                vel = velocity * (1.0 - 0.4 * progress)
+            elif velocity_curve == "arc":
+                vel = velocity * (0.5 + 0.5 * (1 - abs(2 * progress - 1)))
+            else:
+                vel = velocity
+            vel = max(0.01, min(1.0, vel))
+            note_data.append({
+                "pitch": pitch,
+                "pos": pos,
+                "dur": actual_dur * 0.95,
+                "vel": round(vel, 3),
+            })
+        return note_data, pitches, direction
+
+    def test_chromatic_ascending(self):
+        notes, pitches, _ = self._generate_glissando(60, 72, "chromatic")
+        assert len(pitches) == 13, f"Expected 13, got {len(pitches)}"
+        assert pitches[0] == 60 and pitches[-1] == 72
+
+    def test_major_scale(self):
+        notes, pitches, _ = self._generate_glissando(60, 72, "major")
+        assert len(pitches) == 8, f"Expected 8, got {len(pitches)}"
+
+    def test_minor_scale(self):
+        notes, pitches, _ = self._generate_glissando(60, 72, "minor")
+        assert len(pitches) == 8, f"Expected 8, got {len(pitches)}"
+
+    def test_pentatonic_minor(self):
+        notes, pitches, _ = self._generate_glissando(60, 72, "pentatonic_minor")
+        assert len(pitches) == 6, f"Expected 6, got {len(pitches)}"
+
+    def test_pentatonic_major(self):
+        notes, pitches, _ = self._generate_glissando(60, 72, "pentatonic_major")
+        assert len(pitches) == 6, f"Expected 6, got {len(pitches)}"
+
+    def test_whole_tone(self):
+        notes, pitches, _ = self._generate_glissando(60, 72, "whole_tone")
+        assert len(pitches) == 7, f"Expected 7, got {len(pitches)}"
+
+    def test_descending(self):
+        notes, pitches, direction = self._generate_glissando(72, 60, "chromatic")
+        assert direction == -1
+        assert pitches[0] == 72 and pitches[-1] == 60
+        assert len(pitches) == 13
+
+    def test_velocity_ramp_up(self):
+        notes, _, _ = self._generate_glissando(velocity_curve="ramp_up")
+        assert notes[-1]["vel"] > notes[0]["vel"], "ramp_up: last note should be louder"
+
+    def test_velocity_ramp_down(self):
+        notes, _, _ = self._generate_glissando(velocity_curve="ramp_down")
+        assert notes[0]["vel"] > notes[-1]["vel"], "ramp_down: first note should be louder"
+
+    def test_velocity_arc(self):
+        notes, _, _ = self._generate_glissando(velocity_curve="arc")
+        mid = len(notes) // 2
+        assert notes[mid]["vel"] > notes[0]["vel"], "arc: middle should be louder than start"
+        assert notes[mid]["vel"] > notes[-1]["vel"], "arc: middle should be louder than end"
+
+    def test_velocity_flat(self):
+        notes, _, _ = self._generate_glissando(velocity_curve="flat", velocity=0.8)
+        assert all(n["vel"] == 0.8 for n in notes)
+
+    def test_position_spacing(self):
+        notes, _, _ = self._generate_glissando(rate="16th", duration_beats=4)
+        for i in range(1, len(notes)):
+            gap = notes[i]["pos"] - notes[i - 1]["pos"]
+            assert gap > 0, f"Positions should be increasing"

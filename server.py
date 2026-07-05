@@ -15969,6 +15969,203 @@ async def mcp_opendaw_create_trill(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_glissando(
+    start_pitch: int = 60,
+    end_pitch: int = 72,
+    scale_type: str = "chromatic",
+    duration_beats: float = 2,
+    rate: str = "16th",
+    velocity: float = 0.8,
+    velocity_curve: str = "ramp_up",
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a glissando — smooth scale run between two pitches.
+
+    A continuous-sounding slide through intermediate pitches. Unlike riser/bass_drop
+    (which are pitch sweeps), glissando plays every intermediate note at a fixed rate,
+    creating a true scale run feel. Works chromatically (every semitone) or diatonically
+    (scale tones only) or pentatonically.
+
+    start_pitch: Starting MIDI note (default 60 = C4).
+    end_pitch: Ending MIDI note (default 72 = C5). Can be higher or lower.
+    scale_type: "chromatic" (every semitone), "major" (diatonic major scale),
+      "minor" (natural minor), "pentatonic_minor", "pentatonic_major", "whole_tone".
+    duration_beats: Total duration in beats (0.5-16, default 2).
+    rate: Note rate — "32nd", "16th", "8th", "32t", "16t".
+    velocity: Base velocity 0-1 (default 0.8).
+    velocity_curve: "flat" (constant), "ramp_up" (crescendo into landing),
+      "ramp_down" (decrescendo), "arc" (peak in middle).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the glissando begins.
+
+    Returns notes created, pitch list, scale type.
+    """
+    if start_pitch < 0 or start_pitch > 127:
+        return "Error: start_pitch must be 0-127"
+    if end_pitch < 0 or end_pitch > 127:
+        return "Error: end_pitch must be 0-127"
+    if start_pitch == end_pitch:
+        return "Error: start_pitch and end_pitch must differ"
+    if scale_type not in ("chromatic", "major", "minor", "pentatonic_minor", "pentatonic_major", "whole_tone"):
+        return "Error: scale_type must be chromatic, major, minor, pentatonic_minor, pentatonic_major, or whole_tone"
+    if duration_beats < 0.5 or duration_beats > 16:
+        return "Error: duration_beats must be 0.5-16"
+    if rate not in ("32nd", "16th", "8th", "32t", "16t"):
+        return "Error: rate must be 32nd, 16th, 8th, 32t, or 16t"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if velocity_curve not in ("flat", "ramp_up", "ramp_down", "arc"):
+        return "Error: velocity_curve must be flat, ramp_up, ramp_down, or arc"
+
+    # Scale intervals (semitone offsets within octave)
+    scale_intervals = {
+        "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+        "whole_tone": [0, 2, 4, 6, 8, 10],
+    }
+    intervals = scale_intervals[scale_type]
+
+    # Build pitch list: all scale tones between start and end
+    direction = 1 if end_pitch > start_pitch else -1
+    pitches = []
+    # Anchor on start_pitch's pitch class relative to root
+    root_pc = start_pitch % 12
+    current = start_pitch
+    while current != end_pitch:
+        # Check if current pitch class is in scale relative to root
+        pc = current % 12
+        rel = (pc - root_pc) % 12
+        if rel in intervals:
+            pitches.append(current)
+        current += direction
+    pitches.append(end_pitch)
+
+    # Rate → note duration in beats
+    rate_map = {
+        "32nd": 0.125,
+        "16th": 0.25,
+        "8th": 0.5,
+        "32t": 1/12,
+        "16t": 1/6,
+    }
+    note_dur = rate_map[rate]
+    total_notes = len(pitches)
+    # Fit notes into duration_beats
+    actual_dur = min(note_dur, duration_beats / max(1, total_notes))
+
+    note_data = []
+    for i, pitch in enumerate(pitches):
+        progress = i / max(1, total_notes - 1)
+        pos = start_beat + i * actual_dur
+        # Velocity curve
+        if velocity_curve == "flat":
+            vel = velocity
+        elif velocity_curve == "ramp_up":
+            vel = velocity * (0.6 + 0.4 * progress)
+        elif velocity_curve == "ramp_down":
+            vel = velocity * (1.0 - 0.4 * progress)
+        elif velocity_curve == "arc":
+            vel = velocity * (0.5 + 0.5 * (1 - abs(2 * progress - 1)))
+        else:
+            vel = velocity
+        vel = max(0.01, min(1.0, vel))
+        note_data.append({
+            "pitch": pitch,
+            "pos": pos,
+            "dur": actual_dur * 0.95,
+            "vel": round(vel, 3),
+        })
+
+    total_beats = total_notes * actual_dur
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Glissando");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            start_pitch: {start_pitch},
+            end_pitch: {end_pitch},
+            scale_type: "{scale_type}",
+            rate: "{rate}",
+            velocity_curve: "{velocity_curve}",
+            note_duration_beats: {actual_dur},
+            length_beats: totalBeats,
+            direction: "{'ascending' if direction > 0 else 'descending'}",
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,
