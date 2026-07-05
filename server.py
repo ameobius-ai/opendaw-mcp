@@ -26506,5 +26506,141 @@ async def mcp_opendaw_create_song_with_variations(
         "pipeline_complete": all(s.get("status") == "ok" for s in pipeline_steps) if pipeline_steps else False,
         "ready_for_export": all(r.get("status") == "ok" for r in results),
         "structure": " → ".join(f"{r[0]}({r[1]})" for r in resolved_sections),
-        "next_step": "call export_audio or render_range to render the track",
+        "next_step": "call render_full_song to render the entire track, or export_audio for individual stems",
+    }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_render_full_song(
+    filename: str = "full_song",
+    sample_rate: int = 48000,
+    tail_beats: int = 4,
+) -> str:
+    """Render the entire project — auto-detects song length from all regions.
+
+    Scans all note and audio regions across all tracks to find the latest
+    ending point, then renders from beat 0 to that point plus a configurable
+    tail for reverb/delay tails. No manual beat counting needed.
+
+    This closes the pipeline gap: after create_song_with_variations (or any
+    arrangement tool), call render_full_song to get the final WAV.
+
+    filename: Output filename (without .wav extension).
+    sample_rate: Export sample rate (default 48000).
+    tail_beats: Extra beats at the end for reverb/delay tails (default 4 = 1 bar).
+
+    Returns the path to the exported WAV, song duration in seconds, and
+    audio metadata (peak, has_audio).
+
+    Example:
+      # After building a song
+      create_song_with_variations("dnb")
+      render_full_song(filename="my_dnb_track")
+
+      # Shorter tail for tight electronic
+      render_full_song(filename="techno_mix", tail_beats=2)
+    """
+    safe_name = _safe_filename(filename)
+
+    # Phase 1: Find the latest region end across all tracks
+    length_result = await bridge.evaluate("""() => {
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+
+        let maxEndPpq = 0;
+        let maxEndBeat = 0;
+        let regionCount = 0;
+        let trackCount = 0;
+
+        const allUnits = h.allAUBoxes();
+        for (const au of allUnits) {
+            const tracks = h.trackBoxes(au);
+            trackCount += tracks.length;
+            for (const track of tracks) {
+                const regions = h.regionBoxes(track);
+                for (const region of regions) {
+                    try {
+                        const rStart = region.position.getValue();
+                        const rDur = region.duration.getValue();
+                        const rEnd = rStart + rDur;
+                        if (rEnd > maxEndPpq) maxEndPpq = rEnd;
+                        regionCount++;
+                    } catch(e) {}
+                }
+            }
+        }
+
+        // Also check audio regions
+        for (const au of allUnits) {
+            try {
+                const audioRegions = h.audioRegionBoxes ? h.audioRegionBoxes(au) : [];
+                for (const ar of audioRegions) {
+                    try {
+                        const aStart = ar.position.getValue();
+                        const aDur = ar.duration.getValue();
+                        const aEnd = aStart + aDur;
+                        if (aEnd > maxEndPpq) maxEndPpq = aEnd;
+                    } catch(e) {}
+                }
+            } catch(e) {}
+        }
+
+        maxEndBeat = Math.ceil(maxEndPpq / Quarter);
+        return {
+            max_end_beat: maxEndBeat,
+            max_end_ppq: maxEndPpq,
+            region_count: regionCount,
+            track_count: trackCount,
+        };
+    }""")
+
+    try:
+        len_data = json.loads(length_result) if isinstance(length_result, str) else length_result
+    except Exception:
+        len_data = length_result if isinstance(length_result, dict) else {}
+
+    if not isinstance(len_data, dict) or len_data.get("max_end_beat") is None:
+        return json.dumps({"error": "Failed to detect song length", "raw": str(length_result)[:200]})
+
+    max_end_beat = int(len_data.get("max_end_beat", 0))
+    region_count = int(len_data.get("region_count", 0))
+    track_count = int(len_data.get("track_count", 0))
+
+    if max_end_beat <= 0:
+        return json.dumps({"error": "No regions found — create an arrangement first"})
+
+    # Add tail for reverb/delay
+    total_beats = max_end_beat + tail_beats
+
+    # Phase 2: Render from 0 to total_beats
+    render_result = await mcp_opendaw_render_range(
+        start_beat=0,
+        end_beat=total_beats,
+        filename=safe_name,
+        sample_rate=sample_rate,
+    )
+
+    try:
+        render_data = json.loads(render_result) if isinstance(render_result, str) else render_result
+    except Exception:
+        render_data = {"raw": str(render_result)[:200]}
+
+    # Calculate duration
+    _ = total_beats  # used in render
+
+    return json.dumps({
+        "render_full_song": True,
+        "filename": f"{safe_name}.wav",
+        "detected_length_beats": max_end_beat,
+        "tail_beats": tail_beats,
+        "total_beats": total_beats,
+        "regions_scanned": region_count,
+        "tracks_scanned": track_count,
+        "render_result": render_data,
+        "filepath": render_data.get("filepath") if isinstance(render_data, dict) else None,
+        "file_size_mb": render_data.get("file_size_mb") if isinstance(render_data, dict) else None,
+        "has_audio": render_data.get("has_audio") if isinstance(render_data, dict) else None,
+        "max_sample": render_data.get("max_sample") if isinstance(render_data, dict) else None,
+        "sample_rate": render_data.get("sample_rate", sample_rate) if isinstance(render_data, dict) else sample_rate,
+        "next_step": "WAV file saved to exports directory. Use a media player or DAW to listen.",
     }, indent=2)

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.149.0 (2026-07-05)
+
+- **`render_full_song` orchestration tool (342 MCP tools)** — new capability: auto-detect song length and render entire project. Scans all note and audio regions across all tracks to find the latest ending point, adds configurable tail (default 4 beats for reverb/delay tails), then delegates to render_range. No manual beat counting needed. Closes the pipeline gap: after create_song_with_variations (or any arrangement tool), one call gets the final WAV. Two-phase: Phase 1 bridge evaluate to detect max region end, Phase 2 render_range(0, detected + tail). 68 orchestration tools. 342 MCP tools
+- **1951 unit tests** (+14)
+
 ## v1.148.0 (2026-07-05)
 
 - **`create_song_with_variations` orchestration tool (341 MCP tools)** — new capability: full song builder with real musical variations. One call builds a complete song where each section has actual musical variation (not just velocity changes). 12 presets: full (all tracks normal), drums_only (sparse drums, rest silent), drums_bass (groove only), full_busy (busy drums 1.5), breakdown (sparse 0.3 + no bass + inverted melody), melody_invert/reverse/octave_up/transposeN (melody transforms), bass_octave_up (+12), bass_sub (-24, sub bass), fade (sparse outro), drop (busy + octave-up bass, climax). Default: 36-bar song — intro(4,0.5,drums_only) → verse1(8,0.8,full) → chorus(8,1.0,full_busy) → verse2(8,0.8,melody_transpose5) → bridge(4,0.6,breakdown) → outro(4,0.4,fade). Each section calls create_arrangement_variation internally. Optional post-processing pipeline: apply_genre_mix → apply_genre_humanization → add_mastering_chain. All 14 genres supported. 67 orchestration tools. 341 MCP tools

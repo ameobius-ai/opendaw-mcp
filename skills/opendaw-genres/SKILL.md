@@ -573,6 +573,9 @@ Three capability layers transform raw arrangements into finished tracks:
 
 4. MASTER
    └── add_mastering_chain (LUFS target: -14 Spotify, -10 loud, -16 Apple)
+
+5. RENDER
+   └── render_full_song (auto-detect length, export WAV)
 ```
 
 #### Which structure tool to use?
