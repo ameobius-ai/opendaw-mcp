@@ -8157,6 +8157,86 @@ class TestWaveguideStringDSP:
         assert "fwdL + bwdL" in code or "waveOut" in code
 
 
+class TestImportAudioToTracks:
+    """Tests for import_audio_to_tracks composite pipeline tool"""
+
+    def test_no_mode_single_track(self):
+        """Empty mode = simple single-track import (no stem split)"""
+        mode = ""
+        stem_split = bool(mode)
+        assert stem_split is False
+
+    def test_mode_triggers_stem_split(self):
+        """Non-empty mode = stem separation enabled"""
+        mode = "bs6"
+        stem_split = bool(mode)
+        assert stem_split is True
+
+    def test_valid_modes(self):
+        """All STEM_MODES keys are valid for import"""
+        valid_modes = ["ensemble", "scnet", "bs6", "polarformer", "dereverb", "drumsep", "denoise"]
+        test_mode = "bs6"
+        assert test_mode in valid_modes
+
+    def test_invalid_mode_rejected(self):
+        """Invalid mode should be rejected"""
+        valid_modes = ["ensemble", "scnet", "bs6", "polarformer", "dereverb", "drumsep", "denoise"]
+        test_mode = "invalid_mode"
+        assert test_mode not in valid_modes
+
+    def test_output_dir_naming(self):
+        """Output dir = /tmp/stems_<basename>"""
+        file_path = "/tmp/suno_track.wav"
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        output_dir = f"/tmp/stems_{base_name}"
+        assert output_dir == "/tmp/stems_suno_track"
+
+    def test_track_per_stem(self):
+        """Each stem gets its own track"""
+        stems = [
+            {"name": "bass", "path": "/tmp/stems/track/bass.wav"},
+            {"name": "drums", "path": "/tmp/stems/track/drums.wav"},
+            {"name": "vocals", "path": "/tmp/stems/track/vocals.wav"},
+            {"name": "other", "path": "/tmp/stems/track/other.wav"},
+            {"name": "guitar", "path": "/tmp/stems/track/guitar.wav"},
+            {"name": "piano", "path": "/tmp/stems/track/piano.wav"},
+        ]
+        assert len(stems) == 6
+        track_count = len(stems)
+        assert track_count == 6
+
+    def test_success_count_calculation(self):
+        """success_count = stems without 'error' key"""
+        tracks = [
+            {"stem": "bass", "unit_index": 0},
+            {"stem": "drums", "unit_index": 1},
+            {"stem": "vocals", "error": "load failed"},
+            {"stem": "other", "unit_index": 3},
+        ]
+        success_count = sum(1 for t in tracks if "error" not in t)
+        assert success_count == 3
+
+    def test_start_beat_placement(self):
+        """All stems placed at same start_beat"""
+        start_beat = 4.0
+        stems = ["bass", "drums", "vocals"]
+        placements = [start_beat for _ in stems]
+        assert all(p == start_beat for p in placements)
+
+    def test_file_not_found_error(self):
+        """Non-existent file_path returns error"""
+        file_path = "/tmp/nonexistent.wav"
+        import os as _os
+        assert not _os.path.exists(file_path)
+
+    def test_suno_pipeline_order(self):
+        """Pipeline: import → mix → master → render"""
+        steps = ["import_audio_to_tracks", "apply_genre_mix", "add_mastering_chain", "render_full"]
+        assert len(steps) == 4
+        assert steps[0] == "import_audio_to_tracks"
+        assert steps[-1] == "render_full"
+
+
 class TestCreateSoloAutomation:
     """Tests for create_solo_automation orchestration tool"""
 

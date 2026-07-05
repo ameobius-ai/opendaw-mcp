@@ -15422,6 +15422,154 @@ async def mcp_opendaw_list_split_modes() -> str:
 
 
 @mcp.tool()
+async def mcp_opendaw_import_audio_to_tracks(
+    file_path: str,
+    mode: str = "",
+    start_beat: float = 0.0,
+    bpm: float = 120.0,
+) -> str:
+    """Import an audio file into the DAW, optionally split into stems on separate tracks.
+
+    One-call pipeline: audio file → (optional stem separation) → create instrument
+    tracks → load each stem → place on tracks at start_beat. This is the Suno-to-DAW
+    bridge: generate a track with Suno, download it, then import with stem splitting
+    for mixing and mastering.
+
+    Without mode: loads the whole file as one track (simple import).
+    With mode: splits into stems, creates one track per stem, loads and places each.
+
+    file_path: Absolute path to WAV/MP3/FLAC/OGG file on disk.
+    mode: Stem separation mode (empty = no split, single track).
+        Modes: "bs6" (6-stem), "scnet" (4-stem), "ensemble" (max quality),
+        "polarformer" (vocal/instrumental), "drumsep" (drum parts).
+    start_beat: Beat position to place the audio region(s) (default 0).
+    bpm: Tempo for the project (affects beat alignment, default 120).
+
+    Returns: track count, per-track info (name, sample_id, duration, stem name),
+    and suggested next steps (apply_genre_mix, render_full).
+
+    Examples:
+      # Simple import — one track, no splitting
+      import_audio_to_tracks("/tmp/suno_track.wav")
+      # Split into 6 stems, each on its own track
+      import_audio_to_tracks("/tmp/suno_track.wav", mode="bs6")
+      # Vocal/instrumental split at beat 4
+      import_audio_to_tracks("/tmp/vocal.wav", mode="polarformer", start_beat=4)
+    """
+    if not os.path.exists(file_path):
+        return json.dumps({"error": f"File not found: {file_path}"})
+
+    # No stem splitting — simple single-track import
+    if not mode:
+        track_result = await mcp_opendaw_create_instrument_track(
+            os.path.splitext(os.path.basename(file_path))[0])
+        track_data = json.loads(track_result)
+        if "error" in track_data:
+            return json.dumps({"error": "Failed to create track", "detail": track_data})
+
+        unit_idx = track_data.get("unit_index", 0)
+        track_idx = track_data.get("track_index", 0)
+
+        load_result = await mcp_opendaw_load_audio(file_path, os.path.basename(file_path))
+        load_data = json.loads(load_result)
+        if "error" in load_data:
+            return json.dumps({"error": "Failed to load audio", "detail": load_data})
+
+        sample_id = load_data["id"]
+        place_result = await mcp_opendaw_place_audio_region(sample_id, unit_idx, start_beat, track_idx)
+        place_data = json.loads(place_result)
+        if "error" in place_data:
+            return json.dumps({"error": "Failed to place region", "detail": place_data})
+
+        return json.dumps({
+            "imported": True,
+            "stem_split": False,
+            "tracks_created": 1,
+            "unit_index": unit_idx,
+            "tracks": [{
+                "stem": "full",
+                "unit_index": unit_idx,
+                "track_index": track_idx,
+                "sample_id": sample_id,
+                "duration": load_data.get("duration", 0),
+                "placed_at_beat": start_beat,
+            }],
+            "next_steps": [
+                "apply_genre_mix or add_effect for processing",
+                "render_full for export",
+            ],
+        }, indent=2)
+
+    # Stem splitting mode
+    if mode not in STEM_MODES:
+        return json.dumps({"error": f"Unknown mode: {mode}. Available: {list(STEM_MODES.keys())}"})
+
+    # Run stem splitter
+    base_name = os.path.splitext(os.path.basename(file_path))[0]
+    output_dir = f"/tmp/stems_{base_name}"
+
+    split_result = await mcp_opendaw_split_stems(file_path, mode, output_dir, import_to_daw=False)
+    split_data = json.loads(split_result)
+    if "error" in split_data:
+        return json.dumps({"error": "Stem splitting failed", "detail": split_data})
+
+    stems = split_data.get("stems", [])
+    if not stems:
+        return json.dumps({"error": "No stems produced", "detail": split_data})
+
+    # Create a track per stem and load/place each
+    tracks = []
+    for stem in stems:
+        stem_name = stem["name"]
+        stem_path = stem["path"]
+
+        track_result = await mcp_opendaw_create_instrument_track(stem_name)
+        track_data = json.loads(track_result)
+        if "error" in track_data:
+            tracks.append({"stem": stem_name, "error": "track creation failed", "detail": track_data})
+            continue
+
+        unit_idx = track_data.get("unit_index", 0)
+        track_idx = track_data.get("track_index", 0)
+
+        load_result = await mcp_opendaw_load_audio(stem_path, stem_name)
+        load_data = json.loads(load_result)
+        if "error" in load_data:
+            tracks.append({"stem": stem_name, "error": "load failed", "detail": load_data})
+            continue
+
+        sample_id = load_data["id"]
+        place_result = await mcp_opendaw_place_audio_region(sample_id, unit_idx, start_beat, track_idx)
+        place_data = json.loads(place_result)
+        if "error" in place_data:
+            tracks.append({"stem": stem_name, "error": "place failed", "detail": place_data})
+            continue
+
+        tracks.append({
+            "stem": stem_name,
+            "unit_index": unit_idx,
+            "track_index": track_idx,
+            "sample_id": sample_id,
+            "duration": load_data.get("duration", 0),
+            "placed_at_beat": start_beat,
+        })
+
+    success_count = sum(1 for t in tracks if "error" not in t)
+    return json.dumps({
+        "imported": True,
+        "stem_split": True,
+        "mode": mode,
+        "tracks_created": success_count,
+        "tracks": tracks,
+        "next_steps": [
+            "apply_genre_mix for genre-specific processing per stem",
+            "add_mastering_chain for final polish",
+            "render_full for export",
+        ],
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_save_effect_preset(unit_index: int, effect_index: int, name: str, description: str = "", output_path: str = "") -> str:
     """Save an audio effect chain as a .opb preset file.
 
