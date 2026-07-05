@@ -27472,3 +27472,128 @@ async def mcp_opendaw_create_melody_from_progression(
         "start_beat": start_beat,
         "next_step": "combine with create_chord_pads + create_bass_from_progression + create_arpeggiated_progression for full harmonic quartet, then apply_genre_mix and render_full_song",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_harmonic_arrangement(
+    progression: str = "Am-F-C-G",
+    pad_octave: int = 3,
+    arp_pattern: str = "up",
+    arp_octave: int = 4,
+    arp_step: float = 0.25,
+    bass_pattern: str = "root",
+    bass_octave: int = 2,
+    melody_pattern: str = "chord_tones",
+    melody_octave: int = 5,
+    bars_per_chord: int = 4,
+    velocity: float = 0.7,
+    unit_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create all four harmonic layers from one progression string in one call.
+
+    Replaces 4 separate calls (chord_pads + arpeggiated_progression +
+    bass_from_progression + melody_from_progression) with a single call.
+    All layers take the same "Am-F-C-G" progression and are placed on
+    separate tracks: pads (track 2), arp (track 3), bass (track 1),
+    melody (track 3 — same as arp if you want them merged, or use
+    create_melody_from_progression separately on track 4).
+
+    By default arp and melody share track 3 (melody track). Set
+    melody_pattern to "" to skip melody, or arp_pattern to "" to skip arp.
+
+    progression: Hyphen-separated chords (same format as the quartet tools).
+    pad_octave: Octave for chord pads (default 3).
+    arp_pattern: Arp pattern: up/down/updown/random/bass, or "" to skip.
+    arp_octave: Octave for arp (default 4).
+    arp_step: Arp step duration in beats (default 0.25 = 16th).
+    bass_pattern: Bass pattern: root/root_fifth/walking/pedal/octave/root_octave.
+    bass_octave: Octave for bass (default 2).
+    melody_pattern: Melody pattern: chord_tones/sustained/syncopated/triadic/stepwise.
+    melody_octave: Octave for melody (default 5).
+    bars_per_chord: Bars per chord (default 4).
+    velocity: Base velocity for all layers (0-1).
+
+    Example:
+      # Full synthwave harmonic arrangement in one call
+      create_harmonic_arrangement("Am-F-C-G", arp_pattern="up",
+          bass_pattern="root", melody_pattern="chord_tones")
+
+      # Jazz: walking bass + sustained pads, skip arp
+      create_harmonic_arrangement("Dm7-G7-Cmaj7-Am7",
+          arp_pattern="", bass_pattern="walking",
+          melody_pattern="sustained", bars_per_chord=2)
+
+      # House: pedal sub-bass + pads, skip melody
+      create_harmonic_arrangement("Fm-Fm-Db-Ab",
+          arp_pattern="bass", bass_pattern="pedal",
+          bass_octave=1, melody_pattern="", pad_octave=3)
+    """
+    results = {}
+    total_notes = 0
+
+    # 1. Chord pads (always created — harmony foundation)
+    r = await mcp_opendaw_create_chord_pads(
+        progression, bars_per_chord, pad_octave,
+        velocity * 0.9, unit_index, 2, start_beat)
+    try:
+        d = json.loads(r)
+        results["pads"] = {"notes": d.get("notes_created", 0), "octave": pad_octave}
+        total_notes += d.get("notes_created", 0)
+    except Exception:
+        results["pads"] = {"error": "failed"}
+
+    # 2. Bass (always created — foundation)
+    r = await mcp_opendaw_create_bass_from_progression(
+        progression, bass_pattern, bars_per_chord,
+        bass_octave, velocity * 1.0, unit_index, 1, start_beat)
+    try:
+        d = json.loads(r)
+        results["bass"] = {"notes": d.get("notes_created", 0), "pattern": bass_pattern,
+                           "octave": bass_octave}
+        total_notes += d.get("notes_created", 0)
+    except Exception:
+        results["bass"] = {"error": "failed"}
+
+    # 3. Arp (optional — skip if pattern is "")
+    if arp_pattern:
+        r = await mcp_opendaw_create_arpeggiated_progression(
+            progression, arp_pattern, bars_per_chord,
+            arp_octave, velocity * 0.85, arp_step, unit_index, 3, start_beat)
+        try:
+            d = json.loads(r)
+            results["arp"] = {"notes": d.get("notes_created", 0), "pattern": arp_pattern,
+                              "octave": arp_octave, "step": arp_step}
+            total_notes += d.get("notes_created", 0)
+        except Exception:
+            results["arp"] = {"error": "failed"}
+
+    # 4. Melody (optional — skip if pattern is "")
+    if melody_pattern:
+        # Use track 3 if no arp, else track 4 to avoid overlap
+        mel_track = 4 if arp_pattern else 3
+        r = await mcp_opendaw_create_melody_from_progression(
+            progression, melody_pattern, bars_per_chord,
+            melody_octave, velocity * 0.75, unit_index, mel_track, start_beat)
+        try:
+            d = json.loads(r)
+            results["melody"] = {"notes": d.get("notes_created", 0),
+                                 "pattern": melody_pattern, "octave": melody_octave,
+                                 "track": mel_track}
+            total_notes += d.get("notes_created", 0)
+        except Exception:
+            results["melody"] = {"error": "failed"}
+
+    layers_created = [k for k in ("pads", "bass", "arp", "melody") if k in results and "error" not in results.get(k, {})]
+
+    return json.dumps({
+        "harmonic_arrangement": True,
+        "progression": progression,
+        "layers": layers_created,
+        "layer_count": len(layers_created),
+        "total_notes": total_notes,
+        "bars_per_chord": bars_per_chord,
+        "details": results,
+        "start_beat": start_beat,
+        "next_step": "call apply_genre_mix then render_full_song to complete production",
+    }, indent=2)

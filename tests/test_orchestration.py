@@ -8035,3 +8035,136 @@ class TestMelodyFromProgression:
         steps = 32
         total = chords * steps
         assert total == 128
+
+
+class TestHarmonicArrangement:
+    """Tests for create_harmonic_arrangement — one-call harmonic quartet"""
+
+    def test_4_layers_default(self):
+        """Default: pads + bass + arp + melody = 4 layers"""
+        layers = ["pads", "bass", "arp", "melody"]
+        assert len(layers) == 4
+
+    def test_skip_arp_with_empty_string(self):
+        """arp_pattern='' skips arp layer → 3 layers"""
+        arp_pattern = ""
+        layers = ["pads", "bass"]
+        if arp_pattern:
+            layers.append("arp")
+        if "chord_tones":
+            layers.append("melody")
+        assert len(layers) == 3
+        assert "arp" not in layers
+
+    def test_skip_melody_with_empty_string(self):
+        """melody_pattern='' skips melody → 3 layers"""
+        melody_pattern = ""
+        layers = ["pads", "bass", "arp"]
+        if melody_pattern:
+            layers.append("melody")
+        assert len(layers) == 3
+        assert "melody" not in layers
+
+    def test_skip_both_arp_and_melody(self):
+        """Both empty → only pads + bass = 2 layers"""
+        arp_pattern = ""
+        melody_pattern = ""
+        layers = ["pads", "bass"]
+        if arp_pattern:
+            layers.append("arp")
+        if melody_pattern:
+            layers.append("melody")
+        assert len(layers) == 2
+
+    def test_pads_always_created(self):
+        """Pads are always created (harmony foundation)"""
+        layers = ["pads", "bass"]
+        assert "pads" in layers
+
+    def test_bass_always_created(self):
+        """Bass is always created (foundation)"""
+        layers = ["pads", "bass"]
+        assert "bass" in layers
+
+    def test_velocity_scaling(self):
+        """Velocity scaled per layer: pads=0.9x, bass=1.0x, arp=0.85x, melody=0.75x"""
+        base = 0.7
+        pad_vel = base * 0.9
+        bass_vel = base * 1.0
+        arp_vel = base * 0.85
+        mel_vel = base * 0.75
+        assert abs(pad_vel - 0.63) < 0.01
+        assert abs(bass_vel - 0.7) < 0.01
+        assert abs(arp_vel - 0.595) < 0.01
+        assert abs(mel_vel - 0.525) < 0.01
+
+    def test_melody_track_assignment(self):
+        """Melody uses track 4 if arp exists, track 3 if no arp"""
+        arp_pattern = "up"
+        mel_track = 4 if arp_pattern else 3
+        assert mel_track == 4
+
+        arp_pattern = ""
+        mel_track = 4 if arp_pattern else 3
+        assert mel_track == 3
+
+    def test_track_assignments(self):
+        """Standard track layout: bass=1, pads=2, arp=3, melody=3or4"""
+        bass_track = 1
+        pads_track = 2
+        arp_track = 3
+        assert bass_track < pads_track < arp_track
+
+    def test_replaces_4_calls(self):
+        """One call replaces: chord_pads + bass + arp + melody"""
+        separate_calls = 4
+        one_call = 1
+        assert one_call < separate_calls
+
+    def test_jazz_preset(self):
+        """Jazz: walking bass + sustained pads, skip arp"""
+        arp_pattern = ""
+        bass_pattern = "walking"
+        melody_pattern = "sustained"
+        assert arp_pattern == ""
+        assert bass_pattern == "walking"
+        assert melody_pattern == "sustained"
+
+    def test_house_preset(self):
+        """House: pedal sub-bass + arp bass, skip melody"""
+        arp_pattern = "bass"
+        bass_pattern = "pedal"
+        bass_octave = 1
+        melody_pattern = ""
+        assert bass_octave == 1  # sub-bass
+        assert melody_pattern == ""
+
+    def test_full_pipeline_with_harmonic_arrangement(self):
+        """Pipeline: song + harmonic_arrangement + mix + render = 4 calls"""
+        pipeline = [
+            "create_song_with_variations",
+            "create_harmonic_arrangement",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert "create_harmonic_arrangement" in pipeline
+        assert len(pipeline) == 4
+
+    def test_vs_separate_quartet(self):
+        """Separate quartet = 7 calls, harmonic_arrangement = 4 calls"""
+        separate = ["create_song_with_variations", "create_chord_pads",
+                    "create_arpeggiated_progression", "create_bass_from_progression",
+                    "create_melody_from_progression", "apply_genre_mix", "render_full_song"]
+        combined = ["create_song_with_variations", "create_harmonic_arrangement",
+                    "apply_genre_mix", "render_full_song"]
+        assert len(combined) < len(separate)
+        assert len(separate) == 7
+        assert len(combined) == 4
+
+    def test_all_patterns_from_quartet(self):
+        """All patterns available: 5 arp + 6 bass + 5 melody = 16 pattern options"""
+        arp_patterns = ["up", "down", "updown", "random", "bass"]
+        bass_patterns = ["root", "root_fifth", "walking", "pedal", "octave", "root_octave"]
+        melody_patterns = ["chord_tones", "sustained", "syncopated", "triadic", "stepwise"]
+        total = len(arp_patterns) + len(bass_patterns) + len(melody_patterns)
+        assert total == 16

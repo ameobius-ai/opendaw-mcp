@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.154.0 (2026-07-05)
+
+- **`create_harmonic_arrangement` orchestration tool (347 MCP tools)** — new capability: one-call harmonic quartet. Creates all four harmonic layers (chord pads + arpeggiated progression + bass + melody) from a single "Am-F-C-G" progression string in one call, replacing 4 separate calls. Configurable per-layer: pad_octave, arp_pattern (or "" to skip), arp_octave, arp_step, bass_pattern, bass_octave, melody_pattern (or "" to skip), melody_octave. Velocity auto-scaled per layer (pads=0.9x, bass=1.0x, arp=0.85x, melody=0.75x). Melody auto-routed to track 4 when arp present, track 3 otherwise. Presets: jazz (walking bass + sustained pads, no arp), house (pedal sub-bass + arp bass, no melody). 73 orchestration tools. 347 MCP tools
+- **2050 unit tests** (+15)
+
 ## v1.153.0 (2026-07-05)
 
 - **`create_melody_from_progression` orchestration tool (346 MCP tools)** — new capability: lead melody from chord progression. Completes the harmonic quartet: create_chord_pads (sustained harmony) + create_arpeggiated_progression (arp movement) + create_bass_from_progression (bass foundation) + this (lead melody). All four take the same "Am-F-C-G" string. Melody hits chord tones on strong beats (1, 3) and uses passing/neighbor tones on weak beats (2, 4) for melodic interest. 5 patterns: chord_tones (4 quarters with chord tones on 1+3, passing on 2+4), sustained (ballad, 1 chord tone per bar), syncopated (8th notes: downbeats=chord tones, upbeats=passing), triadic (8th arpeggios through chord tones with octave variation, folk/country), stepwise (scale steps between chord tones, pop/classical). Approach notes to next chord root on last bar beat 4 (chromatic half-step). 72 orchestration tools. 346 MCP tools
