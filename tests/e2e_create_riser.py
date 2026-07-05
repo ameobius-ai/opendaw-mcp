@@ -54,7 +54,7 @@ def run_test():
             assert data2["start_pitch"] == 36
             assert data2["end_pitch"] == 84
             assert data2["curve"] == "exp"
-            print(f"   32 notes, pitch 36→84, exp curve ✅")
+            print("   32 notes, pitch 36→84, exp curve ✅")
 
             # 3. Verify notes
             r3 = await mcp_opendaw_list_notes(unit_index=ui, track_index=0, region_index=0)
@@ -83,7 +83,7 @@ def run_test():
             print(f"4. Linear riser: {data4}")
             assert data4.get("success"), f"Linear riser failed: {data4}"
             assert data4["total_notes"] == 16
-            print(f"   16 notes, linear curve ✅")
+            print("   16 notes, linear curve ✅")
 
             # 5. Error handling
             r5 = await mcp_opendaw_create_riser(
