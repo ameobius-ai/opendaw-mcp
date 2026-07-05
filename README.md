@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-283-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-37-orange)](scripts/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-38-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-272%20unit%20%2B%2014%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -507,6 +507,20 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.28.0 (2026-07-05)
+
+- **`werkstatt_deesser.js`** — dynamic de-esser, band-split architecture. 7 params: freq (2-12kHz crossover), threshold (-40..0 dB), ratio (1:1..10:1), attack, release, mix, output. 2nd-order Linkwitz-Riley HPF isolates sibilance, envelope-followed gain reduction on high band only. Completes vocal chain: EQ → compressor → de-esser → exciter → limiter
+- **38 DSP scripts** (27 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 7 params, threshold 0.5→0.65, freq 0.4→0.8
+- ruff clean, CI green
+
+### v1.27.0 (2026-07-05)
+
+- **`werkstatt_exciter.js`** — harmonic exciter with band-split architecture. 5 params: freq (crossover 800Hz-12kHz), harmonics (0-1), drive (0-1), mix (0-1), output (±24 dB). Cascaded one-pole HPF isolates highs, cubic nonlinearity adds odd harmonics, parallel wet/dry. Completes mastering chain: EQ → compressor → exciter → limiter
+- **37 DSP scripts** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params, freq 0.3→0.75, harmonics 0.5→0.85
+- ruff clean, CI green
+
 ### v1.26.0 (2026-07-05)
 
 - **`werkstatt_limiter.js`** — brickwall limiter with lookahead buffer + TPDF dither. 5 params: ceiling (0-1), release (10-500 ms), lookahead (0.1-5 ms), dither (TPDF on/off), mix. Instant attack, smooth release, circular lookahead buffer. Completes dynamics chain: compressor → limiter. Essential for mastering
@@ -712,17 +726,17 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.12.0 (2026-07-04)
 
 - **Agent Skills**: 10 structured skill files in `skills/` directory — adaptive mix→master, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP), opendaw-genres (8 genre templates), opendaw-automation (283 tools, 146 ref files), track architecture, sound design, effect routing, composition patterns. Decision points for genre-adaptive workflows. Agent-agnostic.
-- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **38 DSP scripts total** (27 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.9 (2026-07-04)
 
 - **CodeRabbit fixes**: reverb stereo width (separate L/R comb banks with decorrelated delay times, M/S width on reverb tail), paulstretch cursor split (independent read/write cursors, proper frame emission gating)
-- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **38 DSP scripts total** (27 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.8 (2026-07-04)
 
 - **New Werkstatt script**: ring modulator with envelope-followed frequency modulation (#277) — workaround for MIDI input limitation in Werkstatt audio effects
-- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **38 DSP scripts total** (27 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.7 (2026-07-04)
 
@@ -732,13 +746,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **4 new Spielwerk MIDI effect scripts**: chord memory, strummer, velocity scaler, MIDI delay
 - **1 new Python example**: Suno→openDAW pipeline (import AI track, mastering chain, reverb send, arp layer, render+stems)
-- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **38 DSP scripts total** (27 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.5 (2026-07-04)
 
 - **7 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138), chord memory, strummer, velocity scaler, MIDI delay
 - **Coldfold fix**: removed unused `range` variable (CodeRabbit review)
-- **37 DSP scripts total** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **38 DSP scripts total** (27 Werkstatt + 5 Apparat + 6 Spielwerk)
 
 ### v1.11.4 (2026-07-04)
 

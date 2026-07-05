@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.28.0 (2026-07-05)
+
+- **`werkstatt_deesser.js`** — dynamic de-esser, band-split architecture. 7 params: freq (2-12kHz crossover), threshold (-40..0 dB), ratio (1:1..10:1), attack, release, mix, output. 2nd-order Linkwitz-Riley HPF isolates sibilance, envelope-followed gain reduction on high band only. Completes vocal chain: EQ → compressor → de-esser → exciter → limiter
+- **38 DSP scripts** (27 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 7 params, threshold 0.5→0.65, freq 0.4→0.8
+
 ## v1.27.0 (2026-07-05)
 
 - **`werkstatt_exciter.js`** — harmonic exciter, band-split architecture. 5 params: freq (800Hz-12kHz crossover), harmonics, drive, mix, output. Cascaded one-pole HPF + cubic nonlinearity, parallel wet/dry. Completes mastering chain: EQ → compressor → exciter → limiter

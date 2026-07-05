@@ -388,6 +388,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_paraeq.js` — 3-band parametric EQ + HP/LP (band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix)
 - `werkstatt_limiter.js` — Brickwall limiter with lookahead + TPDF dither (ceiling, release, lookahead, dither, mix)
 - `werkstatt_exciter.js` — Harmonic exciter, band-split architecture (freq, harmonics, drive, mix, output)
+- `werkstatt_deesser.js` — De-esser, dynamic high-frequency compressor (freq, threshold, ratio, attack, release, mix, output)
 
 ### Apparat (Instruments) — 5 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
