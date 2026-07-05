@@ -7,6 +7,7 @@
 | Script | Description | Parameters |
 |--------|-------------|------------|
 | `werkstatt_darksat.js` | Tape saturation / drive | drive, bias, tone, mix, output |
+| `werkstatt_waveshaper.js` | Custom-curve waveshaper (tanh/cubic/atan/Chebyshev) | drive, curve, bias, harmonics, tone, output, mix |
 | `werkstatt_coldfold.js` | Wavefolding + bitcrush | drive, fold, crush, slew, mix |
 | `werkstatt_overdrive.js` | Asymmetric soft-clip overdrive | drive, tone, level, mix |
 | `werkstatt_stereo_delay.js` | Stereo ping-pong delay | time, feedback, tone, mix |

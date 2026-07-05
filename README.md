@@ -27,8 +27,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **306** MCP tools | **89** Python examples (8 genre templates) |
-| **58** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **625** unit + E2E tests |
+| **59** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **692** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.72.0 (2026-07-05)
+
+- **`werkstatt_waveshaper.js` DSP script** — custom-curve waveshaper with 4 transfer functions: tanh (warm soft-clip), cubic (aggressive knee), atan (hard shoulders), Chebyshev (harmonic injection — 2nd/3rd harmonic blend via harmonics param). Drive (0-3), bias (asymmetric even harmonics), tone filter (one-pole LP/HP blend), output gain, dry/wet mix. Unlike tube_saturator (fixed curve) or coldfold (wavefolding), waveshaper gives 4 distinct shaping curves in one unit. Classic for: guitar amp simulation, harmonic excitement, creative distortion, analog emulation. 7 params: drive, curve, bias, harmonics, tone, output, mix
+- **59 DSP scripts** (46 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **692 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ### v1.71.0 (2026-07-05)
 

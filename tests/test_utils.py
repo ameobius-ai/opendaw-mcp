@@ -2642,3 +2642,55 @@ class TestFormantFilterDSP:
         code = self._read_script()
         assert "1 - t" in code or "(1-t)" in code, "Missing vowel interpolation"
         assert "Math.floor" in code, "Missing vowel index floor"
+
+
+class TestWerkstattWaveshaper:
+    """Unit tests for werkstatt_waveshaper.js DSP script structure."""
+
+    def _read_script(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_waveshaper.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt waveshaper 1 1" in code
+
+    def test_label(self):
+        code = self._read_script()
+        assert "// @label Waveshaper" in code
+
+    def test_param_count(self):
+        code = self._read_script()
+        param_lines = [l for l in code.split("\n") if l.strip().startswith("// @param")]
+        assert len(param_lines) == 7
+
+    def test_param_drive(self):
+        code = self._read_script()
+        assert "// @param drive 0.5 0 3 linear" in code
+
+    def test_param_curve(self):
+        code = self._read_script()
+        assert "// @param curve 0 0 3 linear" in code
+
+    def test_param_harmonics(self):
+        code = self._read_script()
+        assert "// @param harmonics 0.3 0 1 linear" in code
+
+    def test_param_mix(self):
+        code = self._read_script()
+        assert "// @param mix 1 0 1 linear" in code
+
+    def test_has_processAudio(self):
+        code = self._read_script()
+        assert "processAudio(inputs, outputs, parameters)" in code
+
+    def test_has_paramChanged(self):
+        code = self._read_script()
+        assert "paramChanged(name, value)" in code
+
+    def test_has_shape_method(self):
+        code = self._read_script()
+        assert "_shape(" in code
+        assert "Math.tanh" in code
+        assert "Math.atan" in code

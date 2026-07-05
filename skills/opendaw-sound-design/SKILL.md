@@ -244,6 +244,7 @@ class Processor {
 | Script | Effect | Key params | Issue |
 |--------|--------|------------|-------|
 | `werkstatt_darksat.js` | Tape saturation | drive, bias, tone, mix, output | #91 |
+| `werkstatt_waveshaper.js` | Custom-curve waveshaper (tanh/cubic/atan/Chebyshev) | drive, curve, bias, harmonics, tone, output, mix | |
 | `werkstatt_coldfold.js` | Wavefolding + bitcrush | drive, fold, crush, slew, mix | |
 | `werkstatt_reverb.js` | Stereo plate reverb | decay, predelay, damping, width, mix | |
 | `werkstatt_chorus.js` | Stereo chorus | rate, depth, center, feedback, mix | #195 |
