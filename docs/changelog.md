@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.128.0 (2026-07-05)
+
+- **`werkstatt_decrackle.js` DSP script (98 DSP, 79 Werkstatt)** — de-crackle: removes continuous crackle from vinyl, tape, and old recordings. Adaptive crackle modeling: tracks crackle energy and signal energy separately, adaptive threshold rises with signal level and falls with crackle density. Crackle rate estimation (10-200 crackles/sec). Crackle detection: short spikes above adaptive threshold but below signal level. Extent finding (1-8 samples) + interpolation (Hermite/linear blend via smooth param). Strength blend controls removal amount. iZotope RX De-crackle / CEDAR Decrackle style — fourth restoration processor. 7 params (strength/sensitivity/freq_est/smooth/adaptive/mix/output). 98 DSP scripts, 79 Werkstatt
+- **1462 unit tests** (+22)
+
 ## v1.127.0 (2026-07-05)
 
 - **`create_electronic_bass` orchestration tool (321 MCP tools)** — genre-specific electronic basslines. Bass as a rhythmic engine that locks with kick drum — fundamentally different from melodic basslines. 6 variants: house_offbeat (sustained notes between kicks, "untz-untz" feel), techno_sub (one long root per bar, Berlin minimal), dnb_reese (sustained on 1 + syncopated stabs, Noisia), dubstep_wobble (quarters on 1+3, wub pattern on 2+4 with fifth movement, Skrillex), acid_303 (16th root/octave alternation with fifth drops, TB-303 squelch, Phuture), garage_2step (bass on 1 and 2.66 with ghost, MJ Cole/Disclosure). Pitch offsets: root/0, fifth/7, octave/12. 1-bar cycle. 64 orchestration tools. 321 MCP tools

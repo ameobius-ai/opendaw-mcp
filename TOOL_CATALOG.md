@@ -473,6 +473,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_spectral_denoise.js` — Spectral denoiser (noise floor subtraction: 2-phase learn+denoise, Berouti spectral subtraction with oversubtraction 1-4x, spectral floor, half-wave rectification, gain smoothing, -30 dB max reduction, RX/CEDAR style, first restoration processor)
 - `werkstatt_dereverb.js` — De-reverb (reverb tail suppression: per-band dual envelope followers, fast=direct/slow=tail, transient detection via ratio, tail dominance gain reduction -24 dB, decay estimation, RX De-reverb style, second restoration processor)
 - `werkstatt_declicker.js` — De-clicker (click & crackle removal: median-filter detection with insertion sort, adaptive threshold via local energy, cubic Hermite (Catmull-Rom) interpolation, click length limit 8-128 samples, overlap expansion, delay buffer for look-back, RX De-click / CEDAR Declick style, third restoration processor)
+- `werkstatt_decrackle.js` — De-crackle (continuous crackle removal: adaptive crackle modeling with separate crackle/signal energy tracking, adaptive threshold, crackle rate estimation 10-200/sec, extent finding 1-8 samples, Hermite/linear blend interpolation, strength blend, RX De-crackle / CEDAR Decrackle style, fourth restoration processor)
 
 ### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

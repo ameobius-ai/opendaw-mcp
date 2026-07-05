@@ -1,8 +1,8 @@
 # DSP Scripts
 
-97 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+98 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 78 scripts
+## Werkstatt (Audio Effects) — 79 scripts
 
 ### Dynamics (10)
 
@@ -128,13 +128,14 @@
 | `werkstatt_spectral_compressor.js` | Spectral Compressor (STFT) |
 | `werkstatt_spectral_denoise.js` | Spectral Denoiser (Noise Floor Subtraction) |
 
-### Restoration (3)
+### Restoration (4)
 
 | Script | Description |
 |--------|-------------|
 | `werkstatt_spectral_denoise.js` | Spectral Denoiser (Berouti spectral subtraction, noise floor learning, oversubtraction, musical noise prevention) |
 | `werkstatt_dereverb.js` | De-Reverb (reverb tail suppression: per-band dual envelope followers, fast=direct/slow=tail, transient detection via ratio, tail dominance gain reduction -24 dB, decay estimation, RX De-reverb style) |
-| `werkstatt_declicker.js` | De-Clicker (click & crackle removal: median-filter detection with insertion sort, adaptive threshold via local energy, cubic Hermite (Catmull-Rom) interpolation, click length limit 8-128 samples, overlap expansion, RX De-click / CEDAR Declick style) |
+| `werkstatt_declicker.js` | De-Clicker (click & crackle removal: median filter, adaptive threshold, cubic Hermite interpolation, RX De-click style) |
+| `werkstatt_decrackle.js` | De-Crackle (continuous crackle removal: adaptive crackle modeling, crackle/signal energy tracking, crackle rate estimation, RX De-crackle style) |
 
 ### Physical Modeling (1)
 

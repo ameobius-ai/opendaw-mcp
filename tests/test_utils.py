@@ -6289,3 +6289,130 @@ class TestDeClickerDSP:
         code = self._read_script()
         assert "combined" in code, "Missing combined buffer (delay + current)"
 
+
+class TestDeCrackleDSP:
+    """Unit tests for werkstatt_decrackle.js — continuous crackle removal"""
+
+    def _read_script(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_decrackle.js")) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)
+            })
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt decrackle" in code, "Missing @werkstatt header"
+
+    def test_label(self):
+        code = self._read_script()
+        assert "De-Crackle" in code, "Missing label"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_param_names(self):
+        params = self._parse_params(self._read_script())
+        names = [p["name"] for p in params]
+        assert "strength" in names, "Missing strength param"
+        assert "sensitivity" in names, "Missing sensitivity param"
+        assert "freq_est" in names, "Missing freq_est param"
+        assert "smooth" in names, "Missing smooth param"
+        assert "adaptive" in names, "Missing adaptive param"
+        assert "mix" in names, "Missing mix param"
+        assert "output" in names, "Missing output param"
+
+    def test_output_param_type(self):
+        params = self._parse_params(self._read_script())
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["type"] == "linear"
+
+    def test_hermite_interpolation(self):
+        code = self._read_script()
+        assert "_hermite" in code, "Missing Hermite interpolation"
+        assert "2*t3" in code, "Missing Hermite basis"
+
+    def test_linear_interpolation(self):
+        code = self._read_script()
+        assert "_linear" in code, "Missing linear interpolation"
+
+    def test_adaptive_crackle_model(self):
+        code = self._read_script()
+        assert "crackleEnergy" in code, "Missing crackle energy tracking"
+        assert "signalEnergy" in code, "Missing signal energy tracking"
+
+    def test_adaptive_threshold(self):
+        code = self._read_script()
+        assert "adaptive" in code, "Missing adaptive threshold"
+        assert "adaptAmt" in code, "Missing adaptive amount"
+        assert "this.threshold" in code, "Missing threshold variable"
+
+    def test_crackle_detection(self):
+        code = self._read_script()
+        assert "isCrackle" in code, "Missing crackle detection flag"
+        assert "isLikelyCrackle" in code, "Missing likely crackle flag"
+
+    def test_crackle_extent_finding(self):
+        code = self._read_script()
+        assert "crackEnd" in code, "Missing crackle extent detection"
+        assert "crackLen" in code, "Missing crackle length"
+
+    def test_crackle_rate_estimation(self):
+        code = self._read_script()
+        assert "freq_est" in code, "Missing frequency estimation param"
+        assert "samplesPerCrackle" in code or "estRate" in code, "Missing crackle rate estimate"
+
+    def test_strength_blend(self):
+        code = self._read_script()
+        assert "strengthAmt" in code, "Missing strength amount"
+        assert "1 - strengthAmt" in code, "Missing strength blend"
+
+    def test_smooth_blend(self):
+        code = self._read_script()
+        assert "smoothAmt" in code, "Missing smooth amount"
+        assert "smoothAmt + linVal" in code or "smoothAmt *" in code, "Missing smooth blend"
+
+    def test_local_energy_window(self):
+        code = self._read_script()
+        assert "localEnergy" in code, "Missing local energy tracking"
+        assert "energyWin" in code, "Missing energy window"
+
+    def test_delay_buffer(self):
+        code = self._read_script()
+        assert "delayBuf" in code, "Missing delay buffer"
+        assert "DELAY = 128" in code, "Missing delay buffer size"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10, value / 20)" in code, "Missing dB to linear conversion"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert ".fill(0)" in code, "Missing buffer reset"
+
+    def test_param_changed(self):
+        code = self._read_script()
+        assert "paramChanged" in code, "Missing paramChanged handler"
+
+    def test_combined_buffer(self):
+        code = self._read_script()
+        assert "combined" in code, "Missing combined buffer (delay + current)"
+
