@@ -20487,3 +20487,96 @@ async def mcp_opendaw_create_phase(
 
 if __name__ == "__main__":
     main()
+
+
+@mcp.tool()
+async def mcp_opendaw_create_cross_rhythm(
+    voices: str,
+    bars: int = 4,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    duration: float = 0.25,
+    base_velocity: float = 0.7,
+) -> str:
+    """Create a cross-rhythm — multiple voices with independent period lengths creating shifting alignment.
+
+    Unlike polyrhythm (which divides one bar into n and m equal parts), cross-rhythm gives
+    each voice its own period length in beats. The voices cycle independently, creating
+    continuously shifting alignment patterns that only realign after the LCM of all periods.
+
+    African cross-rhythms, Steve Reich, Talking Heads, minimalism.
+
+    voices: Comma-separated period lengths per voice. E.g., "5,7,3" creates 3 voices
+            with period 5, 7, and 3 beats respectively. 2-6 voices supported.
+    bars: Total length in bars (1-16). The pattern cycles until bars×4 beats is filled.
+    unit_index: AU index.
+    track_index: Note track index.
+    start_beat: Starting beat position.
+    duration: Note duration in beats.
+    base_velocity: Base velocity 0-1. Each voice gets slightly attenuated (voice 0 = full).
+
+    Returns total notes created, voice periods, and alignment interval (LCM).
+
+    Common cross-rhythms:
+      "5,7"    — 5-beat vs 7-beat (African, shifts every 35 beats)
+      "3,4,5"  — triple cross-rhythm (minimalism)
+      "4,5,6"  — dense shifting pattern
+      "3,5,7"  — prime cross-rhythm (longest alignment cycle = 105 beats)
+
+    Example:
+      create_cross_rhythm(voices="5,7", bars=8, track_index=0)
+    """
+    try:
+        periods = [int(x.strip()) for x in voices.split(",")]
+    except ValueError:
+        return "Error: voices must be comma-separated integers, e.g. '5,7,3'"
+
+    if len(periods) < 2 or len(periods) > 6:
+        return "Error: need 2-6 voices"
+    if any(p < 2 or p > 16 for p in periods):
+        return "Error: each period must be 2-16 beats"
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if not (0.0 <= base_velocity <= 1.0):
+        return "Error: base_velocity must be 0-1"
+
+    total_beats = bars * 4
+
+    # Pitches: spread voices across octaves for audibility
+    voice_pitches = [60 + i * 5 for i in range(len(periods))]
+
+    all_notes = []
+    for vi, period in enumerate(periods):
+        # Each voice fires every `period` beats
+        velocity = base_velocity * (1.0 - vi * 0.12)
+        velocity = max(0.1, min(1.0, velocity))
+        beat = 0.0
+        while beat < total_beats:
+            all_notes.append({
+                "pitch": voice_pitches[vi],
+                "start": round(start_beat + beat, 4),
+                "duration": duration,
+                "velocity": round(velocity, 3),
+            })
+            beat += period
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    # Compute LCM for alignment interval
+    from math import gcd
+    lcm = periods[0]
+    for p in periods[1:]:
+        lcm = lcm * p // gcd(lcm, p)
+
+    try:
+        data = json.loads(result_str)
+        data["cross_rhythm"] = True
+        data["voices"] = len(periods)
+        data["periods"] = periods
+        data["alignment_interval_beats"] = lcm
+        data["bars"] = bars
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

@@ -63,6 +63,8 @@ Orchestration tools solve this by combining multiple low-level operations into a
 50. `create_variations` — 9 transformations in one operation (transpose/invert/retrograde/augment/diminish/fragment/transpose_cadence/octave_shift/reverse)
 51. `create_motif_development` — through-composed melodic development: 11 stages (statement/sequence/fragment/invert/octave/expand/compress/cadence)
 52. `create_stutter` — stutter edit: rapid rhythmic repetitions with evolving rate (accelerate/decelerate/ping_pong/random), accent patterns, velocity ramps, gate, pitch jitter (BT/Imogen Heap/Deadmau5)
+53. `create_phase` — Steve Reich phase shifting: 2-4 voices play same pattern, one gradually shifts in time. 3 drift directions, phase_rate, phase_amount with reset (minimalism)
+54. `create_cross_rhythm` — cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar), cross-rhythm gives each voice its own period. Voices realign at LCM. 2-6 voices (African, Steve Reich, Talking Heads)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

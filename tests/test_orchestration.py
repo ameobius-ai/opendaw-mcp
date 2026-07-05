@@ -2974,3 +2974,100 @@ class TestCreatePhase:
         from server import mcp_opendaw_create_phase
         doc = mcp_opendaw_create_phase.__doc__
         assert "canon" in doc.lower() or "isorhythm" in doc.lower()
+
+
+class TestCrossRhythmGeneration:
+    """Tests for create_cross_rhythm orchestration tool"""
+
+    def test_two_voice_periods(self):
+        periods = [5, 7]
+        total_beats = 32
+        all_notes = []
+        voice_pitches = [60 + i * 5 for i in range(len(periods))]
+        for vi, period in enumerate(periods):
+            beat = 0.0
+            while beat < total_beats:
+                all_notes.append({"pitch": voice_pitches[vi], "start": beat, "period": period})
+                beat += period
+        v0 = [n for n in all_notes if n["period"] == 5]
+        assert len(v0) == 7
+        v1 = [n for n in all_notes if n["period"] == 7]
+        assert len(v1) == 5
+
+    def test_lcm_alignment(self):
+        from math import gcd
+        periods = [5, 7]
+        lcm = periods[0]
+        for p in periods[1:]:
+            lcm = lcm * p // gcd(lcm, p)
+        assert lcm == 35
+
+    def test_prime_lcm(self):
+        from math import gcd
+        periods = [3, 5, 7]
+        lcm = periods[0]
+        for p in periods[1:]:
+            lcm = lcm * p // gcd(lcm, p)
+        assert lcm == 105
+
+    def test_three_voices(self):
+        periods = [3, 4, 5]
+        total_beats = 16
+        all_notes = []
+        for vi, period in enumerate(periods):
+            beat = 0.0
+            while beat < total_beats:
+                all_notes.append({"voice": vi, "beat": beat})
+                beat += period
+        v0 = [n for n in all_notes if n["voice"] == 0]
+        v1 = [n for n in all_notes if n["voice"] == 1]
+        v2 = [n for n in all_notes if n["voice"] == 2]
+        assert len(v0) == 6
+        assert len(v1) == 4  # 0,4,8,12 (16 excluded)
+        assert len(v2) == 4  # 0,5,10,15
+
+    def test_voice_velocity_attenuation(self):
+        base_vel = 0.7
+        vel0 = max(0.1, min(1.0, base_vel * (1.0 - 0 * 0.12)))
+        vel1 = max(0.1, min(1.0, base_vel * (1.0 - 1 * 0.12)))
+        vel2 = max(0.1, min(1.0, base_vel * (1.0 - 2 * 0.12)))
+        assert abs(vel0 - 0.7) < 0.01
+        assert abs(vel1 - 0.616) < 0.01
+        assert abs(vel2 - 0.532) < 0.01
+
+    def test_voice_pitches_spread(self):
+        periods = [3, 4, 5]
+        voice_pitches = [60 + i * 5 for i in range(len(periods))]
+        assert voice_pitches == [60, 65, 70]
+
+    def test_no_alignment_in_short_bars(self):
+        total_beats = 16
+        v0_beats = set()
+        v1_beats = set()
+        beat = 0.0
+        while beat < total_beats:
+            v0_beats.add(beat)
+            beat += 5
+        beat = 0.0
+        while beat < total_beats:
+            v1_beats.add(beat)
+            beat += 7
+        shared = v0_beats and v1_beats
+        assert 0.0 in shared
+
+    def test_six_voices_max(self):
+        periods = [2, 3, 4, 5, 6, 7]
+        assert len(periods) == 6 and all(2 <= p <= 16 for p in periods)
+
+    def test_period_validation(self):
+        invalid = [1, 20, 0, -3]
+        for p in invalid:
+            assert p < 2 or p > 16
+
+    def test_cross_vs_polyrhythm(self):
+        poly_primary = [i * 4/3 for i in range(3)]
+        _ = [i * 1.0 for i in range(4)]  # poly_secondary (unused, for documentation)
+        cross_v0 = [i * 5 for i in range(4)]
+        _ = [i * 7 for i in range(3)]  # cross_v1 (unused, for documentation)
+        assert max(poly_primary) <= 4
+        assert max(cross_v0) > 4

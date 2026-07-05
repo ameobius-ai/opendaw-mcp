@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.99.0 (2026-07-05)
+
+- **`create_cross_rhythm` orchestration tool (311 MCP tools)** — cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar into n+m parts), cross-rhythm gives each voice its own period in beats — voices cycle independently, only realigning at LCM of all periods. 2-6 voices, velocity attenuation per voice, alignment interval (LCM) reported. African cross-rhythms, Steve Reich, Talking Heads, minimalism. 311 MCP tools
+- **941 unit tests** (+10), 54 orchestration tools
+
 ## v1.98.0 (2026-07-05)
 
 - **`werkstatt_svf.js` DSP script** — Chamberlin state variable filter: simultaneous LP/BP/HP outputs with seamless morph parameter (LP→BP→HP continuous blend). Output mode: 0=morph, 1=notch, 2=allpass. Self-oscillation at high resonance (capped at 0.99 to prevent runaway), soft-clip tanh protection. 7 params (cutoff/resonance/morph/output_mode/drive/mix/output). Korg MS-20 / Oberheim SEM style. 80 DSP scripts
