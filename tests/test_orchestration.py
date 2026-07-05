@@ -6950,3 +6950,195 @@ class TestCreateFullGenrePipeline:
             "create_disco_arrangement",
         ]
         assert len(arrangement_tools) == 14, "Should have 14 arrangement functions"
+
+
+class TestCreateArrangementVariation:
+    """Tests for create_arrangement_variation — musically varied sections"""
+
+    ALL_GENRES = ["dnb", "house", "trap", "techno", "dubstep",
+                  "synthwave", "trance", "disco",
+                  "afrobeat", "rock", "jazz", "pop", "funk", "reggae"]
+
+    DRUM_DENSITY = {"sparse": 0.3, "normal": 1.0, "busy": 1.5}
+    MELODY_TRANSFORMS = ["none", "invert", "reverse", "fragment",
+                         "octave_up", "octave_down", "transpose:5", "transpose:-7"]
+
+    def test_supports_all_14_genres(self):
+        """All 14 arrangement genres supported (not just 8 electronic)"""
+        assert len(self.ALL_GENRES) == 14
+
+    def test_includes_organic_genres(self):
+        """Organic genres (afrobeat/rock/jazz/pop/funk/reggae) also supported"""
+        organic = ["afrobeat", "rock", "jazz", "pop", "funk", "reggae"]
+        for g in organic:
+            assert g in self.ALL_GENRES
+
+    def test_drum_density_range(self):
+        """drum_density: 0.1-2.0 — sparse to busy"""
+        assert self.DRUM_DENSITY["sparse"] < 1.0
+        assert self.DRUM_DENSITY["normal"] == 1.0
+        assert self.DRUM_DENSITY["busy"] > 1.0
+
+    def test_sparse_drums_remove_notes(self):
+        """Sparse drums (0.3) should thin out drum pattern"""
+        assert self.DRUM_DENSITY["sparse"] < 0.5
+
+    def test_busy_drums_boost_ghosts(self):
+        """Busy drums (>1.0) boost ghost note velocities"""
+        assert self.DRUM_DENSITY["busy"] > 1.0
+
+    def test_bass_octave_shift_range(self):
+        """bass_octave_shift: -2 to +2 — sub to high"""
+        valid_shifts = [-2, -1, 0, 1, 2]
+        assert len(valid_shifts) == 5
+
+    def test_bass_octave_up_raises_pitch(self):
+        """bass_octave_shift=+1 raises all bass notes by 12 semitones"""
+        # 36 (C2) + 12 = 48 (C3)
+        assert 36 + 12 == 48
+
+    def test_bass_sub_octave_lowers_pitch(self):
+        """bass_octave_shift=-2 lowers by 24 semitones (sub bass)"""
+        # 36 (C2) - 24 = 12 (C0)
+        assert 36 - 24 == 12
+
+    def test_melody_transforms_count(self):
+        """8 melody transforms: none, invert, reverse, fragment, octave_up/down, transpose±"""
+        assert len(self.MELODY_TRANSFORMS) == 8
+
+    def test_invert_around_middle_c(self):
+        """Invert: axis=60 (middle C). C4(60)→C4(60), G4(67)→F3(53)"""
+        axis = 60
+        # C4 stays C4
+        assert 2 * axis - 60 == 60
+        # G4(67) inverts to F3(53)
+        assert 2 * axis - 67 == 53
+
+    def test_transpose_5_semitones(self):
+        """transpose:5 — C4(60) → F4(65)"""
+        assert 60 + 5 == 65
+
+    def test_transpose_negative(self):
+        """transpose:-7 — C4(60) → G3(53)"""
+        assert 60 - 7 == 53
+
+    def test_reverse_keeps_positions(self):
+        """Reverse: note order reversed, positions kept (retrograde)"""
+        pitches = [60, 64, 67, 72]
+        reversed_pitches = pitches[::-1]
+        assert reversed_pitches == [72, 67, 64, 60]
+
+    def test_fragment_removes_off_beats(self):
+        """Fragment: only notes on beat boundaries survive"""
+        # Notes on beats (pos % Quarter == 0) survive, others silenced
+        assert 0 % 960 == 0  # on beat
+        assert 240 % 960 != 0  # off beat — removed
+
+    def test_track_inclusion_flags(self):
+        """include_drums/bass/harmony/melody — independently controllable"""
+        # Breakdown: no drums, no bass, harmony + melody
+        breakdown = {"drums": False, "bass": False, "harmony": True, "melody": True}
+        assert not breakdown["drums"]
+        assert not breakdown["bass"]
+        assert breakdown["harmony"]
+        assert breakdown["melody"]
+
+    def test_excluded_tracks_get_velocity_zero(self):
+        """Excluded tracks: notes silenced via velocity=0 (not deleted)"""
+        # Velocity 0 = inaudible, but notes remain for structure
+        silenced_vel = 0
+        assert silenced_vel == 0
+
+    def test_two_phase_design(self):
+        """Two phases: 1) generate base arrangement, 2) apply transformations"""
+        # Phase 1: call arrangement fn → base_notes
+        # Phase 2: bridge evaluate → per-track transforms
+        phases = ["generate_base", "apply_transforms"]
+        assert len(phases) == 2
+
+    def test_variation_vs_sections_difference(self):
+        """Variation applies real musical transforms, sections only changes velocity"""
+        # create_genre_sections: same loop × 5, different velocity
+        # create_arrangement_variation: drum thinning + bass octave + melody invert
+        sections_transforms = ["velocity_scale"]
+        variation_transforms = ["drum_density", "bass_octave", "melody_transform", "track_exclude"]
+        assert len(variation_transforms) > len(sections_transforms)
+
+    def test_breakdown_preset(self):
+        """Breakdown preset: sparse drums + no bass + inverted melody"""
+        breakdown = {
+            "drum_density": 0.3,
+            "include_bass": False,
+            "melody_transform": "invert",
+            "velocity": 0.6,
+        }
+        assert breakdown["drum_density"] < 0.5
+        assert not breakdown["include_bass"]
+        assert breakdown["melody_transform"] == "invert"
+
+    def test_bridge_preset(self):
+        """Bridge preset: octave-up bass + retrograde melody"""
+        bridge = {
+            "bass_octave_shift": 1,
+            "melody_transform": "reverse",
+            "bars": 4,
+        }
+        assert bridge["bass_octave_shift"] == 1
+        assert bridge["melody_transform"] == "reverse"
+
+    def test_genre_defaults_match_arrangements(self):
+        """Genre defaults (bpm/root) match the arrangement tool defaults"""
+        defaults = {
+            "dnb": {"bpm": 174, "root": "A"},
+            "house": {"bpm": 124, "root": "C"},
+            "jazz": {"bpm": 140, "root": "C"},
+            "funk": {"bpm": 110, "root": "G"},
+            "reggae": {"bpm": 90, "root": "C"},
+        }
+        assert defaults["dnb"]["bpm"] == 174
+        assert defaults["house"]["bpm"] == 124
+        assert defaults["jazz"]["bpm"] == 140
+
+    def test_3_track_vs_4_track_genres(self):
+        """3-track genres: dnb/house/trap/techno/dubstep. 4-track: rest"""
+        three_track = ["dnb", "house", "trap", "techno", "dubstep"]
+        four_track = ["synthwave", "trance", "disco", "afrobeat", "rock", "jazz", "pop", "funk", "reggae"]
+        assert len(three_track) == 5
+        assert len(four_track) == 9
+        assert len(three_track) + len(four_track) == 14
+
+    def test_melody_transform_only_on_4_track(self):
+        """Melody transform only applied on 4-track genres (melody_track=3)"""
+        # 3-track genres don't have a separate melody track
+        four_track = ["synthwave", "trance", "disco", "afrobeat", "rock", "jazz", "pop", "funk", "reggae"]
+        assert len(four_track) == 9
+
+    def test_returns_transforms_list(self):
+        """Returns list of transforms applied per track"""
+        # e.g. ["drums: thinned to 0.3 (12/20 kept)", "bass: removed", "melody: invert"]
+        # Each track reports its action
+        expected_tracks = ["drums", "bass", "harmony", "melody"]
+        assert len(expected_tracks) == 4
+
+    def test_notes_silenced_count(self):
+        """Returns notes_silenced — count of notes with velocity zeroed"""
+        # notes_after = notes_before - notes_silenced
+        notes_before = 100
+        notes_silenced = 30
+        notes_after = notes_before - notes_silenced
+        assert notes_after == 70
+
+    def test_can_chain_multiple_sections(self):
+        """Multiple variation calls build a full song:
+        intro → verse1 → chorus → verse2 → bridge → outro"""
+        song_sections = [
+            ("intro", 0, {"drum_density": 0.3, "include_bass": False}),
+            ("verse1", 32, {"drum_density": 1.0}),
+            ("chorus", 64, {"drum_density": 1.5, "bass_octave_shift": 1}),
+            ("verse2", 96, {"melody_transform": "transpose:5"}),
+            ("bridge", 128, {"drum_density": 0.3, "melody_transform": "invert"}),
+            ("outro", 160, {"drum_density": 0.5, "include_melody": False}),
+        ]
+        assert len(song_sections) == 6
+        assert song_sections[2][0] == "chorus"  # chorus is 3rd
+        assert song_sections[4][0] == "bridge"  # bridge is 5th

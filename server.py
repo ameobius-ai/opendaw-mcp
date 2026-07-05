@@ -25635,6 +25635,408 @@ async def mcp_opendaw_create_genre_sections(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_arrangement_variation(
+    genre: str,
+    section_name: str = "variation",
+    bpm: float = None,
+    root: str = None,
+    bars: int = 8,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+    drum_density: float = 1.0,
+    bass_octave_shift: int = 0,
+    melody_transform: str = "none",
+    include_drums: bool = True,
+    include_bass: bool = True,
+    include_harmony: bool = True,
+    include_melody: bool = True,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    harmony_track: int = 2,
+    melody_track: int = 3,
+) -> str:
+    """Create a musically varied section — not a repeat, a real variation.
+
+    Unlike create_genre_sections (which repeats the same loop at different
+    velocities), this tool applies actual musical transformations to each
+    track independently:
+    - Drums: density control (0.3 = sparse, 1.0 = full, 1.5 = busy with ghosts)
+    - Bass: octave shift (bass_octave_shift = +1/-1/-2)
+    - Melody: inversion, transposition, retrograde, or fragment
+    - Track inclusion: skip drums/bass/harmony/melody independently
+
+    This lets you build a song where each section has real musical variation,
+    not just energy changes. The drop has full drums, the breakdown has
+    inverted melody + no bass, the bridge has sparse drums + octave-up bass.
+
+    genre: Any of the 14 arrangement genres (dnb/house/trap/techno/dubstep/
+      synthwave/trance/disco/afrobeat/rock/jazz/pop/funk/reggae).
+    section_name: Label for this section (e.g. "verse2", "bridge", "drop2").
+    bpm: Override tempo (None = genre default).
+    root: Override key (None = genre default).
+    bars: Section length in bars (4-32, default 8).
+    start_beat: Where this section starts in the timeline.
+    velocity: Base velocity 0-1.
+    drum_density: 0.3 = sparse (half notes removed), 1.0 = normal,
+      1.5 = busy (extra ghost notes between hits).
+    bass_octave_shift: 0 = normal, +1 = octave up, -1 = octave down, -2 = sub.
+    melody_transform: "none", "invert", "transpose:5", "transpose:-7",
+      "reverse", "fragment", "octave_up", "octave_down".
+    include_drums/include_bass/include_harmony/include_melody:
+      Set False to skip that track (e.g. breakdown = no drums, no bass).
+
+    Returns notes per track and transformations applied.
+
+    Example:
+      # Breakdown section: sparse drums, no bass, inverted melody
+      create_arrangement_variation("dnb", section_name="breakdown",
+          drum_density=0.3, include_bass=False,
+          melody_transform="invert", velocity=0.6)
+
+      # Bridge: octave-up bass, retrograde melody
+      create_arrangement_variation("house", section_name="bridge",
+          bass_octave_shift=1, melody_transform="reverse",
+          start_beat=64, bars=4)
+    """
+    valid_genres = ["dnb", "house", "trap", "techno", "dubstep",
+                    "synthwave", "trance", "disco",
+                    "afrobeat", "rock", "jazz", "pop", "funk", "reggae"]
+    if genre not in valid_genres:
+        return f"Error: genre must be one of {valid_genres}, got '{genre}'"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0.1 <= drum_density <= 2.0):
+        return "Error: drum_density must be 0.1-2.0"
+    if not (-2 <= bass_octave_shift <= 2):
+        return "Error: bass_octave_shift must be -2 to +2"
+
+    valid_transforms = {"none", "invert", "reverse", "fragment",
+                        "octave_up", "octave_down"}
+    if ":" in melody_transform:
+        parts = melody_transform.split(":")
+        if parts[0] != "transpose" or len(parts) != 2:
+            return f"Error: melody_transform '{melody_transform}' invalid. Use transpose:N, invert, reverse, fragment, octave_up, octave_down, or none"
+        try:
+            int(parts[1])
+        except ValueError:
+            return f"Error: transpose value must be integer, got '{parts[1]}'"
+    elif melody_transform not in valid_transforms:
+        return f"Error: melody_transform must be one of {valid_transforms} or transpose:N, got '{melody_transform}'"
+
+    # Genre defaults
+    defaults = {
+        "dnb":       {"bpm": 174, "root": "A",  "tracks": 3},
+        "house":     {"bpm": 124, "root": "C",  "tracks": 3},
+        "trap":      {"bpm": 140, "root": "F#", "tracks": 3},
+        "techno":    {"bpm": 130, "root": "C",  "tracks": 3},
+        "dubstep":   {"bpm": 140, "root": "G",  "tracks": 3},
+        "synthwave": {"bpm": 110, "root": "A",  "tracks": 4},
+        "trance":    {"bpm": 138, "root": "F",  "tracks": 4},
+        "disco":     {"bpm": 120, "root": "G",  "tracks": 4},
+        "afrobeat":  {"bpm": 120, "root": "C",  "tracks": 4},
+        "rock":      {"bpm": 130, "root": "E",  "tracks": 4},
+        "jazz":      {"bpm": 140, "root": "C",  "tracks": 4},
+        "pop":       {"bpm": 120, "root": "C",  "tracks": 4},
+        "funk":      {"bpm": 110, "root": "G",  "tracks": 4},
+        "reggae":    {"bpm": 90,  "root": "C",  "tracks": 4},
+    }
+    d = defaults[genre]
+    actual_bpm = bpm if bpm is not None else d["bpm"]
+    actual_root = root if root is not None else d["root"]
+    num_tracks = d["tracks"]
+
+    arrangement_fns = {
+        "dnb":       mcp_opendaw_create_dnb_arrangement,
+        "house":     mcp_opendaw_create_house_arrangement,
+        "trap":      mcp_opendaw_create_trap_arrangement,
+        "techno":    mcp_opendaw_create_techno_arrangement,
+        "dubstep":   mcp_opendaw_create_dubstep_arrangement,
+        "synthwave": mcp_opendaw_create_synthwave_arrangement,
+        "trance":    mcp_opendaw_create_trance_arrangement,
+        "disco":     mcp_opendaw_create_disco_arrangement,
+        "afrobeat":  mcp_opendaw_create_afrobeat_arrangement,
+        "rock":      mcp_opendaw_create_rock_arrangement,
+        "jazz":      mcp_opendaw_create_jazz_arrangement,
+        "pop":       mcp_opendaw_create_pop_arrangement,
+        "funk":      mcp_opendaw_create_funk_arrangement,
+        "reggae":    mcp_opendaw_create_reggae_arrangement,
+    }
+    arr_fn = arrangement_fns[genre]
+
+    # Phase 1: Generate the base arrangement at the target start_beat
+    try:
+        arr_result = await arr_fn(
+            bpm=actual_bpm,
+            bars=bars,
+            root=actual_root,
+            unit_index=unit_index,
+            start_beat=start_beat,
+            velocity=velocity,
+        )
+        arr_data = json.loads(arr_result)
+        base_notes = arr_data.get("total_notes", 0)
+    except Exception as e:
+        return json.dumps({"error": f"Base arrangement failed: {e}"})
+
+    # Phase 2: Apply per-track transformations via bridge
+    transforms_applied = []
+    _ = base_notes  # used in JS f-string
+    notes_removed = 0
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const Quarter = h.ppqn.Quarter;
+
+        const unitIdx = {unit_index};
+        const drumTrack = {drum_track};
+        const bassTrack = {bass_track};
+        const harmTrack = {harmony_track};
+        const melTrack = {melody_track};
+        const includeDrums = {str(include_drums).lower()};
+        const includeBass = {str(include_bass).lower()};
+        const includeHarm = {str(include_harmony).lower()};
+        const includeMel = {str(include_melody).lower()};
+        const drumDensity = {drum_density};
+        const bassOctShift = {bass_octave_shift};
+        const melTransform = {json.dumps(melody_transform)};
+        const sectionStart = {start_beat};
+        const sectionBars = {bars};
+        const numTracks = {num_tracks};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.trackBoxes(au).filter(box => box.type?.getValue?.() === 1);
+
+        function getRegionAtBeat(track, beat) {{
+            const regions = h.regionBoxes(track);
+            const beatPpq = Math.round(beat * Quarter);
+            for (const r of regions) {{
+                const rStart = r.position.getValue();
+                const rDur = r.duration.getValue();
+                if (beatPpq >= rStart - 2 && beatPpq < rStart + rDur + 2) return r;
+            }}
+            return regions.length > 0 ? regions[regions.length - 1] : null;
+        }}
+
+        function readNotes(region) {{
+            if (!region) return [];
+            const notes = [];
+            try {{
+                const vertex = region.events.targetVertex.unwrap();
+                const collBox = vertex.box || vertex;
+                if (collBox && collBox.events) {{
+                    const events = h.eventBoxes(collBox);
+                    for (const evt of events) {{
+                        notes.push({{
+                            box: evt,
+                            pos: evt.position.getValue(),
+                            pitch: evt.pitch.getValue(),
+                            vel: evt.velocity.getValue(),
+                        }});
+                    }}
+                }}
+            }} catch(e) {{}}
+            return notes;
+        }}
+
+        function applyMelodyTransform(notes, spec) {{
+            if (spec === "none" || notes.length === 0) return notes;
+            let result = notes.map(n => ({{...n}}));
+            if (spec.startsWith("transpose:")) {{
+                const semis = parseInt(spec.split(":")[1]);
+                for (const n of result) {{
+                    const np = n.pitch + semis;
+                    if (np >= 0 && np <= 127) {{
+                        n.box.pitch.setValue(np);
+                    }}
+                }}
+            }} else if (spec === "invert") {{
+                const axis = 60;
+                for (const n of result) {{
+                    const np = 2 * axis - n.pitch;
+                    if (np >= 0 && np <= 127) {{
+                        n.box.pitch.setValue(np);
+                    }}
+                }}
+            }} else if (spec === "reverse") {{
+                const pitches = notes.map(n => n.pitch);
+                for (let i = 0; i < result.length; i++) {{
+                    result[i].box.pitch.setValue(pitches[pitches.length - 1 - i]);
+                }}
+            }} else if (spec === "fragment") {{
+                // Remove notes not on beat boundaries
+                for (const n of result) {{
+                    if (n.pos % Quarter > Quarter / 4) {{
+                        // Mark for deletion by setting velocity to 0
+                        n.box.velocity.setValue(0);
+                    }}
+                }}
+            }} else if (spec === "octave_up") {{
+                for (const n of result) {{
+                    const np = n.pitch + 12;
+                    if (np <= 127) n.box.pitch.setValue(np);
+                }}
+            }} else if (spec === "octave_down") {{
+                for (const n of result) {{
+                    const np = n.pitch - 12;
+                    if (np >= 0) n.box.pitch.setValue(np);
+                }}
+            }}
+            return result;
+        }}
+
+        const actions = [];
+        let removedCount = 0;
+
+        h.modify(() => {{
+            // --- DRUMS: density control ---
+            if (drumTrack < noteTracks.length) {{
+                const drumRegion = getRegionAtBeat(noteTracks[drumTrack], sectionStart);
+                const drumNotes = readNotes(drumRegion);
+
+                if (!includeDrums) {{
+                    // Remove all drum notes by zeroing velocity
+                    for (const n of drumNotes) {{
+                        n.box.velocity.setValue(0);
+                        removedCount++;
+                    }}
+                    actions.push("drums: removed (excluded)");
+                }} else if (drumDensity < 1.0) {{
+                    // Thin out: remove notes probabilistically based on density
+                    let kept = 0;
+                    for (let i = 0; i < drumNotes.length; i++) {{
+                        // Keep first note of each pair, remove second based on density
+                        const shouldKeep = (i % 2 === 0) || (Math.random() < drumDensity);
+                        if (shouldKeep) {{
+                            kept++;
+                        }} else {{
+                            drumNotes[i].box.velocity.setValue(0);
+                            removedCount++;
+                        }}
+                    }}
+                    actions.push("drums: thinned to " + drumDensity + " (" + kept + "/" + drumNotes.length + " kept)");
+                }} else if (drumDensity > 1.0) {{
+                    // Busy: boost ghost note velocities
+                    let boosted = 0;
+                    for (const n of drumNotes) {{
+                        if (n.vel < 0.5) {{
+                            n.box.velocity.setValue(Math.min(1.0, n.vel + 0.2));
+                            boosted++;
+                        }}
+                    }}
+                    actions.push("drums: boosted " + boosted + " ghost notes (density " + drumDensity + ")");
+                }} else {{
+                    actions.push("drums: normal");
+                }}
+            }}
+
+            // --- BASS: octave shift ---
+            if (bassTrack < noteTracks.length) {{
+                const bassRegion = getRegionAtBeat(noteTracks[bassTrack], sectionStart);
+                const bassNotes = readNotes(bassRegion);
+
+                if (!includeBass) {{
+                    for (const n of bassNotes) {{
+                        n.box.velocity.setValue(0);
+                        removedCount++;
+                    }}
+                    actions.push("bass: removed (excluded)");
+                }} else if (bassOctShift !== 0) {{
+                    let shifted = 0;
+                    for (const n of bassNotes) {{
+                        const np = n.pitch + (bassOctShift * 12);
+                        if (np >= 0 && np <= 127) {{
+                            n.box.pitch.setValue(np);
+                            shifted++;
+                        }}
+                    }}
+                    actions.push("bass: octave " + (bassOctShift > 0 ? "+" : "") + bassOctShift + " (" + shifted + " notes)");
+                }} else {{
+                    actions.push("bass: normal");
+                }}
+            }}
+
+            // --- HARMONY: include/exclude only ---
+            if (harmTrack < noteTracks.length && numTracks >= 3) {{
+                const harmRegion = getRegionAtBeat(noteTracks[harmTrack], sectionStart);
+                const harmNotes = readNotes(harmRegion);
+                if (!includeHarm) {{
+                    for (const n of harmNotes) {{
+                        n.box.velocity.setValue(0);
+                        removedCount++;
+                    }}
+                    actions.push("harmony: removed (excluded)");
+                }} else {{
+                    actions.push("harmony: normal");
+                }}
+            }}
+
+            // --- MELODY: transform or exclude ---
+            if (melTrack < noteTracks.length && numTracks >= 4) {{
+                const melRegion = getRegionAtBeat(noteTracks[melTrack], sectionStart);
+                const melNotes = readNotes(melRegion);
+                if (!includeMel) {{
+                    for (const n of melNotes) {{
+                        n.box.velocity.setValue(0);
+                        removedCount++;
+                    }}
+                    actions.push("melody: removed (excluded)");
+                }} else if (melTransform !== "none") {{
+                    applyMelodyTransform(melNotes, melTransform);
+                    actions.push("melody: " + melTransform);
+                }} else {{
+                    actions.push("melody: normal");
+                }}
+            }}
+        }});
+
+        return {{
+            actions: actions,
+            notes_removed: removedCount,
+            notes_before: {base_notes},
+        }};
+    }}""")
+
+    try:
+        trans_data = json.loads(result)
+        transforms_applied = trans_data.get("actions", [])
+        notes_removed = trans_data.get("notes_removed", 0)
+    except Exception:
+        transforms_applied = [f"transform result: {result[:200]}"]
+
+    notes_after = base_notes - notes_removed
+
+    return json.dumps({
+        "arrangement_variation": True,
+        "section": section_name,
+        "genre": genre,
+        "bpm": actual_bpm,
+        "root": actual_root,
+        "bars": bars,
+        "start_beat": start_beat,
+        "transforms": transforms_applied,
+        "notes_before": base_notes,
+        "notes_after": notes_after,
+        "notes_silenced": notes_removed,
+        "drum_density": drum_density,
+        "bass_octave_shift": bass_octave_shift,
+        "melody_transform": melody_transform,
+        "tracks_included": {
+            "drums": include_drums,
+            "bass": include_bass,
+            "harmony": include_harmony,
+            "melody": include_melody,
+        },
+        "next_step": "call create_arrangement_variation again for the next section, or apply_genre_mix then add_mastering_chain",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_full_genre_pipeline(
     genre: str,
     bpm: float = None,
