@@ -1,6 +1,6 @@
 ---
 name: opendaw-sound-design
-description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 26 DSP scripts. How to synthesize and shape sound with MCP tools."
+description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 34 DSP scripts. How to synthesize and shape sound with MCP tools."
 tags: [opendaw, mcp, sound-design, instruments, synth, dsp, werkstatt, apparat, spielwerk, scriptable]
 ---
 
@@ -253,6 +253,7 @@ class Processor {
 | `werkstatt_stereo_delay.js` | Stereo delay w/ ping-pong | time_l, time_r, feedback, tone, mix, pingpong | |
 | `werkstatt_overdrive.js` | Asymmetric soft-clip overdrive | drive, tone, level, bias, dry | |
 | `werkstatt_multifilter.js` | Multi-mode SVF (LP/HP/BP/Notch) | mode, cutoff, resonance, drive, mix | |
+| `werkstatt_compressor.js` | Soft-knee peak compressor | threshold, ratio, attack, release, makeup, mix, knee | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
 | `werkstatt_paulstretch.js` | Extreme time-stretch | stretch, window, mix | #209 |
@@ -298,7 +299,8 @@ class Processor {
 | Delay (stereo) | `werkstatt_stereo_delay.js` | Werkstatt |
 | Delay (MIDI) | `spielwerk_mididelay.js` | Spielwerk |
 | Filter (LP/HP/BP/Notch) | `werkstatt_multifilter.js` | Werkstatt |
-| Compressor | `werkstatt_lookahead.js` | Werkstatt |
+| Compressor (peak, soft-knee) | `werkstatt_compressor.js` | Werkstatt |
+| Compressor (lookahead) | `werkstatt_lookahead.js` | Werkstatt |
 | Chorus/width | `werkstatt_chorus.js` | Werkstatt |
 | Phaser | `werkstatt_phaser.js` | Werkstatt |
 | Flanger | `werkstatt_flanger.js` | Werkstatt |

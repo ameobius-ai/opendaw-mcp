@@ -384,6 +384,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_stereo_delay.js` — Stereo delay with ping-pong (time_l, time_r, feedback, tone, mix, pingpong)
 - `werkstatt_overdrive.js` — Asymmetric soft-clip overdrive (drive, tone, level, bias, dry)
 - `werkstatt_multifilter.js` — Multi-mode SVF filter: LP/HP/BP/Notch (mode, cutoff, resonance, drive, mix)
+- `werkstatt_compressor.js` — Soft-knee peak compressor (threshold, ratio, attack, release, makeup, mix, knee)
 
 ### Apparat (Instruments) — 5 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

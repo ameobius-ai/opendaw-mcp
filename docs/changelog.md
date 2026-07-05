@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.24.0 (2026-07-05)
+
+- **`werkstatt_compressor.js`** — soft-knee peak compressor. 7 params: threshold, ratio, attack, release, makeup, mix, knee. Peak detection, one-pole envelope, stereo-linked
+- **Integration test fix** — skips when Playwright chromium unavailable instead of failing
+- **34 DSP scripts** (23 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 7 params, threshold/ratio set, code readback OK
+
 ## v1.23.3 (2026-07-05)
 
 - **`werkstatt_multifilter.js`** — multi-mode SVF filter (LP/HP/BP/Notch). 5 params: mode, cutoff, resonance, drive, mix. Chamberlin topology

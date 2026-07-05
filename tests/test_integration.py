@@ -27,7 +27,22 @@ try:
 except Exception:
     pass
 
-pytestmark = pytest.mark.skipif(not _daw_reachable, reason=f"DAW not reachable at {DAW_URL}")
+# Check if a Playwright-compatible chromium is available
+_chrome_env = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", "")
+_chrome_ok = False
+if _chrome_env and os.path.exists(_chrome_env):
+    _chrome_ok = True
+else:
+    # Check Playwright's bundled browser
+    from pathlib import Path
+    _pw_cache = Path.home() / ".cache" / "ms-playwright"
+    if _pw_cache.exists():
+        _chrome_ok = any(_pw_cache.glob("chromium*"))
+
+pytestmark = pytest.mark.skipif(
+    not (_daw_reachable and _chrome_ok),
+    reason=f"Need DAW at {DAW_URL} and Playwright chromium",
+)
 
 _bridge = None
 _started = False

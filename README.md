@@ -507,10 +507,18 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.24.0 (2026-07-05)
+
+- **`werkstatt_compressor.js`** — soft-knee peak compressor. 7 params: threshold (0→-60 dB), ratio (1:1→20:1), attack (0.1→100 ms log), release (50→500 ms log), makeup (0→+24 dB), mix (dry/wet), knee (0→12 dB soft knee). Peak detection, one-pole envelope smoother, stereo-linked. Closes the biggest DSP gap — compressor is fundamental to mixing
+- **Integration test fix** — `test_integration.py` now skips when Playwright chromium is unavailable instead of failing. Checks both DAW reachability and browser availability
+- **34 DSP scripts** (23 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 7 params with correct defaults, threshold 0.5→0.75, ratio 0.4→0.85, code header readback OK
+- ruff clean, CI green
+
 ### v1.23.3 (2026-07-05)
 
 - **`werkstatt_multifilter.js`** — multi-mode SVF filter (Chamberlin topology). 4 modes: lowpass, highpass, bandpass, notch. 5 params: mode, cutoff (20-20kHz), resonance, drive, mix. Closes critical gap — standalone multi-mode filter was missing while allpass/dcremover existed
-- **33 DSP scripts** (22 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **34 DSP scripts** (23 Werkstatt + 5 Apparat + 6 Spielwerk)
 - **E2E verified**: compiled via ScriptCompiler, 5 params with correct defaults, mode switching (LP→HP), resonance cranked (0.3→0.8)
 - ruff clean, CI green
 
