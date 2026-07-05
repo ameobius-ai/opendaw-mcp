@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.242.0 (2026-07-06)
+
+### Added
+- `detect_scale_from_notes` — Detect musical scale/key from MIDI notes in a region. 15 scales tested via Pearson correlation against pitch class histogram (180 root×scale combinations). Returns best match + 5 alternatives + confidence rating + chromatic coverage. Works on MIDI directly (no audio file needed), unlike detect_key which analyses WAV. Use before force_scale_notes, diatonic_transpose, generate_melody.
+
 ## v1.241.0 (2026-07-06)
 
 ### Added

@@ -20889,6 +20889,188 @@ async def mcp_opendaw_analyze_melody(
 
 
 @mcp.tool()
+async def mcp_opendaw_detect_scale_from_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+) -> str:
+    """Detect the musical scale/key from MIDI notes in a region.
+
+    Analyses the pitch class distribution of all notes in a region and matches
+    it against 15 common scales using Pearson correlation. Unlike detect_key
+    (which works on WAV audio), this works directly on MIDI note data — no
+    audio file needed.
+
+    Scales tested (15):
+    - major, natural_minor, harmonic_minor, melodic_minor
+    - dorian, phrygian, lydian, mixolydian, locrian
+    - pentatonic_major, pentatonic_minor, blues
+    - hungarian_minor, double_harmonic, whole_tone
+
+    Returns:
+    - best_match: {scale, root, correlation} — highest scoring scale
+    - alternatives: top 5 matches with correlation scores
+    - pitch_class_histogram: 12-bin histogram of note pitches
+    - note_count: total notes analysed
+    - chromatic_coverage: how many of 12 pitch classes are used
+    - confidence: qualitative rating (high/medium/low based on correlation)
+
+    Use this before:
+    - force_scale_notes (to know which scale to force)
+    - diatonic_transpose_notes (to know the correct scale)
+    - generate_melody (to match existing material's scale)
+    - reharmonize_progression (to pick the right key)
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = first region, -2 = all regions on track).
+
+    Example:
+      scale = detect_scale_from_notes(0, 0)
+      # best_match: {scale: "natural_minor", root: "A", correlation: 0.87}
+      # → use force_scale_notes(root="A", scale="natural_minor")
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regIdx = {region_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+
+        // Collect notes from one or all regions
+        let allNotes = [];
+        const regionsToProcess = regIdx === -2 ? regions : (regIdx < 0 ? [regions[0]] : [regions[regIdx]]);
+        if (regIdx >= 0 && regIdx >= regions.length) return {{error: "region_index out of range"}};
+
+        for (const region of regionsToProcess) {{
+            let collection = null;
+            try {{
+                const vertex = region.events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{ continue; }}
+            if (!collection || !collection.events) continue;
+            const notes = h.eventBoxes(collection);
+            allNotes = allNotes.concat(notes);
+        }}
+
+        if (allNotes.length === 0) return {{error: "No notes in region(s)"}};
+
+        // Build pitch class histogram (12 bins)
+        const pitchClassHist = new Array(12).fill(0);
+        for (const n of allNotes) {{
+            const pitch = n.pitch.getValue();
+            const pc = ((pitch % 12) + 12) % 12;
+            pitchClassHist[pc]++;
+        }}
+
+        const noteCount = allNotes.length;
+
+        // Krumhansl-Schmuckler key profiles (correlation with pitch class histogram)
+        const majorProfile = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+        const minorProfile = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+
+        // Scale interval patterns (semitone offsets from root)
+        const scales = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "natural_minor": [0, 2, 3, 5, 7, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "pentatonic_major": [0, 2, 4, 7, 9],
+            "pentatonic_minor": [0, 3, 5, 7, 10],
+            "blues": [0, 3, 5, 6, 7, 10],
+            "hungarian_minor": [0, 2, 3, 6, 7, 8, 11],
+            "double_harmonic": [0, 1, 4, 5, 7, 8, 11],
+            "whole_tone": [0, 2, 4, 6, 8, 10],
+        }};
+
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+        // For each root (0-11) and each scale, compute correlation
+        function pearsonCorr(a, b) {{
+            const n = a.length;
+            let sumA = 0, sumB = 0, sumAB = 0, sumA2 = 0, sumB2 = 0;
+            for (let i = 0; i < n; i++) {{
+                sumA += a[i]; sumB += b[i];
+                sumAB += a[i] * b[i];
+                sumA2 += a[i] * a[i];
+                sumB2 += b[b.length > n ? i : i] * b[b.length > n ? i : i];
+            }}
+            // Use only first n elements of b
+            sumB = 0; sumAB = 0; sumB2 = 0;
+            for (let i = 0; i < n; i++) {{
+                sumB += b[i];
+                sumAB += a[i] * b[i];
+                sumB2 += b[i] * b[i];
+            }}
+            const denom = Math.sqrt((n * sumA2 - sumA * sumA) * (n * sumB2 - sumB * sumB));
+            if (denom === 0) return 0;
+            return (n * sumAB - sumA * sumB) / denom;
+        }}
+
+        const results = [];
+        for (let root = 0; root < 12; root++) {{
+            for (const [scaleName, intervals] of Object.entries(scales)) {{
+                // Build expected profile: weight 1.0 for scale tones, 0.1 for non-scale
+                const expected = new Array(12).fill(0.1);
+                for (const iv of intervals) {{
+                    expected[(root + iv) % 12] = 1.0;
+                }}
+                const corr = pearsonCorr(pitchClassHist, expected);
+                results.push({{
+                    scale: scaleName,
+                    root: noteNames[root],
+                    root_pc: root,
+                    correlation: Math.round(corr * 1000) / 1000,
+                }});
+            }}
+        }}
+
+        // Sort by correlation descending
+        results.sort((a, b) => b.correlation - a.correlation);
+
+        const best = results[0];
+        const alternatives = results.slice(1, 6);
+        const chromaticCoverage = pitchClassHist.filter(v => v > 0).length;
+
+        let confidence;
+        if (best.correlation > 0.8) confidence = "high";
+        else if (best.correlation > 0.5) confidence = "medium";
+        else confidence = "low";
+
+        return {{
+            success: true,
+            best_match: {{
+                scale: best.scale,
+                root: best.root,
+                root_pc: best.root_pc,
+                correlation: best.correlation,
+            }},
+            alternatives: alternatives.map(a => ({{scale: a.scale, root: a.root, correlation: a.correlation}})),
+            pitch_class_histogram: pitchClassHist,
+            pitch_class_names: noteNames,
+            note_count: noteCount,
+            chromatic_coverage: chromaticCoverage,
+            confidence: confidence,
+            regions_analysed: regionsToProcess.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_extract_rhythm(
     unit_index: int,
     track_index: int,

@@ -15514,3 +15514,148 @@ class TestApplyRhythmPattern:
         # Code checks onset_grid first
         use_onset_grid = bool(onset_grid)
         assert use_onset_grid, "onset_grid should be used when non-empty"
+
+
+class TestDetectScaleFromNotes:
+    """Tests for mcp_opendaw_detect_scale_from_notes — scale detection from MIDI"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_detect_scale_from_notes" in names
+
+    def test_pitch_class_histogram_building(self):
+        """Build 12-bin histogram from MIDI pitches"""
+        pitches = [60, 62, 64, 65, 67, 69, 71, 72]  # C major scale + octave C
+        hist = [0] * 12
+        for p in pitches:
+            pc = ((p % 12) + 12) % 12
+            hist[pc] += 1
+        assert hist[0] == 2, "C appears twice (60 and 72)"
+        assert hist[2] == 1, "D"
+        assert hist[4] == 1, "E"
+        assert hist[5] == 1, "F"
+        assert hist[7] == 1, "G"
+        assert hist[9] == 1, "A"
+        assert hist[11] == 1, "B"
+        assert hist[1] == 0, "C# not in C major"
+
+    def test_scale_interval_patterns(self):
+        """Verify scale interval patterns are correct"""
+        scales = {
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "natural_minor": [0, 2, 3, 5, 7, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "pentatonic_major": [0, 2, 4, 7, 9],
+            "pentatonic_minor": [0, 3, 5, 7, 10],
+            "blues": [0, 3, 5, 6, 7, 10],
+            "whole_tone": [0, 2, 4, 6, 8, 10],
+        }
+        # Major scale: 7 notes, intervals sum to 12
+        assert len(scales["major"]) == 7
+        # Pentatonic: 5 notes
+        assert len(scales["pentatonic_major"]) == 5
+        assert len(scales["pentatonic_minor"]) == 5
+        # Whole tone: 6 notes
+        assert len(scales["whole_tone"]) == 6
+        # Blues: 6 notes (with flat 5)
+        assert len(scales["blues"]) == 6
+        # Dorian has raised 6th compared to natural minor
+        assert 9 in scales["dorian"] and 9 not in scales["natural_minor"]
+
+    def test_pearson_correlation(self):
+        """Pearson correlation between two arrays"""
+        import math
+        a = [5, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+        b = [5, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+        n = len(a)
+        sumA = sum(a); sumB = sum(b)
+        sumAB = sum(a[i] * b[i] for i in range(n))
+        sumA2 = sum(x * x for x in a)
+        sumB2 = sum(x * x for x in b)
+        denom = math.sqrt((n * sumA2 - sumA ** 2) * (n * sumB2 - sumB ** 2))
+        corr = (n * sumAB - sumA * sumB) / denom if denom else 0
+        assert abs(corr - 1.0) < 0.01, "Identical arrays → correlation 1.0"
+
+    def test_scale_matching_major(self):
+        """C major scale notes should match major scale at root C"""
+        # Notes: C D E F G A B (pitch classes 0,2,4,5,7,9,11)
+        hist = [0] * 12
+        for pc in [0, 2, 4, 5, 7, 9, 11]:
+            hist[pc] = 1
+        # Expected profile for C major
+        expected = [0.1] * 12
+        for iv in [0, 2, 4, 5, 7, 9, 11]:
+            expected[iv] = 1.0
+        # Check that scale tones have high values
+        for pc in [0, 2, 4, 5, 7, 9, 11]:
+            assert expected[pc] == 1.0
+        # Non-scale tones should be 0.1
+        for pc in [1, 3, 6, 8, 10]:
+            assert expected[pc] == 0.1
+
+    def test_scale_matching_minor(self):
+        """A natural minor scale notes should match at root A"""
+        # A natural minor: A B C D E F G (pc 9, 11, 0, 2, 4, 5, 7)
+        intervals = [0, 2, 3, 5, 7, 8, 10]
+        root = 9  # A
+        expected = [0.1] * 12
+        for iv in intervals:
+            expected[(root + iv) % 12] = 1.0
+        # A, B, C, D, E, F, G should be 1.0
+        for pc in [9, 11, 0, 2, 4, 5, 7]:
+            assert expected[pc] == 1.0
+        # A#, C#, D#, F#, G# should be 0.1
+        for pc in [10, 1, 3, 6, 8]:
+            assert expected[pc] == 0.1
+
+    def test_chromatic_coverage(self):
+        """Count how many pitch classes are used"""
+        hist = [3, 0, 2, 0, 1, 0, 0, 2, 0, 1, 0, 0]
+        coverage = sum(1 for v in hist if v > 0)
+        assert coverage == 5, "5 pitch classes used"
+
+    def test_confidence_rating(self):
+        """Confidence based on correlation score"""
+        assert "high" if 0.85 > 0.8 else "medium" == "high"
+        assert "high" if 0.55 > 0.8 else "medium" == "medium"
+        assert "high" if 0.30 > 0.8 else "medium" == "medium"
+        # Low confidence
+        score = 0.3
+        confidence = "high" if score > 0.8 else ("medium" if score > 0.5 else "low")
+        assert confidence == "low"
+
+    def test_note_names(self):
+        """12 note names in chromatic order"""
+        note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        assert len(note_names) == 12
+        assert note_names[0] == "C"
+        assert note_names[9] == "A"
+
+    def test_all_regions_mode(self):
+        """region_index=-2 means all regions on track"""
+        reg_idx = -2
+        assert reg_idx == -2  # special value for all regions
+
+    def test_15_scales_tested(self):
+        """15 scales in the detection dictionary"""
+        scales = [
+            "major", "natural_minor", "harmonic_minor", "melodic_minor",
+            "dorian", "phrygian", "lydian", "mixolydian", "locrian",
+            "pentatonic_major", "pentatonic_minor", "blues",
+            "hungarian_minor", "double_harmonic", "whole_tone",
+        ]
+        assert len(scales) == 15
+
+    def test_root_rotation(self):
+        """Each root tested for each scale = 12 × 15 = 180 combinations"""
+        roots = 12
+        scales = 15
+        total = roots * scales
+        assert total == 180

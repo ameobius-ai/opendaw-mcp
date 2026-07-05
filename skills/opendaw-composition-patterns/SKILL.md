@@ -90,6 +90,7 @@ What do you want to create?
 ├── Region merge → merge_note_regions (join two into one)
 ├── Note stats → note_stats (pitch/velocity/duration/density/histogram)
 ├── Melody analysis → analyze_melody (contour, intervals, climax, step/leap)
+├── Scale detection → detect_scale_from_notes (15 scales, Pearson correlation)
 ├── Rhythm analysis → extract_rhythm (onset grid, syncopation, swing, IOI)
 ├── Rhythm apply → apply_rhythm_pattern (stamp pattern onto notes, inverse of extract)
 │
@@ -120,6 +121,7 @@ What do you want to create?
 0. ANALYSIS (optional, understand existing MIDI)
    ├── Note stats?         → note_stats (pitch/velocity/density/histogram)
    ├── Melody contour?     → analyze_melody (shape, climax, step/leap)
+   ├── Scale/key?          → detect_scale_from_notes (15 scales, MIDI-based)
    ├── Rhythm pattern?     → extract_rhythm (onset grid, syncopation, swing)
    ├── Apply rhythm?       → apply_rhythm_pattern (stamp groove onto notes)
    └── Chord identification? → identify_chords (reverse-engineer harmony)
