@@ -9267,6 +9267,117 @@ class TestDeleteSection:
         assert "mcp_opendaw_delete_section" in tool_names
 
 
+class TestReorderSections:
+    """Tests for mcp_opendaw_reorder_sections — full song structure rearrangement."""
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_reorder_sections"]
+        assert len(tools) == 1
+
+    def test_has_section_order_param(self):
+        """Has section_order param (JSON array of sections)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                arg_names = [a.arg for a in node.args.args]
+                assert "section_order" in arg_names
+                assert "unit_indices" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_section_order_is_first_param(self):
+        """section_order is the first parameter"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                assert node.args.args[0].arg == "section_order"
+                return
+        assert False, "function not found"
+
+    def test_validates_json_input(self):
+        """Validates section_order as JSON"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                source = ast.unparse(node)
+                assert "json.loads" in source or "_json.loads" in source
+                assert "section_order" in source
+                return
+        assert False, "function not found"
+
+    def test_requires_min_2_sections(self):
+        """Requires at least 2 sections"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                source = ast.unparse(node)
+                assert "len(sections) < 2" in source
+                return
+        assert False, "function not found"
+
+    def test_checks_start_end_keys(self):
+        """Checks that each section has start and end keys"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                source = ast.unparse(node)
+                assert "start" in source
+                assert "end" in source
+                return
+        assert False, "function not found"
+
+    def test_complements_swap_sections(self):
+        """reorder_sections complements swap_sections (pair exists)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_swap_sections" in tool_names
+        assert "mcp_opendaw_reorder_sections" in tool_names
+
+    def test_param_count(self):
+        """Has exactly 2 parameters"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                assert len(node.args.args) == 2
+                return
+        assert False, "function not found"
+
+    def test_uses_createNoteEvent(self):
+        """Uses h.createNoteEvent to recreate notes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                source = ast.unparse(node)
+                assert "createNoteEvent" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_new_layout(self):
+        """Returns new_layout with section positions"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_reorder_sections":
+                source = ast.unparse(node)
+                assert "new_layout" in source
+                return
+        assert False, "function not found"
+
+
 class TestSwapSections:
     """Tests for mcp_opendaw_swap_sections — exchange two sections on timeline."""
 

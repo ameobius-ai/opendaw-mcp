@@ -40922,6 +40922,184 @@ async def mcp_opendaw_swap_sections(
 
 
 @mcp.tool()
+async def mcp_opendaw_reorder_sections(
+    section_order: str,
+    unit_indices: str = "",
+) -> str:
+    """Reorder song sections — rearrange blocks on the timeline.
+
+    Takes a list of section boundaries and rearranges them into a new
+    order. Each section is defined by its start and end beat. The tool
+    collects all note content from each section, then places them in
+    the specified new order, back-to-back, starting from the first
+    section's original start position.
+
+    This is the full song structure editor: instead of swapping two
+    sections (swap_sections), you can completely rearrange the form.
+    Turn verse-chorus-verse-chorus-bridge-chorus into
+    chorus-verse-bridge-chorus-verse-chorus in one call.
+
+    section_order: JSON array of section objects, each with "start"
+      and "end" beat positions, listed in the NEW desired order.
+      Example: '[{"start":0,"end":8},{"start":16,"end":24},{"start":8,"end":16}]'
+      This takes sections at [0-8], [16-24], [8-16] and places them
+      in that order, starting at beat 0.
+
+      Sections can overlap in the original but not in the output —
+      they are placed sequentially. Section lengths are preserved.
+
+    unit_indices: Comma-separated unit indices to process ("" = all units).
+
+    Returns sections reordered, notes moved per unit, new section layout.
+
+    Example:
+      # Move chorus to front
+      reorder_sections('[{"start":16,"end":32},{"start":0,"end":8},{"start":8,"end":16}]')
+    """
+    try:
+        import json as _json
+        sections = _json.loads(section_order)
+        if not isinstance(sections, list) or len(sections) < 2:
+            return '{"error": "section_order must be a JSON array of 2+ sections with start/end"}'
+        for s in sections:
+            if "start" not in s or "end" not in s:
+                return '{"error": "each section must have start and end"}'
+            if s["end"] <= s["start"]:
+                s_start = s["start"]
+                s_end = s["end"]
+                return f'{{"error": "section end must be > start, got {s_start}-{s_end}"}}'
+    except Exception as e:
+        return f'{{"error": "invalid JSON: {e}"}}'
+
+    # Build sections JS array
+    sections_js = json.dumps([[s["start"], s["end"]] for s in sections])
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const sections = {sections_js};
+        const unitFilter = "{unit_indices}".trim();
+
+        const allUnits = h.allAUBoxes();
+        const targetUnits = unitFilter ? unitFilter.split(",").map(i => allUnits[parseInt(i)]).filter(u => u) : allUnits;
+
+        // Validate: collect sections from timeline
+        // Each section = [startBeat, endBeat]
+        const sectionData = sections.map(([s, e]) => ({{start: s, end: e, length: e - s}}));
+
+        // The first section's original start is where output begins
+        const outputStart = Math.min(...sections.map(s => s[0]));
+
+        // Collect notes per section per unit/track/region
+        const unitStats = [];
+        let totalNotesMoved = 0;
+
+        for (let ui = 0; ui < targetUnits.length; ui++) {{
+            const au = targetUnits[ui];
+            const tracks = h.trackBoxes(au);
+            let unitNotes = 0;
+
+            for (let ti = 0; ti < tracks.length; ti++) {{
+                const track = tracks[ti];
+                if (track.type?.getValue?.() !== 1) continue; // only note tracks
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+
+                for (const region of regions) {{
+                    try {{
+                        const vertex = region.events.targetVertex.unwrap();
+                        const collBox = vertex.box || vertex;
+                        const noteEvents = [...collBox.events.pointerHub.incoming()];
+                        if (noteEvents.length === 0) continue;
+
+                        const Quarter = h.ppqn.Quarter;
+                        const beatsToTicks = (b) => Math.round(b * Quarter);
+
+                        // Collect notes per section
+                        const sectionNotes = [];
+                        for (const sec of sectionData) {{
+                            const secStartTicks = beatsToTicks(sec.start);
+                            const secEndTicks = beatsToTicks(sec.end);
+                            const notes = [];
+                            for (const n of noteEvents) {{
+                                const pos = n.box.position.getValue();
+                                if (pos >= secStartTicks && pos < secEndTicks) {{
+                                    notes.push({{
+                                        pitch: n.box.pitch.getValue(),
+                                        position: pos - secStartTicks, // relative to section start
+                                        duration: n.box.duration.getValue(),
+                                        velocity: n.box.velocity.getValue(),
+                                        cent: n.box.cent.getValue(),
+                                        chance: n.box.chance.getValue(),
+                                    }});
+                                }}
+                            }}
+                            sectionNotes.push(notes);
+                        }}
+
+                        // Delete all notes in all sections
+                        h.modify(() => {{
+                            for (const n of noteEvents) {{
+                                const pos = n.box.position.getValue();
+                                for (const sec of sectionData) {{
+                                    if (pos >= beatsToTicks(sec.start) && pos < beatsToTicks(sec.end)) {{
+                                        try {{ n.delete(); }} catch(e) {{}}
+                                        break;
+                                    }}
+                                }}
+                            }}
+                        }});
+
+                        // Re-create notes in new order, back-to-back from outputStart
+                        let currentBeat = outputStart;
+                        h.modify(() => {{
+                            for (let si = 0; si < sectionNotes.length; si++) {{
+                                const notes = sectionNotes[si];
+                                const sec = sectionData[si];
+                                const currentStartTicks = beatsToTicks(currentBeat);
+
+                                for (const note of notes) {{
+                                    try {{
+                                        h.createNoteEvent(collBox, {{
+                                            pitch: note.pitch,
+                                            position: currentStartTicks + note.position,
+                                            duration: note.duration,
+                                            velocity: note.velocity,
+                                            cent: note.cent,
+                                            chance: note.chance,
+                                        }});
+                                        unitNotes++;
+                                        totalNotesMoved++;
+                                    }} catch(e) {{}}
+                                }}
+                                currentBeat += sec.length;
+                            }}
+                        }});
+                    }} catch (e) {{ /* skip non-note regions */ }}
+                }}
+            }}
+            unitStats.push({{unit: ui, notes_moved: unitNotes}});
+        }}
+
+        // Build new layout description
+        let cursor = outputStart;
+        const newLayout = sectionData.map((sec, i) => {{
+            const entry = {{order: i + 1, new_start: cursor, new_end: cursor + sec.length, original_start: sec.start, original_end: sec.end}};
+            cursor += sec.length;
+            return entry;
+        }});
+
+        return {{
+            sections_reordered: sectionData.length,
+            notes_moved: totalNotesMoved,
+            new_layout: newLayout,
+            unit_stats: unitStats,
+            next_step: "use analyze_song_structure to verify new arrangement",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_clear_region_notes(unit_index: int, track_index: int, region_index: int = -1) -> str:
     """Clear all notes from a region while keeping the region on the timeline.
 

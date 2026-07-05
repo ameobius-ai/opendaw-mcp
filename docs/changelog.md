@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.254.0 (2026-07-06)
+
+### Added
+- `reorder_sections` — Full song structure rearrangement. Takes JSON array of section boundaries in new order, rearranges note content back-to-back. Turn verse-chorus-verse into chorus-verse-verse. Complements swap_sections (two-section exchange).
+
 ## v1.253.0 (2026-07-06)
 
 ### Added
