@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.142.0 (2026-07-05)
+
+- **`create_synthwave_arrangement` orchestration tool (335 MCP tools)** — twelfth multi-track genre arrangement. 80s-inspired synthwave with nostalgic feel across 4 tracks: drums (retro four-on-floor — kick on every quarter softer than house, snare on 2&4, closed hats on all 8ths, 80s drum machine feel), bass (ARPEGGIATED 16th notes — root→octave→fifth→octave, the relentless engine of synthwave, not sustained like reggae or sub-drone like techno), pads (sustained minor chords with octave doubling, full bar dreamy wash, 3.8 beat sustain), lead (nostalgic melody following chord changes, chord-tone based with echo space after each phrase). i-VI-III-VII progression (Am-F-C-G in A minor) — the four chords that define synthwave, same chords as pop's I-V-vi-IV but minor-key and different order. Arpeggiated bass is the fundamental difference from all 12 other arrangements — no other genre uses 16th-note arpeggios as the bass engine. Also added synthwave to apply_genre_mix (lush pad reverb decay 0.6, lead echo delay, sidechain) and create_full_genre_pipeline (110 BPM, A minor, 4 tracks, warm master, sidechain). 78 orchestration tools. 12 multi-track arrangements. 335 MCP tools
+- **1807 unit tests** (+26)
+
 ## v1.141.0 (2026-07-05)
 
 - **`create_full_genre_pipeline` orchestration tool (334 MCP tools)** — new capability: zero-to-render-ready in one call. Full pipeline: set BPM → create synth+note tracks → create regions → genre arrangement → genre mix (effects per track) → sidechain (electronic only) → mastering chain. One call replaces 5-10 individual tool calls. 11 genre defaults with correct BPM, key, track count, and master style. Pop auto-adjusts bars to 16 if less (needs song structure). Sidechain: electronic genres only (dnb/house/techno/dubstep/pop), organic skip. Master style: loud (dnb/trap/techno/dubstep), warm (house/rock/funk), balanced (afrobeat/pop/reggae), transparent (jazz). Returns pipeline_steps with status per step and ready_for_export flag. 77 orchestration tools. 334 MCP tools

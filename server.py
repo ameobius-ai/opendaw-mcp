@@ -24350,6 +24350,237 @@ async def mcp_opendaw_create_reggae_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_synthwave_arrangement(
+    bpm: float = 110,
+    bars: int = 8,
+    root: str = "A",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    pad_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.75,
+) -> str:
+    """Create a full synthwave arrangement — retro drums + arpeggiated bass + dreamy pads + nostalgic lead across 4 tracks.
+
+    80s-inspired synthwave with the signature nostalgic feel — fundamentally different from other electronic genres:
+    - Track 0: Drums — retro four-on-floor: kick on every quarter (softer than house),
+                     snare on beats 2 & 4, closed hats on all 8ths. The classic 80s
+                     drum machine feel — driving but not aggressive, nostalgic not punchy.
+    - Track 1: Bass — ARPEGGIATED 16th notes: the engine of synthwave. Root → octave
+                     → fifth → octave pattern, driving and relentless. Not sustained
+                     like reggae, not sub-drone like techno — arpeggiated movement.
+    - Track 2: Pads — sustained minor chords, full bar length. Dreamy, long release,
+                     filling the harmonic space. The nostalgic wash underneath.
+    - Track 3: Lead — simple nostalgic melody following chord changes, with echo-like
+                     call-and-response. Memorable phrases that breathe.
+
+    Uses the classic synthwave progression i-VI-III-VII (Am-F-C-G in A minor) —
+    the four chords that define the genre. Different from pop's I-V-vi-IV (same
+    chords, different order and tonal centre — synthwave is minor-key, pop is major).
+
+    At 110 BPM (default), this creates the classic synthwave groove — mid-tempo,
+    nostalgic, driving. The arpeggiated bass is the fundamental difference from
+    all 11 other arrangements: house has off-beat stabs, techno has sub drones,
+    synthwave has relentless 16th-note arpeggios.
+
+    bpm: Tempo (90-130, default 110 = classic synthwave).
+    bars: Arrangement length (4-16, default 8). Must be multiple of 4 for chord cycle.
+    root: Root note (A is the classic synthwave key — Am).
+    octave: MIDI octave for bass (2 = A2=45, standard synthwave bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / pad_track / lead_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_synthwave_arrangement(bpm=110, root="A", bars=8)
+      create_synthwave_arrangement(bpm=100, root="D", bars=16)
+    """
+    if not (90 <= bpm <= 130):
+        return "Error: bpm must be 90-130"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if bars % 4 != 0:
+        return "Error: bars must be a multiple of 4 for chord cycle"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    pad_base = (octave + 3) * 12 + root_pc
+    lead_base = (octave + 4) * 12 + root_pc
+
+    # i-VI-III-VII chord progression (Am-F-C-G in A minor)
+    # 4-bar cycle: each chord gets 1 bar
+    chord_changes = [
+        (0, 0, "i"),      # Am — tonic minor
+        (4, 8, "VI"),     # F  — relative major (8 semitones up)
+        (8, 3, "III"),    # C  — major third (3 semitones up)
+        (12, 7, "VII"),   # G  — major seventh (7 semitones up)
+    ]
+
+    # --- DRUMS: retro four-on-floor (4-bar cycle) ---
+    # Kick on every quarter (softer than house), snare on 2 & 4,
+    # closed hats on all 8ths. Nostalgic 80s drum machine feel.
+    kick_p, snare_p, hat_p = 36, 38, 42
+    drum_notes = []
+    drum_cycle = 16.0  # 4 bars
+    drum_cycles = bars // 4
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for bar in range(4):
+            bar_off = off + bar * 4
+            # Kick on every quarter
+            for beat in range(4):
+                drum_notes.append({
+                    "pitch": kick_p,
+                    "start": round(start_beat + bar_off + beat, 4),
+                    "duration": 0.25,
+                    "velocity": round(velocity * 0.75, 3),  # softer than house
+                })
+            # Snare on 2 & 4 (beats 1 and 3 in 0-indexed)
+            for snare_beat in [1.0, 3.0]:
+                drum_notes.append({
+                    "pitch": snare_p,
+                    "start": round(start_beat + bar_off + snare_beat, 4),
+                    "duration": 0.15,
+                    "velocity": round(velocity * 0.7, 3),
+                })
+            # Closed hats on all 8ths
+            for hat_beat in [b * 0.5 for b in range(8)]:
+                drum_notes.append({
+                    "pitch": hat_p,
+                    "start": round(start_beat + bar_off + hat_beat, 4),
+                    "duration": 0.05,
+                    "velocity": round(velocity * 0.5, 3),
+                })
+
+    # --- BASS: arpeggiated 16th notes (4-bar cycle) ---
+    # The synthwave engine: root → octave → fifth → octave, 16th notes
+    # Drives the track forward — not sustained, not stabs, relentless arp
+    bass_arp = [0, 12, 7, 12]  # root, octave, fifth, octave
+    bass_notes = []
+    bass_cycle = 16.0
+    bass_cycles = bars // 4
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for bar_start, chord_root, _ in chord_changes:
+            bar_off = off + bar_start
+            for beat_idx in range(16):  # 16 sixteenth notes per bar
+                arp_note = bass_arp[beat_idx % 4]
+                bass_notes.append({
+                    "pitch": bass_base + chord_root + arp_note,
+                    "start": round(start_beat + bar_off + beat_idx * 0.25, 4),
+                    "duration": 0.2,  # slight overlap for groove
+                    "velocity": round(velocity * (0.85 if beat_idx % 4 == 0 else 0.7), 3),
+                })
+
+    # --- PADS: sustained minor chords (4-bar cycle) ---
+    # Full bar sustain, dreamy wash. Minor triad + octave for richness.
+    # i = root+min3+fifth, VI = root+maj3+fifth, III/VII same major triad shape
+    pad_voicings = {
+        "i":   [0, 3, 7, 12],    # Am: root + min3 + fifth + octave
+        "VI":  [0, 4, 7, 12],    # F:  root + maj3 + fifth + octave
+        "III": [0, 4, 7, 12],    # C:  root + maj3 + fifth + octave
+        "VII": [0, 4, 7, 12],    # G:  root + maj3 + fifth + octave
+    }
+    pad_notes = []
+    pad_cycle = 16.0
+    pad_cycles = bars // 4
+    for c in range(pad_cycles):
+        off = c * pad_cycle
+        for bar_start, chord_root, chord_name in chord_changes:
+            bar_off = off + bar_start
+            voicing = pad_voicings[chord_name]
+            for interval in voicing:
+                pad_notes.append({
+                    "pitch": pad_base + chord_root + interval,
+                    "start": round(start_beat + bar_off, 4),
+                    "duration": 3.8,  # almost full bar — dreamy sustain
+                    "velocity": round(velocity * 0.45, 3),  # soft pads
+                })
+
+    # --- LEAD: nostalgic melody (4-bar cycle) ---
+    # Simple, memorable phrases following chord changes.
+    # Uses chord tones with passing notes. Echo-like call-and-response.
+    # Each bar: 2-beat phrase + 2-beat rest (echo space)
+    lead_patterns = {
+        "i":   [(0.0, 0, 1.0), (1.0, 3, 0.5), (1.5, 7, 0.5), (2.5, 5, 1.0)],     # Am: root, min3, fifth, fourth
+        "VI":  [(0.0, 0, 1.0), (1.0, 4, 0.5), (1.5, 7, 0.5), (2.5, 5, 1.0)],     # F:  root, maj3, fifth, fourth
+        "III": [(0.0, 0, 0.5), (0.5, 4, 0.5), (1.0, 7, 1.0), (2.5, 4, 1.0)],     # C:  root, maj3, fifth, maj3
+        "VII": [(0.0, 7, 1.0), (1.0, 4, 0.5), (1.5, 0, 0.5), (2.5, 7, 1.0)],     # G:  fifth, maj3, root, fifth
+    }
+    lead_notes = []
+    lead_cycle = 16.0
+    lead_cycles = bars // 4
+    for c in range(lead_cycles):
+        off = c * lead_cycle
+        for bar_start, chord_root, chord_name in chord_changes:
+            bar_off = off + bar_start
+            pattern = lead_patterns[chord_name]
+            for beat, interval, dur in pattern:
+                lead_notes.append({
+                    "pitch": lead_base + chord_root + interval,
+                    "start": round(start_beat + bar_off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * 0.65, 3),
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    pad_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(pad_notes), unit_index, pad_track)
+    lead_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(lead_notes), unit_index, lead_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        pad_data = json.loads(pad_result)
+    except Exception:
+        pad_data = {"raw": pad_result}
+    try:
+        lead_data = json.loads(lead_result)
+    except Exception:
+        lead_data = {"raw": lead_result}
+
+    return json.dumps({
+        "synthwave_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "pad": {"track": pad_track, "notes": len(pad_notes), "result": pad_data.get("notes_created", len(pad_notes))},
+            "lead": {"track": lead_track, "notes": len(lead_notes), "result": lead_data.get("notes_created", len(lead_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(pad_notes) + len(lead_notes),
+        "drum_pattern": "retro_four_on_floor_soft",
+        "bass_pattern": "arpeggiated_16th_root_octave_fifth",
+        "pad_type": "sustained_minor_chords_dreamy",
+        "lead_type": "nostalgic_melody_echo_phrases",
+        "harmony": "i_VI_III_VII_minor",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_genre_mix(
     genre: str,
     unit_index: int = 0,
@@ -24382,7 +24613,7 @@ async def mcp_opendaw_apply_genre_mix(
       apply_genre_mix("jazz", unit_index=0, num_tracks=4, sidechain=False)
     """
     valid_genres = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
-                    "rock", "jazz", "pop", "funk", "reggae"]
+                    "rock", "jazz", "pop", "funk", "reggae", "synthwave"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
     if not (2 <= num_tracks <= 4):
@@ -24518,6 +24749,18 @@ async def mcp_opendaw_apply_genre_mix(
             "sidechain": False,  # organic
             "sc_params": {},
         },
+        "synthwave": {
+            "effects": [
+                (0, "Compressor", {"threshold": -12, "ratio": 3, "attack": 5, "release": 80}),
+                (0, "Revamp", {"low": 1, "high": 2}),    # drums: retro bright
+                (1, "Revamp", {"low": 2, "high": -1}),   # arp bass: low boost
+                (2, "Reverb", {"decay": 0.6}),           # pads: lush reverb
+                (3, "Delay", {"time": 0.375}),           # lead: echo delay
+                (3, "Reverb", {"decay": 0.5}),           # lead: reverb
+            ],
+            "sidechain": True,  # electronic
+            "sc_params": {"threshold": -18, "ratio": 3, "attack": 5, "release": 100},
+        },
     }
 
     recipe = recipes[genre]
@@ -24601,7 +24844,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
 
     After this call, the project is ready for export_audio / render.
 
-    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae
+    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae, synthwave
     bpm: Override tempo (None = genre default).
     bars: Arrangement length (default 8, pop min 16).
     root: Override key (None = genre default).
@@ -24628,6 +24871,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "pop":      {"bpm": 120, "root": "C",  "tracks": 4, "master_style": "balanced"},
         "funk":     {"bpm": 100, "root": "D",  "tracks": 4, "master_style": "warm"},
         "reggae":   {"bpm": 80,  "root": "A",  "tracks": 4, "master_style": "balanced"},
+        "synthwave": {"bpm": 110, "root": "A",  "tracks": 4, "master_style": "warm"},
     }
 
     if genre not in defaults:
@@ -24690,6 +24934,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "pop":      mcp_opendaw_create_pop_arrangement,
         "funk":     mcp_opendaw_create_funk_arrangement,
         "reggae":   mcp_opendaw_create_reggae_arrangement,
+        "synthwave": mcp_opendaw_create_synthwave_arrangement,
     }
 
     try:
@@ -24712,7 +24957,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
     try:
         mix_result = await mcp_opendaw_apply_genre_mix(
             genre, unit_index=unit_index, num_tracks=num_tracks,
-            sidechain=(master_style == "loud" or genre in ["house", "techno", "dubstep", "dnb", "pop"]))
+            sidechain=(master_style == "loud" or genre in ["house", "techno", "dubstep", "dnb", "pop", "synthwave"]))
         mix_data = json.loads(mix_result)
         pipeline_steps.append({
             "step": "genre_mix",

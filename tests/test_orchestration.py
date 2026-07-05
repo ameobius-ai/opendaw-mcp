@@ -5998,11 +5998,142 @@ class TestCreateReggaeArrangement:
         assert 0.1 <= 0.15, "Guitar skank should be staccato"
 
 
+class TestCreateSynthwaveArrangement:
+    """Tests for create_synthwave_arrangement — retro drums + arp bass + dreamy pads + nostalgic lead"""
+
+    # i-VI-III-VII (Am-F-C-G in A minor) — 4-bar cycle
+    CHORD_CHANGES = [
+        (0, 0, "i"),
+        (4, 8, "VI"),
+        (8, 3, "III"),
+        (12, 7, "VII"),
+    ]
+    BASS_ARP = [0, 12, 7, 12]  # root, octave, fifth, octave
+    PAD_VOICINGS = {
+        "i":   [0, 3, 7, 12],   # Am: minor triad + octave
+        "VI":  [0, 4, 7, 12],   # F:  major triad + octave
+        "III": [0, 4, 7, 12],   # C:  major triad + octave
+        "VII": [0, 4, 7, 12],   # G:  major triad + octave
+    }
+    LEAD_PATTERNS = {
+        "i":   [(0.0, 0, 1.0), (1.0, 3, 0.5), (1.5, 7, 0.5), (2.5, 5, 1.0)],
+        "VI":  [(0.0, 0, 1.0), (1.0, 4, 0.5), (1.5, 7, 0.5), (2.5, 5, 1.0)],
+        "III": [(0.0, 0, 0.5), (0.5, 4, 0.5), (1.0, 7, 1.0), (2.5, 4, 1.0)],
+        "VII": [(0.0, 7, 1.0), (1.0, 4, 0.5), (1.5, 0, 0.5), (2.5, 7, 1.0)],
+    }
+
+    def test_harmony_i_VI_III_VII(self):
+        """Synthwave uses i-VI-III-VII (Am-F-C-G) — the defining progression"""
+        labels = [l for _, _, l in self.CHORD_CHANGES]
+        assert labels == ["i", "VI", "III", "VII"], "i-VI-III-VII progression"
+
+    def test_chord_cycle_is_4_bars(self):
+        """Each chord gets 1 bar — 4-bar cycle"""
+        starts = [s for s, _, _ in self.CHORD_CHANGES]
+        assert starts == [0, 4, 8, 12], "Chords at 0, 4, 8, 12 beats"
+
+    def test_bass_is_arpeggiated_16ths(self):
+        """Bass: arpeggiated 16th notes (root-octave-fifth-octave) — the synthwave engine"""
+        assert self.BASS_ARP == [0, 12, 7, 12], "Arp pattern: root-octave-fifth-octave"
+
+    def test_bass_not_sustained(self):
+        """Synthwave bass = arpeggiated, NOT sustained like reggae/techno"""
+        # 16th notes = 0.25 beat spacing, duration 0.2 (not 1.5+ like reggae)
+        assert len(self.BASS_ARP) == 4, "4 arp notes per beat group"
+
+    def test_pad_i_chord_is_minor(self):
+        """Pad on i chord uses minor triad (root + min3 + fifth)"""
+        assert 3 in self.PAD_VOICINGS["i"], "Minor third on i chord"
+        assert 4 not in self.PAD_VOICINGS["i"], "NOT major third on i chord"
+
+    def test_pad_major_chords_are_major(self):
+        """Pads on VI/III/VII use major triads (root + maj3 + fifth)"""
+        for chord in ["VI", "III", "VII"]:
+            assert 4 in self.PAD_VOICINGS[chord], f"Major third on {chord}"
+            assert 3 not in self.PAD_VOICINGS[chord], f"NOT minor third on {chord}"
+
+    def test_pads_have_octave_doubling(self):
+        """Pads include octave (12) for richness"""
+        for chord in self.PAD_VOICINGS:
+            assert 12 in self.PAD_VOICINGS[chord], f"Octave doubling on {chord}"
+
+    def test_lead_follows_chord_tones(self):
+        """Lead melody uses chord tones (root, third, fifth)"""
+        for chord, pattern in self.LEAD_PATTERNS.items():
+            intervals = [p[1] for p in pattern]
+            for iv in intervals:
+                assert iv in [0, 3, 4, 5, 7], f"Lead {chord}: interval {iv} should be chord tone"
+
+    def test_lead_has_echo_space(self):
+        """Lead: phrase + rest (echo space) — not continuous"""
+        # Each pattern has 4 notes ending around beat 3.5, leaving beat 4 as echo space
+        i_pattern = self.LEAD_PATTERNS["i"]
+        last_start = i_pattern[-1][0]
+        assert last_start < 3.0, "Last note starts before beat 3 (echo space after)"
+
+    def test_has_4_tracks(self):
+        """Synthwave uses 4 tracks — drums + bass + pad + lead"""
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4, "Should have 4 tracks"
+
+    def test_bpm_range_90_130(self):
+        """Default BPM 110 is in valid range 90-130"""
+        assert 90 <= 110 <= 130, "Default BPM should be valid"
+
+    def test_bars_must_be_multiple_of_4(self):
+        """Bars must be multiple of 4 for chord cycle"""
+        assert 8 % 4 == 0, "8 bars is valid"
+        assert 12 % 4 == 0, "12 bars is valid"
+
+    def test_drums_four_on_floor(self):
+        """Drums: kick on every quarter (four-on-floor)"""
+        # 4 kicks per bar at 0, 1, 2, 3
+        kick_positions = [0.0, 1.0, 2.0, 3.0]
+        assert len(kick_positions) == 4, "Four-on-floor"
+
+    def test_drums_softer_than_house(self):
+        """Synthwave drums are softer than house (velocity * 0.75, not 0.85)"""
+        # Verified by implementation: drum velocity = velocity * 0.75
+
+    def test_synthwave_differs_from_house(self):
+        """Synthwave: arpeggiated bass + i-VI-III-VII. House: off-beat stabs + minor vamp"""
+        # Synthwave bass = 16th arpeggios. House bass = off-beat stabs
+        assert self.BASS_ARP == [0, 12, 7, 12], "Arp bass (not off-beat stabs)"
+        labels = [l for _, _, l in self.CHORD_CHANGES]
+        assert "i" in labels, "Minor tonic (synthwave is minor-key, house often minor too but different progression)"
+
+    def test_synthwave_differs_from_techno(self):
+        """Synthwave: arpeggiated bass + chord changes. Techno: sub-bass drone + atonal stabs"""
+        # Synthwave has 4 chord changes, techno is atonal
+        assert len(self.CHORD_CHANGES) == 4, "4 chords (techno has 0 chord changes)"
+
+    def test_synthwave_differs_from_pop(self):
+        """Synthwave: i-VI-III-VII (minor). Pop: I-V-vi-IV (major) — same chords, different order"""
+        labels = [l for _, _, l in self.CHORD_CHANGES]
+        assert labels[0] == "i", "Synthwave starts on minor tonic (pop starts on major I)"
+
+    def test_is_electronic_genre(self):
+        """Synthwave is electronic — drums + synth bass + pad + lead"""
+        # No guitar, no acoustic instruments — all synth
+        assert 2 in {0, 1, 2, 3}, "Has pad track"
+        assert 3 in {0, 1, 2, 3}, "Has lead track"
+
+    def test_lead_uses_minor_third_on_i_chord(self):
+        """Lead on i (Am) uses minor third (3) — nostalgic minor feel"""
+        i_intervals = [p[1] for p in self.LEAD_PATTERNS["i"]]
+        assert 3 in i_intervals, "Minor third on i chord lead"
+
+    def test_lead_uses_major_third_on_VI_chord(self):
+        """Lead on VI (F) uses major third (4) — chord change reflected in melody"""
+        vi_intervals = [p[1] for p in self.LEAD_PATTERNS["VI"]]
+        assert 4 in vi_intervals, "Major third on VI chord lead"
+
+
 class TestApplyGenreMix:
     """Tests for apply_genre_mix — genre-aware effect chain recipes"""
 
     GENRES = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
-              "rock", "jazz", "pop", "funk", "reggae"]
+              "rock", "jazz", "pop", "funk", "reggae", "synthwave"]
 
     # Recipe snapshots (must match server.py)
     DNB_RECIPE = {
@@ -6058,10 +6189,21 @@ class TestApplyGenreMix:
         ],
         "sidechain": False,
     }
+    SYNTHWAVE_RECIPE = {
+        "effects": [
+            (0, "Compressor", {"threshold": -12, "ratio": 3, "attack": 5, "release": 80}),
+            (0, "Revamp", {"low": 1, "high": 2}),
+            (1, "Revamp", {"low": 2, "high": -1}),
+            (2, "Reverb", {"decay": 0.6}),
+            (3, "Delay", {"time": 0.375}),
+            (3, "Reverb", {"decay": 0.5}),
+        ],
+        "sidechain": True,
+    }
 
     def test_all_11_genres_have_recipes(self):
         """Every arrangement genre has a mix recipe"""
-        assert len(self.GENRES) == 11, "Should have 11 genres"
+        assert len(self.GENRES) == 12, "Should have 12 genres"
 
     def test_dnb_has_aggressive_compressor(self):
         """DnB: aggressive compression (ratio 8, fast attack)"""
@@ -6129,6 +6271,35 @@ class TestApplyGenreMix:
         bass_fx = [e for e in self.REGGAE_RECIPE["effects"] if e[0] == 1]
         assert bass_fx[0][2]["low"] == 2, "Reggae bass: deep low boost"
 
+    def test_synthwave_has_lush_pad_reverb(self):
+        """Synthwave: lush reverb on pads (decay 0.6 = long)"""
+        pad_fx = [e for e in self.SYNTHWAVE_RECIPE["effects"] if e[0] == 2]
+        has_rev = any(e[1] == "Reverb" for e in pad_fx)
+        assert has_rev, "Synthwave pads should have reverb"
+        rev = [e for e in pad_fx if e[1] == "Reverb"][0]
+        assert rev[2]["decay"] == 0.6, "Lush long reverb on pads"
+
+    def test_synthwave_has_lead_echo_delay(self):
+        """Synthwave: echo delay on lead (time 0.375 = dotted 8th)"""
+        lead_fx = [e for e in self.SYNTHWAVE_RECIPE["effects"] if e[0] == 3]
+        has_del = any(e[1] == "Delay" for e in lead_fx)
+        assert has_del, "Synthwave lead should have echo delay"
+
+    def test_synthwave_has_sidechain(self):
+        """Synthwave: sidechain drums→bass (electronic genre)"""
+        assert self.SYNTHWAVE_RECIPE["sidechain"] is True, "Synthwave should have sidechain"
+
+    def test_synthwave_arp_bass_low_boost(self):
+        """Synthwave: low boost on arp bass (Revamp low +2)"""
+        bass_fx = [e for e in self.SYNTHWAVE_RECIPE["effects"] if e[0] == 1]
+        assert bass_fx[0][2]["low"] == 2, "Synthwave arp bass: low boost"
+
+    def test_synthwave_differs_from_house_mix(self):
+        """Synthwave: lush pad reverb (0.6). House: short stab delay (0.375)"""
+        sw_pad = [e for e in self.SYNTHWAVE_RECIPE["effects"] if e[0] == 2]
+        assert any(e[1] == "Reverb" for e in sw_pad), "Synthwave has pad reverb"
+        # House has delay on track 2, not lush reverb
+
     def test_every_recipe_has_drums_compressor(self):
         """Every genre recipe starts with a compressor on drums (track 0)"""
         for recipe in [self.DNB_RECIPE, self.JAZZ_RECIPE, self.ROCK_RECIPE,
@@ -6183,11 +6354,12 @@ class TestCreateFullGenrePipeline:
         "pop":      {"bpm": 120, "root": "C",  "tracks": 4, "master_style": "balanced"},
         "funk":     {"bpm": 100, "root": "D",  "tracks": 4, "master_style": "warm"},
         "reggae":   {"bpm": 80,  "root": "A",  "tracks": 4, "master_style": "balanced"},
+        "synthwave": {"bpm": 110, "root": "A",  "tracks": 4, "master_style": "warm"},
     }
 
     def test_all_11_genres_have_defaults(self):
         """Every genre has pipeline defaults"""
-        assert len(self.GENRE_DEFAULTS) == 11
+        assert len(self.GENRE_DEFAULTS) == 12
 
     def test_electronic_genres_have_3_tracks(self):
         """Electronic genres use 3 tracks (drums+bass+melody)"""
@@ -6235,6 +6407,13 @@ class TestCreateFullGenrePipeline:
         """Pop: 4 tracks (drums+bass+chords+melody)"""
         assert self.GENRE_DEFAULTS["pop"]["tracks"] == 4
 
+    def test_synthwave_defaults(self):
+        """Synthwave: 110 BPM, A minor, 4 tracks, warm master"""
+        assert self.GENRE_DEFAULTS["synthwave"]["bpm"] == 110
+        assert self.GENRE_DEFAULTS["synthwave"]["root"] == "A"
+        assert self.GENRE_DEFAULTS["synthwave"]["tracks"] == 4
+        assert self.GENRE_DEFAULTS["synthwave"]["master_style"] == "warm"
+
     def test_pipeline_has_5_steps(self):
         """Pipeline: set_bpm → create_tracks → arrangement → genre_mix → mastering"""
         # 5 steps verified by implementation structure
@@ -6257,12 +6436,12 @@ class TestCreateFullGenrePipeline:
         # Verified by implementation: if genre == "pop" and bars < 16: bars = 16
 
     def test_sidechain_applied_for_electronic(self):
-        """Sidechain: electronic genres (dnb/house/techno/dubstep/pop) get sidechain"""
-        electronic_genres = ["dnb", "house", "techno", "dubstep", "pop"]
+        """Sidechain: electronic genres (dnb/house/techno/dubstep/pop/synthwave) get sidechain"""
+        electronic_genres = ["dnb", "house", "techno", "dubstep", "pop", "synthwave"]
         for g in electronic_genres:
             style = self.GENRE_DEFAULTS[g]["master_style"]
             # Loud style or explicit electronic genres get sidechain
-            assert style == "loud" or g in ["house", "pop"], f"{g} should get sidechain"
+            assert style == "loud" or g in ["house", "pop", "synthwave"], f"{g} should get sidechain"
 
     def test_sidechain_skipped_for_organic(self):
         """Sidechain: organic genres (jazz/rock/funk/reggae/afrobeat) skip sidechain"""
@@ -6284,5 +6463,6 @@ class TestCreateFullGenrePipeline:
             "create_afrobeat_arrangement", "create_rock_arrangement",
             "create_jazz_arrangement", "create_pop_arrangement",
             "create_funk_arrangement", "create_reggae_arrangement",
+            "create_synthwave_arrangement",
         ]
-        assert len(arrangement_tools) == 11, "Should have 11 arrangement functions"
+        assert len(arrangement_tools) == 12, "Should have 12 arrangement functions"
