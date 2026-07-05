@@ -1,6 +1,6 @@
 ---
 name: opendaw-dsp-chains
-description: "DSP signal chain recipes for openDAW Werkstatt effects. Production-ready chains: vocal, guitar, drum bus, synth bass, lofi, mastering, ambient, acid, cinematic. Which DSP scripts to combine, in what order, with what parameters. 62 DSP scripts, 11+ chains."
+description: "DSP signal chain recipes for openDAW Werkstatt effects. Production-ready chains: vocal, guitar, drum bus, synth bass, lofi, mastering, ambient, acid, cinematic. Which DSP scripts to combine, in what order, with what parameters. 108 DSP scripts, 11+ chains."
 tags: [opendaw, dsp, chains, production, werkstatt, sound-design, mixing]
 ---
 

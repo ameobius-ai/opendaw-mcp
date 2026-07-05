@@ -1,6 +1,6 @@
 ---
 name: opendaw-sound-design
-description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 43 DSP scripts. How to synthesize and shape sound with MCP tools."
+description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 108 DSP scripts. How to synthesize and shape sound with MCP tools."
 tags: [opendaw, mcp, sound-design, instruments, synth, dsp, werkstatt, apparat, spielwerk, scriptable]
 ---
 
@@ -461,7 +461,7 @@ await mcp_opendaw_replace_from_preset(unit_index, preset_b64, keep_midi_effects=
 ```
 
 ## Related skills
-- `opendaw-automation` — 263 MCP tools full API reference + pitfalls
+- `opendaw-automation` — 372 MCP tools full API reference + pitfalls
 - `opendaw-track-architecture` — tracks, regions, clips, notes, tempo, markers
 - `opendaw-effect-routing` — effect chains, sends, buses, sidechain
 - `adaptive-mix-mastering` — full mix→master pipeline with decision points
