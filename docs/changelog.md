@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.205.0 (2026-07-05)
+
+### Added
+- `werkstatt_formant_shifter.js` DSP script — LPC-based formant shifter. Shifts vocal formant frequencies independently of pitch using Levinson-Durbin recursion → reflection coefficients → lattice filter structure. Creates gender/age/size morphing effects (big head, small head, chipmunk, deep voice) while preserving original pitch. 7 params: shift (0.5-2.0 ratio), formants (3-8 LPC stages), pitch_tracking, brightness, width, mix, output. Coefficient smoothing prevents clicks. 11 unit tests. **110 DSP scripts** (91 Werkstatt + 9 Apparat + 10 Spielwerk), 2648 unit tests
+
 ## v1.204.0 (2026-07-05)
 
 ### Added

@@ -1,8 +1,8 @@
 # DSP Scripts
 
-109 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+110 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 90 scripts
+## Werkstatt (Audio Effects) — 91 scripts
 
 ### Dynamics (13)
 
@@ -176,11 +176,12 @@
 | `werkstatt_envfollower.js` | Envelope Follower (with sidechain ducking) |
 | `werkstatt_auto_tune.js` | Auto-Tune (Pitch Correction — Cher/T-Pain style) |
 
-### Vocal (1)
+### Vocal (2)
 
 | Script | Description |
 |--------|-------------|
 | `werkstatt_auto_tune.js` | Auto-Tune (autocorrelation pitch detection + snap-to-scale + time-domain pitch shift) |
+| `werkstatt_formant_shifter.js` | Formant Shifter (LPC Levinson-Durbin, lattice filter, formant frequency scaling independent of pitch, gender/age/size morphing) |
 
 ## Apparat (Instruments) — 9 scripts
 

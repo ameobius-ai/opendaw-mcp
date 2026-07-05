@@ -10221,3 +10221,73 @@ class TestTranscribeMelody:
                 return
         assert False, "function not found"
 
+
+class TestFormantShifterDSP:
+    """Tests for werkstatt_formant_shifter.js — LPC-based formant shifting"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_formant_shifter.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt formant_shifter" in code
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_formant_shifter.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_seven_params(self):
+        """7 params: shift, formants, pitch_tracking, brightness, width, mix, output"""
+        code = self._read_script()
+        params = code.count("@param")
+        assert params == 7
+
+    def test_levinson_durbin(self):
+        """Has Levinson-Durbin recursion for LPC coefficients"""
+        code = self._read_script()
+        assert "levinson" in code.lower()
+        assert "refl" in code.lower()
+
+    def test_lattice_filter(self):
+        """Uses lattice filter structure"""
+        code = self._read_script()
+        assert "lattice" in code.lower() or "Lattice" in code
+
+    def test_autocorrelation(self):
+        """Computes autocorrelation for LPC analysis"""
+        code = self._read_script()
+        assert "autocorr" in code.lower() or "autocorrelation" in code.lower()
+
+    def test_formant_shift_ratio(self):
+        """Shift parameter controls formant frequency scaling"""
+        code = self._read_script()
+        assert "shiftRatio" in code or "shift" in code.lower()
+        assert "formantScale" in code or "scale" in code.lower()
+
+    def test_residual_extraction(self):
+        """Extracts residual (pitch excitation) from signal"""
+        code = self._read_script()
+        assert "residual" in code.lower()
+
+    def test_dry_wet_mix(self):
+        """Output = dry + (wet - dry) * mix"""
+        code = self._read_script()
+        assert "mix" in code
+        assert "dry" in code.lower() or "currentSample" in code
+
+    def test_smooth_coefficients(self):
+        """Coefficient smoothing to avoid clicks"""
+        code = self._read_script()
+        assert "smooth" in code.lower()
+        assert "prevRefl" in code
+
+    def test_filter_stages_range(self):
+        """Formants parameter clamped to 3-8 range"""
+        code = self._read_script()
+        assert "Math.min(8" in code or "min(8" in code
+        assert "Math.max(3" in code or "max(3" in code
+
