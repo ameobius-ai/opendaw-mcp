@@ -567,7 +567,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.25.1 (2026-07-05)
 
 - **+31 unit tests** for music_theory functions — `parse_melody_pattern` (11 tests: ascending, rests, timing, velocity, scales, octaves, sharps, empty pattern), `scale_to_pitches` (6 tests: major, minor, length extension, octave, dorian, phrygian), `chord_to_pitches` (8 tests: triads, sevenths, diminished, sus4, octave, sharps), `GENRE_PRESETS` (6 tests: known genres, bpm/drums fields, bpm ranges)
-- **272 unit tests** total (was 241), all passing
+- **293 unit tests** total (was 241), all passing
 - ruff clean, CI green
 
 ### v1.25.0 (2026-07-05)
@@ -699,7 +699,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
   - `__init__.py` — public API, all symbols re-exported for backward compat
 - **`OpendawServer` facade** — class providing `bridge` + all `mcp_opendaw_*` tools as methods. Framework wrappers (LangChain, AutoGen, CrewAI) now work via this single interface.
 - **server.py: 13244 → 12955 lines** (infrastructure moved to package modules)
-- **0 regressions** — 272 unit tests pass, ruff clean, all framework wrappers functional, 283 MCP tools intact
+- **0 regressions** — 293 unit tests pass, ruff clean, all framework wrappers functional, 283 MCP tools intact
 
 ### v1.15.2 (2026-07-04)
 

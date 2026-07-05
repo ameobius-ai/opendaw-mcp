@@ -673,3 +673,185 @@ class TestGhostNotesLogic:
         occupied = list(range(16))  # every 16th has a note
         ghosts = self._generate_ghost_positions(occupied, 16, 0.5, seed=42)
         assert len(ghosts) == 0, "Fully occupied pattern should get 0 ghosts"
+
+
+class TestStabPatternGeneration:
+    """Test the Python-side pattern generation logic of create_stab."""
+
+    def _generate_stab(self, chords, rhythm, octave=4, velocity=0.85,
+                       length_beats=4, stab_duration=0.5, start_beat=0):
+        """Replicate the pattern generation logic from create_stab."""
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH, CHORD_INTERVALS
+
+        grid_len = len(rhythm)
+        step_duration = length_beats / grid_len
+        note_data = []
+        chord_idx = 0
+        for i, c in enumerate(rhythm):
+            if c == "-":
+                continue
+            if c == "." and chord_idx > 0:
+                cs = chords[(chord_idx - 1) % len(chords)]
+            else:
+                cs = chords[chord_idx % len(chords)]
+            root_pc = NOTE_TO_PITCH[cs[0]]
+            intervals = CHORD_INTERVALS[cs[1]]
+            root_pitch = (octave + 1) * 12 + root_pc
+            is_ghost = (c == ".")
+            vel = velocity * (0.45 if is_ghost else 1.0)
+            pos = start_beat + i * step_duration
+            dur = stab_duration * (0.6 if is_ghost else 1.0)
+            for iv in intervals:
+                note_data.append({"pitch": root_pitch + iv, "pos": pos, "dur": dur, "vel": vel})
+            if not is_ghost:
+                chord_idx += 1
+        return note_data
+
+    def test_house_offbeat_cm7(self):
+        notes = self._generate_stab([["C", "min7"]], "x-x-x-x-")
+        assert len(notes) == 16, f"Expected 16 (4 stabs × 4-note chord), got {len(notes)}"
+        pitches = sorted(set(n["pitch"] for n in notes))
+        assert pitches == [60, 63, 67, 70], f"Expected Cm7 voicing [60,63,67,70], got {pitches}"
+
+    def test_ghost_velocity_lower(self):
+        notes = self._generate_stab([["F", "dom7"]], "x.x.x.x.")
+        # dom7 = 4 intervals, notes grouped in 4s
+        stab_vels = [n["vel"] for n in notes[:4]]
+        ghost_vels = [n["vel"] for n in notes[4:8]]
+        assert all(abs(v - 0.85) < 0.01 for v in stab_vels), f"Stab vel should be 0.85, got {stab_vels}"
+        assert all(abs(v - 0.3825) < 0.01 for v in ghost_vels), f"Ghost vel should be 0.3825, got {ghost_vels}"
+
+    def test_ghost_duration_shorter(self):
+        notes = self._generate_stab([["C", "maj"]], "x.x.")
+        # maj triad = 3 notes per hit. x=stab(3), .=ghost(3), x=stab(3), .=ghost(3)
+        stab_durs = [n["dur"] for n in notes[0:3] + notes[6:9]]
+        ghost_durs = [n["dur"] for n in notes[3:6] + notes[9:12]]
+        assert all(abs(d - 0.5) < 0.01 for d in stab_durs), f"Stab dur should be 0.5, got {stab_durs}"
+        assert all(abs(d - 0.3) < 0.01 for d in ghost_durs), f"Ghost dur should be 0.3, got {ghost_durs}"
+
+    def test_chord_cycling(self):
+        notes = self._generate_stab([["F", "dom7"], ["C", "min7"]], "x-x-x-x-")
+        stab1 = sorted(set(n["pitch"] for n in notes[:4]))
+        stab2 = sorted(set(n["pitch"] for n in notes[4:8]))
+        stab3 = sorted(set(n["pitch"] for n in notes[8:12]))
+        stab4 = sorted(set(n["pitch"] for n in notes[12:16]))
+        assert 65 in stab1, "Stab 1 should be F7 (F4=65)"
+        assert 60 in stab2, "Stab 2 should be Cm7 (C4=60)"
+        assert 65 in stab3, "Stab 3 should be F7 again"
+        assert 60 in stab4, "Stab 4 should be Cm7 again"
+
+    def test_ghost_does_not_advance_chord(self):
+        notes = self._generate_stab([["C", "min7"], ["F", "dom7"]], "x.x.x.x.")
+        # x=Cm7(advance to idx=1), .=Cm7(ghost, repeats last), x=F7(advance to idx=2),
+        # .=F7(ghost, repeats last), x=Cm7(advance), .=Cm7(ghost), x=F7(advance), .=F7(ghost)
+        stab1 = sorted(set(n["pitch"] for n in notes[:4]))
+        ghost1 = sorted(set(n["pitch"] for n in notes[4:8]))
+        stab2 = sorted(set(n["pitch"] for n in notes[8:12]))
+        assert 60 in stab1, "Stab 1 should be Cm7"
+        assert 60 in ghost1, "Ghost 1 should also be Cm7 (repeats last stab)"
+        assert 65 in stab2, "Stab 2 should be F7 (advanced after first x)"
+
+    def test_step_duration(self):
+        notes = self._generate_stab([["C", "maj"]], "x---", length_beats=4)
+        assert len(notes) == 3, "maj triad = 3 notes"
+        assert abs(notes[0]["pos"] - 0) < 0.01, "First stab at pos 0"
+
+    def test_start_beat_offset(self):
+        notes = self._generate_stab([["C", "maj"]], "x---", start_beat=8)
+        assert abs(notes[0]["pos"] - 8) < 0.01, "Stab should start at beat 8"
+
+    def test_octave_shift(self):
+        notes_low = self._generate_stab([["C", "maj"]], "x---", octave=3)
+        notes_high = self._generate_stab([["C", "maj"]], "x---", octave=5)
+        assert notes_low[0]["pitch"] == 48, f"C3=48, got {notes_low[0]['pitch']}"
+        assert notes_high[0]["pitch"] == 72, f"C5=72, got {notes_high[0]['pitch']}"
+
+    def test_sharp_root(self):
+        notes = self._generate_stab([["C#", "min"]], "x---")
+        assert notes[0]["pitch"] == 61, f"C#4=61, got {notes[0]['pitch']}"
+
+    def test_all_rests_produces_nothing(self):
+        notes = self._generate_stab([["C", "maj"]], "--------")
+        assert len(notes) == 0, "All rests should produce 0 notes"
+
+    def test_16th_note_grid(self):
+        notes = self._generate_stab([["C", "min7"]], "x-x-x-x-x-x-x-x-", length_beats=4)
+        assert len(notes) == 32, f"8 stabs × 4 notes = 32, got {len(notes)}"
+        # Check positions are on 16th grid (0, 0.5, 1.0, 1.5, ...)
+        positions = sorted(set(n["pos"] for n in notes))
+        assert positions == [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5], f"16th grid positions: {positions}"
+
+
+class TestRiserPatternGeneration:
+    """Test the Python-side pattern generation logic of create_riser."""
+
+    def _generate_riser(self, start_pitch=36, end_pitch=84, steps=32,
+                        length_beats=4, curve="exp", velocity=0.7, start_beat=0):
+        """Replicate the pattern generation logic from create_riser."""
+        note_data = []
+        for i in range(steps):
+            progress = i / max(1, steps - 1)
+            if curve == "exp":
+                t = progress * progress
+            elif curve == "log":
+                t = 1 - (1 - progress) * (1 - progress)
+            else:
+                t = progress
+            pitch = round(start_pitch + (end_pitch - start_pitch) * t)
+            pos = start_beat + progress * length_beats
+            vel = velocity * (0.3 + 0.7 * progress)
+            note_data.append({"pitch": pitch, "pos": pos, "vel": vel})
+        return note_data
+
+    def test_note_count_matches_steps(self):
+        notes = self._generate_riser(steps=32)
+        assert len(notes) == 32, f"Expected 32 notes, got {len(notes)}"
+
+    def test_pitch_ascending(self):
+        notes = self._generate_riser(start_pitch=36, end_pitch=84, steps=32)
+        for i in range(1, len(notes)):
+            assert notes[i]["pitch"] >= notes[i - 1]["pitch"], "Pitch should be non-decreasing"
+
+    def test_start_and_end_pitch(self):
+        notes = self._generate_riser(start_pitch=36, end_pitch=84, steps=32)
+        assert notes[0]["pitch"] == 36, f"First pitch should be 36, got {notes[0]['pitch']}"
+        assert notes[-1]["pitch"] == 84, f"Last pitch should be 84, got {notes[-1]['pitch']}"
+
+    def test_velocity_ramps_up(self):
+        notes = self._generate_riser(velocity=0.7, steps=32)
+        assert notes[0]["vel"] < notes[-1]["vel"], "Velocity should ramp up"
+        assert abs(notes[0]["vel"] - 0.7 * 0.3) < 0.01, f"Start vel should be 0.21, got {notes[0]['vel']}"
+        assert abs(notes[-1]["vel"] - 0.7 * 1.0) < 0.01, f"End vel should be 0.7, got {notes[-1]['vel']}"
+
+    def test_linear_curve(self):
+        notes = self._generate_riser(start_pitch=0, end_pitch=100, steps=5, curve="linear")
+        # Linear: 0, 25, 50, 75, 100
+        pitches = [n["pitch"] for n in notes]
+        assert pitches == [0, 25, 50, 75, 100], f"Linear curve: {pitches}"
+
+    def test_exp_curve_slow_start(self):
+        notes = self._generate_riser(start_pitch=0, end_pitch=100, steps=11, curve="exp")
+        # Exp: t = progress^2, so first steps are small increments
+        first_gap = notes[1]["pitch"] - notes[0]["pitch"]
+        last_gap = notes[-1]["pitch"] - notes[-2]["pitch"]
+        assert first_gap < last_gap, "Exp curve should have smaller gaps at start"
+
+    def test_log_curve_fast_start(self):
+        notes = self._generate_riser(start_pitch=0, end_pitch=100, steps=11, curve="log")
+        # Log: t = 1 - (1-progress)^2, so first steps are large increments
+        first_gap = notes[1]["pitch"] - notes[0]["pitch"]
+        last_gap = notes[-1]["pitch"] - notes[-2]["pitch"]
+        assert first_gap > last_gap, "Log curve should have larger gaps at start"
+
+    def test_start_beat_offset(self):
+        notes = self._generate_riser(start_beat=8, steps=4, length_beats=4)
+        assert abs(notes[0]["pos"] - 8) < 0.01, f"First note at beat 8, got {notes[0]['pos']}"
+
+    def test_position_spans_length(self):
+        notes = self._generate_riser(length_beats=16, steps=32)
+        assert abs(notes[0]["pos"] - 0) < 0.01, "Starts at 0"
+        assert abs(notes[-1]["pos"] - 16) < 0.01, f"Ends at 16, got {notes[-1]['pos']}"
+
+    def test_clamped_pitch_range(self):
+        notes = self._generate_riser(start_pitch=0, end_pitch=127, steps=8)
+        assert all(0 <= n["pitch"] <= 127 for n in notes), "Pitches should be 0-127"

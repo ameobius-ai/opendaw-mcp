@@ -14428,7 +14428,11 @@ async def mcp_opendaw_create_stab(chords: str, rhythm: str = "x-x-", unit_index:
     for i, c in enumerate(rhythm):
         if c == "-":
             continue
-        chord_spec = chord_list[chord_idx % len(chord_list)]
+        if c == "." and chord_idx > 0:
+            # Ghost repeats the last stab's chord (no advance)
+            chord_spec = chord_list[(chord_idx - 1) % len(chord_list)]
+        else:
+            chord_spec = chord_list[chord_idx % len(chord_list)]
         root_pc = NOTE_TO_PITCH[chord_spec[0]]
         intervals = CHORD_INTERVALS[chord_spec[1]]
         root_pitch = (octave + 1) * 12 + root_pc
