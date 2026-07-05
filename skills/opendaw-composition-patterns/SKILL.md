@@ -24,6 +24,7 @@ What do you want to create?
 ├── Trill (ornament) → create_trill (two-note alternation, 32nd/16th/8th/triplet rates, baroque accent)
 ├── Glissando (scale run) → create_glissando (chromatic/diatonic/pentatonic, any direction, velocity curves)
 ├── Sequence (transposed repeat) → create_sequence (up/down/alternating, baroque/jazz/film score builds)
+├── Pedal point (sustained bass) → create_pedal_point (bass drone under changing chords, film/organ/rock)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │

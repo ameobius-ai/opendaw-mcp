@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-291-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-292-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-41-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-304%20unit%20%2B%2019%20E2E-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-314%20unit%20%2B%2020%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -16,7 +16,7 @@
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
-**291 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**292 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -58,7 +58,7 @@ await server.mcp_opendaw_render_full(output_path="beat.wav")
 
 | Feature | opendaw-mcp | Other audio MCPs |
 |---------|-------------|-------------------|
-| Full DAW control (291 tools) | ✅ | ❌ (1-10 tools) |
+| Full DAW control (292 tools) | ✅ | ❌ (1-10 tools) |
 | Scriptable DSP (write custom JS effects) | ✅ | ❌ |
 | SOTA stem separation (7 models, GPU local) | ✅ | ❌ |
 | Suno → DAW E2E pipeline | ✅ | ❌ |
@@ -102,14 +102,14 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 
 ## Agent Skills
 
-The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 291 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
+The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 292 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
 
 | Skill | Domain | Description |
 |-------|--------|-------------|
 | `adaptive-mix-mastering` | Mix → Master pipeline | Universal pipeline with decision points: genre detection, stem strategy, effect chain selection, LUFS targeting, mastering approach. Adapts to coldwave, techno, hip-hop, ambient, rock, pop. Includes `references/decision-tree.md`. |
 | `suno-to-opendaw` | Suno → openDAW E2E | Killer workflow: Suno AI generation → SOTA stem separation (7 modes) → openDAW import → arrange → mix → master → export. 6-stage pipeline from prompt to finished track. Unique value prop — no other MCP server offers this. |
 | `dsp-script-authoring` | Custom DSP writing | How to author custom Werkstatt/Apparat/Spielwerk DSP scripts. Processor API, @param/@sample declarations, DSP patterns (filters, saturation, reverb, LFO, envelope), validation workflow, 8 critical pitfalls. For writing new DSP, not using existing. |
-| `opendaw-automation` | API reference | 291 MCP tools full reference, bridge architecture, pitfalls, DSP script library (33 scripts), CodeRabbit review patterns. The base skill — others cross-reference it. |
+| `opendaw-automation` | API reference | 292 MCP tools full reference, bridge architecture, pitfalls, DSP script library (33 scripts), CodeRabbit review patterns. The base skill — others cross-reference it. |
 | `opendaw-track-architecture` | Track structure | Tracks, regions, clips, notes, tempo, time signature, markers, groove, song form. 50+ tools for building the skeleton of a track. |
 | `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 33 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
 | `opendaw-genres` | Genre templates | Concrete parameters per genre — BPM, track layout, drum patterns, bass lines, chords, effect chains, pan, LUFS targets. 8 genres: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. Not theory — actual tool calls and values. |
@@ -452,7 +452,7 @@ See [`examples/crewai_integration.py`](examples/crewai_integration.py) for a ful
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 291 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 292 tools with parameters and descriptions.
 
 ### Orchestration Tools
 
@@ -506,6 +506,15 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.40.0 (2026-07-05)
+
+- **`create_pedal_point` orchestration tool (292 MCP tools)** — sustained bass note under changing chords. The foundational technique in film scoring (Hans Zimmer drones), organ preludes (Bach), and rock ballads. Retrigger or sustained pedal mode. Full chord name parsing (maj/min/m7/maj7/dom7/sus2/sus4/dim/aug + implicit major). Adjustable time signatures (3/4, 4/4, 6/8). One call replaces 13-34 manual note creations. Essential for: film scoring, organ music, rock ballads, ambient drones, harmonic tension
+- **E2E verified**: retriggered (16 notes), sustained (13), 7th chords (15), 2 bars per chord, 3/4 waltz, sus4, error handling — 8/8 tests passed
+- **+10 unit tests** for pedal point generation + chord parsing (314 total)
+- **Example script**: `create_pedal_point.py` — 5 pedal points (retriggered, sustained, jazz 7ths, slow, waltz)
+- **292 MCP tools** (254 low-level + 35 orchestration + 3 melodic)
+- ruff clean, CI green
 
 ### v1.39.0 (2026-07-05)
 

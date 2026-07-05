@@ -16333,6 +16333,213 @@ async def mcp_opendaw_create_sequence(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_pedal_point(
+    pedal_pitch: int = 36,
+    chord_pattern: str = "Cm,Ab,Eb,Bb",
+    bars_per_chord: int = 1,
+    beats_per_bar: int = 4,
+    pedal_velocity: float = 0.75,
+    chord_velocity: float = 0.6,
+    chord_octave: int = 4,
+    retrigger_pedal: bool = True,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a pedal point — sustained bass tone under changing chords.
+
+    A foundational technique in film scoring (Hans Zimmer drones), organ preludes
+    (Bach), and rock ballads. A single low note sustains (or retriggers) while
+    chords change above it, creating harmonic tension and release. The pedal
+    anchors the harmony while the chords create movement.
+
+    pedal_pitch: Sustained bass note (default 36 = C2, low and powerful).
+    chord_pattern: Comma-separated chord names (e.g. "Cm,Ab,Eb,Bb").
+      Supports: maj, min, m7, maj7, dom7, sus2, sus4, dim, aug.
+    bars_per_chord: Bars each chord lasts (1-8, default 1).
+    beats_per_bar: Time signature beats (3/4=3, 4/4=4, 6/8=6, default 4).
+    pedal_velocity: Velocity of pedal note (0-1, default 0.75).
+    chord_velocity: Velocity of chord notes (0-1, default 0.6).
+    chord_octave: Octave for chord notes (1-8, default 4 = C4 range).
+    retrigger_pedal: If true, pedal re-triggers at each chord change. If false,
+      one long sustained note for the entire duration.
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the pedal point begins.
+
+    Returns notes created, chord count, pedal duration.
+    """
+    if pedal_pitch < 0 or pedal_pitch > 127:
+        return "Error: pedal_pitch must be 0-127"
+    if bars_per_chord < 1 or bars_per_chord > 8:
+        return "Error: bars_per_chord must be 1-8"
+    if beats_per_bar < 2 or beats_per_bar > 12:
+        return "Error: beats_per_bar must be 2-12"
+    if pedal_velocity < 0 or pedal_velocity > 1:
+        return "Error: pedal_velocity must be 0-1"
+    if chord_velocity < 0 or chord_velocity > 1:
+        return "Error: chord_velocity must be 0-1"
+    if chord_octave < 1 or chord_octave > 8:
+        return "Error: chord_octave must be 1-8"
+
+    # Parse chord names
+    CHORD_INTERVALS = {
+        "maj": [0, 4, 7],
+        "M": [0, 4, 7],
+        "min": [0, 3, 7],
+        "m": [0, 3, 7],
+        "m7": [0, 3, 7, 10],
+        "maj7": [0, 4, 7, 11],
+        "M7": [0, 4, 7, 11],
+        "dom7": [0, 4, 7, 10],
+        "7": [0, 4, 7, 10],
+        "sus2": [0, 2, 7],
+        "sus4": [0, 5, 7],
+        "dim": [0, 3, 6],
+        "aug": [0, 4, 8],
+    }
+    NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                  "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                  "A#": 10, "Bb": 10, "B": 11}
+
+    chords = []
+    for name in chord_pattern.split(","):
+        name = name.strip()
+        # Find root and quality
+        root = None
+        quality = None
+        for q in ["maj7", "m7", "M7", "sus2", "sus4", "dom7", "dim", "aug", "maj", "min", "M", "m", "7"]:
+            if name.endswith(q) and len(name) > len(q):
+                root_name = name[:-len(q)]
+                if root_name in NOTE_TO_PC:
+                    root = NOTE_TO_PC[root_name]
+                    quality = q
+                    break
+        if root is None:
+            # Try whole name as root note with implicit major triad
+            if name in NOTE_TO_PC:
+                root = NOTE_TO_PC[name]
+                quality = "maj"
+            else:
+                return f"Error: cannot parse chord '{name}'"
+        intervals = CHORD_INTERVALS.get(quality, [0, 4, 7])
+        chord_pitches = [(chord_octave + 1) * 12 + root + iv for iv in intervals]
+        chords.append(chord_pitches)
+
+    chord_beats = bars_per_chord * beats_per_bar
+    total_beats = len(chords) * chord_beats
+
+    note_data = []
+
+    # Pedal note(s)
+    if retrigger_pedal:
+        for i in range(len(chords)):
+            pos = start_beat + i * chord_beats
+            note_data.append({
+                "pitch": pedal_pitch,
+                "pos": pos,
+                "dur": chord_beats,
+                "vel": pedal_velocity,
+            })
+    else:
+        note_data.append({
+            "pitch": pedal_pitch,
+            "pos": start_beat,
+            "dur": total_beats,
+            "vel": pedal_velocity,
+        })
+
+    # Chord notes
+    for i, chord in enumerate(chords):
+        chord_start = start_beat + i * chord_beats
+        for pitch in chord:
+            note_data.append({
+                "pitch": max(0, min(127, pitch)),
+                "pos": chord_start,
+                "dur": chord_beats * 0.95,
+                "vel": chord_velocity,
+            })
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = window.DAW_NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Pedal Point");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            pedal_pitch: {pedal_pitch},
+            chord_count: {len(chords)},
+            chords: "{chord_pattern}",
+            bars_per_chord: {bars_per_chord},
+            retrigger_pedal: {str(retrigger_pedal).lower()},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,

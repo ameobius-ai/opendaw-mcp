@@ -1498,3 +1498,109 @@ class TestSequencePatternGeneration:
         notes = self._generate_sequence(pattern="120,122,124", transposition=12, repeats=3, direction="up")
         for n in notes:
             assert n["pitch"] <= 127
+
+
+class TestPedalPointGeneration:
+    """Test the Python-side pattern generation logic of create_pedal_point."""
+
+    CHORD_INTERVALS = {
+        "maj": [0, 4, 7], "M": [0, 4, 7], "min": [0, 3, 7], "m": [0, 3, 7],
+        "m7": [0, 3, 7, 10], "maj7": [0, 4, 7, 11], "M7": [0, 4, 7, 11],
+        "dom7": [0, 4, 7, 10], "7": [0, 4, 7, 10],
+        "sus2": [0, 2, 7], "sus4": [0, 5, 7], "dim": [0, 3, 6], "aug": [0, 4, 8],
+    }
+    NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                  "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                  "A#": 10, "Bb": 10, "B": 11}
+
+    def _parse_chord(self, name):
+        root = None
+        quality = None
+        for q in ["maj7", "m7", "M7", "sus2", "sus4", "dom7", "dim", "aug", "maj", "min", "M", "m", "7"]:
+            if name.endswith(q) and len(name) > len(q):
+                root_name = name[:-len(q)]
+                if root_name in self.NOTE_TO_PC:
+                    root = self.NOTE_TO_PC[root_name]
+                    quality = q
+                    break
+        if root is None:
+            if name in self.NOTE_TO_PC:
+                root = self.NOTE_TO_PC[name]
+                quality = "maj"
+            else:
+                return None
+        return self.CHORD_INTERVALS.get(quality, [0, 4, 7])
+
+    def _generate_pedal(self, pedal_pitch=36, chord_pattern="Cm,Ab,Eb,Bb",
+                        bars_per_chord=1, beats_per_bar=4, pedal_velocity=0.75,
+                        chord_velocity=0.6, chord_octave=4, retrigger_pedal=True, start_beat=0):
+        chords = []
+        for name in chord_pattern.split(","):
+            intervals = self._parse_chord(name.strip())
+            if intervals is None:
+                return None, None
+            root_pc = self.NOTE_TO_PC.get(name.strip().rstrip("maj7Mmsus4dimaug"), 0)
+            chord_pitches = [(chord_octave + 1) * 12 + root_pc + iv for iv in intervals]
+            chords.append(chord_pitches)
+
+        chord_beats = bars_per_chord * beats_per_bar
+        total_beats = len(chords) * chord_beats
+        note_data = []
+
+        if retrigger_pedal:
+            for i in range(len(chords)):
+                note_data.append({"pitch": pedal_pitch, "pos": start_beat + i * chord_beats,
+                                  "dur": chord_beats, "vel": pedal_velocity})
+        else:
+            note_data.append({"pitch": pedal_pitch, "pos": start_beat, "dur": total_beats, "vel": pedal_velocity})
+
+        for i, chord in enumerate(chords):
+            for pitch in chord:
+                note_data.append({"pitch": pitch, "pos": start_beat + i * chord_beats,
+                                  "dur": chord_beats * 0.95, "vel": chord_velocity})
+        return note_data, chords
+
+    def test_retrigger_pedal_note_count(self):
+        notes, chords = self._generate_pedal("Cm,Ab,Eb,Bb", retrigger_pedal=True) if False else self._generate_pedal(chord_pattern="Cm,Ab,Eb,Bb", retrigger_pedal=True)
+        # 4 pedal + 4×3 chord = 16
+        assert len(notes) == 16, f"Expected 16, got {len(notes)}"
+
+    def test_sustained_pedal_note_count(self):
+        notes, _ = self._generate_pedal(chord_pattern="Cm,Ab,Eb,Bb", retrigger_pedal=False)
+        # 1 pedal + 12 chord = 13
+        assert len(notes) == 13, f"Expected 13, got {len(notes)}"
+
+    def test_seventh_chords(self):
+        notes, chords = self._generate_pedal(chord_pattern="Cm7,Fm7,Gm7")
+        # 3 pedal + 3×4 = 15
+        assert len(notes) == 15, f"Expected 15, got {len(notes)}"
+
+    def test_chord_parsing_minor(self):
+        intervals = self._parse_chord("Cm")
+        assert intervals == [0, 3, 7], f"Expected [0,3,7], got {intervals}"
+
+    def test_chord_parsing_implicit_major(self):
+        intervals = self._parse_chord("Ab")
+        assert intervals == [0, 4, 7], f"Expected [0,4,7], got {intervals}"
+
+    def test_chord_parsing_sus4(self):
+        intervals = self._parse_chord("Csus4")
+        assert intervals == [0, 5, 7], f"Expected [0,5,7], got {intervals}"
+
+    def test_chord_parsing_dim(self):
+        intervals = self._parse_chord("Bdim")
+        assert intervals == [0, 3, 6], f"Expected [0,3,6], got {intervals}"
+
+    def test_bad_chord_returns_none(self):
+        intervals = self._parse_chord("XYZ")
+        assert intervals is None
+
+    def test_total_beats_4_4(self):
+        notes, _ = self._generate_pedal(chord_pattern="Cm,Ab", beats_per_bar=4)
+        assert notes[-1]["pos"] + notes[-1]["dur"] <= 8 + 0.01
+
+    def test_total_beats_3_4(self):
+        notes, _ = self._generate_pedal(chord_pattern="Cm,Ab,Eb", beats_per_bar=3)
+        # 3 chords × 3 beats = 9 total
+        last_note = max(notes, key=lambda n: n["pos"])
+        assert last_note["pos"] < 9
