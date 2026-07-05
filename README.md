@@ -28,7 +28,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 |---|---|
 | **283** MCP tools | **55** Python examples (8 genre templates) |
 | **35** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **241** unit + **11** E2E tests |
+| **3** framework wrappers | **272** unit + **11** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.25.1 (2026-07-05)
+
+- **+31 unit tests** for music_theory functions — `parse_melody_pattern` (11 tests: ascending, rests, timing, velocity, scales, octaves, sharps, empty pattern), `scale_to_pitches` (6 tests: major, minor, length extension, octave, dorian, phrygian), `chord_to_pitches` (8 tests: triads, sevenths, diminished, sus4, octave, sharps), `GENRE_PRESETS` (6 tests: known genres, bpm/drums fields, bpm ranges)
+- **272 unit tests** total (was 241), all passing
+- ruff clean, CI green
 
 ### v1.25.0 (2026-07-05)
 

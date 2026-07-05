@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.25.1 (2026-07-05)
+
+- **+31 unit tests** for music_theory functions — parse_melody_pattern (11), scale_to_pitches (6), chord_to_pitches (8), GENRE_PRESETS (6)
+- **272 unit tests** total (was 241), all passing
+- ruff clean, CI green
+
 ## v1.25.0 (2026-07-05)
 
 - **`werkstatt_paraeq.js`** — 3-band parametric EQ + HP/LP. 12 params: 3 × (freq, gain, Q) + hp_freq + lp_freq + mix. Biquad (RBJ cookbook), signal chain HP→B1→B2→B3→LP

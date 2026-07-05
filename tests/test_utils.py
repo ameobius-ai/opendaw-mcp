@@ -856,3 +856,176 @@ class TestArticulationMath:
         v = self._accent_velocity(0.9, 0.5)
         # 0.9 + 0.5 * 0.1 = 0.95
         assert abs(v - 0.95) < 0.001
+
+
+class TestParseMelodyPattern:
+    """Test parse_melody_pattern — the core function used by create_melody, create_bassline, create_arpeggio."""
+
+    def _parse(self, pattern, root="C", scale="major", **kw):
+        from opendaw_mcp.music_theory import parse_melody_pattern
+        return parse_melody_pattern(pattern, root=root, scale_type=scale, **kw)
+
+    def test_basic_ascending(self):
+        notes = self._parse("1 2 3 4", root="C", scale="major")
+        assert len(notes) == 4
+        assert notes[0]["pitch"] == 60  # C4
+        assert notes[1]["pitch"] == 62  # D4
+        assert notes[2]["pitch"] == 64  # E4
+        assert notes[3]["pitch"] == 65  # F4
+
+    def test_rests_skipped(self):
+        notes = self._parse("1 - 3 - 5", root="C", scale="major")
+        assert len(notes) == 3
+        assert notes[0]["pitch"] == 60
+        assert notes[1]["pitch"] == 64
+        assert notes[2]["pitch"] == 67
+
+    def test_step_duration_affects_timing(self):
+        notes = self._parse("1 2 3", root="C", scale="major", step_duration=0.5)
+        assert notes[0]["start"] == 0.0
+        assert notes[1]["start"] == 0.5
+        assert notes[2]["start"] == 1.0
+        assert all(n["duration"] == 0.5 for n in notes)
+
+    def test_start_beat_offset(self):
+        notes = self._parse("1 2", root="C", scale="major", start_beat=4.0)
+        assert notes[0]["start"] == 4.0
+        assert notes[1]["start"] == 4.25
+
+    def test_velocity_passed_through(self):
+        notes = self._parse("1 2", root="C", scale="major", velocity=0.9)
+        assert all(n["velocity"] == 0.9 for n in notes)
+
+    def test_minor_scale_intervals(self):
+        notes = self._parse("1 2 3", root="A", scale="minor")
+        assert notes[0]["pitch"] == 69  # A4
+        assert notes[1]["pitch"] == 71  # B4
+        assert notes[2]["pitch"] == 72  # C5 (minor 3rd = +3)
+
+    def test_dorian_scale(self):
+        notes = self._parse("1 2 3", root="D", scale="dorian")
+        assert notes[0]["pitch"] == 62  # D4 (default octave=4)
+        assert notes[1]["pitch"] == 64  # E4
+        assert notes[2]["pitch"] == 65  # F4 (minor 3rd in dorian)
+
+    def test_octave_shift(self):
+        notes_low = self._parse("1", root="C", scale="major", octave=2)
+        notes_mid = self._parse("1", root="C", scale="major", octave=4)
+        assert notes_low[0]["pitch"] == 36  # C2
+        assert notes_mid[0]["pitch"] == 60  # C4
+        assert notes_mid[0]["pitch"] - notes_low[0]["pitch"] == 24  # 2 octaves
+
+    def test_sharp_root(self):
+        notes = self._parse("1", root="F#", scale="major")
+        assert notes[0]["pitch"] == 66  # F#4
+
+    def test_empty_pattern_raises(self):
+        import pytest
+        with pytest.raises(ValueError):
+            self._parse("-", root="C", scale="major")
+
+    def test_note_dict_structure(self):
+        notes = self._parse("1", root="C", scale="major")
+        n = notes[0]
+        assert "pitch" in n
+        assert "start" in n
+        assert "duration" in n
+        assert "velocity" in n
+
+
+class TestScaleToPitches:
+    """Test scale_to_pitches — used by create_scale_run, create_counterpoint, create_harmony."""
+
+    def _scale(self, root, scale, **kw):
+        from opendaw_mcp.music_theory import scale_to_pitches
+        return scale_to_pitches(root, scale, **kw)
+
+    def test_c_major(self):
+        assert self._scale("C", "major") == [60, 62, 64, 65, 67, 69, 71]
+
+    def test_a_minor(self):
+        assert self._scale("A", "minor") == [69, 71, 72, 74, 76, 77, 79]
+
+    def test_length_extension(self):
+        notes = self._scale("C", "major", length=14)
+        assert len(notes) == 14
+        assert notes[7] == 72  # C5 (octave wrap)
+
+    def test_octave_param(self):
+        notes = self._scale("C", "major", octave=3)
+        assert notes[0] == 48  # C3
+
+    def test_dorian_mode(self):
+        notes = self._scale("D", "dorian")
+        assert notes == [62, 64, 65, 67, 69, 71, 72]
+
+    def test_phrygian_mode(self):
+        notes = self._scale("E", "phrygian")
+        assert notes[0] == 64  # E4
+        assert notes[1] == 65  # F4 (minor 2nd — phrygian hallmark)
+
+
+class TestChordToPitches:
+    """Test chord_to_pitches — used by create_chord_progression, create_harmony."""
+
+    def _chord(self, root, chord_type, **kw):
+        from opendaw_mcp.music_theory import chord_to_pitches
+        return chord_to_pitches(root, chord_type, **kw)
+
+    def test_major_triad(self):
+        assert self._chord("C", "maj") == [60, 64, 67]
+
+    def test_minor_triad(self):
+        assert self._chord("A", "min") == [69, 72, 76]
+
+    def test_dominant_seventh(self):
+        assert self._chord("G", "dom7") == [67, 71, 74, 77]
+
+    def test_major_seventh(self):
+        assert self._chord("C", "maj7") == [60, 64, 67, 71]
+
+    def test_diminished(self):
+        assert self._chord("B", "dim") == [71, 74, 77]
+
+    def test_sus4(self):
+        assert self._chord("D", "sus4") == [62, 67, 69]
+
+    def test_octave_shift(self):
+        assert self._chord("C", "maj", octave=3) == [48, 52, 55]
+
+    def test_sharp_root(self):
+        assert self._chord("F#", "min") == [66, 69, 73]
+
+
+class TestGenrePresets:
+    """Test GENRE_PRESETS — used by create_genre_track."""
+
+    def test_known_genres(self):
+        from opendaw_mcp.music_theory import GENRE_PRESETS
+        for g in ["house", "techno", "lofi", "dnb", "trap", "ambient", "coldwave", "hiphop"]:
+            assert g in GENRE_PRESETS, f"Missing genre: {g}"
+
+    def test_preset_has_bpm(self):
+        from opendaw_mcp.music_theory import GENRE_PRESETS
+        for g, p in GENRE_PRESETS.items():
+            assert "bpm" in p, f"{g} missing bpm"
+
+    def test_preset_has_drums(self):
+        from opendaw_mcp.music_theory import GENRE_PRESETS
+        for g, p in GENRE_PRESETS.items():
+            assert "drums" in p, f"{g} missing drums"
+
+    def test_techno_bpm_range(self):
+        from opendaw_mcp.music_theory import GENRE_PRESETS
+        bpm = GENRE_PRESETS["techno"]["bpm"]
+        assert 120 <= bpm <= 140, f"techno bpm {bpm} out of range"
+
+    def test_dnb_bpm_range(self):
+        from opendaw_mcp.music_theory import GENRE_PRESETS
+        bpm = GENRE_PRESETS["dnb"]["bpm"]
+        assert 160 <= bpm <= 180, f"dnb bpm {bpm} out of range"
+
+    def test_lofi_bpm_range(self):
+        from opendaw_mcp.music_theory import GENRE_PRESETS
+        bpm = GENRE_PRESETS["lofi"]["bpm"]
+        assert 60 <= bpm <= 90, f"lofi bpm {bpm} out of range"
