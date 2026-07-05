@@ -24347,3 +24347,231 @@ async def mcp_opendaw_create_reggae_arrangement(
         "keys_type": "organ_bubble_minor_triad",
         "harmony": "I_IV_vamp_minor",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_apply_genre_mix(
+    genre: str,
+    unit_index: int = 0,
+    num_tracks: int = 4,
+    sidechain: bool = True,
+) -> str:
+    """Apply genre-specific mixing effects to tracks after creating an arrangement.
+
+    Closes the loop: create arrangement → apply genre mix → ready to render.
+    One call replaces 10-20 manual add_effect + set_effect_parameter calls.
+
+    Each genre has a different effect chain recipe:
+    - Drums: compressor (genre-specific ratio/threshold) + EQ
+    - Bass: EQ (HPF + low boost) + saturation (genre-specific)
+    - Chords/Melody: reverb (genre-specific decay) + delay (if applicable)
+    - Extra track: genre-specific treatment
+    - Sidechain: drums→bass (if applicable to genre)
+
+    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae
+    unit_index: AU index with the arrangement tracks.
+    num_tracks: Number of tracks to mix (3 or 4, must match arrangement).
+    sidechain: Whether to add sidechain drums→bass (True for electronic genres, False for organic).
+
+    Returns effects added per track and parameter values.
+
+    Example:
+      # After: create_dnb_arrangement(...)
+      apply_genre_mix("dnb", unit_index=0, num_tracks=3, sidechain=True)
+      # After: create_jazz_arrangement(...)
+      apply_genre_mix("jazz", unit_index=0, num_tracks=4, sidechain=False)
+    """
+    valid_genres = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
+                    "rock", "jazz", "pop", "funk", "reggae"]
+    if genre not in valid_genres:
+        return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
+    if not (2 <= num_tracks <= 4):
+        return "Error: num_tracks must be 2-4"
+
+    # Genre-specific effect recipes
+    # Each recipe: list of (track_index, effect_type, params_dict)
+    # params_dict maps parameter names to values
+    recipes = {
+        "dnb": {
+            "effects": [
+                (0, "Compressor", {"threshold": -10, "ratio": 8, "attack": 1, "release": 40}),
+                (0, "Revamp", {"low": 2, "high": 3}),  # drums: aggressive comp + EQ
+                (1, "Waveshaper", {"drive": 0.8}),     # bass: saturation
+                (1, "Revamp", {"low": 1, "high": -1}), # bass: HPF
+                (2, "Reverb", {"decay": 0.4}),         # pad: reverb
+            ],
+            "sidechain": True,
+            "sc_params": {"threshold": -12, "ratio": 6, "attack": 1, "release": 40},
+        },
+        "house": {
+            "effects": [
+                (0, "Compressor", {"threshold": -12, "ratio": 3, "attack": 5, "release": 100}),
+                (0, "Revamp", {"low": 2, "high": 2}),
+                (1, "Waveshaper", {"drive": 0.3}),     # bass: light sat
+                (1, "Revamp", {"low": 1, "high": -1}),
+                (2, "Delay", {"time": 0.375}),         # stabs: delay
+                (2, "Reverb", {"decay": 0.5}),
+            ],
+            "sidechain": True,
+            "sc_params": {"threshold": -20, "ratio": 3, "attack": 5, "release": 100},
+        },
+        "trap": {
+            "effects": [
+                (0, "Compressor", {"threshold": -8, "ratio": 6, "attack": 2, "release": 50}),
+                (0, "Revamp", {"low": 3, "high": 2}),
+                (1, "Compressor", {"threshold": -10, "ratio": 2, "attack": 10, "release": 100}),
+                (2, "Reverb", {"decay": 0.4}),
+                (2, "Delay", {"time": 0.375}),
+            ],
+            "sidechain": False,  # trap usually no sidechain
+            "sc_params": {},
+        },
+        "techno": {
+            "effects": [
+                (0, "Compressor", {"threshold": -12, "ratio": 4, "attack": 5, "release": 80}),
+                (0, "Revamp", {"low": 2, "high": 2}),
+                (1, "Revamp", {"low": 2, "high": -2}), # sub bass: boost lows, cut highs
+                (2, "Delay", {"time": 0.375}),         # stabs: delay
+                (2, "Reverb", {"decay": 0.3}),
+            ],
+            "sidechain": True,
+            "sc_params": {"threshold": -15, "ratio": 4, "attack": 5, "release": 80},
+        },
+        "dubstep": {
+            "effects": [
+                (0, "Compressor", {"threshold": -8, "ratio": 5, "attack": 2, "release": 60}),
+                (0, "Revamp", {"low": 3, "high": 2}),
+                (1, "Waveshaper", {"drive": 0.6}),     # wobble: saturation
+                (1, "Revamp", {"low": 2, "high": -1}),
+                (2, "Reverb", {"decay": 0.3}),         # arp: short reverb
+            ],
+            "sidechain": True,
+            "sc_params": {"threshold": -10, "ratio": 5, "attack": 2, "release": 50},
+        },
+        "afrobeat": {
+            "effects": [
+                (0, "Compressor", {"threshold": -15, "ratio": 3, "attack": 10, "release": 120}),
+                (0, "Revamp", {"low": 1, "high": 2}),
+                (1, "Revamp", {"low": 1, "high": -1}),
+                (2, "Reverb", {"decay": 0.3}),         # horns: reverb
+                (3, "Revamp", {"low": 0, "high": 1}),  # guitar: slight high
+            ],
+            "sidechain": False,  # organic
+            "sc_params": {},
+        },
+        "rock": {
+            "effects": [
+                (0, "Compressor", {"threshold": -12, "ratio": 4, "attack": 5, "release": 80}),
+                (0, "Revamp", {"low": 2, "high": 3}),
+                (1, "Revamp", {"low": 2, "high": -2}), # bass: low boost
+                (2, "Waveshaper", {"drive": 0.4}),     # guitar: mild overdrive
+                (2, "Revamp", {"low": -1, "high": 2}),
+                (3, "Reverb", {"decay": 0.3}),         # keys: reverb
+            ],
+            "sidechain": False,  # organic
+            "sc_params": {},
+        },
+        "jazz": {
+            "effects": [
+                (0, "Compressor", {"threshold": -18, "ratio": 2, "attack": 20, "release": 200}),
+                (0, "Revamp", {"low": 0, "high": 1}),  # drums: gentle
+                (1, "Revamp", {"low": 1, "high": 0}),  # bass: natural
+                (2, "Reverb", {"decay": 0.4}),         # piano: reverb
+                (3, "Reverb", {"decay": 0.5}),         # horn: more reverb
+                (3, "Delay", {"time": 0.25}),          # horn: slap delay
+            ],
+            "sidechain": False,  # organic
+            "sc_params": {},
+        },
+        "pop": {
+            "effects": [
+                (0, "Compressor", {"threshold": -14, "ratio": 3, "attack": 5, "release": 100}),
+                (0, "Revamp", {"low": 2, "high": 2}),
+                (1, "Revamp", {"low": 1, "high": -1}),
+                (2, "Reverb", {"decay": 0.3}),         # chords: reverb
+                (3, "Delay", {"time": 0.375}),         # melody: delay
+                (3, "Reverb", {"decay": 0.4}),
+            ],
+            "sidechain": True,
+            "sc_params": {"threshold": -18, "ratio": 3, "attack": 5, "release": 100},
+        },
+        "funk": {
+            "effects": [
+                (0, "Compressor", {"threshold": -10, "ratio": 4, "attack": 3, "release": 60}),
+                (0, "Revamp", {"low": 1, "high": 3}),  # drums: bright
+                (1, "Revamp", {"low": 2, "high": -1}), # bass: low punch
+                (2, "Revamp", {"low": -1, "high": 2}), # guitar: bright
+                (3, "Revamp", {"low": 0, "high": 1}),  # horns: slight
+            ],
+            "sidechain": False,  # organic
+            "sc_params": {},
+        },
+        "reggae": {
+            "effects": [
+                (0, "Compressor", {"threshold": -15, "ratio": 3, "attack": 10, "release": 120}),
+                (0, "Revamp", {"low": 2, "high": 1}),
+                (1, "Revamp", {"low": 2, "high": 0}),  # bass: deep
+                (2, "Revamp", {"low": -1, "high": 2}), # guitar skank: bright
+                (2, "Delay", {"time": 0.25}),          # skank: slap delay
+                (3, "Reverb", {"decay": 0.4}),         # organ: reverb
+            ],
+            "sidechain": False,  # organic
+            "sc_params": {},
+        },
+    }
+
+    recipe = recipes[genre]
+    effects_added = []
+
+    # Add effects per track
+    for track_idx, effect_type, params in recipe["effects"]:
+        if track_idx >= num_tracks:
+            continue  # skip tracks that don't exist
+        try:
+            add_result = await mcp_opendaw_add_effect(unit_index, effect_type)
+            add_data = json.loads(add_result)
+            if "error" in add_data:
+                effects_added.append({"track": track_idx, "effect": effect_type, "error": add_data["error"]})
+                continue
+            effect_idx = add_data.get("effect_index", 0)
+
+            # Set parameters
+            param_results = {}
+            for param_name, param_value in params.items():
+                try:
+                    await mcp_opendaw_set_effect_parameter(
+                        unit_index, effect_idx, param_name, str(param_value))
+                    param_results[param_name] = param_value
+                except Exception:
+                    param_results[param_name] = "failed"
+
+            effects_added.append({
+                "track": track_idx,
+                "effect": effect_type,
+                "effect_index": effect_idx,
+                "params": param_results,
+            })
+        except Exception as e:
+            effects_added.append({"track": track_idx, "effect": effect_type, "error": str(e)})
+
+    # Add sidechain if applicable
+    sidechain_result = None
+    if sidechain and recipe["sidechain"] and recipe["sc_params"]:
+        try:
+            await mcp_opendaw_apply_sidechain(
+                unit_index, 0, unit_index, 1,  # drums→bass
+                recipe["sc_params"].get("threshold", -15),
+                recipe["sc_params"].get("ratio", 4),
+            )
+            sidechain_result = "applied"
+        except Exception:
+            sidechain_result = "failed"
+
+    return json.dumps({
+        "genre_mix": True,
+        "genre": genre,
+        "unit_index": unit_index,
+        "effects_added": effects_added,
+        "effect_count": len(effects_added),
+        "sidechain": sidechain_result,
+    }, indent=2)

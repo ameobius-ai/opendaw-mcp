@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.140.0 (2026-07-05)
+
+- **`apply_genre_mix` orchestration tool (333 MCP tools)** — new capability: genre-aware mixing. Closes the loop: create arrangement → apply genre mix → ready to render. One call replaces 10-20 manual add_effect + set_effect_parameter calls. 11 genre-specific effect chain recipes, each with genre-appropriate: drums compressor (DnB ratio 8 attack 1ms, jazz ratio 2 attack 20ms), bass treatment (DnB Waveshaper saturation, reggae deep EQ, jazz natural), melody/chords (reverb + delay with genre-specific decay times), sidechain (electronic genres only: dnb/house/techno/dubstep/pop, organic genres skip: jazz/rock/funk/reggae/afrobeat). Every recipe starts with drums compressor. Compressor params vary by genre — not one-size-fits-all. 76 orchestration tools. 333 MCP tools
+- **1762 unit tests** (+18)
+
 ## v1.139.0 (2026-07-05)
 
 - **`create_reggae_arrangement` orchestration tool (332 MCP tools)** — eleventh multi-track genre arrangement. Roots reggae with one-drop feel across 4 tracks: drums (one-drop — kick AND snare TOGETHER on beat 3, no kick on beat 1, 8th-note hi-hat throughout), bass (THE lead instrument — melodic walk root→octave→fifth→root with sustained notes, follows I-IV chord changes), guitar (skank — staccato chops on ALL 4 off-beats per bar, root+min3 minor voicing, very short 0.1 duration), keys (organ bubble — sustained minor triad, Hammond-style, 3.5 beat sustain). One-drop (kick+snare together on 3, empty on 1) is unique among all 11 arrangements — no other genre puts kick and snare together. Bass as lead instrument (melodic, not rhythmic) is unique — in all other genres bass is rhythmic support. I-IV minor vamp. A minor default (classic reggae key). 60-100 BPM, default 80. 4-16 bars. 75 orchestration tools. 332 MCP tools
