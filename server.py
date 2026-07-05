@@ -25099,7 +25099,7 @@ async def mcp_opendaw_apply_genre_mix(
       # After: create_jazz_arrangement(...)
       apply_genre_mix("jazz", unit_index=0, num_tracks=4, sidechain=False)
     """
-    valid_genres = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
+    valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
@@ -25120,6 +25120,20 @@ async def mcp_opendaw_apply_genre_mix(
             ],
             "sidechain": True,
             "sc_params": {"threshold": -12, "ratio": 6, "attack": 1, "release": 40},
+        },
+        "liquid_dnb": {
+            "effects": [
+                (0, "Compressor", {"threshold": -14, "ratio": 4, "attack": 5, "release": 80}),
+                (0, "Revamp", {"low": 1, "high": 2}),   # drums: smoother comp
+                (1, "Compressor", {"threshold": -12, "ratio": 3, "attack": 10, "release": 120}),
+                (1, "Revamp", {"low": 2, "high": -1}),  # bass: gentle, keep low end
+                (2, "Reverb", {"decay": 0.8}),           # pad: lush long reverb
+                (2, "Delay", {"time": 0.375}),           # pad: dotted delay
+                (3, "Reverb", {"decay": 0.6}),           # melody: reverb
+                (3, "Delay", {"time": 0.375}),           # melody: delay
+            ],
+            "sidechain": True,
+            "sc_params": {"threshold": -18, "ratio": 3, "attack": 5, "release": 80},
         },
         "house": {
             "effects": [
@@ -25381,7 +25395,7 @@ async def mcp_opendaw_apply_genre_humanization(
       # After: create_dnb_arrangement(...)
       apply_genre_humanization("dnb", unit_index=0, has_4th_track=False)
     """
-    valid_genres = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
+    valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave",
                     "trance", "disco"]
     if genre not in valid_genres:
@@ -25400,6 +25414,7 @@ async def mcp_opendaw_apply_genre_humanization(
         "disco":     {"timing": 0.06, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.0},
         # Electronic — tight and consistent
         "dnb":       {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
+        "liquid_dnb":{"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0,  "bias": 0.01},
         "house":     {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
         "trap":      {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
         "techno":    {"timing": 0.02, "velocity": 0.04, "duration": 0.02, "swing": 0.0,  "bias": 0.0},
@@ -26076,8 +26091,9 @@ async def mcp_opendaw_create_full_genre_pipeline(
     """
     # Genre defaults
     defaults = {
-        "dnb":      {"bpm": 174, "root": "F",  "tracks": 3, "master_style": "loud"},
-        "house":    {"bpm": 124, "root": "C",  "tracks": 3, "master_style": "warm"},
+        "dnb":       {"bpm": 174, "root": "F",  "tracks": 3, "master_style": "loud"},
+        "liquid_dnb":{"bpm": 174, "root": "F",  "tracks": 4, "master_style": "warm"},
+        "house":     {"bpm": 124, "root": "C",  "tracks": 3, "master_style": "warm"},
         "trap":     {"bpm": 140, "root": "F#", "tracks": 3, "master_style": "loud"},
         "techno":   {"bpm": 130, "root": "C",  "tracks": 3, "master_style": "loud"},
         "dubstep":  {"bpm": 140, "root": "G",  "tracks": 3, "master_style": "loud"},
@@ -26141,8 +26157,9 @@ async def mcp_opendaw_create_full_genre_pipeline(
 
     # Step 3: Arrangement
     arrangement_fns = {
-        "dnb":      mcp_opendaw_create_dnb_arrangement,
-        "house":    mcp_opendaw_create_house_arrangement,
+        "dnb":       mcp_opendaw_create_dnb_arrangement,
+        "liquid_dnb": mcp_opendaw_create_liquid_dnb_arrangement,
+        "house":     mcp_opendaw_create_house_arrangement,
         "trap":     mcp_opendaw_create_trap_arrangement,
         "techno":   mcp_opendaw_create_techno_arrangement,
         "dubstep":  mcp_opendaw_create_dubstep_arrangement,

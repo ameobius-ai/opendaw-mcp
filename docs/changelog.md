@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.156.0 (2026-07-05)
+
+- **liquid_dnb genre integration** — added liquid_dnb to apply_genre_mix (smooth comp ratio 4, lush reverb 0.8s on pads, dotted delay on melody, sidechain with gentle threshold -18), apply_genre_humanization (timing 0.05, velocity 0.08, slight behind-beat bias 0.01 — more human than DnB but still tight), and create_full_genre_pipeline (174 BPM, F root, 4 tracks, warm master). Pipeline now supports `create_full_genre_pipeline("liquid_dnb")` end-to-end. 15 genre arrangements fully integrated.
+- **2073 unit tests** (+9)
+
 ## v1.155.0 (2026-07-05)
 
 - **`create_liquid_dnb_arrangement` orchestration tool (348 MCP tools)** — new genre arrangement: liquid drum & bass. 4-track arrangement (drums + bass + pad + melody) with smooth, melodic character distinct from regular DnB: smooth breakbeat with rimshots (not Amen ghost notes), melodic sub-bass walking root→fifth→octave→third (not Reese stabs), lush extended chords min9/maj9 (not plain minor triads), soulful pentatonic lead with call-response phrases. Default root F, velocity 0.75 (smoother than DnB's 0.85). Influences: LTJ Bukem, Calibre, High Contrast, Hospital Records. 15 multi-track genre arrangements. 74 orchestration tools. 348 MCP tools

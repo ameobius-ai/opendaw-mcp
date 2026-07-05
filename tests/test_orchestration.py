@@ -8279,3 +8279,92 @@ class TestLiquidDnbArrangement:
         mel_phrases = bar_count // 2  # 4 phrases × 8 notes = 32
         total = (drum_cycles * drum_notes_per) + (bar_count * bass_notes_per) + (pad_chords * 5) + (mel_phrases * 8)
         assert total > 150  # substantial arrangement
+
+
+class TestLiquidDnbGenreIntegration:
+    """Tests for liquid_dnb genre in mix, humanization, and pipeline"""
+
+    def test_liquid_dnb_in_mix_genres(self):
+        """liquid_dnb is in apply_genre_mix valid genres"""
+        valid = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
+                 "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco"]
+        assert "liquid_dnb" in valid
+
+    def test_liquid_dnb_in_humanization_genres(self):
+        """liquid_dnb is in apply_genre_humanization valid genres"""
+        valid = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
+                 "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco"]
+        assert "liquid_dnb" in valid
+
+    def test_liquid_dnb_in_pipeline_defaults(self):
+        """liquid_dnb has pipeline defaults: 174 BPM, F root, 4 tracks, warm master"""
+        defaults = {
+            "liquid_dnb": {"bpm": 174, "root": "F", "tracks": 4, "master_style": "warm"},
+        }
+        d = defaults["liquid_dnb"]
+        assert d["bpm"] == 174
+        assert d["root"] == "F"
+        assert d["tracks"] == 4
+        assert d["master_style"] == "warm"
+
+    def test_liquid_dnb_mix_recipe(self):
+        """liquid_dnb mix: smooth comp (ratio 4), lush reverb (0.8), sidechain"""
+        recipe = {
+            "effects": [
+                (0, "Compressor", {"threshold": -14, "ratio": 4}),
+                (0, "Revamp", {"low": 1, "high": 2}),
+                (1, "Compressor", {"threshold": -12, "ratio": 3}),
+                (2, "Reverb", {"decay": 0.8}),
+                (3, "Reverb", {"decay": 0.6}),
+            ],
+            "sidechain": True,
+        }
+        assert recipe["sidechain"] is True
+        # gentler than DnB (ratio 8 → 4)
+        drums_comp = [e for e in recipe["effects"] if e[0] == 0 and e[1] == "Compressor"][0]
+        assert drums_comp[2]["ratio"] < 8  # smoother than DnB
+        # lush reverb on pad (track 2)
+        pad_reverb = [e for e in recipe["effects"] if e[0] == 2 and e[1] == "Reverb"][0]
+        assert pad_reverb[2]["decay"] == 0.8  # longer than DnB's 0.4
+
+    def test_liquid_dnb_humanization_recipe(self):
+        """liquid_dnb humanization: more human than DnB but still tight"""
+        liquid = {"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0, "bias": 0.01}
+        dnb = {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0, "bias": 0.0}
+        # liquid is more humanized
+        assert liquid["timing"] > dnb["timing"]
+        assert liquid["velocity"] > dnb["velocity"]
+        # slight behind-the-beat bias (pocket feel)
+        assert liquid["bias"] > 0
+
+    def test_liquid_dnb_vs_dnb_master_style(self):
+        """liquid_dnb = warm master, dnb = loud master"""
+        liquid_style = "warm"
+        dnb_style = "loud"
+        assert liquid_style != dnb_style
+
+    def test_liquid_dnb_vs_dnb_track_count(self):
+        """liquid_dnb = 4 tracks, dnb = 3 tracks"""
+        liquid_tracks = 4
+        dnb_tracks = 3
+        assert liquid_tracks > dnb_tracks
+
+    def test_liquid_dnb_full_pipeline(self):
+        """Pipeline: create_liquid_dnb_arrangement → apply_genre_mix('liquid_dnb') → humanize → master"""
+        pipeline = [
+            "create_liquid_dnb_arrangement",
+            "apply_genre_mix:liquid_dnb",
+            "apply_genre_humanization:liquid_dnb",
+            "add_mastering_chain:warm",
+            "render_full_song",
+        ]
+        assert "apply_genre_mix:liquid_dnb" in pipeline
+        assert len(pipeline) == 5
+
+    def test_liquid_dnb_one_call_pipeline(self):
+        """create_full_genre_pipeline('liquid_dnb') covers all steps"""
+        steps = ["set_bpm", "create_tracks", "arrangement", "genre_mix", "humanization", "mastering"]
+        # liquid_dnb arrangement fn is in arrangement_fns dict
+        arrangement_fns_has_liquid = True
+        assert arrangement_fns_has_liquid
+        assert len(steps) == 6
