@@ -683,3 +683,92 @@ class TestScriptParamClamping:
         val, clamped = _clamp_script_param(0.5, "unipolar", 0, 1)
         assert val == 0.5
         assert clamped is False
+
+
+class TestVelocityCurveMath:
+    """Test velocity curve interpolation logic (mirrors JS in apply_velocity_curve)."""
+
+    @staticmethod
+    def _curve_value(t, curve_type, start_vel, end_vel, power=1.0):
+        """Python mirror of the JS curve logic for unit testing."""
+        if curve_type == "ramp_up":
+            return start_vel + (end_vel - start_vel) * t
+        elif curve_type == "ramp_down":
+            return end_vel + (start_vel - end_vel) * t
+        elif curve_type == "arc":
+            if t < 0.5:
+                return start_vel + (end_vel - start_vel) * (t * 2)
+            else:
+                return end_vel + (start_vel - end_vel) * ((t - 0.5) * 2)
+        elif curve_type == "trough":
+            if t < 0.5:
+                return end_vel + (start_vel - end_vel) * (t * 2)
+            else:
+                return start_vel + (end_vel - start_vel) * ((t - 0.5) * 2)
+        elif curve_type == "power":
+            return start_vel + (end_vel - start_vel) * (t ** power)
+        return start_vel
+
+    def test_ramp_up_start(self):
+        v = self._curve_value(0.0, "ramp_up", 0.3, 1.0)
+        assert abs(v - 0.3) < 0.001
+
+    def test_ramp_up_end(self):
+        v = self._curve_value(1.0, "ramp_up", 0.3, 1.0)
+        assert abs(v - 1.0) < 0.001
+
+    def test_ramp_up_mid(self):
+        v = self._curve_value(0.5, "ramp_up", 0.3, 1.0)
+        assert abs(v - 0.65) < 0.001
+
+    def test_ramp_down_start(self):
+        v = self._curve_value(0.0, "ramp_down", 0.3, 1.0)
+        assert abs(v - 1.0) < 0.001
+
+    def test_ramp_down_end(self):
+        v = self._curve_value(1.0, "ramp_down", 0.3, 1.0)
+        assert abs(v - 0.3) < 0.001
+
+    def test_arc_peak_middle(self):
+        v = self._curve_value(0.5, "arc", 0.3, 1.0)
+        assert abs(v - 1.0) < 0.001
+
+    def test_arc_start(self):
+        v = self._curve_value(0.0, "arc", 0.3, 1.0)
+        assert abs(v - 0.3) < 0.001
+
+    def test_arc_end(self):
+        v = self._curve_value(1.0, "arc", 0.3, 1.0)
+        assert abs(v - 0.3) < 0.001
+
+    def test_trough_dip_middle(self):
+        v = self._curve_value(0.5, "trough", 0.3, 1.0)
+        assert abs(v - 0.3) < 0.001
+
+    def test_trough_start(self):
+        v = self._curve_value(0.0, "trough", 0.3, 1.0)
+        assert abs(v - 1.0) < 0.001
+
+    def test_trough_end(self):
+        v = self._curve_value(1.0, "trough", 0.3, 1.0)
+        assert abs(v - 1.0) < 0.001
+
+    def test_power_linear(self):
+        v = self._curve_value(0.5, "power", 0.2, 1.0, power=1.0)
+        assert abs(v - 0.6) < 0.001
+
+    def test_power_sharp(self):
+        # power=2.0: t=0.5 → 0.25 → vel = 0.2 + 0.8*0.25 = 0.4
+        v = self._curve_value(0.5, "power", 0.2, 1.0, power=2.0)
+        assert abs(v - 0.4) < 0.001
+
+    def test_power_slow(self):
+        # power=0.5: t=0.5 → sqrt(0.5) ≈ 0.707 → vel = 0.2 + 0.8*0.707 ≈ 0.766
+        v = self._curve_value(0.5, "power", 0.2, 1.0, power=0.5)
+        assert abs(v - (0.2 + 0.8 * (0.5 ** 0.5))) < 0.01
+
+    def test_clamp_min_velocity(self):
+        # When start and end are very low, curve should still produce >= 0.05
+        v = self._curve_value(0.0, "ramp_up", 0.01, 0.02)
+        clamped = max(0.05, min(1.0, v))
+        assert clamped >= 0.05

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.22.0 (2026-07-05)
+
+- **`apply_velocity_curve`** — deterministic velocity envelope across notes (ramp_up/ramp_down/arc/trough/power). Unlike humanize (random), applies mathematical curve shape — build-ups, fade-ins, crescendo rolls, expressive phrasing. Power exponent for exponential curves
+- **15 unit tests** — 213→228 total
+- **E2E verified**: ramp_up (0.2→1.0, 16 notes), arc (peak=0.95), power=2.0 (slow rise)
+- **54 examples** (added apply_velocity_curve.py)
+- **282 MCP tools**, **25 orchestration tools**
+
 ## v1.21.0 (2026-07-05)
 
 - **`apply_sidechain`** — new orchestration tool: sidechain ducking via volume automation. Classic pumping/breathing effect for house/techno/EDM. Adjustable depth, attack, release, kick interval

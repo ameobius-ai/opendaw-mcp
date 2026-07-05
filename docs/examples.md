@@ -90,6 +90,7 @@ python examples/genre_house.py
 | `create_walking_bass.py` | Walking bass over chord progressions: jazz/blues/swing |
 | `apply_sidechain.py` | Sidechain ducking: classic house/techno pumping effect |
 | `create_ghost_notes.py` | Ghost notes: funk/R&B groove enhancer |
+| `apply_velocity_curve.py` | Velocity envelopes: ramp/arc/trough/power curves for expressive dynamics |
 
 ## Running examples
 

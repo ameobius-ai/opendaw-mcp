@@ -15147,12 +15147,155 @@ class OpendawServer:
         raise AttributeError(f"'OpendawServer' has no attribute '{name}'")
 
 
+@mcp.tool()
+async def mcp_opendaw_apply_velocity_curve(
+    unit_index: int = 0,
+    track_index: int = 0,
+    region_index: int = -1,
+    curve_type: str = "ramp_up",
+    start_velocity: float = 0.3,
+    end_velocity: float = 1.0,
+    power: float = 1.0,
+) -> str:
+    """Apply a velocity envelope across notes — ramp, arc, trough, or custom power curve.
+
+    Maps each note's position within its region to a velocity value via a mathematical curve.
+    Unlike humanize_notes (random variation), this applies a deterministic envelope shape —
+    useful for build-ups, fade-ins, crescendo rolls, and expressive phrasing.
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = all regions on the track).
+    curve_type: Curve shape:
+      - "ramp_up"   — linear increase from start_velocity to end_velocity
+      - "ramp_down" — linear decrease from start_velocity to end_velocity
+      - "arc"       — rises to end_velocity then falls back to start_velocity (peak in middle)
+      - "trough"    — falls to start_velocity then rises to end_velocity (dip in middle)
+      - "power"     — exponential curve controlled by 'power' param (>1 = fast rise, <1 = slow rise)
+    start_velocity: Velocity at curve start 0-1 (default 0.3).
+    end_velocity: Velocity at curve end 0-1 (default 1.0).
+    power: Exponent for "power" curve type (default 1.0 = linear). 2.0 = sharp attack, 0.5 = slow swell.
+
+    Returns per-region note counts and total notes shaped.
+
+    Examples:
+      apply_velocity_curve(curve_type="ramp_up", start_velocity=0.2, end_velocity=1.0)  # build-up
+      apply_velocity_curve(curve_type="arc", start_velocity=0.4, end_velocity=0.95)     # expressive phrase
+      apply_velocity_curve(curve_type="power", power=2.0, start_velocity=0.1, end_velocity=1.0)  # sharp attack
+    """
+    if not (0.0 <= start_velocity <= 1.0):
+        return f"Error: start_velocity must be 0-1, got {start_velocity}"
+    if not (0.0 <= end_velocity <= 1.0):
+        return f"Error: end_velocity must be 0-1, got {end_velocity}"
+    if not (0.1 <= power <= 5.0):
+        return f"Error: power must be 0.1-5.0, got {power}"
+    valid_curves = ("ramp_up", "ramp_down", "arc", "trough", "power")
+    if curve_type not in valid_curves:
+        return f"Error: curve_type must be one of {valid_curves}, got '{curve_type}'"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const curveType = "{curve_type}";
+        const startVel = {start_velocity};
+        const endVel = {end_velocity};
+        const powerExp = {power};
+
+        let totalNotes = 0;
+        const regionStats = [];
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{ error: "unit_index out of range" }};
+        const au = allUnits[unitIdx];
+
+        const noteTracks = h.trackBoxes(au).filter(box => box.type?.getValue?.() === 1);
+        if (trackIdx >= noteTracks.length) return {{ error: "track_index out of range" }};
+        const track = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(track);
+        const targetRegions = regionIdx < 0 ? regions : (regionIdx < regions.length ? [regions[regionIdx]] : []);
+
+        h.modify(() => {{
+            for (let ri = 0; ri < targetRegions.length; ri++) {{
+                const region = targetRegions[ri];
+                let noteCount = 0;
+                try {{
+                    const vertex = region.events.targetVertex.unwrap();
+                    const collectionBox = vertex.box || vertex;
+                    if (!collectionBox || !collectionBox.events) continue;
+
+                    const noteEvents = h.eventBoxes(collectionBox);
+                    if (noteEvents.length === 0) continue;
+
+                    // Find min and max position to normalize
+                    let minPos = Infinity, maxPos = -Infinity;
+                    for (const evt of noteEvents) {{
+                        const p = evt.position.getValue();
+                        if (p < minPos) minPos = p;
+                        if (p > maxPos) maxPos = p;
+                    }}
+                    const posRange = maxPos - minPos || 1;
+
+                    for (const evt of noteEvents) {{
+                        const pos = evt.position.getValue();
+                        const t = (pos - minPos) / posRange;  // 0..1
+
+                        let vel;
+                        switch (curveType) {{
+                            case "ramp_up":
+                                vel = startVel + (endVel - startVel) * t;
+                                break;
+                            case "ramp_down":
+                                vel = endVel + (startVel - endVel) * t;
+                                break;
+                            case "arc":
+                                // peak at middle: rises to endVel then falls to startVel
+                                vel = t < 0.5
+                                    ? startVel + (endVel - startVel) * (t * 2)
+                                    : endVel + (startVel - endVel) * ((t - 0.5) * 2);
+                                break;
+                            case "trough":
+                                // dip at middle: falls to startVel then rises to endVel
+                                vel = t < 0.5
+                                    ? endVel + (startVel - endVel) * (t * 2)
+                                    : startVel + (endVel - startVel) * ((t - 0.5) * 2);
+                                break;
+                            case "power":
+                                vel = startVel + (endVel - startVel) * Math.pow(t, powerExp);
+                                break;
+                            default:
+                                vel = startVel;
+                        }}
+                        evt.velocity.setValue(Math.max(0.05, Math.min(1.0, vel)));
+                        noteCount++;
+                        totalNotes++;
+                    }}
+                }} catch(e) {{}}
+                regionStats.push({{ region_index: ri, notes_shaped: noteCount }});
+            }}
+        }});
+
+        return {{
+            success: true,
+            curve_type: curveType,
+            start_velocity: startVel,
+            end_velocity: endVel,
+            power: powerExp,
+            total_notes_shaped: totalNotes,
+            regions: regionStats,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.21.0 — 281 MCP tools")
+            print("opendaw-mcp 1.22.0 — 282 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -15162,7 +15305,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 281 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 282 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
