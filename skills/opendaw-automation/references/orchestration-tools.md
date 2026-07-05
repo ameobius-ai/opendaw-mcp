@@ -2,15 +2,15 @@
 
 ## Design Rationale
 
-372 low-level MCP tools give agents full DAW control, but building a complete track requires 30-50 individual calls (create_synth → create_note × 20 → add_effect × 3 → set_param × 10 → create_send → render). This is token-heavy, slow, and agents lose context in the sequence.
+377 low-level MCP tools give agents full DAW control, but building a complete track requires 30-50 individual calls (create_synth → create_note × 20 → add_effect × 3 → set_param × 10 → create_send → render). This is token-heavy, slow, and agents lose context in the sequence.
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.193.0, 372 total)
+## Tools Added (v1.10.0, 255 total → v1.198.0, 377 total)
 
-80+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+85+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
-### Full orchestration tool list (v1.193.0)
+### Full orchestration tool list (v1.198.0)
 1. `create_notes_batch` — batch note creation from JSON
 2. `create_drum_pattern` — step-sequencer drum notation
 3. `create_chord_progression` — scale-aware chord sequences
@@ -120,6 +120,11 @@ Orchestration tools solve this by combining multiple low-level operations into a
 107. `download_audio` — URL to disk (Suno CDN bridge)
 108. `render_full_song` — auto-detect length + 4 beat tail
 109. `create_full_genre_pipeline` — zero-to-render (loop + harmony + chains + mix + humanize + master)
+110. `detect_bpm` — BPM detection from WAV (onset + autocorrelation, pure Python, no numpy)
+111. `detect_key` — musical key detection (chroma + Krumhansl-Schmuckler, pure Python FFT)
+112. `create_progression_from_key` — diatonic auto-progression from key+mode (6 styles, 12 templates)
+113. `analyze_track` — composite analysis: BPM + key + LUFS + duration + dynamic range (one call)
+114. `remix_track` — full Suno remix pipeline: analyze → set_bpm → import → progression → harmony → mix → master (7 steps, one call)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
