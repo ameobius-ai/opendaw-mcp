@@ -2299,3 +2299,95 @@ class TestTapeDelayDSP:
         code = self._read_script()
         assert "tanh" in code, "Missing saturation in feedback path (tanh)"
         assert "_tapeSat" in code or "tapeSat" in code, "Missing tape saturation function"
+
+
+class TestGraphicEqDSP:
+    """Unit tests for werkstatt_graphic_eq.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_graphic_eq.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt graphic_eq" in code, "Missing @werkstatt graphic_eq header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 11, f"Expected 11 params (10 bands + master), got {len(params)}"
+
+    def test_band_32_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        band = [p for p in params if p["name"] == "band_32"][0]
+        assert band["min"] == -12
+        assert band["max"] == 12
+        assert band["default"] == 0
+
+    def test_band_1k_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        band = [p for p in params if p["name"] == "band_1k"][0]
+        assert band["min"] == -12
+        assert band["max"] == 12
+        assert band["default"] == 0
+
+    def test_band_16k_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        band = [p for p in params if p["name"] == "band_16k"][0]
+        assert band["min"] == -12
+        assert band["max"] == 12
+        assert band["default"] == 0
+
+    def test_master_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        master = [p for p in params if p["name"] == "master"][0]
+        assert master["min"] == -6
+        assert master["max"] == 6
+        assert master["default"] == 0
+
+    def test_all_10_bands_present(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        band_names = [p["name"] for p in params if p["name"].startswith("band_")]
+        expected = ["band_32", "band_64", "band_125", "band_250", "band_500",
+                    "band_1k", "band_2k", "band_4k", "band_8k", "band_16k"]
+        assert band_names == expected, f"Band names mismatch: {band_names}"
+
+    def test_iso_frequencies(self):
+        code = self._read_script()
+        assert "32" in code and "64" in code and "125" in code
+        assert "250" in code and "500" in code and "1000" in code
+        assert "2000" in code and "4000" in code and "8000" in code
+        assert "16000" in code, "Missing 16kHz band"
+
+    def test_biquad_implementation(self):
+        code = self._read_script()
+        assert "_peakCoeff" in code, "Missing peaking filter coefficient function"
+        assert "b0" in code and "a0" in code, "Missing biquad coefficients"
+        assert "cosw" in code or "Math.cos" in code, "Missing cosine in biquad"
+        assert "sinw" in code or "Math.sin" in code, "Missing sine in biquad"
+
+    def test_series_processing(self):
+        code = self._read_script()
+        assert "_processSample" in code, "Missing series sample processing"
+        assert "this.coeffs" in code, "Missing coefficients array"
+        assert "this.stateL" in code or "this.stateR" in code, "Missing per-band filter state"

@@ -271,6 +271,7 @@ class Processor {
 | `werkstatt_spring_reverb.js` | Spring reverb (dispersive, boing) | decay, damp, tension, boing, mix | |
 | `werkstatt_tube_saturator.js` | Tube/valve saturator (even harmonics, bias) | drive, warmth, bias, tone, output, mix | |
 | `werkstatt_tape_delay.js` | Tape delay (wow/flutter, feedback saturation) | time, feedback, wow, flutter, saturation, mix | |
+| `werkstatt_graphic_eq.js` | 10-band graphic EQ (ISO freqs, biquad peaking) | band_32..band_16k (10 bands), master | |
 | `werkstatt_pitch_shift.js` | Real-time pitch shift | semitones, cents, latency, mix | #188 |
 | `werkstatt_dcremover.js` | DC remover + stereo width | dc_freq, width, balance, mix | #91 |
 | `werkstatt_allpass.js` | Allpass filter + cascade | freq, stages, invert, feedback, mix | #133 |
@@ -317,6 +318,7 @@ class Processor {
 | Bitcrusher (lo-fi) | `werkstatt_bitcrusher.js` | Werkstatt |
 | Filter (LP/HP/BP/Notch) | `werkstatt_multifilter.js` | Werkstatt |
 | EQ (parametric, 3-band) | `werkstatt_paraeq.js` | Werkstatt |
+| EQ (graphic, 10-band) | `werkstatt_graphic_eq.js` | Werkstatt |
 | Compressor (peak, soft-knee) | `werkstatt_compressor.js` | Werkstatt |
 | Compressor (lookahead) | `werkstatt_lookahead.js` | Werkstatt |
 | Limiter (brickwall) | `werkstatt_limiter.js` | Werkstatt |

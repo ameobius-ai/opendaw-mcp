@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-292-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-302-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-41-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-374%20unit%20%2B%2020%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-48-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-324%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -16,7 +16,7 @@
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
-**298 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**302 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -27,8 +27,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **302** MCP tools | **76** Python examples (8 genre templates) |
-| **47** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **312** unit + **28** E2E tests |
+| **48** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **324** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -507,11 +507,19 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.57.0 (2026-07-05)
+
+- **`werkstatt_graphic_eq.js` DSP script** — 10-band graphic EQ with ISO frequency bands (32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz), each ±12 dB gain, plus master output ±6 dB. Biquad peaking filters (Q=1.41, ⅔ octave) in series. Distinct from parametric EQ (fixed bands vs movable). Classic rack-mount EQ for tone shaping, mixing, and live sound. 11 params: 10 bands + master
+- **48 DSP scripts** (35 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **324 unit tests** (+10 for graphic EQ), E2E 8/8
+- ruff clean, CI green
+
 ### v1.56.0 (2026-07-05)
 
 - **`werkstatt_tape_delay.js` DSP script** — tape delay with wow (0.5 Hz slow pitch drift) and flutter (15 Hz fast pitch wobble) modulating the delay time, plus saturation in the feedback path for graceful repeat degradation. Fractional delay read for smooth modulation. 6 params: time, feedback, wow, flutter, saturation, mix. Classic for dub, guitar slapback, ambient wash. Completes delay family: stereo ✅ tape ✅
-- **47 DSP scripts** (34 Werkstatt + 7 Apparat + 6 Spielwerk)
-- **E2E verified**: compiled via ScriptCompiler, 6 params, time/feedback/wow/flutter set
+- **`werkstatt_graphic_eq.js` DSP script** — 10-band graphic EQ with ISO frequency bands (32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz), each ±12 dB gain, plus master output ±6 dB. Biquad peaking filters (Q=1.41, ⅔ octave) in series. Distinct from parametric EQ (fixed bands vs movable). Classic rack-mount EQ for tone shaping, mixing, and live sound. 11 params: 10 bands + master
+- **48 DSP scripts** (35 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 11 params, band_1k/band_32/band_16k/master set
 - **Example script**: `werkstatt_tape_delay.py` — dub, slapback, ambient wash presets
 - ruff clean, CI green
 
