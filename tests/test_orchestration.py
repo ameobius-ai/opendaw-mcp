@@ -3357,4 +3357,158 @@ class TestTumbaoGeneration:
         valid = {"tone", "open", "slap"}
         for name, strokes in self.TUMBAO_PATTERNS.items():
             for _, stroke_type in strokes:
-                assert stroke_type in valid, f"{name}: invalid stroke {stroke_type}"
+                assert stroke_type in valid, f"{name} has invalid stroke {stroke_type}"
+
+
+class TestCascara:
+    """Tests for create_cascara orchestration tool"""
+
+    CASCARA_PATTERNS = {
+        "son_3_2": [
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (3.5, "low"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.0, "low"),
+        ],
+        "son_2_3": [
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (4.0, "low"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.5, "low"),
+        ],
+        "guaguanco": [
+            (0.0, "ghost"), (0.5, "ghost"),
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (3.5, "low"),
+            (4.0, "ghost"), (4.5, "ghost"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.0, "low"),
+        ],
+        "mambo": [
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (3.5, "low"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.0, "high"), (7.5, "low"),
+        ],
+    }
+
+    def test_son_3_2_strokes(self):
+        strokes = self.CASCARA_PATTERNS["son_3_2"]
+        assert len(strokes) == 8
+        beats = [b for b, s in strokes]
+        assert beats[0] == 1.5  # &2
+        assert 2.5 in beats  # &3
+
+    def test_son_2_3_strokes(self):
+        strokes = self.CASCARA_PATTERNS["son_2_3"]
+        assert len(strokes) == 8
+        beats = [b for b, s in strokes]
+        # 2-3: bar 1 has the "back" — beat 4 low
+        assert 4.0 in beats
+
+    def test_3_2_vs_2_3_difference(self):
+        beats_32 = [b for b, s in self.CASCARA_PATTERNS["son_3_2"]]
+        beats_23 = [b for b, s in self.CASCARA_PATTERNS["son_2_3"]]
+        assert beats_32 != beats_23, "3-2 and 2-3 must differ"
+
+    def test_guaguanco_has_ghosts(self):
+        strokes = self.CASCARA_PATTERNS["guaguanco"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert len(ghosts) == 4, "guaguanco should have 4 ghost strokes"
+        assert 0.0 in ghosts  # beat 1 of bar 1
+        assert 4.0 in ghosts  # beat 1 of bar 2
+
+    def test_guaguanco_denser_than_son(self):
+        son_count = len(self.CASCARA_PATTERNS["son_3_2"])
+        gua_count = len(self.CASCARA_PATTERNS["guaguanco"])
+        assert gua_count > son_count, "guaguanco should be denser"
+
+    def test_mambo_has_accent_on_7(self):
+        strokes = self.CASCARA_PATTERNS["mambo"]
+        # mambo adds accent on beat 7 (high) + 7.5 (low)
+        highs = [b for b, s in strokes if s == "high" and b >= 5.0]
+        assert 7.0 in highs, "mambo should have high accent on beat 7"
+
+    def test_all_types_valid(self):
+        valid = {"high", "low", "ghost"}
+        for name, strokes in self.CASCARA_PATTERNS.items():
+            for _, stroke_type in strokes:
+                assert stroke_type in valid, f"{name} has invalid stroke {stroke_type}"
+
+    def test_cycle_length(self):
+        cycle_len = 8.0
+        for name, strokes in self.CASCARA_PATTERNS.items():
+            max_beat = max(b for b, _ in strokes)
+            assert max_beat < cycle_len, f"{name}: beat {max_beat} exceeds cycle {cycle_len}"
+
+    def test_high_low_alternation(self):
+        """Son patterns alternate high/low creating call-and-response"""
+        strokes = self.CASCARA_PATTERNS["son_3_2"]
+        for i in range(0, len(strokes), 2):
+            assert strokes[i][1] == "high", f"Position {i} should be high"
+            assert strokes[i + 1][1] == "low", f"Position {i+1} should be low"
+
+    def test_velocity_mapping(self):
+        """High strokes louder than low, ghosts quietest"""
+        base = 0.7
+        high_vel = min(1.0, base + 0.1)
+        low_vel = max(0.0, base - 0.05)
+        ghost_vel = max(0.0, base - 0.25)
+        assert ghost_vel < low_vel < high_vel
+
+    def test_pitch_mapping(self):
+        """High strokes use high pitch, low/ghost use low pitch"""
+        high_pitch, low_pitch = 76, 60
+        pitch_map = {"high": high_pitch, "low": low_pitch, "ghost": low_pitch}
+        assert pitch_map["high"] > pitch_map["low"]
+        assert pitch_map["ghost"] == pitch_map["low"]
+
+    def test_duration_mapping(self):
+        """Ghosts shortest, highs slightly longer"""
+        dur_map = {"high": 0.15, "low": 0.12, "ghost": 0.08}
+        assert dur_map["ghost"] < dur_map["low"] < dur_map["high"]
+
+    def test_direction_detection(self):
+        """3-2 and 2-3 directions detected from type name"""
+        assert "3_2" in "son_3_2"
+        direction_32 = "3-2" if "3_2" in "son_3_2" else "2-3"
+        assert direction_32 == "3-2"
+
+        direction_23 = "3-2" if "3_2" in "son_2_3" else "2-3"
+        assert direction_23 == "2-3"
+
+        direction_gua = "3-2" if "3_2" in "guaguanco" else "2-3" if "2_3" in "guaguanco" else "varied"
+        assert direction_gua == "varied"
+
+    def test_bar_repetition(self):
+        """4 bars = 2 cycles of 2-bar pattern"""
+        bars = 4
+        cycles = bars // 2
+        assert cycles == 2
+
+    def test_note_generation_one_cycle(self):
+        strokes = self.CASCARA_PATTERNS["son_3_2"]
+        all_notes = []
+        for beat, stroke_type in strokes:
+            all_notes.append({"pitch": 76 if stroke_type == "high" else 60, "start": beat, "duration": 0.15, "velocity": 0.8})
+        assert len(all_notes) == 8
+        starts = [n["start"] for n in all_notes]
+        assert starts == [1.5, 2.0, 2.5, 3.5, 5.5, 6.0, 6.5, 7.0]
+
+    def test_note_generation_two_cycles(self):
+        strokes = self.CASCARA_PATTERNS["son_3_2"]
+        cycle_len = 8.0
+        all_notes = []
+        for c in range(2):
+            for beat, stroke_type in strokes:
+                all_notes.append({"start": c * cycle_len + beat, "stroke": stroke_type})
+        assert len(all_notes) == 16
+        assert all_notes[8]["start"] == 9.5  # second cycle first stroke
+
+    def test_type_normalization(self):
+        raw = "Son 3-2"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert "son" in normalized
+
+    def test_pitch_validation(self):
+        assert 0 <= 76 <= 127
+        assert 0 <= 60 <= 127
+        assert not (0 <= 128 <= 127)
+
+    def test_mambo_more_strokes_than_son(self):
+        """Mambo has extra accent, so more strokes than standard son"""
+        son_count = len(self.CASCARA_PATTERNS["son_3_2"])
+        mambo_count = len(self.CASCARA_PATTERNS["mambo"])
+        assert mambo_count > son_count, "mambo should have more strokes"

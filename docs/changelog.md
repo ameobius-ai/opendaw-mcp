@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.114.0 (2026-07-05)
+
+- **`create_cascara` orchestration tool (315 MCP tools)** — Afro-Cuban cáscara pattern: timbale shell rhythm that fills space around clave and tumbao. Completes the Afro-Cuban rhythm section trilogy (clave + tumbao + cáscara). 4 variants: son_3_2 (forward), son_2_3 (reverse), guaguanco (ghost strokes on downbeats for density), mambo (syncopated accents + fill on bar 2). Two stroke heights: high (rim/edge, accented) + low (shell body, unaccented) + ghost (very soft). High/low alternation creates call-and-response within the pattern. 58 orchestration tools. 315 MCP tools
+- **1249 unit tests** (+19)
+
 ## v1.113.0 (2026-07-05)
 
 - **`werkstatt_auto_tune.js` DSP script (91 DSP, 72 Werkstatt)** — auto-tune pitch correction: autocorrelation pitch detection (60-1200 Hz range, parabolic interpolation for sub-sample accuracy) → snap-to-scale correction (7 scales: chromatic/major/minor/dorian/mixolydian/pentatonic minor/blues, 12 root notes) → time-domain pitch shifting via ring buffer with linear interpolation. Retune speed controls hard (robot, T-Pain) vs soft (natural) correction. Strength parameter blends between dry and fully corrected. Detune offset in cents. Cher "Believe" / Antares Auto-Tune style. 7 params (key/scale/retune/strength/detune/mix/output). 91 DSP scripts, 72 Werkstatt

@@ -20913,3 +20913,130 @@ async def mcp_opendaw_create_tumbao(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_cascara(
+    cascara_type: str = "son_3_2",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    high_pitch: int = 76,
+    low_pitch: int = 60,
+    velocity: float = 0.7,
+) -> str:
+    """Create an Afro-Cuban cáscara pattern — the timbale shell rhythm that fills space around the clave.
+
+    Cáscara ("shell") is played on the sides of the timbale drums. It weaves between
+    the clave and tumbao, filling the rhythmic gaps with a flowing, continuous feel.
+    Together with clave and tumbao, it forms the three pillars of the Afro-Cuban
+    rhythm section. The pattern uses two stroke heights: high (rim/edge, accented)
+    and low (shell body, unaccented), creating a call-and-response within the pattern.
+
+    cascara_type:
+      "son_3_2"     — Son cáscara, 3-2 direction (forward clave).
+                      Bar 1: &2 high, 3 low, &3 high, &4 low
+                      Bar 2: &2 high, 3 low, &3 high, 4 low
+      "son_2_3"     — Son cáscara, 2-3 direction (reverse clave).
+                      Bar 1: &2 high, 3 low, &3 high, 4 low
+                      Bar 2: &2 high, 3 low, &3 high, &4 low
+      "guaguanco"   — Rumba guaguancó cáscara. Adds ghost strokes on beat 1 and
+                      &1 of each bar for a denser, more driving feel.
+      "mambo"       — Mambo cáscara. Adds syncopated accents on &4 of bar 2 and
+                      a fill on beat 4 of bar 2. Brighter, more showy.
+
+    bars: Pattern length (2 = one cáscara cycle, repeat for longer).
+    high_pitch: MIDI pitch for high strokes (rim/edge of timbale, 76 = high wood block).
+    low_pitch: MIDI pitch for low strokes (shell body, 60 = mid tom).
+    velocity: Base velocity 0-1. High strokes +0.1, low strokes -0.05.
+
+    Returns notes created, cáscara type, direction, and stroke breakdown.
+
+    Example:
+      create_cascara(cascara_type="son_3_2", track_index=0)
+      create_cascara(cascara_type="guaguanco", track_index=1, bars=4)
+    """
+    cascara_type = cascara_type.strip().lower().replace(" ", "_")
+    valid_types = ["son_3_2", "son_2_3", "guaguanco", "mambo"]
+    if cascara_type not in valid_types:
+        return f"Error: unknown cascara_type '{cascara_type}'. Valid: {', '.join(valid_types)}"
+
+    if bars < 2 or bars > 16:
+        return "Error: bars must be 2-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    for p in (high_pitch, low_pitch):
+        if not (0 <= p <= 127):
+            return "Error: pitches must be 0-127"
+
+    # Cáscara patterns: (beat_position, stroke_type)
+    # stroke_type: "high" (rim, accented) or "low" (shell, unaccented) or "ghost" (very soft)
+    # Beat positions within a 2-bar cycle (8 beats in 4/4)
+    patterns = {
+        # 3-2 direction: the "back" of the pattern is in bar 2
+        "son_3_2": [
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (3.5, "low"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.0, "low"),
+        ],
+        # 2-3 direction: the "front" is in bar 1
+        "son_2_3": [
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (4.0, "low"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.5, "low"),
+        ],
+        # Guaguancó: adds ghost strokes on downbeats for density
+        "guaguanco": [
+            (0.0, "ghost"), (0.5, "ghost"),
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (3.5, "low"),
+            (4.0, "ghost"), (4.5, "ghost"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.0, "low"),
+        ],
+        # Mambo: syncopated accents + fill on bar 2
+        "mambo": [
+            (1.5, "high"), (2.0, "low"), (2.5, "high"), (3.5, "low"),
+            (5.5, "high"), (6.0, "low"), (6.5, "high"), (7.0, "high"), (7.5, "low"),
+        ],
+    }
+
+    strokes = patterns[cascara_type]
+    cycle_len = 8.0  # 2 bars of 4/4
+
+    pitch_map = {"high": high_pitch, "low": low_pitch, "ghost": low_pitch}
+    vel_map = {
+        "high": min(1.0, velocity + 0.1),
+        "low": max(0.0, velocity - 0.05),
+        "ghost": max(0.0, velocity - 0.25),
+    }
+    dur_map = {"high": 0.15, "low": 0.12, "ghost": 0.08}
+
+    direction = "3-2" if "3_2" in cascara_type else "2-3" if "2_3" in cascara_type else "varied"
+
+    all_notes = []
+    cycles = bars // 2
+    stroke_counts = {"high": 0, "low": 0, "ghost": 0}
+
+    for c in range(cycles):
+        offset = c * cycle_len
+        for beat, stroke_type in strokes:
+            all_notes.append({
+                "pitch": pitch_map[stroke_type],
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[stroke_type] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["cascara"] = True
+        data["cascara_type"] = cascara_type
+        data["direction"] = direction
+        data["strokes"] = stroke_counts
+        data["cycles"] = cycles
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
