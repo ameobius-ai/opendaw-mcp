@@ -14563,6 +14563,92 @@ async def mcp_opendaw_create_polyrhythm(
         return result_str
 
 
+@mcp.tool()
+async def mcp_opendaw_create_scale_run(
+    scale: str,
+    root: str,
+    direction: str = "up",
+    octaves: int = 1,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    step_duration: float = 0.125,
+    velocity: float = 0.7,
+    octave: int = 4,
+) -> str:
+    """Create a scale run — ascending or descending scale sequence for fills and transitions.
+
+    Generates a sequence of scale notes moving up or down across one or more octaves.
+    Used for drum fills, melodic transitions, lead build-ups, and bass walks.
+
+    scale: Scale type (major, minor, dorian, phrygian, blues, etc. — 14 types from music_theory).
+    root: Root note name (C, C#, D, ... B).
+    direction: "up" (ascending) or "down" (descending).
+    octaves: Number of octaves to span (1-4). 1 = 7-8 notes, 2 = 14-15 notes, etc.
+    unit_index: AU index.
+    track_index: Note track index.
+    start_beat: Starting beat position.
+    step_duration: Duration of each note in beats (0.125 = 8th triplet, 0.25 = 16th).
+    velocity: Note velocity 0-1.
+    octave: Starting octave (1-7, default 4).
+
+    Returns total notes created and scale info.
+
+    Example:
+      create_scale_run(scale="minor", root="A", direction="up", octaves=2, step_duration=0.0625)
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS, NOTE_TO_PITCH
+
+    if direction not in ("up", "down"):
+        return 'Error: direction must be "up" or "down"'
+    if octaves < 1 or octaves > 4:
+        return "Error: octaves must be 1-4"
+    if scale not in SCALE_INTERVALS:
+        return f"Error: unknown scale '{scale}'. Valid: {', '.join(SCALE_INTERVALS.keys())}"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'"
+
+    intervals = SCALE_INTERVALS[scale]
+    root_pc = NOTE_TO_PITCH[root]
+    base_pitch = (octave + 1) * 12 + root_pc
+
+    # Generate all notes across octaves
+    all_pitches = []
+    for oct_i in range(octaves):
+        for iv in intervals:
+            all_pitches.append(base_pitch + iv + 12 * oct_i)
+    # Add the octave root note at the end for completeness
+    all_pitches.append(base_pitch + 12 * octaves)
+
+    if direction == "down":
+        all_pitches.reverse()
+
+    # Create note dicts
+    all_notes = []
+    for i, pitch in enumerate(all_pitches):
+        all_notes.append({
+            "pitch": pitch,
+            "start": start_beat + i * step_duration,
+            "duration": step_duration,
+            "velocity": velocity,
+        })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["scale_run"] = True
+        data["scale"] = scale
+        data["root"] = root
+        data["direction"] = direction
+        data["octaves"] = octaves
+        data["pitch_range"] = f"{all_pitches[0]}-{all_pitches[-1]}"
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
 class OpendawServer:
     """Facade class for framework integrations (LangChain, AutoGen, CrewAI).
 
@@ -14595,7 +14681,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.19.0 — 276 MCP tools")
+            print("opendaw-mcp 1.19.1 — 277 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -14605,7 +14691,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 276 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 277 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")

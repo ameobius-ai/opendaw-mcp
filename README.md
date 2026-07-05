@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **276** MCP tools | **48** Python examples (8 genre templates) |
+| **277** MCP tools | **49** Python examples (8 genre templates) |
 | **30** DSP scripts | **9** agent skills |
-| **3** framework wrappers | **182** unit + **7** E2E tests |
+| **3** framework wrappers | **190** unit + **8** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.19.1 (2026-07-05)
+
+- **`create_scale_run`** — ascending/descending scale sequences for fills, transitions, build-ups. 14 scales, 1-4 octaves
+- **8 unit tests** for scale run generation (major/minor/blues/chromatic/pentatonic, multi-octave, direction)
+- **E2E verified**: C minor up 1 oct (8 notes), A blues down 2 oct (13 notes), error handling
+- **277 MCP tools**, **20 orchestration tools**, ruff clean, CI green
+
 ### v1.19.0 (2026-07-05)
 
 - **`apply_swing`** — pure swing feel for existing notes, deterministic, no randomness. 16th/8th grid, 0-1 depth. 0.58 = classic hip-hop/lofi swing
@@ -513,7 +520,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **12 unit tests** for swing offset logic and polyrhythm generation (170→182 total)
 - **E2E test** for apply_swing (0.5/0.0/8th grid) and create_polyrhythm (3:4, 2:3, error handling)
 - **30 DSP scripts** (added flanger, noisegate, tremolo)
-- **276 MCP tools**, **19 orchestration tools**, ruff clean, CI green
+- **277 MCP tools**, **20 orchestration tools**, ruff clean, CI green
 
 ### v1.18.0 (2026-07-05)
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.19.1 (2026-07-05)
+
+- **`create_scale_run`** — new orchestration tool: ascending/descending scale sequences for fills and transitions. 14 scales, 1-4 octaves, adjustable step duration
+- **8 unit tests** for scale run generation (ascending/descending, multi-octave, blues/chromatic/pentatonic) — 182→190 total
+- **E2E test** for scale_run (C minor up 1 oct, A blues down 2 oct, error handling)
+- **49 examples** (added create_scale_run.py)
+- **277 MCP tools**, **20 orchestration tools**, ruff clean, CI green
+
 ## v1.19.0 (2026-07-05)
 
 - **`apply_swing`** — new orchestration tool: pure swing feel for existing notes, deterministic, no randomness. 16th/8th grid, 0-1 depth. 0.58 = classic hip-hop/lofi swing

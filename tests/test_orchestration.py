@@ -331,3 +331,79 @@ class TestPolyrhythmGeneration:
         secondary = [n for n in notes if n["stream"] == "secondary"]
         # Both streams would have identical timing — not a polyrhythm
         assert [n["start"] for n in primary] == [n["start"] for n in secondary]
+
+
+class TestScaleRunGeneration:
+    """Test the scale run pattern generation logic of create_scale_run."""
+
+    def _generate_scale_run(self, scale: str, root: str, direction: str, octaves: int, octave: int = 4):
+        """Replicate scale run note generation using music_theory constants."""
+        from opendaw_mcp.music_theory import SCALE_INTERVALS, NOTE_TO_PITCH
+
+        intervals = SCALE_INTERVALS[scale]
+        root_pc = NOTE_TO_PITCH[root]
+        base_pitch = (octave + 1) * 12 + root_pc
+
+        all_pitches = []
+        for oct_i in range(octaves):
+            for iv in intervals:
+                all_pitches.append(base_pitch + iv + 12 * oct_i)
+        all_pitches.append(base_pitch + 12 * octaves)
+
+        if direction == "down":
+            all_pitches.reverse()
+
+        return all_pitches
+
+    def test_ascending_one_octave(self):
+        pitches = self._generate_scale_run("major", "C", "up", 1)
+        # 7 scale notes + 1 octave root = 8 notes
+        assert len(pitches) == 8
+        assert pitches[0] == 60  # C4
+        assert pitches[-1] == 72  # C5
+        # Should be ascending
+        assert all(pitches[i] < pitches[i + 1] for i in range(len(pitches) - 1))
+
+    def test_descending_reverses(self):
+        up = self._generate_scale_run("minor", "A", "up", 1)
+        down = self._generate_scale_run("minor", "A", "down", 1)
+        assert up == list(reversed(down))
+
+    def test_two_octaves_doubles(self):
+        one = self._generate_scale_run("major", "C", "up", 1)
+        two = self._generate_scale_run("major", "C", "up", 2)
+        # 1 octave = 8, 2 octaves = 15
+        assert len(one) == 8
+        assert len(two) == 15
+        # First 8 should match
+        assert two[:8] == one
+
+    def test_minor_scale_intervals(self):
+        pitches = self._generate_scale_run("minor", "C", "up", 1)
+        # C minor: C, D, Eb, F, G, Ab, Bb, C
+        expected = [60, 62, 63, 65, 67, 68, 70, 72]
+        assert pitches == expected
+
+    def test_blues_scale(self):
+        pitches = self._generate_scale_run("blues", "A", "up", 1)
+        # A blues: A, C, D, Eb, E, G, A (6 notes + octave = 7)
+        assert len(pitches) == 7
+        assert pitches[0] == 69  # A4
+
+    def test_chromatic_12_notes(self):
+        pitches = self._generate_scale_run("chromatic", "C", "up", 1)
+        # 12 chromatic notes + octave = 13
+        assert len(pitches) == 13
+        assert pitches == list(range(60, 73))
+
+    def test_pentatonic_5_notes(self):
+        pitches = self._generate_scale_run("pentatonic_minor", "A", "up", 1)
+        # 5 notes + octave = 6
+        assert len(pitches) == 6
+
+    def test_octave_affects_pitch(self):
+        low = self._generate_scale_run("major", "C", "up", 1, octave=3)
+        high = self._generate_scale_run("major", "C", "up", 1, octave=5)
+        assert low[0] == 48  # C3
+        assert high[0] == 72  # C5
+        assert high[0] - low[0] == 24  # 2 octaves apart

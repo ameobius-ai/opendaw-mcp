@@ -1,6 +1,6 @@
 # Examples
 
-48 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge.
+49 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge.
 
 ## Genre Templates (8)
 
@@ -85,6 +85,7 @@ python examples/genre_house.py
 | `create_crescendo.py` | Crescendo/decrescendo: linear, exp, log curves |
 | `apply_swing.py` | Pure swing feel: 16th/8th grid, classic hip-hop groove |
 | `create_polyrhythm.py` | Polyrhythms: 3:4, 2:3, 5:7 cross-rhythms |
+| `create_scale_run.py` | Ascending/descending scale runs: fills, transitions, build-ups |
 
 ## Running examples
 
