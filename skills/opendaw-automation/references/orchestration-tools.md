@@ -75,6 +75,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 62. `create_boom_bap` — Hip-hop boom-bap. 5 variants (classic/old_school/trap/lofi/drill). Kick on 1/3, snare on 2/4
 63. `create_four_on_floor` — House/techno/disco four-on-the-floor. Kick on every quarter. 5 variants (classic_house/deep_house/techno/disco/tech_house). Open hats, claps, 16th hats
 64. `create_breakbeat` — Breakbeat: syncopated skeleton of jungle/DnB/big beat/2-step. 5 variants (amen/dnb/big_beat/2_step/funky_drummer). The Amen break, Funky Drummer. All patterns syncopated (off-grid kicks/snares)
+65. `create_trap_rolls` — Trap hi-hat rolls: evolving density. 5 variants (modern/migos/bubble/skrrt/evolving). Triplet bursts, 32nd doubles, stutter patterns. Travis Scott, Migos, Metro Boomin
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

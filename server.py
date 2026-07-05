@@ -21656,3 +21656,189 @@ async def mcp_opendaw_create_breakbeat(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_trap_rolls(
+    roll_type: str = "modern",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kick_pitch: int = 36,
+    snare_pitch: int = 38,
+    hat_pitch: int = 42,
+    velocity: float = 0.85,
+) -> str:
+    """Create trap hi-hat roll patterns — the evolving density technique that defines modern trap.
+
+    Trap rolls are hi-hat patterns that start sparse and build density through triplet bursts,
+    32nd-note runs, and "skrrt" stutter patterns. The hats evolve within each bar — from steady
+    8ths to 16ths to triplet rolls — creating the cascading, restless energy of modern trap.
+    Kicks syncopate underneath, snares/claps anchor on beat 3.
+
+    roll_type:
+      "modern"     — Modern trap: steady 16ths with triplet rolls on bar transitions.
+                     Hats evolve 8th→16th→triplet within each 2-bar phrase. Kick on 1,
+                     "and of 2", and 3.5. Snare on 3. Travis Scott "Sicko Mode", Drake
+                     "God's Plan". The default trap sound of 2018-2025.
+      "migos"      — Migos style: rapid triplet bursts on every "and" of beats 1-2,
+                     sparse on 3-4, then fill into next bar. Kick on 1 and 3. Snare
+                     on 2 and 4. Offset/Migos "Bad and Boujee" triplet flow.
+      "bubble"     — Atlantan "bubble" hats: continuous 16ths with periodic doubles
+                     (two 32nd hits) creating a bouncing feel. Kick on 1 and 3.5.
+                     Snare on 3. Young Thug / Future "Mask Off" style.
+      "skrrt"      — Skrrt pattern: stuttering hat bursts that mimic the sound of
+                     screeching tires. Short rapid groups (3-4 hits) with gaps. Kick
+                     on 1, 2.66, 3. Snare on 3. Playboi Carti / 21 Savage.
+      "evolving"   — Evolving density: starts with just 8th hats in bar 1, adds 16ths
+                     in bar 2, triplet rolls in bar 3, full 32nd cascade in bar 4.
+                     Builds tension across 4 bars. Metro Boomin production style.
+
+    bars: Pattern length (2-16, 2 = one phrase cycle, 4 recommended for evolving).
+    kick_pitch: MIDI pitch for kick (36 = C1).
+    snare_pitch: MIDI pitch for snare/clap (38 = D1).
+    hat_pitch: MIDI pitch for hi-hats (42 = F#1).
+    velocity: Base velocity 0-1. Hats -0.15, ghost hats -0.3.
+
+    Returns notes created, roll type, and stroke breakdown.
+
+    Example:
+      create_trap_rolls(roll_type="modern", track_index=0)
+      create_trap_rolls(roll_type="evolving", track_index=1, bars=4)
+    """
+    roll_type = roll_type.strip().lower().replace(" ", "_")
+    valid_types = ["modern", "migos", "bubble", "skrrt", "evolving"]
+    if roll_type not in valid_types:
+        return f"Error: unknown roll_type '{roll_type}'. Valid: {', '.join(valid_types)}"
+
+    if bars < 2 or bars > 16:
+        return "Error: bars must be 2-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    for p in (kick_pitch, snare_pitch, hat_pitch):
+        if not (0 <= p <= 127):
+            return "Error: pitches must be 0-127"
+
+    # stroke_type: "kick", "snare", "hat", "ghost"
+    # Beat positions within a 2-bar cycle (8 beats in 4/4)
+    # Triplet positions: 0.33, 0.66 within a beat
+    patterns = {
+        # Modern trap: 16ths with triplet rolls at bar transitions
+        "modern": [
+            (0.0, "kick"), (0.0, "hat"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.75, "hat"),
+            (2.0, "snare"), (2.0, "hat"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+            (3.0, "hat"), (3.16, "hat"), (3.33, "hat"), (3.5, "hat"),
+            (3.66, "hat"), (3.83, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+            (5.0, "hat"), (5.16, "hat"), (5.33, "hat"), (5.5, "hat"),
+            (5.66, "hat"), (5.83, "hat"),
+            (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+            (7.0, "hat"), (7.16, "ghost"), (7.33, "ghost"), (7.5, "ghost"),
+            (7.66, "ghost"), (7.83, "ghost"),
+        ],
+        # Migos: triplet bursts on &1-&2, sparse on 3-4
+        "migos": [
+            (0.0, "kick"), (0.0, "hat"),
+            (0.5, "hat"), (0.66, "hat"), (0.83, "hat"),
+            (1.0, "snare"), (1.0, "hat"),
+            (1.5, "hat"), (1.66, "hat"), (1.83, "hat"),
+            (2.0, "hat"), (2.25, "hat"),
+            (3.0, "kick"), (3.0, "hat"), (3.25, "hat"),
+            (3.5, "hat"), (3.66, "hat"), (3.83, "hat"),
+            (4.0, "kick"), (4.0, "hat"),
+            (4.5, "hat"), (4.66, "hat"), (4.83, "hat"),
+            (5.0, "snare"), (5.0, "hat"),
+            (5.5, "hat"), (5.66, "hat"), (5.83, "hat"),
+            (6.0, "hat"), (6.25, "hat"),
+            (7.0, "kick"), (7.0, "hat"), (7.25, "hat"),
+            (7.5, "hat"), (7.66, "hat"), (7.83, "hat"),
+        ],
+        # Bubble: continuous 16ths with doubles (32nd pairs)
+        "bubble": [
+            (0.0, "kick"), (0.0, "hat"), (0.25, "hat"), (0.5, "hat"),
+            (0.75, "hat"), (0.87, "hat"),
+            (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.5, "hat"),
+            (1.75, "hat"), (1.87, "hat"),
+            (2.0, "snare"), (2.0, "hat"), (2.25, "hat"), (2.5, "hat"),
+            (2.75, "hat"), (2.87, "hat"),
+            (3.0, "hat"), (3.25, "hat"), (3.5, "hat"),
+            (3.75, "hat"), (3.87, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"),
+            (4.75, "hat"), (4.87, "hat"),
+            (5.0, "hat"), (5.25, "hat"), (5.5, "kick"), (5.5, "hat"),
+            (5.75, "hat"), (5.87, "hat"),
+            (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"),
+            (6.75, "hat"), (6.87, "hat"),
+            (7.0, "hat"), (7.25, "hat"), (7.5, "hat"),
+            (7.75, "hat"), (7.87, "hat"),
+        ],
+        # Skrrt: stuttering bursts (3-4 hits with gaps)
+        "skrrt": [
+            (0.0, "kick"), (0.0, "hat"), (0.16, "hat"), (0.33, "hat"),
+            (1.0, "hat"), (1.16, "hat"), (1.33, "hat"),
+            (2.0, "snare"), (2.66, "kick"), (2.66, "hat"),
+            (2.82, "hat"), (2.98, "hat"), (3.16, "ghost"), (3.33, "ghost"),
+            (3.5, "hat"), (3.66, "hat"), (3.83, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.16, "hat"), (4.33, "hat"),
+            (5.0, "hat"), (5.16, "hat"), (5.33, "hat"),
+            (6.0, "snare"), (6.66, "kick"), (6.66, "hat"),
+            (6.82, "hat"), (6.98, "hat"), (7.16, "ghost"), (7.33, "ghost"),
+            (7.5, "hat"), (7.66, "hat"), (7.83, "hat"),
+        ],
+        # Evolving: density builds across bars
+        # Bar 1: 8ths only, Bar 2: 16ths, Bar 3+4 handled by repetition
+        "evolving": [
+            (0.0, "kick"), (0.0, "hat"), (0.5, "hat"),
+            (1.0, "hat"), (1.5, "hat"),
+            (2.0, "snare"), (2.0, "hat"), (2.5, "hat"),
+            (3.0, "hat"), (3.5, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+            (5.0, "hat"), (5.25, "hat"), (5.5, "hat"), (5.75, "hat"),
+            (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+            (7.0, "hat"), (7.25, "hat"), (7.5, "hat"), (7.75, "hat"),
+            (7.83, "ghost"),
+        ],
+    }
+
+    strokes = patterns[roll_type]
+    cycle_len = 8.0
+
+    pitch_map = {"kick": kick_pitch, "snare": snare_pitch, "hat": hat_pitch, "ghost": hat_pitch}
+    vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": max(0.0, velocity - 0.05),
+        "hat": max(0.0, velocity - 0.15),
+        "ghost": max(0.0, velocity - 0.3),
+    }
+    dur_map = {"kick": 0.2, "snare": 0.12, "hat": 0.04, "ghost": 0.03}
+
+    all_notes = []
+    cycles = bars // 2
+    stroke_counts = {"kick": 0, "snare": 0, "hat": 0, "ghost": 0}
+
+    for c in range(cycles):
+        offset = c * cycle_len
+        for beat, stroke_type in strokes:
+            all_notes.append({
+                "pitch": pitch_map[stroke_type],
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[stroke_type] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["trap_rolls"] = True
+        data["roll_type"] = roll_type
+        data["strokes"] = stroke_counts
+        data["cycles"] = cycles
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

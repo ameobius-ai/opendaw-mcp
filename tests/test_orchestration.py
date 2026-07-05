@@ -4154,3 +4154,201 @@ class TestCreateBreakbeat:
     def test_valid_types_list(self):
         valid = {"amen", "dnb", "big_beat", "2_step", "funky_drummer"}
         assert set(self.BREAKBEAT_PATTERNS.keys()) == valid
+
+
+class TestCreateTrapRolls:
+    """Tests for create_trap_rolls orchestration tool"""
+
+    TRAP_ROLL_PATTERNS = {
+        "modern": [
+            (0.0, "kick"), (0.0, "hat"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+            (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.75, "hat"),
+            (2.0, "snare"), (2.0, "hat"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+            (3.0, "hat"), (3.16, "hat"), (3.33, "hat"), (3.5, "hat"),
+            (3.66, "hat"), (3.83, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+            (5.0, "hat"), (5.16, "hat"), (5.33, "hat"), (5.5, "hat"),
+            (5.66, "hat"), (5.83, "hat"),
+            (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+            (7.0, "hat"), (7.16, "ghost"), (7.33, "ghost"), (7.5, "ghost"),
+            (7.66, "ghost"), (7.83, "ghost"),
+        ],
+        "migos": [
+            (0.0, "kick"), (0.0, "hat"),
+            (0.5, "hat"), (0.66, "hat"), (0.83, "hat"),
+            (1.0, "snare"), (1.0, "hat"),
+            (1.5, "hat"), (1.66, "hat"), (1.83, "hat"),
+            (2.0, "hat"), (2.25, "hat"),
+            (3.0, "kick"), (3.0, "hat"), (3.25, "hat"),
+            (3.5, "hat"), (3.66, "hat"), (3.83, "hat"),
+            (4.0, "kick"), (4.0, "hat"),
+            (4.5, "hat"), (4.66, "hat"), (4.83, "hat"),
+            (5.0, "snare"), (5.0, "hat"),
+            (5.5, "hat"), (5.66, "hat"), (5.83, "hat"),
+            (6.0, "hat"), (6.25, "hat"),
+            (7.0, "kick"), (7.0, "hat"), (7.25, "hat"),
+            (7.5, "hat"), (7.66, "hat"), (7.83, "hat"),
+        ],
+        "bubble": [
+            (0.0, "kick"), (0.0, "hat"), (0.25, "hat"), (0.5, "hat"),
+            (0.75, "hat"), (0.87, "hat"),
+            (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.5, "hat"),
+            (1.75, "hat"), (1.87, "hat"),
+            (2.0, "snare"), (2.0, "hat"), (2.25, "hat"), (2.5, "hat"),
+            (2.75, "hat"), (2.87, "hat"),
+            (3.0, "hat"), (3.25, "hat"), (3.5, "hat"),
+            (3.75, "hat"), (3.87, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"),
+            (4.75, "hat"), (4.87, "hat"),
+            (5.0, "hat"), (5.25, "hat"), (5.5, "kick"), (5.5, "hat"),
+            (5.75, "hat"), (5.87, "hat"),
+            (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"),
+            (6.75, "hat"), (6.87, "hat"),
+            (7.0, "hat"), (7.25, "hat"), (7.5, "hat"),
+            (7.75, "hat"), (7.87, "hat"),
+        ],
+        "skrrt": [
+            (0.0, "kick"), (0.0, "hat"), (0.16, "hat"), (0.33, "hat"),
+            (1.0, "hat"), (1.16, "hat"), (1.33, "hat"),
+            (2.0, "snare"), (2.66, "kick"), (2.66, "hat"),
+            (2.82, "hat"), (2.98, "hat"), (3.16, "ghost"), (3.33, "ghost"),
+            (3.5, "hat"), (3.66, "hat"), (3.83, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.16, "hat"), (4.33, "hat"),
+            (5.0, "hat"), (5.16, "hat"), (5.33, "hat"),
+            (6.0, "snare"), (6.66, "kick"), (6.66, "hat"),
+            (6.82, "hat"), (6.98, "hat"), (7.16, "ghost"), (7.33, "ghost"),
+            (7.5, "hat"), (7.66, "hat"), (7.83, "hat"),
+        ],
+        "evolving": [
+            (0.0, "kick"), (0.0, "hat"), (0.5, "hat"),
+            (1.0, "hat"), (1.5, "hat"),
+            (2.0, "snare"), (2.0, "hat"), (2.5, "hat"),
+            (3.0, "hat"), (3.5, "hat"),
+            (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+            (5.0, "hat"), (5.25, "hat"), (5.5, "hat"), (5.75, "hat"),
+            (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+            (7.0, "hat"), (7.25, "hat"), (7.5, "hat"), (7.75, "hat"),
+            (7.83, "ghost"),
+        ],
+    }
+
+    def test_modern_has_16th_hats(self):
+        strokes = self.TRAP_ROLL_PATTERNS["modern"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.25 in hats, "Missing 16th hat at 0.25"
+        assert 0.75 in hats, "Missing 16th hat at 0.75"
+
+    def test_modern_has_triplet_roll(self):
+        strokes = self.TRAP_ROLL_PATTERNS["modern"]
+        hats = [b for b, s in strokes if s == "hat"]
+        # Triplet positions around beat 3: 3.0, 3.16, 3.33
+        assert 3.16 in hats, "Missing triplet hat at 3.16"
+        assert 3.33 in hats, "Missing triplet hat at 3.33"
+
+    def test_modern_has_ghost_roll(self):
+        """Modern trap has ghost note roll at end of bar 2"""
+        strokes = self.TRAP_ROLL_PATTERNS["modern"]
+        ghosts = [b for b, s in strokes if s == "ghost"]
+        assert len(ghosts) >= 4, "Missing ghost roll"
+
+    def test_migos_has_triplet_bursts(self):
+        strokes = self.TRAP_ROLL_PATTERNS["migos"]
+        # Triplet burst at 0.66, 0.83
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.66 in hats, "Missing triplet hat at 0.66"
+        assert 0.83 in hats, "Missing triplet hat at 0.83"
+
+    def test_migos_snare_on_2_and_4(self):
+        strokes = self.TRAP_ROLL_PATTERNS["migos"]
+        snares = [b for b, s in strokes if s == "snare"]
+        assert 1.0 in snares, "Missing snare on beat 2"
+        assert 5.0 in snares, "Missing snare on beat 4 (bar 2)"
+
+    def test_bubble_has_32nd_doubles(self):
+        """Bubble hats have 32nd note doubles at 0.87, 1.87 etc"""
+        strokes = self.TRAP_ROLL_PATTERNS["bubble"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.87 in hats, "Missing 32nd double at 0.87"
+        assert 2.87 in hats, "Missing 32nd double at 2.87"
+
+    def test_bubble_continuous_16ths(self):
+        strokes = self.TRAP_ROLL_PATTERNS["bubble"]
+        hats = [b for b, s in strokes if s == "hat"]
+        assert 0.25 in hats, "Missing 16th hat"
+        assert 0.5 in hats, "Missing 16th hat"
+
+    def test_skrrt_has_stutter_bursts(self):
+        """Skrrt: short rapid groups (3-4 hits) with gaps"""
+        strokes = self.TRAP_ROLL_PATTERNS["skrrt"]
+        hats = [b for b, s in strokes if s in ("hat", "ghost")]
+        # First burst: 0.0, 0.16, 0.33
+        assert 0.16 in hats, "Missing stutter hit at 0.16"
+        assert 0.33 in hats, "Missing stutter hit at 0.33"
+
+    def test_skrrt_has_syncopated_kick(self):
+        strokes = self.TRAP_ROLL_PATTERNS["skrrt"]
+        kicks = [b for b, s in strokes if s == "kick"]
+        assert 2.66 in kicks, "Missing syncopated kick at 2.66"
+
+    def test_evolving_bar1_sparser_than_bar2(self):
+        """Evololving: bar 1 has fewer hats than bar 2 — density builds"""
+        strokes = self.TRAP_ROLL_PATTERNS["evolving"]
+        bar1_hats = [b for b, s in strokes if s == "hat" and b < 4.0]
+        bar2_hats = [b for b, s in strokes if s == "hat" and b >= 4.0]
+        assert len(bar2_hats) > len(bar1_hats), "Bar 2 should be denser than bar 1"
+
+    def test_all_types_valid(self):
+        valid = {"kick", "snare", "hat", "ghost"}
+        for name, strokes in self.TRAP_ROLL_PATTERNS.items():
+            for _, stroke_type in strokes:
+                assert stroke_type in valid, f"{name} has invalid stroke {stroke_type}"
+
+    def test_cycle_length_two_bars(self):
+        cycle_len = 8.0
+        for name, strokes in self.TRAP_ROLL_PATTERNS.items():
+            max_beat = max(b for b, _ in strokes)
+            assert max_beat < cycle_len, f"{name}: beat {max_beat} exceeds cycle {cycle_len}"
+
+    def test_all_types_have_triplet_positions(self):
+        """At least one type should have triplet subdivisions (0.16, 0.33, 0.66, 0.83)"""
+        found_triplet = False
+        for name, strokes in self.TRAP_ROLL_PATTERNS.items():
+            for b, _ in strokes:
+                frac = b - int(b)
+                if abs(frac - 0.16) < 0.01 or abs(frac - 0.33) < 0.01 or abs(frac - 0.66) < 0.01 or abs(frac - 0.83) < 0.01:
+                    found_triplet = True
+                    break
+        assert found_triplet, "No triplet positions found in any pattern"
+
+    def test_velocity_mapping(self):
+        base = 0.85
+        kick_vel = min(1.0, base + 0.05)
+        snare_vel = max(0.0, base - 0.05)
+        hat_vel = max(0.0, base - 0.15)
+        ghost_vel = max(0.0, base - 0.3)
+        assert ghost_vel < hat_vel < snare_vel < kick_vel
+
+    def test_pitch_mapping(self):
+        kick, snare, hat = 36, 38, 42
+        pitch_map = {"kick": kick, "snare": snare, "hat": hat, "ghost": hat}
+        assert pitch_map["kick"] < pitch_map["snare"] < pitch_map["hat"]
+
+    def test_bar_repetition(self):
+        bars = 4
+        cycles = bars // 2
+        cycle_len = 8.0
+        strokes = self.TRAP_ROLL_PATTERNS["modern"]
+        all_notes = []
+        for c in range(cycles):
+            for beat, stroke_type in strokes:
+                all_notes.append({"start": c * cycle_len + beat, "stroke": stroke_type})
+        assert len(all_notes) == len(strokes) * cycles
+
+    def test_type_normalization(self):
+        raw = "Modern"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert normalized == "modern"
+
+    def test_valid_types_list(self):
+        valid = {"modern", "migos", "bubble", "skrrt", "evolving"}
+        assert set(self.TRAP_ROLL_PATTERNS.keys()) == valid

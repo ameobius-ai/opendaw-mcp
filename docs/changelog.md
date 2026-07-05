@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.126.0 (2026-07-05)
+
+- **`create_trap_rolls` orchestration tool (320 MCP tools)** — trap hi-hat roll patterns: the evolving density technique that defines modern trap. Hi-hat patterns that start sparse and build through triplet bursts, 32nd-note runs, and stutter patterns. 5 variants: modern (16ths with triplet rolls at bar transitions, Travis Scott/Drake), migos (triplet bursts on off-beats, Migos "Bad and Boujee"), bubble (continuous 16ths with 32nd doubles, Young Thug/Future), skrrt (stuttering bursts mimicking screeching tires, Playboi Carti/21 Savage), evolving (density builds 8th→16th→triplet across 4 bars, Metro Boomin). Triplet subdivisions (0.16/0.33/0.66/0.83). 2-bar cycle. 63 orchestration tools. 320 MCP tools
+- **1422 unit tests** (+18)
+
 ## v1.125.0 (2026-07-05)
 
 - **`create_breakbeat` orchestration tool (319 MCP tools)** — breakbeat: the syncopated skeleton of jungle, DnB, big beat, and breakbeat hardcore. Broken drum patterns where kick/snare don't sit on clean quarters. 5 variants: amen (G.C. Coleman, The Winstons 1969 — the most sampled 6-second loop in history), dnb (chopped Amen-style with 16th hats and ghost snares, Andy C/Noisia), big_beat (mid-tempo fat breaks with kick+snare syncopation, Fatboy Slim/Prodigy), 2_step (UK garage skipping feel, shifted kick, MJ Cole/Disclosure), funky_drummer (Clyde Stubblefield, James Brown 1970 — the most funk-sampled break, Public Enemy/NWA). All patterns syncopated (at least one off-grid kick/snare). 2-bar cycle. 62 orchestration tools. 319 MCP tools
