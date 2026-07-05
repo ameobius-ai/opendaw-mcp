@@ -3795,6 +3795,96 @@ class TestMultibandImagerDSP:
         assert "processAudio" in code, "Missing processAudio method"
 
 
+class TestReverseDelayDSP:
+    """Unit tests for werkstatt_reverse_delay.js — reverse delay (The Edge style)"""
+
+    SCRIPT = "werkstatt_reverse_delay.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt reverse_delay" in code, "Missing @werkstatt reverse_delay header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_time_param(self):
+        params = self._parse_params(self._read_script())
+        t = [p for p in params if p["name"] == "time"][0]
+        assert t["default"] == 0.4 and t["type"] == "linear"
+        assert t["min"] == 0.05 and t["max"] == 2
+
+    def test_feedback_param(self):
+        params = self._parse_params(self._read_script())
+        fb = [p for p in params if p["name"] == "feedback"][0]
+        assert fb["default"] == 0.35 and fb["max"] == 0.85
+
+    def test_fade_param(self):
+        params = self._parse_params(self._read_script())
+        f = [p for p in params if p["name"] == "fade"][0]
+        assert f["default"] == 0.01 and f["type"] == "linear"
+
+    def test_damping_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "damping"][0]
+        assert d["default"] == 0.3
+
+    def test_pan_param(self):
+        params = self._parse_params(self._read_script())
+        p = [p for p in params if p["name"] == "pan"][0]
+        assert p["min"] == -1 and p["max"] == 1
+
+    def test_circular_buffer(self):
+        code = self._read_script()
+        assert "this.buf" in code, "Missing delay buffer"
+        assert "this.writePos" in code, "Missing write position"
+        assert "this.bufLen" in code, "Missing buffer length"
+
+    def test_reverse_read(self):
+        code = self._read_script()
+        assert "readOffset" in code, "Missing reverse read offset calculation"
+        assert "writePos - delaySamps" in code, "Missing delay offset"
+
+    def test_fade_ramp(self):
+        code = self._read_script()
+        assert "fadeLen" in code, "Missing fade length"
+        assert "fadeGain" in code, "Missing fade gain ramp"
+        assert "cyclePos" in code, "Missing cycle position for fade boundaries"
+
+    def test_damping_lowpass(self):
+        code = self._read_script()
+        assert "_dampLp" in code, "Missing damping lowpass"
+        assert "dampState" in code, "Missing damping state"
+
+    def test_equal_power_pan(self):
+        code = self._read_script()
+        assert "_pan" in code, "Missing pan function"
+        assert "Math.cos" in code and "Math.sin" in code, "Missing equal-power pan"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+
 class TestGatedReverbDSP:
     """Unit tests for werkstatt_gated_reverb.js — 80s gated reverb"""
 

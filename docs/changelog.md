@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.94.0 (2026-07-05)
+
+- **`werkstatt_reverse_delay.js` DSP script** — reverse delay: reads delay buffer in reverse direction for each repetition, with fade ramps at window boundaries to prevent clicks. Feedback feeds reversed sample back into buffer (creating cascading reverse repeats). Damping lowpass on feedback path, equal-power pan, 8 params (time/feedback/levels/pan/fade/damping/mix/output). The Edge / U2 style reverse delay. 76 DSP scripts
+- **876 unit tests** (+14), E2E 8/8
+
 ## v1.93.0 (2026-07-05)
 
 - **`werkstatt_gated_reverb.js` DSP script** — 80s gated reverb: Schroeder plate reverb + envelope-followed gate on dry input. Gate detects amplitude on dry signal (not reverb output), opens above threshold, holds, then exponentially closes — cutting the reverb tail for that signature Phil Collins / 80s snare sound. 9 params (decay/predelay/damping/width/threshold/hold/release/mix/output). 75 DSP scripts
