@@ -174,6 +174,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 161. `apply_velocity_lfo` — periodic velocity modulation: 5 waveforms (sine/triangle/saw/square/random), rate (cycles/beat), depth, phase, center velocity
 162. `create_ratchet` — ratchet (accelerando repeat): 4 modes (accelerate/decelerate/constant/exponential), changing subdivision rate, velocity_decay, pitch_drift
 163. `swap_sections` — swap two sections on timeline: exchange positions, song structure experimentation, handles different-length sections
+164. `invert_chord_notes` — chord inversion: 1st-6th inversion at beat position, up (bottom notes up) or down (drop voicing), returns pitches + root
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

@@ -55,6 +55,7 @@ What do you want to create?
 ├── Ostinato (repeating) → create_ostinato (short pattern × N repeats)
 │
 ├── Chords → create_chord_progression (2-5 chords, scale-aware)
+├── Chord inversion → invert_chord_notes (1st-6th inversion, drop voicing)
 ├── Harmony (parallel) → create_harmony (thirds/fifths/sixths above melody)
 ├── Doubling → double_melody (octave/fifth/fourth/third/sixth, diatonic or chromatic, same-region or cross-track)
 ├── Counter-melody → create_counterpoint (contrary motion, mirror around center)

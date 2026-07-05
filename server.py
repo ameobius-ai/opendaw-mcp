@@ -39460,6 +39460,131 @@ async def mcp_opendaw_reharmonize_progression(
 
 
 @mcp.tool()
+async def mcp_opendaw_invert_chord_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int,
+    chord_position: float,
+    inversion: int = 1,
+    direction: str = "up",
+) -> str:
+    """Invert a chord at a specific position — move bottom N notes up an octave (or top N down).
+
+    A chord inversion (voicing change) rearranges which chord tone is
+    lowest without changing the chord itself. 1st inversion: the 3rd
+    is in the bass. 2nd inversion: the 5th is in the bass. This tool
+    finds notes at a given beat position, groups them as a chord,
+    and moves the bottom N notes up an octave (or top N down).
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index
+        chord_position: Beat position of the chord to invert
+        inversion: Number of notes to invert (1=first inversion,
+                   2=second inversion, 3=third for 7th chords)
+        direction: "up" = move bottom notes up an octave (standard),
+                   "down" = move top notes down an octave (drop voicing)
+    Returns:
+        JSON with notes_inverted, original pitches, new pitches, chord root.
+    """
+    inversion = max(1, min(6, int(inversion)))
+    direction = direction if direction in ("up", "down") else "up"
+    chord_position = max(0.0, float(chord_position))
+
+    result = await bridge.evaluate(f"""async () => {{
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const chordPos = {chord_position};
+        const invCount = {inversion};
+        const dir = {json.dumps(direction)};
+
+        const h = window.DAW_HeadlessBridge;
+        const PPQN = 960;
+        const targetTick = Math.round(chordPos * PPQN);
+        const tolerance = 120; // half a 16th note window
+
+        const units = [...h.api.units.pointerHub.incoming()];
+        if (unitIdx >= units.length) return JSON.stringify({{"error": "unit out of range"}});
+        const au = units[unitIdx];
+        const tracks = [...au.tracks.pointerHub.incoming()];
+        if (trackIdx >= tracks.length) return JSON.stringify({{"error": "track out of range"}});
+        const track = tracks[trackIdx];
+        const regions = [...track.regions.pointerHub.incoming()];
+        if (regionIdx >= regions.length) return JSON.stringify({{"error": "region out of range"}});
+        const region = regions[regionIdx];
+        const coll = region.box.events.targetVertex.unwrap();
+        if (!coll) return JSON.stringify({{"error": "no note collection"}});
+        const notes = [...coll.events.pointerHub.incoming()];
+
+        // Find notes at the chord position
+        const chordNotes = [];
+        for (const note of notes) {{
+            const nb = note.box;
+            const pos = nb.position.value;
+            if (Math.abs(pos - targetTick) <= tolerance) {{
+                chordNotes.push({{note, pitch: nb.pitch.value, pos: nb.position.value, dur: nb.duration.value, vel: nb.velocity.value}});
+            }}
+        }}
+
+        if (chordNotes.length < 3) return JSON.stringify({{"error": "not enough notes at position for chord inversion (need 3+)", "notes_found": chordNotes.length}});
+
+        // Sort by pitch (ascending)
+        chordNotes.sort((a, b) => a.pitch - b.pitch);
+
+        // Store original pitches
+        const origPitches = chordNotes.map(n => n.pitch);
+
+        // Determine which notes to move
+        let notesToMove = [];
+        let pitchDelta = 12; // octave
+
+        if (dir === "up") {{
+            // Move bottom N notes up an octave
+            notesToMove = chordNotes.slice(0, Math.min(invCount, chordNotes.length - 1));
+        }} else {{
+            // Move top N notes down an octave
+            notesToMove = chordNotes.slice(Math.max(0, chordNotes.length - invCount));
+            pitchDelta = -12;
+        }}
+
+        const newPitches = [...origPitches];
+        let notesInverted = 0;
+
+        await h.editing.modify(async () => {{
+            for (const item of notesToMove) {{
+                const newPitch = Math.max(0, Math.min(127, item.pitch + pitchDelta));
+                item.note.box.pitch.setValue(newPitch);
+                // Update newPitches array
+                const idx = chordNotes.indexOf(item);
+                if (idx >= 0) newPitches[idx] = newPitch;
+                notesInverted++;
+            }}
+        }});
+
+        // Determine chord root (lowest note after inversion)
+        const sortedNew = [...newPitches].sort((a, b) => a - b);
+        const root = sortedNew[0] % 12;
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const rootName = noteNames[root];
+
+        return JSON.stringify({{
+            notes_inverted: notesInverted,
+            inversion: invCount,
+            direction: dir,
+            chord_position: chordPos,
+            original_pitches: origPitches,
+            new_pitches: newPitches,
+            new_root_pitch: sortedNew[0],
+            root_name: rootName,
+            chord_size: chordNotes.length,
+        }});
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_counter_melody_from_progression(
     progression: str = "Am-F-C-G",
     pattern: str = "contrary",

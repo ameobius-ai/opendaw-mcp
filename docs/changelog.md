@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.252.0 (2026-07-06)
+
+### Added
+- `invert_chord_notes` — Chord inversion at a specific beat position. 1st-6th inversion, direction up (bottom notes up octave) or down (drop voicing — top notes down). Returns original + new pitches, root name.
+
 ## v1.251.0 (2026-07-06)
 
 ### Added

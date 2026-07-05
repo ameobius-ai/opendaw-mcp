@@ -461,7 +461,7 @@ await mcp_opendaw_replace_from_preset(unit_index, preset_b64, keep_midi_effects=
 ```
 
 ## Related skills
-- `opendaw-automation` — 426 MCP tools full API reference + pitfalls
+- `opendaw-automation` — 427 MCP tools full API reference + pitfalls
 - `opendaw-track-architecture` — tracks, regions, clips, notes, tempo, markers
 - `opendaw-effect-routing` — effect chains, sends, buses, sidechain
 - `adaptive-mix-mastering` — full mix→master pipeline with decision points

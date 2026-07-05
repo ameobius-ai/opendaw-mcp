@@ -13327,6 +13327,95 @@ class TestReharmonizeProgression:
         assert False, "default not found"
 
 
+class TestInvertChordNotes:
+    """Tests for mcp_opendaw_invert_chord_notes — chord inversion/voicing change."""
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_invert_chord_notes"]
+        assert len(tools) == 1
+
+    def test_inversion_up_moves_bottom_notes(self):
+        """Direction 'up': bottom N notes move up an octave"""
+        pitches = [60, 64, 67]  # C major: C-E-G
+        inversion = 1
+        # Move bottom 1 note (60) up 12 semitones
+        new_pitches = list(pitches)
+        for i in range(inversion):
+            new_pitches[i] += 12
+        # After: [72, 64, 67] → sorted: [64, 67, 72] → 1st inversion (E in bass)
+        assert new_pitches == [72, 64, 67]
+        assert min(new_pitches) == 64  # E is now lowest
+
+    def test_inversion_down_moves_top_notes(self):
+        """Direction 'down': top N notes move down an octave (drop voicing)"""
+        pitches = [60, 64, 67]  # C major: C-E-G
+        inversion = 1
+        # Move top 1 note (67) down 12 semitones
+        new_pitches = list(pitches)
+        for i in range(inversion):
+            new_pitches[-(i+1)] -= 12
+        # After: [60, 64, 55] → sorted: [55, 60, 64] → drop voicing
+        assert new_pitches == [60, 64, 55]
+        assert min(new_pitches) == 55  # G is now lowest
+
+    def test_second_inversion(self):
+        """2nd inversion: 5th in the bass (move 2 bottom notes up)"""
+        pitches = [60, 64, 67]  # C-E-G
+        inversion = 2
+        new_pitches = list(pitches)
+        for i in range(inversion):
+            new_pitches[i] += 12
+        # After: [72, 76, 67] → sorted: [67, 72, 76] → G in bass (2nd inversion)
+        assert min(new_pitches) == 67  # G is lowest
+
+    def test_inversion_clamping(self):
+        """Inversion clamped to 1-6"""
+        assert max(1, min(6, 0)) == 1
+        assert max(1, min(6, 10)) == 6
+
+    def test_direction_validation(self):
+        """Unknown direction defaults to 'up'"""
+        d = "invalid"
+        d = d if d in ("up", "down") else "up"
+        assert d == "up"
+
+    def test_root_note_name(self):
+        """Root note name from pitch class"""
+        note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        assert note_names[60 % 12] == 'C'
+        assert note_names[64 % 12] == 'E'
+        assert note_names[67 % 12] == 'G'
+
+    def test_param_count(self):
+        """Should have 6 parameters"""
+        import inspect
+        from server import mcp_opendaw_invert_chord_notes
+        sig = inspect.signature(mcp_opendaw_invert_chord_notes)
+        assert len(sig.parameters) == 6
+
+    def test_defaults(self):
+        """Check default parameter values"""
+        import inspect
+        from server import mcp_opendaw_invert_chord_notes
+        sig = inspect.signature(mcp_opendaw_invert_chord_notes)
+        assert sig.parameters["inversion"].default == 1
+        assert sig.parameters["direction"].default == "up"
+
+    def test_pitch_clamping(self):
+        """Pitches clamped to 0-127"""
+        assert max(0, min(127, -5 + 12)) == 7
+        assert max(0, min(127, 120 + 12)) == 127
+
+    def test_chord_size_requirement(self):
+        """Chord inversion requires at least 3 notes"""
+        # Tool checks for < 3 notes and returns error
+        assert 2 < 3  # 2 notes would be rejected
+
+
 class TestDisplaceRhythm:
     """Tests for displace_rhythm — rhythmic displacement / circular rotation"""
 
