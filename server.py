@@ -15,6 +15,7 @@ This file contains the 263 MCP tool definitions.
 import asyncio
 import json
 import logging
+import math
 import os
 import atexit
 
@@ -22146,6 +22147,143 @@ async def mcp_opendaw_create_phase(
             length_beats: totalBeats,
             unit_index: allUnits.indexOf(targetAU),
         }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_tempo_ramp(start_beat: float, end_beat: float, start_bpm: float, end_bpm: float, curve: str = "linear", steps: int = 16) -> str:
+    """Create a smooth tempo ramp (ritardando or accelerando) across a beat range.
+
+    Adds a series of tempo change events with linear interpolation, creating a
+    gradual BPM transition. This is the musical foundation for ritardando
+    (slowing down) and accelerando (speeding up) — essential for expressive
+    transitions, endings, and dramatic section changes.
+
+    Uses the same ValueEventBox mechanism as add_tempo_change, but creates
+    multiple events along the beat range for a smooth curve.
+
+    start_beat: Beginning of the ramp in beats.
+    end_beat: End of the ramp in beats.
+    start_bpm: Starting BPM (60-240).
+    end_bpm: Target BPM (60-240).
+    curve: "linear" (smooth, default), "exp" (ease-in, gradual start), "log"
+        (ease-out, fast start then settle).
+    steps: Number of tempo events to create (default 16 = smooth ramp).
+        Fewer steps = more stepped/quantized feel.
+
+    Returns events created, ramp config, and BPM preview at key points.
+
+    Examples:
+      create_tempo_ramp(start_beat=60, end_beat=64, start_bpm=120, end_bpm=90)
+        -> Ritardando: 120->90 BPM over 4 beats (ending slowdown)
+      create_tempo_ramp(start_beat=0, end_beat=8, start_bpm=100, end_bpm=140, curve="exp")
+        -> Accelerando: 100->140 BPM over 8 beats, exp curve (gradual start)
+      create_tempo_ramp(start_beat=32, end_beat=48, start_bpm=140, end_bpm=140)
+        -> No-op ramp (same BPM) — useful as placeholder or for testing
+    """
+    if start_bpm < 60 or start_bpm > 240:
+        return "Error: start_bpm must be 60-240"
+    if end_bpm < 60 or end_bpm > 240:
+        return "Error: end_bpm must be 60-240"
+    if end_beat <= start_beat:
+        return "Error: end_beat must be after start_beat"
+    if steps < 2:
+        return "Error: steps must be >= 2"
+    if curve not in ("linear", "exp", "log"):
+        return "Error: curve must be linear, exp, or log"
+
+    safe_curve = curve.replace('"', '').replace("'", "")
+
+    # Pre-compute BPM values for each step in Python
+    bpm_points = []
+    for i in range(steps):
+        t = i / (steps - 1)
+        if safe_curve == "exp":
+            bpm_val = start_bpm + (end_bpm - start_bpm) * (math.exp(t * 3) - 1) / (math.exp(3) - 1)
+        elif safe_curve == "log":
+            bpm_val = start_bpm + (end_bpm - start_bpm) * math.log(1 + t * (math.e - 1))
+        else:
+            bpm_val = start_bpm + (end_bpm - start_bpm) * t
+        beat_pos = start_beat + (end_beat - start_beat) * t
+        bpm_points.append((round(beat_pos, 2), round(bpm_val, 2)))
+
+    bpm_json = json.dumps(bpm_points)
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
+        const ValueEventCollectionBox = window.DAW_ValueEventCollectionBox;
+        try {{
+            if (!ValueEventBox || !ValueEventCollectionBox) return {{error: "Box types not loaded"}};
+            const tl = h.timelineBox;
+            if (!tl || !tl.tempoTrack) return {{error: "No tempoTrack on timeline"}};
+
+            const tempoTrack = tl.tempoTrack;
+            const minBpm = tempoTrack.minBpm.getValue();
+            const maxBpm = tempoTrack.maxBpm.getValue();
+
+            const bpmPoints = {bpm_json};
+
+            h.modify(() => {{
+                tempoTrack.enabled.setValue(true);
+
+                let collection;
+                const existingVertex = tempoTrack.events.targetVertex;
+                if (!existingVertex.isEmpty()) {{
+                    collection = existingVertex.unwrap().box;
+                }} else {{
+                    collection = ValueEventCollectionBox.create(h.boxGraph, h.uuid.generate());
+                    tempoTrack.events.refer(collection.owners);
+                }}
+
+                const existingEvents = h.eventBoxes(collection);
+                let maxIndex = existingEvents.reduce((mx, b) => Math.max(mx, b.index?.getValue?.() ?? 0), -1);
+
+                for (let i = 0; i < bpmPoints.length; i++) {{
+                    const [beatPos, bpmVal] = bpmPoints[i];
+                    const posTicks = Math.round(beatPos * Quarter);
+                    const normalized = Math.max(0, Math.min(1, (bpmVal - minBpm) / (maxBpm - minBpm)));
+
+                    ValueEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                        box.events.refer(collection.events);
+                        box.position.setValue(posTicks);
+                        box.index.setValue(maxIndex + 1 + i);
+                        box.value.setValue(normalized);
+                        box.interpolation.setValue("linear");
+                    }});
+                }}
+            }});
+
+            const coll = tempoTrack.events.targetVertex.unwrap().box;
+            const events = h.eventBoxes(coll);
+            const eventList = events.map(e => ({{
+                position_beats: Math.round((e.position?.getValue?.() ?? 0) / Quarter * 100) / 100,
+                bpm: Math.round(minBpm + (e.value?.getValue?.() ?? 0) * (maxBpm - minBpm)),
+                interpolation: e.interpolation?.getValue?.() === 1 ? "linear" : "hold",
+            }})).sort((a, b) => a.position_beats - b.position_beats);
+
+            const rampType = {end_bpm} < {start_bpm} ? "ritardando" : ({end_bpm} > {start_bpm} ? "accelerando" : "constant");
+
+            return {{
+                success: true,
+                ramp_type: rampType,
+                start_bpm: {start_bpm},
+                end_bpm: {end_bpm},
+                start_beat: {start_beat},
+                end_beat: {end_beat},
+                curve: "{safe_curve}",
+                steps: {steps},
+                events_created: bpmPoints.length,
+                total_tempo_events: events.length,
+                ramp_preview: bpmPoints.slice(0, 3).concat(bpmPoints.slice(-2)).map(([b, v]) => ({{beat: b, bpm: v}})),
+                events: eventList,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
     }}""")
     return _wrap_eval(result)
 

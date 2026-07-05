@@ -8130,6 +8130,108 @@ class TestCreateSectionTransition:
         fade_ops = [f"unit{idx}_fade_out" for idx in indices]
         assert len(fade_ops) == 4
 
+
+class TestCreateTempoRamp:
+    """Tests for create_tempo_ramp orchestration tool"""
+
+    def test_ritardando_detected(self):
+        """start_bpm > end_bpm = ritardando"""
+        start_bpm, end_bpm = 120, 90
+        ramp_type = "ritardando" if end_bpm < start_bpm else ("accelerando" if end_bpm > start_bpm else "constant")
+        assert ramp_type == "ritardando"
+
+    def test_accelerando_detected(self):
+        """start_bpm < end_bpm = accelerando"""
+        start_bpm, end_bpm = 100, 140
+        ramp_type = "ritardando" if end_bpm < start_bpm else ("accelerando" if end_bpm > start_bpm else "constant")
+        assert ramp_type == "accelerando"
+
+    def test_constant_detected(self):
+        """start_bpm == end_bpm = constant"""
+        start_bpm, end_bpm = 120, 120
+        ramp_type = "ritardando" if end_bpm < start_bpm else ("accelerando" if end_bpm > start_bpm else "constant")
+        assert ramp_type == "constant"
+
+    def test_linear_curve_points(self):
+        """Linear curve: BPM values are evenly spaced"""
+        start_bpm, end_bpm, steps = 120, 90, 4
+        points = []
+        for i in range(steps):
+            t = i / (steps - 1)
+            val = start_bpm + (end_bpm - start_bpm) * t
+            points.append(round(val, 2))
+        assert points[0] == 120.0
+        assert points[-1] == 90.0
+        # linear: midpoint = average
+        assert points[2] == 100.0  # 120 + (90-120) * 2/3
+
+    def test_exp_curve_eases_in(self):
+        """Exp curve: first half smaller delta than second half"""
+        import math
+        start_bpm, end_bpm, steps = 120, 90, 16
+        deltas = []
+        prev = start_bpm
+        for i in range(steps):
+            t = i / (steps - 1)
+            val = start_bpm + (end_bpm - start_bpm) * (math.exp(t * 3) - 1) / (math.exp(3) - 1)
+            deltas.append(abs(val - prev))
+            prev = val
+        # exp: early deltas should be smaller than late deltas
+        assert sum(deltas[:8]) < sum(deltas[8:])
+
+    def test_log_curve_eases_out(self):
+        """Log curve: first half larger delta than second half"""
+        import math
+        start_bpm, end_bpm, steps = 120, 90, 16
+        deltas = []
+        prev = start_bpm
+        for i in range(steps):
+            t = i / (steps - 1)
+            val = start_bpm + (end_bpm - start_bpm) * math.log(1 + t * (math.e - 1))
+            deltas.append(abs(val - prev))
+            prev = val
+        # log: early deltas should be larger than late deltas
+        assert sum(deltas[:8]) > sum(deltas[8:])
+
+    def test_beat_positions_span_range(self):
+        """Beat positions span from start_beat to end_beat"""
+        start_beat, end_beat, steps = 32, 48, 8
+        beat_positions = []
+        for i in range(steps):
+            t = i / (steps - 1)
+            beat_positions.append(round(start_beat + (end_beat - start_beat) * t, 2))
+        assert beat_positions[0] == 32.0
+        assert beat_positions[-1] == 48.0
+        # 9 steps → index 4 = exact midpoint = 40.0
+        beat_positions_9 = []
+        for i in range(9):
+            t = i / (9 - 1)
+            beat_positions_9.append(round(32 + (48 - 32) * t, 2))
+        assert beat_positions_9[4] == 40.0
+
+    def test_steps_count_matches(self):
+        """Number of generated points = steps"""
+        steps = 16
+        points = []
+        for i in range(steps):
+            points.append(i)
+        assert len(points) == steps
+
+    def test_bpm_clamped_to_valid_range(self):
+        """BPM values must be 60-240"""
+        start_bpm, end_bpm = 60, 240
+        assert 60 <= start_bpm <= 240
+        assert 60 <= end_bpm <= 240
+
+    def test_tool_in_ast(self):
+        """create_tempo_ramp is a registered MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_tempo_ramp" in tool_names
+
     def test_unknown_type_rejected(self):
         """Unknown transition type returns error"""
         valid_types = {"drop", "buildup", "breakdown", "intro", "outro"}

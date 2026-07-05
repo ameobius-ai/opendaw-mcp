@@ -433,7 +433,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 363 tools**
+- `create_tempo_ramp` — Smooth tempo ramp (ritardando/accelerando). Series of ValueEventBox on tempo track. 3 curves (linear/exp/log), configurable steps. Auto-detects ramp type.
+
+**Total: 364 tools**
 
 ## DSP Scripts (scripts/) — 107 scripts
 

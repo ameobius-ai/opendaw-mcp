@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.184.0 (2026-07-05)
+
+### Added
+- `create_tempo_ramp` — smooth tempo ramp (ritardando/accelerando). Creates series of ValueEventBox on tempo track with linear interpolation. 3 curves: linear (even), exp (ease-in), log (ease-out). Configurable steps (default 16). Auto-detects ramp type from BPM direction. 364 MCP tools total
+
 ## v1.183.0 (2026-07-05)
 
 ### Added
