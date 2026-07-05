@@ -33165,6 +33165,231 @@ async def mcp_opendaw_repeat_phrase(
         }};
     }}""")
     return _wrap_eval(result)
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_clone_track(
+    unit_index: int,
+    track_index: int,
+    name: str = "",
+    transpose: int = 0,
+    velocity_scale: float = 1.0,
+    time_offset_beats: float = 0.0,
+    new_unit: bool = False,
+) -> str:
+    """Clone a track — full duplication of notes, regions, and structure.
+
+    Creates a new track within the same audio unit (or a new audio unit)
+    with all notes from the source track copied over. Optionally
+    transposed, velocity-scaled, and time-shifted.
+
+    Unlike copy_notes_to_track (which copies notes between existing
+    tracks), clone_track creates the destination track from scratch
+    with the correct track type (note/audio), then populates it with
+    a region and all notes from the source.
+
+    Essential for:
+    - Doubling: same notes on two instruments for thicker sound
+    - Octave layering: transpose +12 for octave above
+    - Parallel harmony: transpose +7 for fifths, +3 for thirds
+    - Call-and-response: time_offset to shift the copy later
+    - Counterpoint layer: same rhythm, different transposition
+
+    Args:
+        unit_index: Source audio unit index
+        track_index: Source track index within the unit
+        name: Optional name for the cloned track (default: same as source)
+        transpose: Semitone transposition applied to cloned notes
+            (-24 to +24, default 0 = same pitch)
+        velocity_scale: Multiply note velocities by this factor
+            (0.1-2.0, default 1.0 = same velocity)
+        time_offset_beats: Shift all notes by this many beats
+            (-16 to +16, default 0.0 = same position)
+        new_unit: If true, create a new audio unit for the clone
+            (requires same instrument type). If false (default), adds
+            a new track to the source audio unit.
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const trackName = {json.dumps(name)};
+        const transSemis = Math.max(-24, Math.min(24, {transpose}));
+        const velScale = Math.max(0.1, Math.min(2, {velocity_scale}));
+        const timeOffset = Math.max(-16, Math.min(16, {time_offset_beats}));
+        const createNewUnit = {str(new_unit).lower()};
+
+        const noteTracks = h.noteTracks();
+        const allUnits = h.allAUBoxes();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+
+        // Find the source track by scanning all units
+        let srcTrack = null;
+        let srcAU = null;
+        let srcUnitIdx = -1;
+        for (let u = 0; u < allUnits.length; u++) {{
+            const tracks = h.trackBoxes(allUnits[u]);
+            for (let t = 0; t < tracks.length; t++) {{
+                if (u === unitIdx && t === trackIdx) {{
+                    srcTrack = tracks[t];
+                    srcAU = allUnits[u];
+                    srcUnitIdx = u;
+                }}
+            }}
+        }}
+        if (!srcTrack) return {{"error": "Source track not found"}};
+
+        // Read source track properties
+        const srcType = srcTrack.type?.getValue();
+        const srcHue = srcTrack.hue?.getValue() || 0;
+        const srcVolume = srcTrack.volume?.getValue();
+        const srcPanning = srcTrack.panning?.getValue();
+        const srcMute = srcTrack.mute?.getValue();
+
+        // Read source regions and notes
+        const srcRegions = h.regionBoxes(srcTrack);
+        const regionData = [];
+        for (const region of srcRegions) {{
+            if (region.constructor.name === 'NoteRegionBox') {{
+                const notes = [];
+                try {{
+                    const vertex = region.events.targetVertex.unwrap();
+                    const eventsBox = vertex.box || vertex;
+                    const eventList = h.eventBoxes(eventsBox);
+                    for (const note of eventList) {{
+                        notes.push({{
+                            pitch: note.pitch.getValue(),
+                            position: note.position.getValue(),
+                            duration: note.duration.getValue(),
+                            velocity: note.velocity.getValue(),
+                            cent: note.cent?.getValue() || 0,
+                        }});
+                    }}
+                }} catch(e) {{}}
+
+                const regPos = region.position?.getValue() || 0;
+                const regDur = region.duration?.getValue() || 0;
+                const regHue = region.hue?.getValue() || 0;
+                regionData.push({{position: regPos, duration: regDur, hue: regHue, notes: notes}});
+            }}
+        }}
+
+        if (regionData.length === 0) return {{"error": "No note regions on source track"}};
+
+        // Determine destination
+        let destAU = srcAU;
+        if (createNewUnit) {{
+            // Create a new audio unit of the same type
+            const srcType = srcAU.type?.getValue();
+            const srcLabel = srcAU.label?.getValue() || "Cloned Unit";
+            try {{
+                destAU = await h.api.createAudioUnit(srcType);
+                if (destAU) {{
+                    try {{ destAU.label?.setValue(srcLabel + " (clone)"); }} catch(e) {{}}
+                }}
+            }} catch(e) {{
+                return {{"error": "Failed to create new unit: " + e.message}};
+            }}
+        }}
+
+        // Create the cloned track
+        const editing = h.editing;
+        let newTrackIdx = -1;
+        let notesCreated = 0;
+
+        await editing.modify(async () => {{
+            const TrackBox = h.TrackBox || window.DAW_TrackBox;
+            const NoteRegionBox = h.NoteRegionBox || window.DAW_NoteRegionBox;
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            if (!TrackBox || !NoteRegionBox || !NoteEventBox || !bg || !uuidGen) return;
+
+            // Create new track on destination AU
+            try {{
+                const auAdapter = h.project.boxAdapters.adapterFor(destAU, window.DAW_AudioUnitBoxAdapter);
+                if (auAdapter) {{
+                    const newTrackAdapter = auAdapter.createTrack(srcType || 0);
+                    if (newTrackAdapter) {{
+                        const newTrackBox = newTrackAdapter.box || newTrackAdapter;
+                        // Set track properties
+                        try {{
+                            if (srcVolume !== undefined) newTrackBox.volume?.setValue(srcVolume);
+                            if (srcPanning !== undefined) newTrackBox.panning?.setValue(srcPanning);
+                            if (srcMute !== undefined) newTrackBox.mute?.setValue(srcMute);
+                            newTrackBox.hue?.setValue((srcHue + 180) % 360); // complementary color
+                        }} catch(e) {{}}
+
+                        // Count tracks to get the new index
+                        const destTracks = h.trackBoxes(destAU);
+                        newTrackIdx = destTracks.length - 1;
+
+                        // Create regions with notes
+                        for (const rd of regionData) {{
+                            try {{
+                                // Create a note region
+                                const regionAdapter = auAdapter.createNoteRegion();
+                                if (regionAdapter) {{
+                                    const newRegion = regionAdapter.box || regionAdapter;
+                                    try {{
+                                        newRegion.position?.setValue(rd.position + Math.round(timeOffset * Quarter));
+                                        newRegion.duration?.setValue(rd.duration);
+                                        newRegion.hue?.setValue((rd.hue + 180) % 360);
+                                    }} catch(e) {{}}
+
+                                    // Get the events collection
+                                    try {{
+                                        const vertex = newRegion.events.targetVertex.unwrap();
+                                        const destCollection = vertex.box || vertex;
+                                        if (destCollection && destCollection.events) {{
+                                            for (const note of rd.notes) {{
+                                                const newPitch = Math.max(0, Math.min(127, note.pitch + transSemis));
+                                                const newPos = note.position + Math.round(timeOffset * Quarter);
+                                                const newVel = Math.max(0.01, Math.min(1, note.velocity * velScale));
+                                                await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                                                    box.position.setValue(Math.max(0, newPos));
+                                                    box.duration.setValue(note.duration);
+                                                    box.pitch.setValue(newPitch);
+                                                    box.velocity.setValue(newVel);
+                                                    if (note.cent) box.cent?.setValue(note.cent);
+                                                    box.events.refer(destCollection.events);
+                                                }});
+                                                notesCreated++;
+                                            }}
+                                        }}
+                                    }} catch(e) {{}}
+                                }}
+                            }} catch(e) {{}}
+                        }}
+                    }}
+                }}
+            }} catch(e) {{
+                return {{"error": "Track creation failed: " + e.message}};
+            }}
+        }});
+
+        return {{
+            success: true,
+            source_unit: srcUnitIdx,
+            source_track: trackIdx,
+            destination_unit: createNewUnit ? allUnits.length : srcUnitIdx,
+            new_track_index: newTrackIdx,
+            regions_cloned: regionData.length,
+            notes_created: notesCreated,
+            transpose: transSemis,
+            velocity_scale: velScale,
+            time_offset_beats: timeOffset,
+            new_unit: createNewUnit,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 
 
 

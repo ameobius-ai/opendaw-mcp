@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.274.0 (2026-07-06)
+
+### Added
+- `clone_track` — full track duplication. Creates new track with all regions and notes copied. Optional transpose (-24..+24), velocity_scale (0.1-2.0), time_offset_beats (-16..+16), new_unit (separate AU). Complementary hue for visual distinction. Doubling, octave layering, parallel harmony, call-and-response, counterpoint layers.
+
 ## v1.273.0 (2026-07-06)
 
 ### Added

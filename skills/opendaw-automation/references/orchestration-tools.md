@@ -209,6 +209,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 196. `add_neighbor_tones` — upper/lower neighbor embellishment: 12 scales, 3 directions, neighbor_fraction/offset, cross_track
 197. `add_anticipation` — anticipation before strong beats: 12 scales, 4 directions (auto/upper/lower/approach), offset/fraction, cross_track
 198. `repeat_phrase` — repeat melodic phrase N times with transposition: diatonic/chromatic, 5 velocity patterns, time_stretch, cross_track
+199. `clone_track` — full track duplication: new track + regions + notes, transpose, velocity_scale, time_offset, new_unit option
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
