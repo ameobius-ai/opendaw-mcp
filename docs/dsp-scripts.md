@@ -1,6 +1,6 @@
 # DSP Scripts
 
-93 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+94 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
 ## Werkstatt (Audio Effects) — 40 scripts
 

@@ -5754,3 +5754,132 @@ class TestTimeStretchDSP:
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
         assert ".fill(0)" in code, "Missing buffer reset in reset()"
+
+
+class TestMatchingEQDSP:
+    """Unit tests for werkstatt_matching_eq.js — adaptive spectral balance corrector"""
+
+    def _read_script(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_matching_eq.js")) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)
+            })
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt matching_eq" in code, "Missing @werkstatt header"
+
+    def test_label(self):
+        code = self._read_script()
+        assert "Matching EQ" in code, "Missing label"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_param_names(self):
+        params = self._parse_params(self._read_script())
+        names = [p["name"] for p in params]
+        assert "target" in names, "Missing target param"
+        assert "match_amt" in names, "Missing match_amt param"
+        assert "smooth" in names, "Missing smooth param"
+        assert "adapt_rate" in names, "Missing adapt_rate param"
+        assert "tilt" in names, "Missing tilt param"
+        assert "mix" in names, "Missing mix param"
+        assert "output" in names, "Missing output param"
+
+    def test_output_param_type(self):
+        params = self._parse_params(self._read_script())
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["type"] == "linear", f"output should be linear, got {out['type']}"
+
+    def test_fft_implementation(self):
+        code = self._read_script()
+        assert "_fft" in code, "Missing FFT method"
+        assert "halfLen" in code, "Missing FFT butterfly"
+
+    def test_fft_size(self):
+        code = self._read_script()
+        assert "FFT_SIZE = 1024" in code, "Missing FFT size 1024"
+
+    def test_hann_window(self):
+        code = self._read_script()
+        assert "0.5 * (1 - Math.cos" in code, "Missing Hann window"
+
+    def test_ltas_accumulation(self):
+        code = self._read_script()
+        assert "ltasMag" in code, "Missing LTAS magnitude accumulation"
+        assert "ltasCount" in code, "Missing LTAS frame counter"
+
+    def test_target_spectrum(self):
+        code = self._read_script()
+        assert "_targetMag" in code, "Missing target magnitude function"
+        assert "pinkSlope" in code, "Missing pink noise slope"
+        assert "brownSlope" in code, "Missing brown noise slope"
+        assert "whiteSlope" in code, "Missing white noise slope"
+
+    def test_pink_noise_slope(self):
+        code = self._read_script()
+        assert "1 / Math.sqrt(freq)" in code, "Missing pink noise -3dB/octave formula"
+
+    def test_brown_noise_slope(self):
+        code = self._read_script()
+        assert "1 / freq" in code, "Missing brown noise -6dB/octave formula"
+
+    def test_gain_computation(self):
+        code = self._read_script()
+        assert "_computeGainCurve" in code, "Missing gain curve computation"
+        assert "matchAmt" in code, "Missing match amount in gain computation"
+        assert "ratio" in code, "Missing target/actual ratio"
+
+    def test_gain_smoothing(self):
+        code = self._read_script()
+        assert "smoothSize" in code, "Missing smoothing window size"
+        assert "smoothed" in code, "Missing smoothed gain array"
+
+    def test_gain_clamping(self):
+        code = self._read_script()
+        assert "Math.max(0.1" in code, "Missing minimum gain clamp"
+        assert "Math.min(10" in code, "Missing maximum gain clamp"
+
+    def test_adaptation_smoothing(self):
+        code = self._read_script()
+        assert "adaptCoeff" in code, "Missing adaptation coefficient"
+        assert "targetGain" in code, "Missing target gain for smoothing"
+        assert "gainCurve" in code, "Missing current gain curve"
+
+    def test_tilt_control(self):
+        code = self._read_script()
+        assert "tiltAmt" in code, "Missing tilt amount"
+        assert "tiltGain" in code, "Missing tilt gain computation"
+
+    def test_overlap_add(self):
+        code = self._read_script()
+        assert "outBuf" in code, "Missing output buffer for overlap-add"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10, value / 20)" in code, "Missing dB to linear conversion"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert ".fill(0)" in code, "Missing buffer reset in reset()"
+        assert ".fill(1)" in code, "Missing gain curve reset to 1"

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.117.0 (2026-07-05)
+
+- **`werkstatt_matching_eq.js` DSP script (94 DSP, 75 Werkstatt)** — matching EQ: adaptive spectral balance corrector. Accumulates long-term average spectrum (LTAS) of input, compares to reference target (pink noise = -3 dB/octave, white = flat, brown = -6 dB/octave, interpolated), computes per-bin correction gain = (target/actual)^matchAmt. Smoothing window (1-31 bins) for broadband vs detailed correction. Adaptation speed controls how fast gain curve approaches target. Additional tilt for subjective brightness. Gain clamped 0.1x-10x. iZotope Ozone EQ Match / FabFilter Pro-Q spectrum grab — the EQ that decides for you. 7 params (target/match_amt/smooth/adapt_rate/tilt/mix/output). 94 DSP scripts, 75 Werkstatt
+- **1314 unit tests** (+22)
+
 ## v1.116.0 (2026-07-05)
 
 - **`werkstatt_time_stretch.js` DSP script (93 DSP, 74 Werkstatt)** — phase vocoder time stretch: high-quality time stretching that preserves pitch. Same STFT + phase unwrapping framework as phase_vocoder but stretches duration without changing frequency. Synthesis hop = analysis hop × stretch ratio (0.25x–4x). Transient detection via energy jump (2x threshold) + transient preservation blends input phase during attacks to reduce smearing. Identity phase locking. Élastique-grade quality — complements granular_stretch (texture) and paulstretch (ambient) with the third time-stretch algorithm. 5 params (stretch/lock_phase/transient/mix/output). 93 DSP scripts, 74 Werkstatt

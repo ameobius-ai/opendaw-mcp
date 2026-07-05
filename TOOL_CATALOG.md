@@ -463,6 +463,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_auto_tune.js` — Auto-tune pitch correction (autocorrelation pitch detection 60-1200Hz with parabolic interpolation, snap-to-scale: 7 scales × 12 roots, time-domain pitch shift via ring buffer, retune speed hard/soft, strength blend, detune offset, Cher/T-Pain style)
 - `werkstatt_phase_vocoder.js` — Phase vocoder (FFT-based pitch shifter: 2048-point STFT + phase unwrapping + true frequency + accumulated output phase + identity phase lock, formant control, ±12 semitones, Élastique/Melodyne quality, no transient smearing)
 - `werkstatt_time_stretch.js` — Phase vocoder time stretch (FFT-based: preserves pitch, changes duration 0.25x–4x, synthesis hop = analysis hop × ratio, transient detection + preservation, identity phase lock, Élastique-grade quality)
+- `werkstatt_matching_eq.js` — Matching EQ (adaptive spectral balance: LTAS accumulation, pink/white/brown noise targets interpolated, per-bin correction gain = (target/actual)^match, smoothing, adaptation speed, tilt, gain clamp 0.1-10x, Ozone EQ Match style)
 
 ### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
