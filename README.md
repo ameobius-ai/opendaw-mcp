@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-302-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-50-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-344%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-51-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-354%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **302** MCP tools | **78** Python examples (8 genre templates) |
-| **50** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **344** unit + E2E tests |
+| **302** MCP tools | **79** Python examples (8 genre templates) |
+| **51** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **354** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.60.0 (2026-07-05)
+
+- **`werkstatt_formant_filter.js` DSP script** — 3-band parallel formant filter simulating vocal tract resonances. 5 vowel presets (/a/, /i/, /u/, /o/) with smooth interpolation, or manual F1/F2/F3 control. Bandwidth and resonance parameters shape the vocal character. Biquad bandpass filters in parallel. Classic for vocoder-like vocal coloring, talk-box effects, and synth voice synthesis. 9 params: 3 formant freqs, 3 bandwidths, vowel, resonance, mix
+- **51 DSP scripts** (38 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **354 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ### v1.59.0 (2026-07-05)
 

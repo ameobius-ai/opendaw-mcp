@@ -2559,3 +2559,86 @@ class TestCombFilterDSP:
         code = self._read_script()
         assert "delaySamples" in code, "Missing delay sample calculation"
         assert "sr /" in code or "this.sr /" in code, "Missing freq-to-samples conversion"
+
+
+class TestFormantFilterDSP:
+    """Unit tests for werkstatt_formant_filter.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_formant_filter.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt formant_filter" in code, "Missing @werkstatt formant_filter header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_formant_a_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        fa = [p for p in params if p["name"] == "formant_a"][0]
+        assert fa["min"] > 0, "Formant A min should be > 0"
+        assert fa["scale"] == "exp", "Formant A should be exponential"
+
+    def test_vowel_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        vowel = [p for p in params if p["name"] == "vowel"][0]
+        assert vowel["min"] == 0
+        assert vowel["max"] >= 4, "Vowel should cover at least 5 presets (0-4)"
+
+    def test_resonance_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        res = [p for p in params if p["name"] == "resonance"][0]
+        assert res["min"] == 0
+        assert res["max"] == 1
+
+    def test_bandwidth_params(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        for name in ["bandwidth_a", "bandwidth_b", "bandwidth_c"]:
+            bw = [p for p in params if p["name"] == name][0]
+            assert bw["min"] > 0, f"{name} min should be > 0"
+            assert bw["max"] <= 0.5
+
+    def test_vowel_presets(self):
+        code = self._read_script()
+        assert "vowels" in code, "Missing vowel presets array"
+        assert "730" in code and "1090" in code, "Missing /a/ vowel preset"
+        assert "270" in code and "2290" in code, "Missing /i/ vowel preset"
+
+    def test_bandpass_implementation(self):
+        code = self._read_script()
+        assert "_bpCoeff" in code, "Missing bandpass coefficient function"
+        assert "_bp(" in code, "Missing bandpass processing function"
+        assert "Math.sin" in code and "Math.cos" in code, "Missing trig in biquad"
+
+    def test_parallel_formants(self):
+        code = self._read_script()
+        assert "stateLa" in code and "stateLb" in code and "stateLc" in code, "Missing 3 formant filter states"
+        assert "ya + yb + yc" in code or "ya+yb+yc" in code, "Missing parallel formant sum"
+
+    def test_vowel_interpolation(self):
+        code = self._read_script()
+        assert "1 - t" in code or "(1-t)" in code, "Missing vowel interpolation"
+        assert "Math.floor" in code, "Missing vowel index floor"

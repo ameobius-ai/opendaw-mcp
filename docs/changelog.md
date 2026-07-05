@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.60.0 (2026-07-05)
+
+- **`werkstatt_formant_filter.js` DSP script** — 3-band parallel formant filter simulating vocal tract resonances. 5 vowel presets (/a/, /i/, /u/, /o/) with smooth interpolation, or manual F1/F2/F3 control. Bandwidth and resonance parameters shape the vocal character. Biquad bandpass filters in parallel. Classic for vocoder-like vocal coloring, talk-box effects, and synth voice synthesis. 9 params: 3 formant freqs, 3 bandwidths, vowel, resonance, mix
+- **51 DSP scripts** (38 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **354 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.59.0 (2026-07-05)
 
 - **`werkstatt_comb_filter.js` DSP script** — standalone comb filter with delay-line feedback. Positive/negative polarity selects comb vs inverse comb characteristic. Damping LP in feedback path controls high-frequency decay. Freq 10-8000 Hz (delay time = 1/freq), feedback ±0.99. Classic building block of flangers/chorus, but standalone gives distinctive notched/peaked spectral combing. 5 params: freq, feedback, damping, mix, polarity
