@@ -136,6 +136,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 123. `scale_durations` — MIDI note duration scaling: multiply/add/set/quantize/legato durations of all notes in region
 124. `groove_transfer` — groove feel transfer: extract timing + velocity groove template from source region, apply to destination region(s). Cycles every groove_length beats
 125. `time_warp_notes` — half-time / double-time: warp note positions AND durations by factor (0.5=half-time, 2.0=double-time). Moves notes in time, not just durations
+126. `force_scale_notes` — harmonic snap: force all notes into a scale (13 scales), nearest/up/down direction, preserve_octave option
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

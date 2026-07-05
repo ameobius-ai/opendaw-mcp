@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.213.0 (2026-07-05)
+
+### Added
+- `force_scale_notes` — Harmonic snap: force all notes into a specific scale. Finds out-of-scale notes and moves them to nearest in-scale pitch. 13 scales (major/minor/dorian/phrygian/lydian/mixolydian/aeolian/locrian/pentatonic_major/pentatonic_minor/blues/harmonic_minor/melodic_minor). direction: nearest/up/down. preserve_octave: stay in octave (±1-2 semitones) or allow octave jumps. Harmonic equivalent of quantize_notes — snap pitch to scale instead of timing to grid. Useful after audio-to-MIDI transcription, random generation, or importing MIDI from unknown sources. 10 unit tests. **389 MCP tools**, 2724 unit tests
+
 ## v1.212.0 (2026-07-05)
 
 ### Added

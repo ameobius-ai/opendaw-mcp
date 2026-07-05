@@ -18109,6 +18109,163 @@ async def mcp_opendaw_time_warp_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_force_scale_notes(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    root_note: str = "C",
+    scale: str = "major",
+    direction: str = "nearest",
+    preserve_octave: bool = True,
+) -> str:
+    """Force all notes in a region into a specific scale — harmonic snap.
+
+    Finds every note that is NOT in the target scale and moves it to the nearest
+    in-scale note. This is the harmonic equivalent of quantize_notes (which snaps
+    timing to a grid). Useful after audio-to-MIDI transcription, random generation,
+    or importing MIDI from unknown sources.
+
+    root_note: Root note name — C, C#, D, D#, E, F, F#, G, G#, A, A#, B.
+    scale: Scale name — major, minor, dorian, phrygian, lydian, mixolydian, aeolian,
+      locrian, pentatonic_major, pentatonic_minor, blues, harmonic_minor, melodic_minor.
+    direction: How to resolve out-of-scale notes — "nearest" (closest, default),
+      "up" (always shift up to next in-scale note), "down" (always shift down).
+    preserve_octave: If True (default), keep notes in their original octave — only
+      shift by 1-2 semitones. If False, allow octave jumps to find the nearest match.
+
+    Returns count of notes snapped, per-track breakdown, and which notes were changed.
+    """
+    # Build scale pitches in Python for validation
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    note_to_num = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                   "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = note_to_num.get(root_note)
+    if root_num is None:
+        return f"Error: invalid root_note '{root_note}'. Use C, C#, D, D#, E, F, F#, G, G#, A, A#, B"
+
+    intervals = SCALE_INTERVALS.get(scale)
+    if intervals is None:
+        return f"Error: unknown scale '{scale}'. Available: {', '.join(sorted(SCALE_INTERVALS.keys()))}"
+
+    # Build the set of allowed pitch classes (0-11)
+    allowed_pcs = sorted(set((root_num + iv) % 12 for iv in intervals))
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const dir = "{direction}";
+        const presOct = {str(preserve_octave).lower()};
+        const allowedPcs = {json.dumps(allowed_pcs)};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+
+        const trackResults = [];
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                let snapped = 0;
+                let alreadyInScale = 0;
+                const changes = [];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+
+                    h.modify(() => {{
+                        for (const n of noteEvents) {{
+                            const origPitch = n.box.pitch.getValue();
+                            const pc = origPitch % 12;
+                            if (allowedPcs.includes(pc)) {{
+                                alreadyInScale++;
+                                continue;
+                            }}
+                            // Find nearest in-scale pitch
+                            let bestPitch = origPitch;
+                            let bestDist = Infinity;
+                            if (presOct) {{
+                                // Only search within current octave ± 1 semitone
+                                for (const apc of allowedPcs) {{
+                                    let candidate = (Math.floor(origPitch / 12) * 12) + apc;
+                                    if (dir === "up" && candidate < origPitch) candidate += 12;
+                                    if (dir === "down" && candidate > origPitch) candidate -= 12;
+                                    if (dir === "nearest") {{
+                                        const upC = candidate;
+                                        const downC = candidate - 12;
+                                        if (Math.abs(upC - origPitch) < Math.abs(downC - origPitch)) {{
+                                            candidate = upC;
+                                        }} else {{
+                                            candidate = downC;
+                                        }}
+                                    }}
+                                    const dist = Math.abs(candidate - origPitch);
+                                    if (dist < bestDist) {{
+                                        bestDist = dist;
+                                        bestPitch = candidate;
+                                    }}
+                                }}
+                            }} else {{
+                                // Allow octave jumps — search ± 12 semitones
+                                for (const apc of allowedPcs) {{
+                                    for (let octOffset = -12; octOffset <= 12; octOffset += 12) {{
+                                        const candidate = (Math.floor(origPitch / 12) * 12) + apc + octOffset;
+                                        if (dir === "up" && candidate < origPitch) continue;
+                                        if (dir === "down" && candidate > origPitch) continue;
+                                        const dist = Math.abs(candidate - origPitch);
+                                        if (dist < bestDist) {{
+                                            bestDist = dist;
+                                            bestPitch = candidate;
+                                        }}
+                                    }}
+                                }}
+                            }}
+                            changes.push({{ from: origPitch, to: bestPitch }});
+                            n.box.pitch.setValue(bestPitch);
+                            snapped++;
+                        }}
+                    }});
+                }}
+
+                trackResults.push({{
+                    unit: u,
+                    track: t,
+                    notes_snapped: snapped,
+                    notes_already_in_scale: alreadyInScale,
+                    changes: changes.slice(0, 20),  // first 20 for inspection
+                }});
+            }}
+        }}
+
+        return {{
+            success: true,
+            root_note: "{root_note}",
+            scale: "{scale}",
+            direction: dir,
+            preserve_octave: presOct,
+            total_snapped: trackResults.reduce((a, b) => a + b.notes_snapped, 0),
+            total_already_in_scale: trackResults.reduce((a, b) => a + b.notes_already_in_scale, 0),
+            per_track: trackResults,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

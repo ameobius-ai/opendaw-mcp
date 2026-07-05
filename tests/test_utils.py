@@ -11120,3 +11120,126 @@ class TestTimeWarpNotes:
                 return
         assert False, "function not found"
 
+
+class TestForceScaleNotes:
+    """Tests for force_scale_notes — harmonic snap to a scale"""
+
+    def test_tool_signature_exists(self):
+        """force_scale_notes is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_force_scale_notes" in tool_names
+
+    def test_has_root_note_and_scale_params(self):
+        """Has root_note and scale params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "root_note" in arg_names
+                assert "scale" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_direction_param(self):
+        """Has direction param (nearest/up/down)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "direction" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_preserve_octave_param(self):
+        """Has preserve_octave param (True = stay in octave, False = allow octave jumps)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "preserve_octave" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_root_is_C_major(self):
+        """Default root_note='C', scale='major'"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "root_note" and isinstance(d, ast.Constant):
+                        assert d.value == "C"
+                    if arg_name == "scale" and isinstance(d, ast.Constant):
+                        assert d.value == "major"
+                return
+        assert False, "function not found"
+
+    def test_validates_root_note(self):
+        """Validates root_note against note names"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                source = ast.unparse(node)
+                assert "invalid root_note" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_scale_name(self):
+        """Validates scale name against SCALE_INTERVALS"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                source = ast.unparse(node)
+                assert "SCALE_INTERVALS" in source
+                assert "unknown scale" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_modify_for_mutations(self):
+        """Uses h.modify() for box mutations"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                source = ast.unparse(node)
+                assert "h.modify" in source
+                return
+        assert False, "function not found"
+
+    def test_modifies_pitch_values(self):
+        """Modifies pitch.setValue on out-of-scale notes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                source = ast.unparse(node)
+                assert "pitch.setValue" in source
+                assert "allowedPcs" in source or "allowed_pcs" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_snapped_and_already_in_scale_counts(self):
+        """Returns notes_snapped and notes_already_in_scale counts"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_force_scale_notes":
+                source = ast.unparse(node)
+                assert "notes_snapped" in source
+                assert "notes_already_in_scale" in source
+                return
+        assert False, "function not found"
+
