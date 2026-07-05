@@ -237,9 +237,9 @@ class Processor {
 4. **Apparat is the ONLY scriptable device with MIDI.** `noteOn`/`noteOff` in UserProcessor interface.
 5. **Maximizer at effect index 0.** Find Werkstatt by class name: `fx.findIndex(b => b.constructor.name === 'WerkstattDeviceBox')`.
 
-## DSP Script Library (26 scripts)
+## DSP Script Library (33 scripts)
 
-### Werkstatt (15 audio effects)
+### Werkstatt (22 audio effects)
 
 | Script | Effect | Key params | Issue |
 |--------|--------|------------|-------|
@@ -248,6 +248,11 @@ class Processor {
 | `werkstatt_reverb.js` | Stereo plate reverb | decay, predelay, damping, width, mix | |
 | `werkstatt_chorus.js` | Stereo chorus | rate, depth, center, feedback, mix | #195 |
 | `werkstatt_phaser.js` | Allpass cascade phaser | rate, depth, feedback, stages, mix | #133 |
+| `werkstatt_flanger.js` | Stereo flanger | rate, depth, center, feedback, mix | |
+| `werkstatt_tremolo.js` | Tremolo | rate, depth, shape (sine→square), phase | |
+| `werkstatt_stereo_delay.js` | Stereo delay w/ ping-pong | time_l, time_r, feedback, tone, mix, pingpong | |
+| `werkstatt_overdrive.js` | Asymmetric soft-clip overdrive | drive, tone, level, bias, dry | |
+| `werkstatt_multifilter.js` | Multi-mode SVF (LP/HP/BP/Notch) | mode, cutoff, resonance, drive, mix | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
 | `werkstatt_paulstretch.js` | Extreme time-stretch | stretch, window, mix | #209 |
@@ -257,6 +262,8 @@ class Processor {
 | `werkstatt_pitch_shift.js` | Real-time pitch shift | semitones, cents, latency, mix | #188 |
 | `werkstatt_dcremover.js` | DC remover + stereo width | dc_freq, width, balance, mix | #91 |
 | `werkstatt_allpass.js` | Allpass filter + cascade | freq, stages, invert, feedback, mix | #133 |
+| `werkstatt_noisegate.js` | Noise gate | threshold, attack, hold, release, range | |
+| `werkstatt_spectral_freezer.js` | Spectral freeze | freeze, position, mix | |
 | `werkstatt_ringmod_env.js` | Ring mod + env follower | freq, modDepth, modRange, attack, release, threshold, mix, output | #277 |
 
 ### Apparat (5 instruments)
@@ -285,14 +292,22 @@ class Processor {
 | Need | Script | Device |
 |------|--------|--------|
 | Tape warmth/saturation | `werkstatt_darksat.js` | Werkstatt |
+| Overdrive/distortion | `werkstatt_overdrive.js` | Werkstatt |
 | Reverb (plate) | `werkstatt_reverb.js` | Werkstatt |
 | Reverb (shimmer) | `werkstatt_shimmer.js` | Werkstatt |
+| Delay (stereo) | `werkstatt_stereo_delay.js` | Werkstatt |
+| Delay (MIDI) | `spielwerk_mididelay.js` | Spielwerk |
+| Filter (LP/HP/BP/Notch) | `werkstatt_multifilter.js` | Werkstatt |
 | Compressor | `werkstatt_lookahead.js` | Werkstatt |
 | Chorus/width | `werkstatt_chorus.js` | Werkstatt |
 | Phaser | `werkstatt_phaser.js` | Werkstatt |
+| Flanger | `werkstatt_flanger.js` | Werkstatt |
+| Tremolo | `werkstatt_tremolo.js` | Werkstatt |
+| Noise gate | `werkstatt_noisegate.js` | Werkstatt |
 | Time-stretch (extreme) | `werkstatt_paulstretch.js` | Werkstatt |
 | Time-stretch (granular) | `werkstatt_granular_stretch.js` | Werkstatt |
 | Pitch shift | `werkstatt_pitch_shift.js` | Werkstatt |
+| Spectral freeze | `werkstatt_spectral_freezer.js` | Werkstatt |
 | DC/stereo tool | `werkstatt_dcremover.js` | Werkstatt |
 | Sidechain ducking | `werkstatt_envfollower.js` | Werkstatt |
 | Bass synth | `apparat_darkbass.js` | Apparat |
@@ -306,7 +321,6 @@ class Processor {
 | Chord memory | `spielwerk_chordmemory.js` | Spielwerk |
 | Strumming | `spielwerk_strum.js` | Spielwerk |
 | Velocity control | `spielwerk_velocity.js` | Spielwerk |
-| MIDI delay | `spielwerk_mididelay.js` | Spielwerk |
 
 ### Writing custom DSP scripts
 
