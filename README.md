@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **285** MCP tools | **55** Python examples (8 genre templates) |
+| **285** MCP tools | **57** Python examples (8 genre templates) |
 | **36** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **272** unit + **13** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -611,7 +611,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **`apply_articulation`** — staccato/legato/tenuto/accent for existing notes. Duration reshaping for phrasing character (staccato=short, legato=connected, tenuto=full slot, accent=velocity boost on downbeats). Deterministic, not random
 - **13 unit tests** for articulation math (staccato ratio, legato overlap, tenuto slot fill, accent boost) — 228→241 total
 - **E2E verified**: staccato (240→120, 8 notes), legato (240→228, 95% fill), accent (beats boosted to 0.9, off-beats stay 0.5)
-- **55 examples** (added apply_articulation.py)
+- **57 examples** (added apply_articulation.py)
 - **283 MCP tools**, **26 orchestration tools**, ruff clean, CI green
 
 ### v1.22.0 (2026-07-05)
