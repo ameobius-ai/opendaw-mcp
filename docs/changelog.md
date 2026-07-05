@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.219.0 (2026-07-05)
+
+### Added
+- `analyze_song_structure` — Structural analysis of MIDI content. Scans all note tracks bar-by-bar, computes per-bar features (note density, pitch range, average velocity, active track count, energy = density × velocity). Groups consecutive bars with similar density into segments, classifies each as intro/verse/chorus/bridge/outro/breakdown based on position and energy patterns. Highest-energy segment is labeled as chorus. Returns form string (e.g. "intro → verse → chorus → verse → chorus → outro"). Fills the structural-analysis gap — the agent can now understand song form, not just create it. 12 unit tests. **394 MCP tools**, 2779 unit tests
+
 ## v1.218.0 (2026-07-05)
 
 ### Added

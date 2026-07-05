@@ -18769,6 +18769,253 @@ async def mcp_opendaw_extract_motifs(
 
 
 @mcp.tool()
+async def mcp_opendaw_analyze_song_structure(
+    unit_index: int = -1,
+    bars_per_segment: int = 4,
+) -> str:
+    """Analyze song structure by segmenting MIDI content into structural parts.
+
+    Scans all note tracks bar-by-bar, computes per-bar features (note density,
+    pitch range, average velocity, active track count), groups consecutive bars
+    into segments, and classifies each segment as intro/verse/chorus/bridge/
+    outro/breakdown based on density and energy patterns.
+
+    Essential for: understanding existing arrangements, finding where sections
+    change, verifying song form, and planning variations or extensions.
+
+    unit_index: AU index (-1 = all AUs).
+    bars_per_segment: Minimum bars per structural segment (default 4). Groups
+      of bars with similar density are merged into segments of at least this
+      length.
+
+    Returns per-segment classification with bar range, density, energy, and
+    feature summary.
+    """
+    if bars_per_segment < 2:
+        return "Error: bars_per_segment must be at least 2"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const minSegBars = {bars_per_segment};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+
+        // Collect all notes across all tracks with bar positions
+        const bars = new Map(); // barIndex -> {{notes, pitches, velocities, tracks}}
+
+        function ppqnPerBar() {{
+            // Standard 4/4 at PPQN 960 = 3840 ppqn per bar
+            return 960 * 4;
+        }}
+
+        const ppqnBar = ppqnPerBar();
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+
+            for (let t = 0; t < tracks.length; t++) {{
+                const track = tracks[t];
+                const regions = h.regionBoxes(track);
+                for (const region of regions) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+                    for (const n of noteEvents) {{
+                        const pos = n.box.position.getValue();
+                        const pitch = n.box.pitch.getValue();
+                        const vel = n.box.velocity.getValue();
+                        const dur = n.box.duration.getValue();
+                        const barIdx = Math.floor(pos / ppqnBar);
+                        if (!bars.has(barIdx)) {{
+                            bars.set(barIdx, {{
+                                notes: 0,
+                                pitches: [],
+                                velocities: [],
+                                tracks: new Set(),
+                                durations: [],
+                            }});
+                        }}
+                        const b = bars.get(barIdx);
+                        b.notes++;
+                        b.pitches.push(pitch);
+                        b.velocities.push(vel);
+                        b.tracks.add(t);
+                        b.durations.push(dur);
+                    }}
+                }}
+            }}
+        }}
+
+        if (bars.size === 0) {{
+            return {{
+                success: true,
+                total_bars: 0,
+                segments: [],
+                message: "No MIDI notes found in any region",
+            }};
+        }}
+
+        // Sort bars and compute features
+        const sortedBars = [...bars.keys()].sort((a, b) => a - b);
+        const maxBar = sortedBars[sortedBars.length - 1];
+
+        // Build feature array for all bars (including empty ones)
+        const barFeatures = [];
+        for (let b = 0; b <= maxBar; b++) {{
+            const data = bars.get(b);
+            if (data) {{
+                const avgVel = data.velocities.reduce((a, b) => a + b, 0) / data.velocities.length;
+                const minPitch = Math.min(...data.pitches);
+                const maxPitch = Math.max(...data.pitches);
+                barFeatures.push({{
+                    bar: b,
+                    density: data.notes,
+                    pitch_range: maxPitch - minPitch,
+                    avg_velocity: avgVel,
+                    active_tracks: data.tracks.size,
+                    energy: data.notes * avgVel,  // energy = density × velocity
+                }});
+            }} else {{
+                barFeatures.push({{
+                    bar: b,
+                    density: 0,
+                    pitch_range: 0,
+                    avg_velocity: 0,
+                    active_tracks: 0,
+                    energy: 0,
+                }});
+            }}
+        }}
+
+        // Segment: group consecutive bars with similar density
+        // Normalize density to 0-1
+        const maxDensity = Math.max(...barFeatures.map(b => b.density), 1);
+        const maxEnergy = Math.max(...barFeatures.map(b => b.energy), 1);
+
+        // Build segments by clustering similar adjacent bars
+        const segments = [];
+        let segStart = 0;
+        let segBars = [barFeatures[0]];
+
+        function densityClass(norm) {{
+            if (norm < 0.15) return "sparse";
+            if (norm < 0.35) return "low";
+            if (norm < 0.60) return "medium";
+            if (norm < 0.85) return "high";
+            return "dense";
+        }}
+
+        for (let i = 1; i < barFeatures.length; i++) {{
+            const prevNorm = barFeatures[i-1].density / maxDensity;
+            const currNorm = barFeatures[i].density / maxDensity;
+            const prevClass = densityClass(prevNorm);
+            const currClass = densityClass(currNorm);
+
+            // Same density class → continue segment
+            if (prevClass === currClass && (i - segStart) < 16) {{
+                segBars.push(barFeatures[i]);
+            }} else {{
+                // Close current segment
+                if (segBars.length >= 1) {{
+                    segments.push(createSegment(segStart, i - 1, segBars, maxDensity, maxEnergy));
+                }}
+                segStart = i;
+                segBars = [barFeatures[i]];
+            }}
+        }}
+        // Close last segment
+        if (segBars.length >= 1) {{
+            segments.push(createSegment(segStart, barFeatures.length - 1, segBars, maxDensity, maxEnergy));
+        }}
+
+        function createSegment(startBar, endBar, bars, maxD, maxE) {{
+            const avgDensity = bars.reduce((a, b) => a + b.density, 0) / bars.length;
+            const avgEnergy = bars.reduce((a, b) => a + b.energy, 0) / bars.length;
+            const avgVel = bars.reduce((a, b) => a + b.avg_velocity, 0) / bars.length;
+            const avgTracks = bars.reduce((a, b) => a + b.active_tracks, 0) / bars.length;
+            const normDensity = avgDensity / maxD;
+            const normEnergy = avgEnergy / maxE;
+            return {{
+                start_bar: startBar,
+                end_bar: endBar,
+                bar_count: endBar - startBar + 1,
+                avg_density: Math.round(avgDensity * 100) / 100,
+                avg_energy: Math.round(avgEnergy * 100) / 100,
+                avg_velocity: Math.round(avgVel * 100) / 100,
+                avg_active_tracks: Math.round(avgTracks * 100) / 100,
+                density_class: densityClass(normDensity),
+                norm_density: Math.round(normDensity * 100) / 100,
+                norm_energy: Math.round(normEnergy * 100) / 100,
+                label: "",  // assigned below
+            }};
+        }}
+
+        // Classify segments based on position and energy
+        // First, find the segment with highest energy → likely chorus
+        let chorusIdx = -1;
+        let maxSegEnergy = 0;
+        for (let i = 0; i < segments.length; i++) {{
+            if (segments[i].avg_energy > maxSegEnergy) {{
+                maxSegEnergy = segments[i].avg_energy;
+                chorusIdx = i;
+            }}
+        }}
+
+        for (let i = 0; i < segments.length; i++) {{
+            const seg = segments[i];
+            const isFirst = i === 0;
+            const isLast = i === segments.length - 1;
+            const isChorus = i === chorusIdx;
+
+            if (isFirst && seg.norm_density < 0.3) {{
+                seg.label = "intro";
+            }} else if (isLast && seg.norm_density < 0.3) {{
+                seg.label = "outro";
+            }} else if (seg.norm_density < 0.1) {{
+                seg.label = "breakdown";
+            }} else if (isChorus && seg.norm_energy > 0.5) {{
+                seg.label = "chorus";
+            }} else if (seg.norm_energy > 0.6 && !isFirst && !isLast) {{
+                // High energy non-first/last segment that's not the chorus peak
+                // Could be a second chorus or a bridge
+                if (seg.norm_density > 0.6) {{
+                    seg.label = "chorus";
+                }} else {{
+                    seg.label = "bridge";
+                }}
+            }} else if (seg.norm_density > 0.4 && seg.norm_energy > 0.3) {{
+                seg.label = "verse";
+            }} else if (seg.norm_density < 0.2) {{
+                seg.label = "breakdown";
+            }} else {{
+                seg.label = "verse";
+            }}
+        }}
+
+        // If no chorus found, label the highest-energy segment as chorus
+        if (chorusIdx >= 0 && segments[chorusIdx].label !== "chorus") {{
+            segments[chorusIdx].label = "chorus";
+        }}
+
+        // Build form string
+        const formStr = segments.map(s => s.label).join(" → ");
+
+        return {{
+            success: true,
+            total_bars: maxBar + 1,
+            total_segments: segments.length,
+            form: formStr,
+            segments: segments,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

@@ -141,6 +141,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 128. `diatonic_transpose_notes` — scale-step transpose: move notes up/down by N steps within a scale (not semitones), preserves scale, skips out-of-scale notes
 129. `create_blues_arrangement` — 12-bar blues: shuffle drums + walking bass + dom7 stabs + blues scale lead, I-IV-V form, 120 BPM default
 130. `extract_motifs` — melodic analysis: extract repeating motifs (3-8 notes) by interval contour, classify contour type (ascending/descending/arch/V-shape/wave), significance scoring, deduplication
+131. `analyze_song_structure` — structural analysis: segment MIDI into intro/verse/chorus/bridge/outro/breakdown based on per-bar density/energy, return form string
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

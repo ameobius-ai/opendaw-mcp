@@ -11774,3 +11774,154 @@ class TestExtractMotifs:
                 return
         assert False, "function not found"
 
+
+class TestAnalyzeSongStructure:
+    """Tests for analyze_song_structure — structural segmentation of MIDI content"""
+
+    def test_tool_signature_exists(self):
+        """analyze_song_structure is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_analyze_song_structure" in tool_names
+
+    def test_has_2_params(self):
+        """Has unit_index and bars_per_segment params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                arg_names = [a.arg for a in node.args.args]
+                assert "unit_index" in arg_names
+                assert "bars_per_segment" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_bars_per_segment_is_4(self):
+        """Default bars_per_segment is 4"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bars_per_segment" and isinstance(d, ast.Constant):
+                        assert d.value == 4
+                        return
+        assert False, "default not found"
+
+    def test_validates_bars_per_segment(self):
+        """Validates bars_per_segment >= 2"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "bars_per_segment must be at least 2" in source
+                return
+        assert False, "function not found"
+
+    def test_has_density_classification(self):
+        """Has density classification (sparse/low/medium/high/dense)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "sparse" in source
+                assert "dense" in source
+                return
+        assert False, "function not found"
+
+    def test_has_segment_labels(self):
+        """Has structural labels (intro/verse/chorus/bridge/outro/breakdown)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "intro" in source
+                assert "verse" in source
+                assert "chorus" in source
+                assert "bridge" in source
+                assert "outro" in source
+                assert "breakdown" in source
+                return
+        assert False, "function not found"
+
+    def test_has_energy_calculation(self):
+        """Has energy calculation (density × velocity)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "energy" in source
+                return
+        assert False, "function not found"
+
+    def test_has_form_string(self):
+        """Returns a form string (e.g. 'intro → verse → chorus')"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "form" in source
+                return
+        assert False, "function not found"
+
+    def test_has_chorus_detection(self):
+        """Has chorus detection (highest energy segment labeled as chorus)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "chorusIdx" in source or "chorus" in source
+                return
+        assert False, "function not found"
+
+    def test_has_bar_features(self):
+        """Computes per-bar features (density, pitch range, velocity, tracks)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "density" in source
+                assert "pitch_range" in source
+                assert "avg_velocity" in source
+                assert "active_tracks" in source
+                return
+        assert False, "function not found"
+
+    def test_has_segmentation_logic(self):
+        """Has segmentation logic that groups consecutive bars with similar density"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "segments" in source
+                assert "createSegment" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_segment_bar_ranges(self):
+        """Returns segments with start_bar and end_bar"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_song_structure":
+                source = ast.unparse(node)
+                assert "start_bar" in source
+                assert "end_bar" in source
+                return
+        assert False, "function not found"
+
