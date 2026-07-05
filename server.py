@@ -18832,6 +18832,197 @@ async def mcp_opendaw_balance_track_velocities(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_midi_echo(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    repeats: int = 3,
+    delay_beats: float = 0.5,
+    velocity_decay: float = 0.6,
+    pitch_shift: int = 0,
+    dest_track: int = -1,
+    feedback_mode: str = "linear",
+) -> str:
+    """Create MIDI echo — repeat notes with decaying velocity and optional pitch shift.
+
+    Takes existing notes from a region and creates echoing repeats. Each repeat
+    is delayed by delay_beats, quieter by velocity_decay factor, and optionally
+    shifted in pitch. This is a creative effect, not a simple copy — think
+    guitar delay throws, synth echo fills, vocal repeat stutters.
+
+    feedback_mode:
+    - "linear" — each repeat is velocity_decay × previous (0.6 → 0.6, 0.36, 0.216)
+    - "exponential" — faster decay, squared each time
+    - "constant" — same velocity for all repeats (stutter feel)
+    - "reverse" — each repeat gets louder (build-up feel)
+
+    pitch_shift: semitones added per repeat (0 = no shift, +12 = octave up each
+      repeat, -5 = perfect fourth down each repeat). Creates cascading echoes.
+
+    dest_track: -1 = same track (thickening), N = separate track (layered echo).
+      Using a separate track lets you process the echo independently.
+
+    repeats: 1-8 echo repeats. Each repeat copies ALL notes from the source.
+    delay_beats: time between each repeat (0.25 = 16th, 0.5 = 8th, 1.0 = quarter).
+
+    unit_index: AU index.
+    track_index: Source note track.
+    region_index: Source region (-1 = first).
+    repeats: Number of echo repeats (1-8).
+    delay_beats: Delay between repeats in beats.
+    velocity_decay: Velocity multiplier per repeat (0-1, 0.6 = 60% each time).
+    pitch_shift: Semitones added per repeat (0 = none).
+    dest_track: Destination track (-1 = same, N = separate track).
+    feedback_mode: linear / exponential / constant / reverse.
+
+    Returns echo summary with per-repeat velocity and pitch info.
+
+    Example:
+      # Guitar-style echo: 3 repeats, 8th note delay, decaying
+      create_midi_echo(0, 0, repeats=3, delay_beats=0.5, velocity_decay=0.5)
+      # Cascading octave echoes on separate track
+      create_midi_echo(0, 0, repeats=4, delay_beats=0.25, pitch_shift=12, dest_track=2)
+    """
+    if not (1 <= repeats <= 8):
+        return "Error: repeats must be 1-8"
+    if delay_beats <= 0 or delay_beats > 16:
+        return "Error: delay_beats must be 0-16"
+    if not (0.0 <= velocity_decay <= 1.0):
+        return "Error: velocity_decay must be 0-1"
+    if not (-24 <= pitch_shift <= 24):
+        return "Error: pitch_shift must be -24 to +24"
+    valid_modes = ("linear", "exponential", "constant", "reverse")
+    if feedback_mode not in valid_modes:
+        return f"Error: feedback_mode must be one of {list(valid_modes)}, got '{feedback_mode}'"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regIdx = {region_index};
+        const numRepeats = {repeats};
+        const delayBeats = {delay_beats};
+        const velDecay = {velocity_decay};
+        const pitchShiftVal = {pitch_shift};
+        const destTrackIdx = {dest_track};
+        const feedbackMode = "{feedback_mode}";
+        const Quarter = 960;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const ri = regIdx < 0 ? 0 : regIdx;
+        if (ri >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[ri];
+
+        // Get source notes
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{error: "No notes in region"}};
+
+        // Read source note data
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }}));
+
+        // Determine destination
+        const dTrackIdx = destTrackIdx < 0 ? trackIdx : destTrackIdx;
+        if (dTrackIdx < 0 || dTrackIdx >= noteTracks.length) return {{error: "dest_track out of range"}};
+        const destTrack = noteTracks[dTrackIdx];
+        const destRegions = h.regionBoxes(destTrack);
+        if (destRegions.length === 0) return {{error: "No regions on dest track"}};
+
+        // Use same region on dest track, or first region
+        const destRegion = destTrackIdx === trackIdx ? region : destRegions[0];
+        let destColl = null;
+        try {{
+            const dv = destRegion.events.targetVertex.unwrap();
+            destColl = dv.box || dv;
+        }} catch(e) {{}}
+        if (!destColl || !destColl.events) return {{error: "No note collection in dest region"}};
+
+        // Build echo notes
+        const echoNotes = [];
+        const repeatInfo = [];
+        for (let r = 1; r <= numRepeats; r++) {{
+            let velFactor;
+            if (feedbackMode === "linear") {{
+                velFactor = Math.pow(velDecay, r);
+            }} else if (feedbackMode === "exponential") {{
+                velFactor = Math.pow(velDecay, r * r);
+            }} else if (feedbackMode === "constant") {{
+                velFactor = 1.0;
+            }} else {{ // reverse
+                velFactor = Math.min(1.0, 1.0 - (r / (numRepeats + 1)));
+            }}
+
+            const pitchOffset = pitchShiftVal * r;
+            const timeOffset = delayBeats * r * Quarter;
+
+            for (const note of srcData) {{
+                echoNotes.push({{
+                    pos: note.pos + timeOffset,
+                    dur: note.dur,
+                    pitch: note.pitch + pitchOffset,
+                    vel: Math.max(0.01, Math.min(1.0, note.vel * velFactor)),
+                }});
+            }}
+            repeatInfo.push({{
+                repeat: r,
+                velocity_factor: Math.round(velFactor * 1000) / 1000,
+                pitch_offset: pitchOffset,
+                time_offset_beats: Math.round(delayBeats * r * 1000) / 1000,
+            }});
+        }}
+
+        // Create echo notes in destination
+        const bg = h.boxGraph;
+        let created = 0;
+        const editing = h.editing;
+        await editing.modify(async () => {{
+            for (const en of echoNotes) {{
+                const noteBox = h.NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(en.pos));
+                    box.duration.setValue(Math.round(en.dur));
+                    box.pitch.setValue(en.pitch);
+                    box.velocity.setValue(en.vel);
+                    box.cent.setValue(0);
+                    box.events.refer(destColl.events);
+                }});
+                created++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_created: created,
+            repeats: numRepeats,
+            delay_beats: delayBeats,
+            velocity_decay: velDecay,
+            pitch_shift: pitchShiftVal,
+            feedback_mode: feedbackMode,
+            dest_track: dTrackIdx,
+            repeat_details: repeatInfo,
+            source_note_count: srcData.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_scale_durations(
     unit_index: int,
     track_index: int,

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.246.0 (2026-07-06)
+
+### Added
+- `create_midi_echo` — Create MIDI echo — repeat notes with decaying velocity and optional pitch shift. 4 feedback modes: linear (geometric decay 0.6^r), exponential (faster decay 0.6^(r²)), constant (same velocity, stutter feel), reverse (decreasing velocity). pitch_shift per repeat creates cascading octave echoes. dest_track for separate echo track. 1-8 repeats, configurable delay. Use for guitar delay throws, synth echo fills, creative repetitions.
+
 ## v1.245.0 (2026-07-06)
 
 ### Added
