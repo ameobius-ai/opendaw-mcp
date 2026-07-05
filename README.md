@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **281** MCP tools | **53** Python examples (8 genre templates) |
-| **30** DSP scripts | **9** agent skills |
+| **30** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **212** unit + **10** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -102,18 +102,19 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 
 ## Agent Skills
 
-The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 263 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
+The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 281 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
 
 | Skill | Domain | Description |
 |-------|--------|-------------|
 | `adaptive-mix-mastering` | Mix → Master pipeline | Universal pipeline with decision points: genre detection, stem strategy, effect chain selection, LUFS targeting, mastering approach. Adapts to coldwave, techno, hip-hop, ambient, rock, pop. Includes `references/decision-tree.md`. |
 | `suno-to-opendaw` | Suno → openDAW E2E | Killer workflow: Suno AI generation → SOTA stem separation (7 modes) → openDAW import → arrange → mix → master → export. 6-stage pipeline from prompt to finished track. Unique value prop — no other MCP server offers this. |
 | `dsp-script-authoring` | Custom DSP writing | How to author custom Werkstatt/Apparat/Spielwerk DSP scripts. Processor API, @param/@sample declarations, DSP patterns (filters, saturation, reverb, LFO, envelope), validation workflow, 8 critical pitfalls. For writing new DSP, not using existing. |
-| `opendaw-automation` | API reference | 263 MCP tools full reference, bridge architecture, pitfalls, DSP script library (26 scripts), CodeRabbit review patterns, PyPI publishing workflow. The base skill — others cross-reference it. 146 reference files. |
+| `opendaw-automation` | API reference | 281 MCP tools full reference, bridge architecture, pitfalls, DSP script library (30 scripts), CodeRabbit review patterns. The base skill — others cross-reference it. |
 | `opendaw-track-architecture` | Track structure | Tracks, regions, clips, notes, tempo, time signature, markers, groove, song form. 50+ tools for building the skeleton of a track. |
-| `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 26 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
+| `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 30 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
 | `opendaw-genres` | Genre templates | Concrete parameters per genre — BPM, track layout, drum patterns, bass lines, chords, effect chains, pan, LUFS targets. 8 genres: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. Not theory — actual tool calls and values. |
 | `opendaw-effect-routing` | Effects + routing | Effect chains, sends/returns, sidechain, buses, mixing, mastering chain, render/export. How to route audio and deliver final output. |
+| `opendaw-composition-patterns` | Composition | When and how to use 24 orchestration tools. Decision tree by musical goal, genre-specific recipes, parameter guidelines, pitfalls. Hip-hop/house/jazz/DnB/ambient workflows. |
 
 ### Using skills with Hermes
 

@@ -1,0 +1,161 @@
+---
+name: opendaw-composition-patterns
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 24 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+---
+
+# openDAW Composition Patterns
+
+## When to use which orchestration tool
+
+### Decision tree by musical goal
+
+```
+What do you want to create?
+│
+├── Full genre track → create_genre_track (house/techno/lofi/dnb/trap/ambient/coldwave/hiphop)
+│
+├── Drum pattern → create_drum_pattern (step-sequencer notation, x/o/.)
+├── Drum fill/transition → create_drum_fill (build/break/roll/crash/tom)
+├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
+├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
+│
+├── Melody → create_melody (scale-based, pattern notation 1-7)
+├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)
+├── Bassline (walking jazz) → create_walking_bass (chord progression input)
+├── Arpeggio → create_arpeggio (up/down/updown/random, octaves)
+├── Ostinato (repeating) → create_ostinato (short pattern × N repeats)
+│
+├── Chords → create_chord_progression (2-5 chords, scale-aware)
+├── Harmony (parallel) → create_harmony (thirds/fifths/sixths above melody)
+├── Counter-melody → create_counterpoint (contrary motion, mirror around center)
+│
+├── Scale run (fill) → create_scale_run (up/down, 1-4 octaves)
+├── Drum fill (alt) → create_drum_fill (build/break/roll/crash/tom)
+│
+├── Call-and-response → create_call_response (antecedent/consequent, repeats)
+├── Polyrhythm → create_polyrhythm (3:4, 2:3, 5:7 cross-rhythms)
+├── Crescendo/decrescendo → create_crescendo (velocity ramp, linear/exp/log)
+│
+├── Sidechain (pump) → apply_sidechain (house/techno/EDM ducking)
+├── Automation sweep → automation_sweep (filter/volume/parameter ramp)
+├── Mix preset → apply_mix_preset (lofi/house/balanced/wide)
+├── Mastering chain → add_mastering_chain (balanced/warm/loud/transparent)
+│
+├── Song structure → create_song_structure (intro/verse/chorus/bridge/outro markers)
+├── Humanize → humanize_notes (velocity/timing/duration/swing variation)
+├── Reverse → reverse_notes (mirror note order)
+├── Invert → invert_notes (mirror pitches around axis)
+├── Transpose → transpose_notes (shift all pitches by N semitones)
+└── Quantize → quantize_notes (snap to grid, adjustable strength)
+```
+
+## Genre-specific tool recipes
+
+### Hip-hop / lofi (BPM 80-95)
+1. `create_genre_track("hiphop")` → base track
+2. `apply_swing(swing_amount=0.58, grid="16th")` → laid-back groove
+3. `create_ghost_notes(density=0.3, velocity=0.25)` → funk feel
+4. `humanize_notes(velocity_amount=0.12, timing_amount=0.10)` → natural feel
+5. `apply_mix_preset("lofi")` → warm, narrow stereo
+
+### House / techno (BPM 120-135)
+1. `create_genre_track("house")` → base track
+2. `apply_sidechain(depth=0.7, release=0.25, kick_interval=1.0)` → pump
+3. `create_ostinato("minor", "C", "1 5 3 5", repeats=8)` → riff
+4. `add_mastering_chain("loud")` → club-ready
+
+### Jazz (BPM 120-180)
+1. `create_walking_bass(chords='[["C","maj7"],["A","min7"],["D","min7"],["G","dom7"]]')` → walking bass
+2. `create_call_response("blues", "C", "1 3 5 3", "5 4 3 2", repeats=4)` → melody
+3. `create_chord_progression("C", "major", ["maj7","min7","dom7","maj7"])` → comping
+4. `apply_swing(0.62, "8th")` → jazz swing
+
+### Drum & bass (BPM 170-180)
+1. `create_genre_track("dnb")` → base track
+2. `create_drum_fill(fill_type="roll", bars=2, density="dense")` → build-up
+3. `create_polyrhythm(3, 4, bars=2)` → cross-rhythm layer
+4. `add_mastering_chain("loud")` → loud
+
+### Ambient (BPM 60-80)
+1. `create_genre_track("ambient")` → base track
+2. `create_ostinato("major", "C", "1 3 5 3 1", repeats=16, step_duration=0.5)` → evolving pad
+3. `automation_sweep("filter_cutoff", 0, 32, 200, 8000, steps=64)` → slow filter open
+4. `create_crescendo(start_velocity=0.1, end_velocity=0.7, curve="exp")` → slow build
+
+## Parameter guidelines
+
+### Swing amounts
+- 0.50 = light swing (pop)
+- 0.55-0.66 = classic hip-hop/lofi
+- 0.62 = jazz swing (8th grid)
+- 0.75 = strong shuffle
+- 1.00 = full triplet
+
+### Sidechain depths
+- 0.3 = subtle (techno, minimal)
+- 0.5 = moderate (house, pop)
+- 0.7 = pronounced (EDM, festival)
+- 0.8+ = extreme (big room)
+
+### Ghost note densities
+- 0.15 = sparse (subtle groove)
+- 0.30 = moderate (funk, hip-hop)
+- 0.45 = busy (R&B, neo-soul)
+- 0.60+ = chaotic (jazz fusion)
+
+### Crescendo curves
+- linear = steady build (classical)
+- exp = slow start, fast end (tension release)
+- log = fast start, slow end (impact fade)
+
+### Scale run step durations
+- 0.0625 = 32nd notes (fast run, fill)
+- 0.125 = 16th triplet (smooth run)
+- 0.25 = 16th notes (moderate run)
+- 0.5 = 8th notes (slow walk)
+
+## Common pitfalls
+
+1. **Call before response**: `create_call_response` requires both patterns to produce notes. Pattern "0 0 0 0" (all rests) will error.
+2. **Walking bass octave**: Default octave=2 (C2=36). Use octave=3 for higher bass, octave=1 for sub-bass.
+3. **Polyrhythm requires different counts**: `create_polyrhythm(4, 4)` errors — that's not a polyrhythm.
+4. **Ghost notes need existing notes**: `create_ghost_notes` uses nearest note's pitch. Empty region = default pitch 38 (snare).
+5. **Sidechain doesn't create kick**: `apply_sidechain` only automates volume. You need a separate kick drum track.
+6. **Swing before quantize**: If you quantize after swing, you undo the swing. Apply swing last.
+7. **Scale degrees 1-7**: `parse_melody_pattern` uses scale degrees, not MIDI notes. "1" = root, "5" = fifth.
+8. **Chord progression needs valid chords**: Use chord types from CHORD_INTERVALS: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug.
+
+## Tool chain examples
+
+### Full hip-hop beat
+```python
+# 1. Base track
+await mcp_opendaw_create_genre_track("hiphop")
+
+# 2. Add swing to hi-hats
+await mcp_opendaw_apply_swing(unit_index=0, track_index=0, swing_amount=0.58)
+
+# 3. Add ghost notes for groove
+await mcp_opendaw_create_ghost_notes(unit_index=0, density=0.3, velocity=0.25, seed=42)
+
+# 4. Humanize for natural feel
+await mcp_opendaw_humanize_notes(velocity_amount=0.12, timing_amount=0.10, swing=0.0)
+
+# 5. Mix preset
+await mcp_opendaw_apply_mix_preset("lofi")
+```
+
+### Full house track
+```python
+# 1. Base track
+await mcp_opendaw_create_genre_track("house")
+
+# 2. Sidechain the bass/pad
+await mcp_opendaw_apply_sidechain(unit_index=1, bars=16, depth=0.7, release=0.25)
+
+# 3. Ostinato riff
+await mcp_opendaw_create_ostinato("minor", "F", "1 5 3 5", repeats=16, octave=4)
+
+# 4. Mastering
+await mcp_opendaw_add_mastering_chain("loud")
+```

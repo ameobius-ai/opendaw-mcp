@@ -1,12 +1,12 @@
 ---
 name: opendaw-automation
-description: "openDAW automation — 263 MCP tools via Playwright. 8 orchestration tools. Full DAW control. v1.14.0 on PyPI. 7 agent skills. 26 DSP scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues. Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 93 unit + 7 E2E tests. Scriptable params mapping-aware. See references/."
+description: "openDAW automation — 281 MCP tools via Playwright. 24 orchestration tools. Full DAW control. v1.21.0. 10 agent skills. 30 DSP scripts (19 Werkstatt + 5 Apparat + 6 Spielwerk) covering 11 upstream issues. Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 213 unit + 10 E2E tests. Scriptable params mapping-aware. See references/."
 tags: [opendaw, audio, daw, headless, mcp, playwright]
 ---
 
 # openDAW Automation Meta-Skill
 
-263 MCP tools (mcp_opendaw_* prefix; 266 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.14.0 on PyPI** — 7 agent skills (adaptive-mix-mastering, suno-to-opendaw, dsp-script-authoring, opendaw-automation, opendaw-track-architecture, opendaw-sound-design, opendaw-effect-routing). 26 DSP scripts covering 11 upstream issues.
+281 MCP tools (mcp_opendaw_* prefix; 284 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.21.0** — 10 agent skills (adaptive-mix-mastering, suno-to-opendaw, dsp-script-authoring, opendaw-automation, opendaw-track-architecture, opendaw-sound-design, opendaw-effect-routing, opendaw-genres, opendaw-composition-patterns). 30 DSP scripts covering 11 upstream issues.
 
 ## References (read these before working on opendaw-mcp)
 
