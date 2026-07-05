@@ -17997,6 +17997,118 @@ async def mcp_opendaw_groove_transfer(
 
 
 @mcp.tool()
+async def mcp_opendaw_time_warp_notes(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    warp_factor: float = 0.5,
+    origin: str = "start",
+) -> str:
+    """Warp note positions and durations by a factor — half-time / double-time / custom stretch.
+
+    Scales both the position and duration of every note in a region by warp_factor.
+    Unlike scale_durations (which only changes note length, not position), this moves
+    notes in time — creating true half-time (0.5×) or double-time (2.0×) feel without
+    changing the DAW's BPM.
+
+    Half-time (0.5): notes spread out — a 1-bar pattern becomes 2 bars. Classic for
+    trap, lofi, and creating build-ups before a drop.
+    Double-time (2.0): notes compress — a 2-bar pattern becomes 1 bar. Useful for
+    intensifying a section or creating fills.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    region_index: Region index (-1 = all regions on the track).
+    warp_factor: Time scaling factor. 0.5 = half-time, 2.0 = double-time,
+      0.25 = quarter-time, 1.5 = 1.5× stretch. Range 0.1-8.0.
+    origin: Anchor point for the warp — "start" (region start), or "zero" (position 0).
+      "start" preserves relative spacing from region start. "zero" warps from absolute zero.
+
+    Returns per-track modification counts and new region extent.
+    """
+    if not (0.1 <= warp_factor <= 8.0):
+        return "Error: warp_factor must be 0.1-8.0"
+    if origin not in ("start", "zero"):
+        return "Error: origin must be 'start' or 'zero'"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const factor = {warp_factor};
+        const originMode = "{origin}";
+        const Quarter = 960;
+
+        const allUnits = h.allAUBoxes();
+        const trackResults = [];
+
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+                    if (noteEvents.length === 0) continue;
+
+                    // Get region start as anchor
+                    const regionStart = originMode === "start" ? (region.start ? region.start.getValue() : 0) : 0;
+
+                    let minNewPos = Infinity;
+                    let maxNewEnd = 0;
+                    let modified = 0;
+
+                    h.modify(() => {{
+                        for (const n of noteEvents) {{
+                            const origPos = n.box.position.getValue();
+                            const origDur = n.box.duration.getValue();
+                            const relPos = origPos - regionStart;
+                            const newPos = regionStart + Math.round(relPos * factor);
+                            const newDur = Math.max(1, Math.round(origDur * factor));
+                            n.box.position.setValue(newPos);
+                            n.box.duration.setValue(newDur);
+                            minNewPos = Math.min(minNewPos, newPos);
+                            maxNewEnd = Math.max(maxNewEnd, newPos + newDur);
+                            modified++;
+                        }}
+                    }});
+
+                    trackResults.push({{
+                        unit: u,
+                        track: t,
+                        notes_modified: modified,
+                        new_start_ppqn: minNewPos === Infinity ? 0 : minNewPos,
+                        new_end_ppqn: maxNewEnd,
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            warp_factor: factor,
+            origin: originMode,
+            tracks_processed: trackResults.length,
+            per_track: trackResults,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

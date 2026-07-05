@@ -11007,3 +11007,116 @@ class TestGrooveTransfer:
                 return
         assert False, "function not found"
 
+
+class TestTimeWarpNotes:
+    """Tests for time_warp_notes — half-time / double-time / custom time stretch for MIDI"""
+
+    def test_tool_signature_exists(self):
+        """time_warp_notes is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_time_warp_notes" in tool_names
+
+    def test_has_warp_factor_param(self):
+        """Has warp_factor param (0.5=half-time, 2.0=double-time)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "warp_factor" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_origin_param(self):
+        """Has origin param (start/zero)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "origin" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_warp_is_half_time(self):
+        """Default warp_factor is 0.5 (half-time)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "warp_factor" and isinstance(d, ast.Constant):
+                        assert d.value == 0.5
+                    if arg_name == "origin" and isinstance(d, ast.Constant):
+                        assert d.value == "start"
+                return
+        assert False, "function not found"
+
+    def test_validates_warp_range(self):
+        """Validates warp_factor is 0.1-8.0"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                source = ast.unparse(node)
+                assert "0.1" in source
+                assert "8.0" in source
+                assert "warp_factor must be" in source
+                return
+        assert False, "function not found"
+
+    def test_warps_both_position_and_duration(self):
+        """Warps BOTH position and duration (unlike scale_durations which only does duration)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                source = ast.unparse(node)
+                assert "position.setValue" in source
+                assert "duration.setValue" in source
+                assert "factor" in source  # both scaled by factor
+                return
+        assert False, "function not found"
+
+    def test_uses_modify_for_mutations(self):
+        """Uses h.modify() for box mutations"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                source = ast.unparse(node)
+                assert "h.modify" in source
+                return
+        assert False, "function not found"
+
+    def test_supports_all_regions(self):
+        """Supports region_index=-1 for all regions on track"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                source = ast.unparse(node)
+                assert "regionsToProcess" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_new_extent(self):
+        """Returns new start/end PPQN positions"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_time_warp_notes":
+                source = ast.unparse(node)
+                assert "new_start_ppqn" in source
+                assert "new_end_ppqn" in source
+                return
+        assert False, "function not found"
+

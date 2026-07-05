@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.212.0 (2026-07-05)
+
+### Added
+- `time_warp_notes` — Half-time / double-time / custom time stretch for MIDI. Warps note positions AND durations by a factor (0.5 = half-time, 2.0 = double-time) without changing BPM. Unlike scale_durations (only duration), this moves notes in time — a 1-bar pattern becomes 2 bars at half-time. origin: "start" (region start anchor) or "zero" (absolute). Range 0.1-8.0. 9 unit tests. **388 MCP tools**, 2714 unit tests
+
 ## v1.211.0 (2026-07-05)
 
 ### Added

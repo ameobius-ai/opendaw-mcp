@@ -431,6 +431,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `scale_velocity` — Scale velocity of all notes in a region — MIDI dynamics gain. 5 modes: multiply (×1.2 louder), add (+0.1), set (uniform), normalize (scale to target max), compress (reduce dynamic range around 0.5 midpoint). Returns original + new velocity min/max/avg. Clamp range via min_velocity/max_velocity.
 - `scale_durations` — Scale duration of all notes in a region — MIDI note length control. 5 modes: multiply (×0.5 staccato), add (+0.5 beats), set (uniform), quantize (snap to 16th/8th/quarter/half grid), legato (extend to next note with gap). Returns original + new duration min/max/avg. Clamp via min_duration/max_duration.
 - `groove_transfer` — Transfer groove (timing + velocity feel) from a source region to a destination region. Extracts groove template (per-grid-slot timing offsets + velocity ratios) from source notes, then applies to destination notes. Groove cycles every groove_length beats (4=1 bar, 3=waltz). timing_strength + velocity_strength control blend. 16th/8th grid. NOT copying notes — transfers the feel.
+- `time_warp_notes` — Warp note positions AND durations by a factor — true half-time (0.5×) or double-time (2.0×) feel without changing BPM. Unlike scale_durations (only duration), this moves notes in time. 1-bar pattern → 2 bars (half-time) or 1 bar (from 2-bar, double-time). origin: "start" (region start) or "zero" (absolute). Range 0.1-8.0.
 - `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.
 - `create_polyrhythm` — Create polyrhythms — two rhythmic streams with different subdivision counts (3:4, 2:3, 5:7, etc.). Jazz, electronic, progressive, math rock.
 - `create_scale_run` — Create ascending/descending scale runs for fills and transitions. 14 scales, 1-4 octaves, adjustable step duration.
@@ -458,7 +459,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 
-**Total: 387 tools**
+**Total: 388 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 
