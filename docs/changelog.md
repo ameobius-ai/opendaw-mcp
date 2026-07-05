@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.170.0 (2026-07-05)
+
+### Added
+- `werkstatt_haas_widener.js` — Haas stereo widener DSP. Creates pseudo-stereo via short delay (1-30ms) on one channel, based on the Haas (precedence) effect. Params: delay, width, channel, feedback, mix. 103 DSP scripts total
+
 ## v1.169.0 (2026-07-05)
 
 ### Added

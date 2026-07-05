@@ -7069,3 +7069,113 @@ class TestAddInstrumentChain:
         assert pipeline.index("track_chains") > pipeline.index("genre_mix")
         assert pipeline.index("track_chains") < pipeline.index("mastering")
 
+
+class TestHaasWidener:
+    """Tests for werkstatt_haas_widener.js — Haas stereo widener DSP"""
+
+    def _read_script(self):
+        return open("scripts/werkstatt_haas_widener.js").read()
+
+    def test_file_exists(self):
+        import os
+        assert os.path.exists("scripts/werkstatt_haas_widener.js")
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt" in code
+        assert "haas_stereo_widener" in code
+
+    def test_has_5_params(self):
+        import re
+        code = self._read_script()
+        params = re.findall(r"// @param (\w+)", code)
+        assert len(params) == 5
+        assert "delay" in params
+        assert "width" in params
+        assert "channel" in params
+        assert "feedback" in params
+        assert "mix" in params
+
+    def test_delay_range_1_to_30_ms(self):
+        import re
+        code = self._read_script()
+        m = re.search(r"// @param delay linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        assert float(m.group(2)) == 1  # min 1ms
+        assert float(m.group(3)) == 30  # max 30ms
+        assert float(m.group(1)) == 5  # default 5ms
+
+    def test_width_default_08(self):
+        import re
+        code = self._read_script()
+        m = re.search(r"// @param width linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        assert float(m.group(1)) == 0.8  # default 0.8 = wide
+
+    def test_channel_is_int_type(self):
+        import re
+        code = self._read_script()
+        m = re.search(r"// @param channel (\w+)", code)
+        assert m.group(1) == "int"
+
+    def test_feedback_max_03(self):
+        import re
+        code = self._read_script()
+        m = re.search(r"// @param feedback linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        assert float(m.group(3)) == 0.3  # max 0.3 — limited to avoid runaway
+
+    def test_mix_default_full(self):
+        import re
+        code = self._read_script()
+        m = re.search(r"// @param mix linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        assert float(m.group(1)) == 1.0  # default full Haas
+
+    def test_has_process_audio(self):
+        code = self._read_script()
+        assert "processAudio" in code
+        assert "inputs" in code and "outputs" in code
+
+    def test_has_delay_buffer(self):
+        code = self._read_script()
+        assert "delayBuffer" in code
+        assert "Float32Array" in code
+
+    def test_has_feedback_path(self):
+        code = self._read_script()
+        assert "feedbackSample" in code
+        assert "feedback" in code
+
+    def test_has_mono_sum(self):
+        code = self._read_script()
+        assert "mono" in code
+        assert "0.5" in code  # (left + right) * 0.5
+
+    def test_has_channel_flip(self):
+        code = self._read_script()
+        assert "channel === 0" in code or "channel==0" in code
+
+    def test_width_blend(self):
+        code = self._read_script()
+        assert "1 - width" in code  # mono blend
+
+    def test_mix_blend(self):
+        code = self._read_script()
+        assert "1 - mix" in code  # dry blend
+
+    def test_haas_vs_stereowidth_different(self):
+        """Haas uses delay-based widening; stereowidth uses M/S or level-based"""
+        haas = self._read_script()
+        sw = open("scripts/werkstatt_stereowidth.js").read()
+        assert "delayBuffer" in haas
+        assert "delayBuffer" not in sw  # stereowidth doesn't use delay
+
+    def test_haas_vs_mid_side_different(self):
+        """Haas uses delay; M/S uses encode/decode"""
+        haas = self._read_script()
+        assert "delayBuffer" in haas
+        assert "delayBuffer" not in open("scripts/werkstatt_mid_side_processor.js").read()
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_haas_widener.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
