@@ -91,6 +91,8 @@ What do you want to create?
 ├── Note stats → note_stats (pitch/velocity/duration/density/histogram)
 ├── Melody analysis → analyze_melody (contour, intervals, climax, step/leap)
 ├── Scale detection → detect_scale_from_notes (15 scales, Pearson correlation)
+├── Chord identification → identify_chords (reverse-engineer harmony)
+├── Harmonic rhythm → analyze_harmonic_rhythm (chord change rate, stable/active sections)
 ├── Rhythm analysis → extract_rhythm (onset grid, syncopation, swing, IOI)
 ├── Rhythm apply → apply_rhythm_pattern (stamp pattern onto notes, inverse of extract)
 │
@@ -122,6 +124,8 @@ What do you want to create?
    ├── Note stats?         → note_stats (pitch/velocity/density/histogram)
    ├── Melody contour?     → analyze_melody (shape, climax, step/leap)
    ├── Scale/key?          → detect_scale_from_notes (15 scales, MIDI-based)
+   ├── Chords?             → identify_chords (reverse-engineer harmony)
+   ├── Harmonic rhythm?    → analyze_harmonic_rhythm (chord change rate, sections)
    ├── Rhythm pattern?     → extract_rhythm (onset grid, syncopation, swing)
    ├── Apply rhythm?       → apply_rhythm_pattern (stamp groove onto notes)
    └── Chord identification? → identify_chords (reverse-engineer harmony)

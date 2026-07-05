@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.243.0 (2026-07-06)
+
+### Added
+- `analyze_harmonic_rhythm` — Analyse how fast chords change and where. Identifies chords from MIDI notes (same logic as identify_chords), computes chord timeline (position + duration per chord), harmonic rhythm rate (fast <2 beats / medium 2-4 / slow >4), chords per bar, stable sections (4+ bars same chord), active sections (sub-beat changes), modulation detection (6+ distinct roots). Complements identify_chords by focusing on temporal pattern of harmony.
+
 ## v1.242.0 (2026-07-06)
 
 ### Added

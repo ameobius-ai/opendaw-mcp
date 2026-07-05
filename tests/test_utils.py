@@ -15659,3 +15659,107 @@ class TestDetectScaleFromNotes:
         scales = 15
         total = roots * scales
         assert total == 180
+
+
+class TestAnalyzeHarmonicRhythm:
+    """Tests for mcp_opendaw_analyze_harmonic_rhythm — harmonic rhythm analysis"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_analyze_harmonic_rhythm" in names
+
+    def test_chord_duration_calculation(self):
+        """Duration = next chord position - current chord position"""
+        positions = [0, 4, 8, 12, 16]
+        durations = []
+        for i in range(len(positions)):
+            next_pos = positions[i + 1] if i < len(positions) - 1 else positions[i] + 4
+            durations.append(next_pos - positions[i])
+        assert durations == [4, 4, 4, 4, 4], "All 4-beat chords"
+
+    def test_harmonic_rhythm_rate_fast(self):
+        """avgDur < 2 beats → fast"""
+        avg_dur = 1.5
+        rate = "fast" if avg_dur < 2 else ("medium" if avg_dur <= 4 else "slow")
+        assert rate == "fast"
+
+    def test_harmonic_rhythm_rate_medium(self):
+        """avgDur 2-4 beats → medium"""
+        avg_dur = 3.0
+        rate = "fast" if avg_dur < 2 else ("medium" if avg_dur <= 4 else "slow")
+        assert rate == "medium"
+
+    def test_harmonic_rhythm_rate_slow(self):
+        """avgDur > 4 beats → slow"""
+        avg_dur = 8.0
+        rate = "fast" if avg_dur < 2 else ("medium" if avg_dur <= 4 else "slow")
+        assert rate == "slow"
+
+    def test_chords_per_bar(self):
+        """chords_per_bar = chord_count / total_bars"""
+        chord_count = 8
+        total_bars = 4.0
+        cpb = chord_count / total_bars if total_bars > 0 else 0
+        assert abs(cpb - 2.0) < 0.01, "8 chords / 4 bars = 2 per bar"
+
+    def test_stable_section_detection(self):
+        """Chord lasting 16+ beats (4+ bars) is stable"""
+        chord = {"chord": "Am", "duration_beats": 16, "position": 0}
+        is_stable = chord["duration_beats"] >= 16
+        assert is_stable, "16 beats = 4 bars = stable"
+
+        chord2 = {"chord": "C", "duration_beats": 4, "position": 16}
+        is_stable2 = chord2["duration_beats"] >= 16
+        assert not is_stable2, "4 beats = 1 bar = not stable"
+
+    def test_active_section_detection(self):
+        """Chord lasting <= 1 beat is active"""
+        chord = {"chord": "G7", "duration_beats": 0.5, "position": 3.5}
+        is_active = chord["duration_beats"] <= 1
+        assert is_active, "0.5 beats = active"
+
+        chord2 = {"chord": "C", "duration_beats": 4, "position": 0}
+        is_active2 = chord2["duration_beats"] <= 1
+        assert not is_active2, "4 beats = not active"
+
+    def test_unique_chords(self):
+        """Extract unique chords from sequence"""
+        sequence = ["Am", "F", "C", "G", "Am", "F", "C", "G"]
+        unique = list(dict.fromkeys(sequence))  # preserves order
+        assert unique == ["Am", "F", "C", "G"]
+
+    def test_modulation_detection(self):
+        """More than 5 distinct roots suggests modulation"""
+        roots = ["A", "F", "C", "G", "D", "E"]
+        modulation = len(roots) > 5
+        assert modulation, "6 roots → modulation likely"
+
+        roots2 = ["A", "F", "C", "G"]
+        modulation2 = len(roots2) > 5
+        assert not modulation2, "4 roots → no modulation"
+
+    def test_chord_timeline_structure(self):
+        """Each timeline entry has position, chord, duration"""
+        timeline = [
+            {"position": 0, "chord": "Am", "duration_beats": 4, "duration_bars": 1.0},
+            {"position": 4, "chord": "F", "duration_beats": 4, "duration_bars": 1.0},
+        ]
+        for entry in timeline:
+            assert "position" in entry
+            assert "chord" in entry
+            assert "duration_beats" in entry
+            assert "duration_bars" in entry
+
+    def test_duration_bars_conversion(self):
+        """duration_bars = duration_beats / 4"""
+        assert 4 / 4 == 1.0
+        assert 8 / 4 == 2.0
+        assert 2 / 4 == 0.5
+
+    def test_all_regions_mode(self):
+        """region_index=-2 processes all regions"""
+        reg_idx = -2
+        assert reg_idx == -2

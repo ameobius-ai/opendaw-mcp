@@ -20351,6 +20351,241 @@ async def mcp_opendaw_identify_chords(
 
 
 @mcp.tool()
+async def mcp_opendaw_analyze_harmonic_rhythm(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    group_tolerance: float = 0.25,
+    min_notes: int = 3,
+) -> str:
+    """Analyze harmonic rhythm — how fast chords change and where.
+
+    Identifies chords from MIDI notes (same logic as identify_chords), then
+    analyses the *rhythm* of chord changes:
+
+    - **Chord change positions**: exact beat where each new chord starts
+    - **Chord durations**: how long each chord lasts (in beats and bars)
+    - **Harmonic rhythm rate**: fast (<2 bars), medium (2-4 bars), slow (>4 bars)
+    - **Harmonic density**: chords per bar
+    - **Chord sequence**: ordered list of chords with durations
+    - **Stable sections**: where harmony stays the same for 4+ bars
+    - **Active sections**: where chords change every bar or faster
+    - **Total harmonic events**: number of distinct chord changes
+
+    This complements identify_chords (which lists chords) by focusing on the
+    *temporal pattern* of harmony — essential for understanding arrangement,
+    predicting where tension builds, and planning variations.
+
+    Use with:
+    - analyze_song_structure (structure + harmonic rhythm = full form picture)
+    - reharmonize_progression (know what to reharmonize and where)
+    - create_arrangement_variation (match or contrast harmonic rhythm)
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = first, -2 = all regions on track).
+    group_tolerance: Beats of tolerance for grouping notes (default 0.25).
+    min_notes: Minimum notes for chord identification (default 3).
+
+    Returns harmonic rhythm analysis with chord timeline and section classification.
+    """
+    from opendaw_mcp.music_theory import CHORD_INTERVALS
+
+    note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    chord_templates = {}
+    for root_pc in range(12):
+        for chord_type, intervals in CHORD_INTERVALS.items():
+            pc_set = frozenset((root_pc + iv) % 12 for iv in intervals)
+            root_name = note_names[root_pc]
+            chord_templates.setdefault(pc_set, []).append((root_name, chord_type))
+
+    chord_templates_json = json.dumps(
+        {str(list(k)): v for k, v in chord_templates.items()}
+    )
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regIdx = {region_index};
+        const tol = {group_tolerance};
+        const minNotes = {min_notes};
+        const Quarter = 960;
+        const templates = {chord_templates_json};
+        const noteNames = {json.dumps(note_names)};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+
+        // Collect notes from one or all regions
+        let allNotes = [];
+        const regionsToProcess = regIdx === -2 ? regions : (regIdx < 0 ? [regions[0]] : [regions[regIdx]]);
+        if (regIdx >= 0 && regIdx >= regions.length) return {{error: "region_index out of range"}};
+
+        for (const region of regionsToProcess) {{
+            let collection = null;
+            try {{
+                const vertex = region.events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{ continue; }}
+            if (!collection || !collection.events) continue;
+            const notes = h.eventBoxes(collection);
+            for (const n of notes) {{
+                allNotes.push({{
+                    pos: n.position.getValue() / Quarter,
+                    dur: n.duration.getValue() / Quarter,
+                    pitch: n.pitch.getValue(),
+                }});
+            }}
+        }}
+
+        if (allNotes.length === 0) return {{error: "No notes in region(s)"}};
+        allNotes.sort((a, b) => a.pos - b.pos);
+
+        // Group notes by temporal overlap
+        const groups = [];
+        let currentGroup = [allNotes[0]];
+        for (let i = 1; i < allNotes.length; i++) {{
+            const lastInGroup = currentGroup[currentGroup.length - 1];
+            if (Math.abs(allNotes[i].pos - lastInGroup.pos) <= tol) {{
+                currentGroup.push(allNotes[i]);
+            }} else {{
+                groups.push(currentGroup);
+                currentGroup = [allNotes[i]];
+            }}
+        }}
+        groups.push(currentGroup);
+
+        // Identify chords for groups with enough notes
+        const chordEvents = [];
+        for (const group of groups) {{
+            if (group.length < minNotes) continue;
+            const pitchClasses = [...new Set(group.map(n => n.pitch % 12))].sort((a, b) => a - b);
+            const pcKey = JSON.stringify(pitchClasses);
+            const matches = templates[pcKey] || [];
+
+            let chordName = "unknown";
+            let root = "?";
+            let type = "?";
+            if (matches.length > 0) {{
+                [root, type] = matches[0];
+                chordName = root + " " + type;
+            }} else {{
+                // Try subsets
+                for (const [pcSetStr, matchList] of Object.entries(templates)) {{
+                    const templatePcs = JSON.parse(pcSetStr);
+                    if (templatePcs.every(pc => pitchClasses.includes(pc))) {{
+                        [root, type] = matchList[0];
+                        chordName = root + " " + type + " (ext)";
+                        break;
+                    }}
+                }}
+            }}
+
+            chordEvents.push({{
+                position: Math.round(group[0].pos * 1000) / 1000,
+                chord: chordName,
+                root: root,
+                type: type,
+                note_count: group.length,
+            }});
+        }}
+
+        if (chordEvents.length === 0) return {{error: "No chords identified (need groups of " + minNotes + "+ notes)"}};
+
+        // Compute chord durations (distance to next chord change)
+        const chordTimeline = [];
+        for (let i = 0; i < chordEvents.length; i++) {{
+            const nextPos = i < chordEvents.length - 1 ? chordEvents[i + 1].position : chordEvents[i].position + 4;
+            const dur = nextPos - chordEvents[i].position;
+            chordTimeline.push({{
+                position: chordEvents[i].position,
+                chord: chordEvents[i].chord,
+                root: chordEvents[i].root,
+                type: chordEvents[i].type,
+                duration_beats: Math.round(dur * 1000) / 1000,
+                duration_bars: Math.round((dur / 4) * 1000) / 1000,
+            }});
+        }}
+
+        // Harmonic rhythm analysis
+        const durations = chordTimeline.map(c => c.duration_beats);
+        const avgDur = durations.reduce((a, b) => a + b, 0) / durations.length;
+        const minDur = Math.min(...durations);
+        const maxDur = Math.max(...durations);
+        const totalBeats = chordTimeline[chordTimeline.length - 1].position + chordTimeline[chordTimeline.length - 1].duration_beats;
+        const totalBars = totalBeats / 4;
+        const chordsPerBar = totalBars > 0 ? chordTimeline.length / totalBars : 0;
+
+        // Classify harmonic rhythm rate
+        let rhythmRate;
+        if (avgDur < 2) rhythmRate = "fast";
+        else if (avgDur <= 4) rhythmRate = "medium";
+        else rhythmRate = "slow";
+
+        // Find stable sections (same chord 4+ bars = 16+ beats)
+        const stableSections = [];
+        for (const c of chordTimeline) {{
+            if (c.duration_beats >= 16) {{
+                stableSections.push({{
+                    chord: c.chord,
+                    start_beat: c.position,
+                    duration_bars: c.duration_bars,
+                }});
+            }}
+        }}
+
+        // Find active sections (chord change every beat or faster)
+        const activeSections = [];
+        for (const c of chordTimeline) {{
+            if (c.duration_beats <= 1) {{
+                activeSections.push({{
+                    chord: c.chord,
+                    start_beat: c.position,
+                }});
+            }}
+        }}
+
+        // Detect chord sequence (unique chords)
+        const uniqueChords = [...new Set(chordTimeline.map(c => c.chord))];
+        const chordSequence = chordTimeline.map(c => c.chord);
+
+        // Modulation detection: if root shifts by a non-diatonic interval
+        // Simplified: count distinct roots — more than 5 suggests modulation
+        const roots = [...new Set(chordTimeline.map(c => c.root))];
+        const modulationLikely = roots.length > 5;
+
+        return {{
+            success: true,
+            chord_count: chordTimeline.length,
+            chord_timeline: chordTimeline,
+            chord_sequence: chordSequence,
+            unique_chords: uniqueChords,
+            harmonic_rhythm_rate: rhythmRate,
+            avg_chord_duration_beats: Math.round(avgDur * 1000) / 1000,
+            avg_chord_duration_bars: Math.round((avgDur / 4) * 1000) / 1000,
+            min_chord_duration: Math.round(minDur * 1000) / 1000,
+            max_chord_duration: Math.round(maxDur * 1000) / 1000,
+            chords_per_bar: Math.round(chordsPerBar * 1000) / 1000,
+            total_bars: Math.round(totalBars * 1000) / 1000,
+            total_beats: Math.round(totalBeats * 1000) / 1000,
+            stable_sections: stableSections,
+            active_sections: activeSections,
+            modulation_likely: modulationLikely,
+            distinct_roots: roots,
+            regions_analysed: regionsToProcess.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_diatonic_transpose_notes(
     unit_index: int = -1,
     track_index: int = -1,
