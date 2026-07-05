@@ -26644,3 +26644,174 @@ async def mcp_opendaw_render_full_song(
         "sample_rate": render_data.get("sample_rate", sample_rate) if isinstance(render_data, dict) else sample_rate,
         "next_step": "WAV file saved to exports directory. Use a media player or DAW to listen.",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_chord_pads(
+    progression: str = "Am-F-C-G",
+    bars_per_chord: int = 4,
+    octave: int = 3,
+    velocity: float = 0.65,
+    unit_index: int = 0,
+    track_index: int = 2,
+    start_beat: float = 0,
+    note_duration: float = 3.8,
+) -> str:
+    """Create chord pads from a human-readable progression string.
+
+    Unlike create_chord_progression (which takes JSON arrays), this takes a
+    simple hyphen-separated string like "Am-F-C-G" — much easier for agents
+    and humans to write. Generates sustained chord pads with configurable
+    octave, velocity, and bars per chord.
+
+    progression: Hyphen-separated chords. Each chord is root+type:
+      "Am" = A minor, "F" = F major, "Cmaj7" = C major seventh,
+      "G7" = G dominant 7, "Dm7" = D minor 7, "Esus4" = E suspended 4.
+      Supported types: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug.
+      Default "Am-F-C-G" = i-VI-III-VII in A minor (synthwave/trance).
+      "C-Am-F-G" = I-vi-IV-V in C major (pop).
+      "Dm7-G7-Cmaj7-Am7" = ii-V-I-vi in C (jazz).
+
+    bars_per_chord: How many bars each chord lasts (default 4 = one chord
+      per 4-bar phrase). 2 = faster changes, 8 = slow pads.
+
+    octave: MIDI octave for chord voicing (3 = C3=48, typical pad range).
+    velocity: Note velocity (0-1, default 0.65 = soft pad).
+    unit_index: AU index with note tracks.
+    track_index: Track for chord pads (typically harmony track = 2).
+    start_beat: Where the progression starts.
+    note_duration: Note length in beats (default 3.8 = almost full bar
+      with small gap for articulation).
+
+    Returns chords created, pitches per chord, total notes.
+
+    Example:
+      # i-VI-III-VII in A minor (synthwave pads)
+      create_chord_progression("Am-F-C-G", bars_per_chord=4, octave=3)
+
+      # ii-V-I-vi in C (jazz comping under)
+      create_chord_progression("Dm7-G7-Cmaj7-Am7", bars_per_chord=2, octave=3)
+
+      # I-V-vi-IV in C (pop progression)
+      create_chord_progression("C-G-Am-F", bars_per_chord=4, octave=4,
+          track_index=2, velocity=0.6)
+    """
+    # Parse chord progression
+    chord_specs = []
+    for chord_str in progression.split("-"):
+        chord_str = chord_str.strip()
+        if not chord_str:
+            continue
+
+        # Parse root and type
+        # Examples: Am, F, Cmaj7, G7, Dm7, Esus4, Bbmaj7
+        root = ""
+        chord_type = "maj"  # default if no type specified
+
+        # Extract root (1-2 chars: note letter + optional accidental)
+        if len(chord_str) >= 2 and chord_str[1] in "#b":
+            root = chord_str[:2]
+            remainder = chord_str[2:]
+        else:
+            root = chord_str[0]
+            remainder = chord_str[1:]
+
+        # Parse type from remainder
+        if remainder:
+            if remainder == "m":
+                chord_type = "min"
+            elif remainder == "7":
+                chord_type = "dom7"
+            elif remainder == "maj7":
+                chord_type = "maj7"
+            elif remainder == "m7":
+                chord_type = "min7"
+            elif remainder == "sus2":
+                chord_type = "sus2"
+            elif remainder == "sus4":
+                chord_type = "sus4"
+            elif remainder == "add9":
+                chord_type = "add9"
+            elif remainder == "dim":
+                chord_type = "dim"
+            elif remainder == "aug":
+                chord_type = "aug"
+            elif remainder == "maj":
+                chord_type = "maj"
+            else:
+                return f"Error: unknown chord type '{remainder}' in chord '{chord_str}'. Valid: m, 7, maj7, m7, sus2, sus4, add9, dim, aug, maj"
+
+        if root not in NOTE_TO_PITCH:
+            return f"Error: unknown root note '{root}' in chord '{chord_str}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+
+        chord_specs.append((root, chord_type, chord_str))
+
+    if not chord_specs:
+        return "Error: progression must be a non-empty hyphen-separated chord list"
+    if len(chord_specs) > 16:
+        return "Error: maximum 16 chords per progression"
+    if bars_per_chord < 1 or bars_per_chord > 16:
+        return "Error: bars_per_chord must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    # Generate notes for each chord
+    all_notes = []
+    chord_info = []
+    current_beat = start_beat
+
+    for root, chord_type, label in chord_specs:
+        intervals = CHORD_INTERVALS[chord_type]
+        root_pc = NOTE_TO_PITCH[root]
+        base = (octave + 1) * 12 + root_pc
+
+        pitches = [base + iv for iv in intervals]
+        chord_info.append({
+            "chord": label,
+            "root": root,
+            "type": chord_type,
+            "pitches": pitches,
+            "start_beat": current_beat,
+            "bars": bars_per_chord,
+        })
+
+        # Create sustained notes for each chord tone
+        for pitch in pitches:
+            all_notes.append({
+                "pitch": pitch,
+                "start": round(current_beat, 4),
+                "duration": note_duration,
+                "velocity": round(velocity, 3),
+            })
+
+        current_beat += bars_per_chord * 4
+
+    # Create notes via batch
+    notes_json = json.dumps(all_notes)
+    result = await mcp_opendaw_create_notes_batch(
+        notes_json, unit_index, track_index)
+
+    try:
+        batch_data = json.loads(result)
+        notes_created = batch_data.get("notes_created", len(all_notes))
+    except Exception:
+        notes_created = len(all_notes)
+
+    total_bars = len(chord_specs) * bars_per_chord
+
+    return json.dumps({
+        "chord_progression": True,
+        "progression": progression,
+        "chords": chord_info,
+        "chord_count": len(chord_specs),
+        "bars_per_chord": bars_per_chord,
+        "total_bars": total_bars,
+        "octave": octave,
+        "notes_created": notes_created,
+        "total_notes": len(all_notes),
+        "track": track_index,
+        "start_beat": start_beat,
+        "next_step": "call create_song_with_variations for rhythm/melody, then apply_genre_mix and render_full_song",
+    }, indent=2)

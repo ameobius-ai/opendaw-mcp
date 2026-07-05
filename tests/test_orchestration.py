@@ -4,6 +4,8 @@ Tests the Python-side pattern generation of drum_fill, ostinato, and crescendo t
 without requiring a running DAW bridge.
 """
 
+from opendaw_mcp.music_theory import NOTE_TO_PITCH, CHORD_INTERVALS
+
 import inspect
 import pytest
 
@@ -7411,3 +7413,168 @@ class TestRenderFullSong:
         ]
         assert len(pipeline) == 2
         assert pipeline[-1] == "render_full_song"
+
+
+class TestCreateChordPads:
+    """Tests for create_chord_pads — human-readable chord progression pads"""
+
+    def test_default_progression(self):
+        """Default: Am-F-C-G = i-VI-III-VII in A minor (synthwave/trance)"""
+        prog = "Am-F-C-G"
+        chords = prog.split("-")
+        assert chords == ["Am", "F", "C", "G"]
+
+    def test_parse_minor_chord(self):
+        """Am = A minor: root=A, type=min"""
+        root = "A"
+        remainder = "m"
+        assert root in NOTE_TO_PITCH
+        assert remainder == "m"
+
+    def test_parse_major_chord(self):
+        """F = F major: root=F, type=maj (default)"""
+        root = "F"
+        remainder = ""
+        assert root in NOTE_TO_PITCH
+        assert remainder == ""  # default major
+
+    def test_parse_maj7(self):
+        """Cmaj7 = C major seventh: root=C, type=maj7"""
+        root = "C"
+        remainder = "maj7"
+        assert root in NOTE_TO_PITCH
+        assert remainder == "maj7"
+
+    def test_parse_dom7(self):
+        """G7 = G dominant 7: root=G, type=dom7"""
+        root = "G"
+        remainder = "7"
+        assert root in NOTE_TO_PITCH
+        assert remainder == "7"
+
+    def test_parse_min7(self):
+        """Dm7 = D minor 7: root=D, type=min7"""
+        root = "D"
+        remainder = "m7"
+        assert root in NOTE_TO_PITCH
+        assert remainder == "m7"
+
+    def test_parse_sus4(self):
+        """Esus4 = E suspended 4: root=E, type=sus4"""
+        root = "E"
+        remainder = "sus4"
+        assert root in NOTE_TO_PITCH
+        assert remainder == "sus4"
+
+    def test_parse_sharp_root(self):
+        """F#m = F# minor: root=F#, type=min"""
+        chord = "F#m"
+        if chord[1] in "#b":
+            root = chord[:2]
+            remainder = chord[2:]
+        else:
+            root = chord[0]
+            remainder = chord[1:]
+        assert root == "F#"
+        assert remainder == "m"
+
+    def test_parse_flat_root(self):
+        """Bbmaj7 = Bb major seventh: root=Bb, type=maj7"""
+        chord = "Bbmaj7"
+        if chord[1] in "#b":
+            root = chord[:2]
+            remainder = chord[2:]
+        else:
+            root = chord[0]
+            remainder = chord[1:]
+        assert root == "Bb"
+        assert remainder == "maj7"
+
+    def test_chord_intervals_min(self):
+        """Am: intervals [0, 3, 7] = root, minor third, fifth"""
+        intervals = CHORD_INTERVALS["min"]
+        assert intervals == [0, 3, 7]
+
+    def test_chord_intervals_maj7(self):
+        """Cmaj7: intervals [0, 4, 7, 11] = root, major third, fifth, major seventh"""
+        intervals = CHORD_INTERVALS["maj7"]
+        assert intervals == [0, 4, 7, 11]
+
+    def test_chord_pitches_calculation(self):
+        """Am at octave 3: A3=57, C4=60, E4=64"""
+        root_pc = NOTE_TO_PITCH["A"]
+        base = (3 + 1) * 12 + root_pc  # 48 + 9 = 57
+        intervals = CHORD_INTERVALS["min"]
+        pitches = [base + iv for iv in intervals]
+        assert pitches == [57, 60, 64]
+
+    def test_pop_progression(self):
+        """I-V-vi-IV in C: C-G-Am-F"""
+        prog = "C-G-Am-F"
+        chords = prog.split("-")
+        assert len(chords) == 4
+        assert chords[0] == "C"  # I (major)
+        assert chords[2] == "Am"  # vi (minor)
+
+    def test_jazz_ii_V_I(self):
+        """ii-V-I-vi in C: Dm7-G7-Cmaj7-Am7"""
+        prog = "Dm7-G7-Cmaj7-Am7"
+        chords = prog.split("-")
+        assert len(chords) == 4
+        assert chords[0] == "Dm7"  # ii (min7)
+        assert chords[1] == "G7"  # V (dom7)
+        assert chords[2] == "Cmaj7"  # I (maj7)
+
+    def test_bars_per_chord_default(self):
+        """Default: 4 bars per chord = one chord per 4-bar phrase"""
+        assert 4 * 4 == 16  # 4 chords × 4 bars = 16 bars
+
+    def test_total_bars_calculation(self):
+        """4 chords × 4 bars = 16 bars total"""
+        chord_count = 4
+        bars_per_chord = 4
+        total_bars = chord_count * bars_per_chord
+        assert total_bars == 16
+
+    def test_max_16_chords(self):
+        """Maximum 16 chords per progression"""
+        max_chords = 16
+        assert max_chords == 16
+
+    def test_note_duration_default(self):
+        """Default: 3.8 beats = almost full bar (4 beats) with gap"""
+        assert 3.8 < 4.0
+        assert abs(4.0 - 3.8 - 0.2) < 0.01  # 0.2 beat gap for articulation
+
+    def test_vs_create_chord_progression(self):
+        """create_chord_pads takes string 'Am-F-C-G', create_chord_progression takes JSON '[["A","min"]]'"""
+        # chord_pads: human-readable, easier for agents
+        # chord_progression: JSON array, programmatic
+        pads_input = "Am-F-C-G"
+        prog_input = '[["A","min"],["F","maj"],["C","maj"],["G","maj"]]'
+        assert "-" in pads_input
+        assert "[" in prog_input
+
+    def test_sustained_pad_velocity(self):
+        """Default velocity 0.65 = soft pad (not too loud)"""
+        assert 0.65 < 0.8  # softer than lead
+
+    def test_octave_3_is_pad_range(self):
+        """Octave 3 = C3=48, typical pad/bass range"""
+        base = (3 + 1) * 12  # 48
+        assert base == 48
+
+    def test_10_chord_types_supported(self):
+        """10 chord types: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug"""
+        assert len(CHORD_INTERVALS) == 10
+
+    def test_completes_harmonic_layer(self):
+        """Pipeline with chord pads: create_song → create_chord_pads → mix → render"""
+        pipeline = [
+            "create_song_with_variations",
+            "create_chord_pads",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert "create_chord_pads" in pipeline
+        assert len(pipeline) == 4

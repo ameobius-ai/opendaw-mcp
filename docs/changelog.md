@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.150.0 (2026-07-05)
+
+- **`create_chord_pads` orchestration tool (343 MCP tools)** — new capability: human-readable chord progression pads. Takes a simple hyphen-separated string like "Am-F-C-G" instead of JSON arrays (create_chord_progression takes JSON). 10 chord types: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug. Parses chord names with sharps/flats (F#m, Bbmaj7). Configurable: bars_per_chord (1-16), octave (0-6), velocity, note_duration (default 3.8 beats = almost full bar with articulation gap). Default progression: Am-F-C-G = i-VI-III-VII in A minor (synthwave/trance). Also supports C-G-Am-F (pop I-V-vi-IV), Dm7-G7-Cmaj7-Am7 (jazz ii-V-I-vi). Completes the harmonic layer: create_song_with_variations (rhythm/melody) + create_chord_pads (harmony) + apply_genre_mix + render_full_song = complete production pipeline. 69 orchestration tools. 343 MCP tools
+- **1974 unit tests** (+23)
+
 ## v1.149.0 (2026-07-05)
 
 - **`render_full_song` orchestration tool (342 MCP tools)** — new capability: auto-detect song length and render entire project. Scans all note and audio regions across all tracks to find the latest ending point, adds configurable tail (default 4 beats for reverb/delay tails), then delegates to render_range. No manual beat counting needed. Closes the pipeline gap: after create_song_with_variations (or any arrangement tool), one call gets the final WAV. Two-phase: Phase 1 bridge evaluate to detect max region end, Phase 2 render_range(0, detected + tail). 68 orchestration tools. 342 MCP tools
