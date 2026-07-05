@@ -22640,3 +22640,184 @@ async def mcp_opendaw_create_techno_arrangement(
         "bass_pattern": "sub_bass_drone",
         "stab_type": "detroit_percussive",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_dubstep_arrangement(
+    bpm: float = 140,
+    bars: int = 8,
+    root: str = "G",
+    octave: int = 1,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    lead_track: int = 2,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full dubstep arrangement — half-time drums + wobble bass + lead arp across 3 tracks.
+
+    Dubstep with all elements locked in half-time feel:
+    - Track 0: Drums — half-time at 140 BPM (feels like 70): kick on 1, snare on 3,
+                     with percussive fills and ghost notes. The signature dubstep swing.
+    - Track 1: Bass — wobble bass: sustained sub notes with rhythmic pitch shifts
+                     between root and octave/fifth, creating the "wub-wub" that defines
+                     the genre. Cutoff-sweep style pitch modulation via note offsets.
+    - Track 2: Lead — minor arpeggio that runs through the arrangement, atmospheric
+                     and dark, complementing the wobble bass.
+
+    At 140 BPM (default), half-time means the groove feels at 70 BPM — kick on beat 1,
+    snare on beat 3 of each bar. This is the fundamental difference from all other
+    electronic arrangements: the half-time feel creates the heavy, swinging groove.
+
+    bpm: Tempo (135-150, default 140 = classic dubstep).
+    bars: Arrangement length (4-16, default 8).
+    root: Root note (G is a classic dubstep key).
+    octave: MIDI octave for wobble bass (1 = C1=24, sub-bass territory).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / lead_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_dubstep_arrangement(bpm=140, root="G", bars=8)
+      create_dubstep_arrangement(bpm=145, root="F", bars=16)
+    """
+    if not (130 <= bpm <= 155):
+        return "Error: bpm must be 130-155"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc  # sub-bass territory
+    lead_base = (octave + 4) * 12 + root_pc  # lead 3 octaves above bass
+
+    # --- DRUMS: half-time pattern (2-bar cycle) ---
+    # Half-time at 140 BPM: kick on beat 1, snare on beat 3 (the half-time backbeat)
+    # Percussive fills on bar transitions, ghost notes for groove
+    drum_pattern = [
+        # Bar 1: classic half-time
+        (0.0, "kick"), (0.0, "hat"), (0.5, "hat"), (1.0, "hat"), (1.5, "hat"),
+        (2.0, "snare"), (2.0, "hat"), (2.5, "hat"), (3.0, "hat"), (3.5, "hat"),
+        # Bar 2: with perc fill at end
+        (4.0, "kick"), (4.0, "hat"), (4.5, "hat"), (5.0, "hat"), (5.5, "hat"),
+        (6.0, "snare"), (6.0, "hat"), (6.5, "hat"),
+        (7.0, "hat"), (7.25, "ghost"), (7.5, "ghost"), (7.75, "kick"),
+    ]
+    kick_p, snare_p, hat_p, ghost_p = 36, 38, 42, 37
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "ghost": ghost_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.08),
+        "snare": max(0.0, velocity - 0.02),
+        "hat": max(0.0, velocity - 0.15),
+        "ghost": max(0.0, velocity - 0.3),
+    }
+    drum_dur_map = {"kick": 0.25, "snare": 0.15, "hat": 0.05, "ghost": 0.03}
+
+    drum_notes = []
+    drum_cycle = 8.0  # 2 bars per cycle
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: wobble bass — sustained root with rhythmic pitch shifts (2-bar cycle) ---
+    # The "wub": long sustained notes at root, then rapid shifts to octave (12)
+    # and fifth (7) create the wobble effect. The pitch shifts simulate
+    # LFO-driven cutoff modulation by alternating between low and high pitches.
+    # Pattern: root sustained → octave stabs → root → fifth stabs
+    bass_pattern = [
+        (0.0, 0, 2.0, 1.0),       # root, sustained 2 beats (the "wuuu")
+        (2.0, 12, 0.25, 0.8),     # octave stab (the "b")
+        (2.25, 12, 0.25, 0.8),    # octave stab
+        (2.5, 0, 1.5, 1.0),       # root sustained
+        (4.0, 0, 1.5, 1.0),       # root sustained
+        (5.5, 7, 0.25, 0.85),     # fifth stab (the "wub")
+        (5.75, 7, 0.25, 0.85),    # fifth stab
+        (6.0, 0, 1.5, 1.0),       # root sustained
+        (7.5, 12, 0.25, 0.7),     # octave stab (fill)
+        (7.75, 12, 0.25, 0.7),    # octave stab
+    ]
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for beat, po, dur, vm in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- LEAD: minor arpeggio, dark and atmospheric (2-bar cycle) ---
+    # Minor scale arpeggios: root, minor third, fifth, octave
+    # Runs continuously as a textural layer above the wobble bass
+    lead_pattern = [
+        (0.0, 0, 0.25, 0.7), (0.5, 3, 0.25, 0.65), (1.0, 7, 0.25, 0.7), (1.5, 12, 0.25, 0.6),
+        (2.0, 7, 0.25, 0.65), (2.5, 3, 0.25, 0.6), (3.0, 0, 0.25, 0.55), (3.5, 10, 0.25, 0.6),
+        (4.0, 0, 0.25, 0.7), (4.5, 3, 0.25, 0.65), (5.0, 7, 0.25, 0.7), (5.5, 12, 0.25, 0.6),
+        (6.0, 10, 0.25, 0.55), (6.5, 7, 0.25, 0.5), (7.0, 3, 0.25, 0.55), (7.5, 0, 0.25, 0.5),
+    ]
+    lead_notes = []
+    lead_cycle = 8.0
+    lead_cycles = bars // 2
+    for c in range(lead_cycles):
+        off = c * lead_cycle
+        for beat, po, dur, vm in lead_pattern:
+            lead_notes.append({
+                "pitch": lead_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm * 0.4, 3),  # lead is atmospheric, quiet
+            })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    lead_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(lead_notes), unit_index, lead_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        lead_data = json.loads(lead_result)
+    except Exception:
+        lead_data = {"raw": lead_result}
+
+    return json.dumps({
+        "dubstep_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "lead": {"track": lead_track, "notes": len(lead_notes), "result": lead_data.get("notes_created", len(lead_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(lead_notes),
+        "drum_pattern": "half_time_140",
+        "bass_pattern": "wobble_bass",
+        "lead_type": "minor_arpeggio",
+    }, indent=2)

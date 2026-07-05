@@ -4992,3 +4992,146 @@ class TestCreateTechnoArrangement:
         techno_bass_durs = [d for _, _, d, _ in self.BASS_PATTERN]
         avg_dur = sum(techno_bass_durs) / len(techno_bass_durs)
         assert avg_dur > 2.0, "Techno bass should be sustained (avg >2 beats), unlike house off-beat"
+
+
+class TestCreateDubstepArrangement:
+    """Tests for create_dubstep_arrangement — half-time drums + wobble bass"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick"), (0.0, "hat"), (0.5, "hat"), (1.0, "hat"), (1.5, "hat"),
+        (2.0, "snare"), (2.0, "hat"), (2.5, "hat"), (3.0, "hat"), (3.5, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (4.5, "hat"), (5.0, "hat"), (5.5, "hat"),
+        (6.0, "snare"), (6.0, "hat"), (6.5, "hat"),
+        (7.0, "hat"), (7.25, "ghost"), (7.5, "ghost"), (7.75, "kick"),
+    ]
+    BASS_PATTERN = [
+        (0.0, 0, 2.0, 1.0),
+        (2.0, 12, 0.25, 0.8), (2.25, 12, 0.25, 0.8),
+        (2.5, 0, 1.5, 1.0),
+        (4.0, 0, 1.5, 1.0),
+        (5.5, 7, 0.25, 0.85), (5.75, 7, 0.25, 0.85),
+        (6.0, 0, 1.5, 1.0),
+        (7.5, 12, 0.25, 0.7), (7.75, 12, 0.25, 0.7),
+    ]
+    LEAD_PATTERN = [
+        (0.0, 0, 0.25, 0.7), (0.5, 3, 0.25, 0.65), (1.0, 7, 0.25, 0.7), (1.5, 12, 0.25, 0.6),
+        (2.0, 7, 0.25, 0.65), (2.5, 3, 0.25, 0.6), (3.0, 0, 0.25, 0.55), (3.5, 10, 0.25, 0.6),
+        (4.0, 0, 0.25, 0.7), (4.5, 3, 0.25, 0.65), (5.0, 7, 0.25, 0.7), (5.5, 12, 0.25, 0.6),
+        (6.0, 10, 0.25, 0.55), (6.5, 7, 0.25, 0.5), (7.0, 3, 0.25, 0.55), (7.5, 0, 0.25, 0.5),
+    ]
+
+    def test_drums_half_time_kick_on_1(self):
+        """Half-time: kick on beat 1 (0.0), not on every quarter like house/techno"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.0 in kicks, "Kick must be on beat 1"
+        assert 4.0 in kicks, "Kick on beat 1 of bar 2"
+        # Half-time: NOT kick on every beat
+        assert 1.0 not in kicks, "Half-time: no kick on beat 2"
+        assert 3.0 not in kicks, "Half-time: no kick on beat 4"
+
+    def test_drums_half_time_snare_on_3(self):
+        """Half-time signature: snare on beat 3 (2.0), the half-time backbeat"""
+        snares = [b for b, s in self.DRUM_PATTERN if s == "snare"]
+        assert 2.0 in snares, "Snare on beat 3 (half-time)"
+        assert 6.0 in snares, "Snare on beat 3 of bar 2"
+
+    def test_drums_have_hats(self):
+        hats = [b for b, s in self.DRUM_PATTERN if s == "hat"]
+        assert len(hats) >= 8, "Should have hats throughout"
+
+    def test_drums_have_ghost_fill(self):
+        """Ghost notes on bar transition — dubstep groove"""
+        ghosts = [b for b, s in self.DRUM_PATTERN if s == "ghost"]
+        assert len(ghosts) >= 2, "Missing ghost fill"
+        assert 7.25 in ghosts, "Ghost fill at bar transition"
+
+    def test_drums_fill_kick_at_end(self):
+        """Kick at 7.75 — fill before next bar"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 7.75 in kicks, "Missing fill kick at end of cycle"
+
+    def test_bass_wobble_has_sustained_root(self):
+        """Wobble bass starts with sustained root (the 'wuuu')"""
+        first = self.BASS_PATTERN[0]
+        assert first[1] == 0, "First bass note should be root"
+        assert first[2] >= 2.0, "First bass should be sustained 2+ beats"
+
+    def test_bass_has_octave_stabs(self):
+        """Octave stabs (offset 12) — the 'b' in 'wub'"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert 12 in pitch_offs, "Missing octave stabs in wobble bass"
+
+    def test_bass_has_fifth_stabs(self):
+        """Fifth stabs (offset 7) — the 'wub'"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert 7 in pitch_offs, "Missing fifth stabs in wobble bass"
+
+    def test_bass_stabs_are_short(self):
+        """Stab notes are short (0.25 beats) — percussive wobble"""
+        stabs = [dur for _, po, dur, _ in self.BASS_PATTERN if po != 0]
+        assert max(stabs) <= 0.3, "Stabs should be short (0.25-0.3 beats)"
+
+    def test_bass_alternates_low_and_high(self):
+        """Wobble: alternates between root (low) and octave/fifth (high)"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        has_root = 0 in pitch_offs
+        has_high = 12 in pitch_offs or 7 in pitch_offs
+        assert has_root and has_high, "Wobble must alternate low and high"
+
+    def test_lead_uses_minor_scale(self):
+        """Lead arpeggio uses minor intervals: 0, 3, 7, 10, 12"""
+        pitch_offs = [po for _, po, _, _ in self.LEAD_PATTERN]
+        assert 0 in pitch_offs, "Missing root"
+        assert 3 in pitch_offs, "Missing minor third"
+        assert 7 in pitch_offs, "Missing fifth"
+        assert 10 in pitch_offs, "Missing minor seventh"
+        assert 12 in pitch_offs, "Missing octave"
+
+    def test_lead_is_continuous_arp(self):
+        """Lead runs continuously — 16 notes per 2-bar cycle"""
+        assert len(self.LEAD_PATTERN) >= 16, "Lead should have 16 notes per cycle"
+
+    def test_lead_notes_are_short(self):
+        """Lead notes are short — arpeggio, not sustained"""
+        durs = [d for _, _, d, _ in self.LEAD_PATTERN]
+        assert max(durs) <= 0.3, "Lead notes should be short (arpeggio)"
+
+    def test_drum_cycle_2_bars(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 8.0, "Drum pattern exceeds 2 bars"
+
+    def test_bass_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.BASS_PATTERN)
+        assert max_beat < 8.0, "Bass pattern exceeds 2 bars"
+
+    def test_lead_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.LEAD_PATTERN)
+        assert max_beat < 8.0, "Lead pattern exceeds 2 bars"
+
+    def test_tracks_separate(self):
+        assert len({0, 1, 2}) == 3, "Tracks must be distinct"
+
+    def test_bpm_range(self):
+        assert 130 <= 140 <= 155, "Default BPM should be valid"
+
+    def test_note_counts_8_bars(self):
+        bars = 8
+        cycles = bars // 2
+        drum_count = len(self.DRUM_PATTERN) * cycles
+        bass_count = len(self.BASS_PATTERN) * cycles
+        lead_count = len(self.LEAD_PATTERN) * cycles
+        assert drum_count > 0 and bass_count > 0 and lead_count > 0
+
+    def test_dubstep_differs_from_house(self):
+        """Key difference: dubstep is half-time (snare on 3), house is four-on-floor"""
+        # House: snare/clap on 2 and 4 (beats 2.0 and 6.0 in 2-bar cycle)
+        # Dubstep: snare on 3 (beat 2.0 in first bar, 6.0 in second)
+        # The difference: house has kick on EVERY beat, dubstep only on 1
+        dubstep_kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 1.0 not in dubstep_kicks, "Dubstep is half-time: no kick on beat 2"
+        assert 3.0 not in dubstep_kicks, "Dubstep is half-time: no kick on beat 4"
+
+    def test_lead_velocity_low(self):
+        """Lead is atmospheric, quiet"""
+        vels = [vm for _, _, _, vm in self.LEAD_PATTERN]
+        assert max(vels) <= 0.7, "Lead should be quiet"

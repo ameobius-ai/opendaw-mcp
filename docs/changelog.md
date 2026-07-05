@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.133.0 (2026-07-05)
+
+- **`create_dubstep_arrangement` orchestration tool (326 MCP tools)** — fifth multi-track genre arrangement. Dubstep across 3 tracks: drums (half-time at 140 BPM — kick on 1, snare on 3, feels like 70 BPM, with perc fills and ghost notes), bass (wobble bass — sustained root with rapid octave/fifth stabs simulating LFO-driven cutoff modulation, the "wub-wub"), lead (minor arpeggio — root/min3/fifth/min7/octave, dark and atmospheric, continuous 16th notes). Half-time is the fundamental difference from all other arrangements: house/techno/trap are straight time, dubstep swings at half speed. G minor default. 130-155 BPM, default 140. 4-16 bars. 69 orchestration tools. 326 MCP tools
+- **1615 unit tests** (+21)
+
 ## v1.132.0 (2026-07-05)
 
 - **`create_techno_arrangement` orchestration tool (325 MCP tools)** — fourth multi-track genre arrangement. Berlin/Detroit techno across 3 tracks: drums (relentless four-on-floor with industrial closed hats, open hat accents, claps on 2+4), bass (sustained sub-bass drone with root→fifth shifts — not rhythmic but continuous, the hypnotic foundation), stabs (Detroit percussive atonal stabs on off-beats — single notes, not chords, minor intervals root/min3/fifth/min7/octave). Key difference from house: sub-bass drone instead of off-beat bass, percussive stabs instead of chord stabs. C minor default. Tempo-aware 120-150 BPM, default 130. Minimum 8 bars (techno needs longer forms). 68 orchestration tools. 325 MCP tools
