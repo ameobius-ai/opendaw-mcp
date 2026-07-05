@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.193.0 (2026-07-05)
+
+### Added
+- `download_audio` — download audio from URL (Suno CDN, any HTTP source) to local disk. Streaming download (64KB chunks), 60s timeout, filename sanitization, next_step suggestion. Completes Suno integration pipeline: chirp_generate → download_audio → import_audio_to_tracks → mix → master → render. 372 MCP tools total
+
+## v1.192.0 (2026-07-05)
+
+### Added
+- `import_audio_to_tracks` — one-call Suno-to-DAW pipeline. Audio file → (optional stem separation) → create instrument tracks → load → place. Without mode = single track. With mode = one track per stem (replaces 12+ manual calls). New example: `suno_stems_pipeline.py`. 371 MCP tools total
+
+### Updated
+- `suno-to-opendaw` skill — Stage 3 rewritten with import_audio_to_tracks, E2E example updated, tooling section synced
+
+## v1.191.0 (2026-07-05)
+
+### Added
+- `create_solo_automation` — mute all tracks except one for a beat range, then restore. Drum break, bass spotlight, vocal spotlight in one call. Internally calls create_mute_automation for each non-solo track. Replaces N manual mute automation calls. 370 MCP tools total
+
+### Updated
+- All 11 agent skills synchronized to 372 tools / 108 DSP / v1.193.0
+
 ## v1.190.0 (2026-07-05)
 
 ### Added

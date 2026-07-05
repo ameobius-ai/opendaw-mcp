@@ -2,15 +2,15 @@
 
 ## Design Rationale
 
-250 low-level MCP tools give agents full DAW control, but building a complete track requires 30-50 individual calls (create_synth → create_note × 20 → add_effect × 3 → set_param × 10 → create_send → render). This is token-heavy, slow, and agents lose context in the sequence.
+372 low-level MCP tools give agents full DAW control, but building a complete track requires 30-50 individual calls (create_synth → create_note × 20 → add_effect × 3 → set_param × 10 → create_send → render). This is token-heavy, slow, and agents lose context in the sequence.
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.32.0, 284 total)
+## Tools Added (v1.10.0, 255 total → v1.193.0, 372 total)
 
-52 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+80+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
-### Full orchestration tool list (v1.70.0)
+### Full orchestration tool list (v1.193.0)
 1. `create_notes_batch` — batch note creation from JSON
 2. `create_drum_pattern` — step-sequencer drum notation
 3. `create_chord_progression` — scale-aware chord sequences
@@ -88,6 +88,38 @@ Orchestration tools solve this by combining multiple low-level operations into a
 75. `create_pop_arrangement` — Ninth multi-track arrangement: pop (drums+bass+chords+melody). First with song structure (verse-chorus-bridge). I-V-vi-IV, section-aware energy. C default. 85-145 BPM. Min 16 bars
 76. `create_funk_arrangement` — Tenth multi-track arrangement: funk (drums+bass+guitar+horns). Vamp-based (one chord), Funky Drummer pattern, slap bass, scratch guitar, dominant7 stabs. D default. 85-120 BPM
 77. `create_reggae_arrangement` — Eleventh multi-track arrangement: reggae (drums+bass+guitar+keys). One-drop (kick+snare on 3), skank guitar, melodic bass lead, organ bubble. A minor default. 60-100 BPM
+78. `create_synthwave_arrangement` — Twelfth: synthwave (drums+bass+arp+lead). Arpeggiated 16th bass, supersaw pads, retro drums. Am default. 80-120 BPM
+79. `create_trance_arrangement` — Thirteenth: trance (drums+bass+arp+lead). Rolling 8th bass, supersaw arp, snare rush buildup. Am default. 130-150 BPM
+80. `create_disco_arrangement` — Fourteenth: disco (drums+bass+strings+guitar). Wah-wah 16th chops, octave bass, open hats. C default. 110-140 BPM
+81. `create_liquid_dnb_arrangement` — Fifteenth: liquid DnB (drums+bass+pads+melody). Smooth breakbeat, melodic sub-bass, lush min9/maj9 pads, soulful pentatonic. F default. 170-180 BPM
+82. `apply_genre_mix` — genre-specific effect chains (15 genres: comp/EQ/sat/reverb/sidechain per genre)
+83. `apply_genre_humanization` — groove injection (timing/velocity/swing per genre, per-track scaling)
+84. `create_genre_sections` — DJ structure (5 sections with velocity curves)
+85. `create_arrangement_variation` — real musical transforms (drum/bass/melody variations)
+86. `create_song_with_variations` — full song (12 presets, one call)
+87. `create_chord_pads` — sustained harmony from chord progression string (10 chord types)
+88. `create_arpeggiated_progression` — melodic arpeggio from same chords (5 patterns)
+89. `create_bass_from_progression` — bass foundation (6 patterns)
+90. `create_melody_from_progression` — lead melody (5 patterns)
+91. `create_counter_melody_from_progression` — contrapuntal line (5 patterns)
+92. `create_harmonic_arrangement` — all 5 layers in 1 call (quintet, all optional)
+93. `modulate_progression` — key change preserving chord qualities
+94. `create_modulated_song` — multi-section song with modulation + drums
+95. `add_drum_chain` / `add_bass_chain` / `add_vocal_chain` / `add_instrument_chain` — genre-aware processing chains (5 presets each)
+96. `apply_full_mix` — all chains + mastering in one call (15 genres)
+97. `create_impact` — transition hit (5 types: sub_boom/impact_hit/downlifter/sub_drop/punch)
+98. `create_buildup` — riser + snare roll (5 styles: edm/trap/techno/rock/minimal)
+99. `create_filter_sweep` / `create_volume_fade` / `create_pan_sweep` / `create_mute_automation` — automation convenience tools
+100. `create_section_transition` — composite transition (5 presets: drop/buildup/breakdown/intro/outro)
+101. `create_tempo_ramp` — ritardando/accelerando (linear/exp/log curve, N steps)
+102. `duplicate_section` / `move_section` / `delete_section` — batch section CRUD
+103. `apply_velocity_pattern` — groove accent pattern (cycle/stretch modes)
+104. `clear_region_notes` — erase notes, keep region
+105. `create_solo_automation` — mute all except one track for beat range
+106. `import_audio_to_tracks` — one-call Suno-to-DAW pipeline (file → stems → tracks)
+107. `download_audio` — URL to disk (Suno CDN bridge)
+108. `render_full_song` — auto-detect length + 4 beat tail
+109. `create_full_genre_pipeline` — zero-to-render (loop + harmony + chains + mix + humanize + master)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
