@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.257.0 (2026-07-06)
+
+### Added
+- `add_chord_tension` — Add jazz extension note to existing chord. 7 extensions: 9 (warmth), b9 (dark), #9 (Hendrix), 11 (suspended), #11 (Lydian), 13 (rich), b13 (dramatic). Calculates pitch from chord root. Triad → Cmaj9, G7 → G7b13. Complements invert_chord_notes and spread_voicing.
+
 ## v1.256.0 (2026-07-06)
 
 ### Added

@@ -39992,6 +39992,142 @@ async def mcp_opendaw_spread_voicing(
 
 
 @mcp.tool()
+async def mcp_opendaw_add_chord_tension(
+    unit_index: int,
+    track_index: int,
+    region_index: int,
+    chord_position: float,
+    extension: str = "9",
+    octave: int = 5,
+    velocity: float = 0.6,
+) -> str:
+    """Add a tension/extension note to an existing chord — jazz harmony.
+
+    Adds an extension note (9th, 11th, 13th, or alterations) to a chord
+    already on the timeline. This is how triads become jazz chords —
+    stack a 9th on a C major triad and it becomes Cmaj9, add a b13 to
+    a G7 and it becomes G7b13. The extension is calculated from the
+    chord root, so you don't need to know the exact pitch.
+
+    extension: The tension note to add:
+    - "9" — major 9th (2 semitones above root, +14 from root). Adds
+      color and warmth. C → D. The most common jazz extension.
+    - "b9" — minor 9th (1 semitone above root, +13). Dark, tense.
+      Dominant chords in minor keys, flamenco, film scores. C → Db.
+    - "#9" — augmented 9th (3 semitones, +15). The Hendrix chord
+      sound. Bluesy, gritty. C → D#.
+    - "11" — perfect 11th (5 semitones above root, +17). Suspended,
+      open. C → F. Can clash with 3rd — use carefully.
+    - "#11" — augmented 11th (6 semitones, +18). Lydian sound.
+      Dreamy, floating. C → F#. Common in modal jazz.
+    - "13" — major 13th (9 semitones above root, +21). Full, rich.
+      The ultimate jazz extension. C → A. Adds completeness.
+    - "b13" — minor 13th (8 semitones, +20). Dark, dramatic.
+      Minor key dominants. C → Ab. Spanish/orchestral feel.
+
+    chord_position: Beat position of the chord (finds root = lowest note).
+    octave: Which octave to place the extension in (3-7, default 5).
+      Higher = more color, lower = more grounded.
+    velocity: Velocity of the added note (0-1, default 0.6 = subtle).
+
+    Returns root pitch, extension pitch, extension name, chord size.
+
+    Example:
+      # Add 9th to first chord — Cmaj → Cmaj9
+      add_chord_tension(0, 2, 0, 0.0, extension="9")
+      # Add b13 for dark dominant — G7 → G7b13
+      add_chord_tension(0, 2, 0, 4.0, extension="b13")
+    """
+    valid_ext = ("9", "b9", "#9", "11", "#11", "13", "b13")
+    if extension not in valid_ext:
+        return f'{{"error": "extension must be one of {list(valid_ext)}, got {extension}"}}'
+    if not (3 <= octave <= 7):
+        return f'{{"error": "octave must be 3-7, got {octave}"}}'
+    if not (0.0 <= velocity <= 1.0):
+        return f'{{"error": "velocity must be 0-1, got {velocity}"}}'
+
+    # Extension interval in semitones from root
+    ext_intervals = {"9": 14, "b9": 13, "#9": 15, "11": 17, "#11": 18, "13": 21, "b13": 20}
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const beatPos = {chord_position};
+        const extName = "{extension}";
+        const extInterval = {ext_intervals[extension]};
+        const targetOctave = {octave};
+        const vel = {velocity};
+
+        const region = h.region(unitIdx, trackIdx, regionIdx);
+        if (region.isEmpty?.()) return {{error: "region not found"}};
+        const reg = region.unwrap?.() || region;
+        const eventsField = reg.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const noteEvents = [...collBox.events.pointerHub.incoming()];
+
+        const Quarter = h.ppqn.Quarter;
+        const targetTicks = Math.round(beatPos * Quarter);
+
+        // Find notes at this position — root is lowest pitch
+        const chordNotes = noteEvents
+            .filter(n => n.box.position.getValue() === targetTicks)
+            .sort((a, b) => a.box.pitch.getValue() - b.box.pitch.getValue());
+
+        if (chordNotes.length === 0) return {{error: "no chord found at beat position"}};
+
+        const rootPitch = chordNotes[0].box.pitch.getValue();
+        const rootPC = rootPitch % 12;
+
+        // Calculate extension pitch: place in target octave
+        // Find the pitch class that is extInterval semitones above root
+        let extPC = (rootPC + extInterval) % 12;
+        // Place in target octave
+        let extPitch = (targetOctave + 1) * 12 + extPC;
+
+        // Check if extension note already exists in chord
+        const existingPitches = chordNotes.map(n => n.box.pitch.getValue());
+        const existingPCs = existingPitches.map(p => p % 12);
+        if (existingPCs.includes(extPC)) {{
+            return {{
+                error: "extension note already in chord",
+                root_pitch: rootPitch,
+                extension: extName,
+                existing_pitches: existingPitches,
+            }};
+        }}
+
+        // Add the extension note
+        let created = false;
+        h.modify(() => {{
+            h.createNoteEvent(collBox, {{
+                pitch: extPitch,
+                position: targetTicks,
+                duration: chordNotes[0].box.duration.getValue(),
+                velocity: vel,
+            }});
+            created = true;
+        }});
+
+        return {{
+            root_pitch: rootPitch,
+            root_pc: rootPC,
+            extension: extName,
+            extension_pitch: extPitch,
+            extension_interval: extInterval,
+            octave: targetOctave,
+            chord_size_before: chordNotes.length,
+            chord_size_after: chordNotes.length + 1,
+            created: created,
+            existing_pitches: existingPitches,
+            next_step: "use spread_voicing to adjust spacing, or reharmonize_progression for full reharmonization",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_counter_melody_from_progression(
     progression: str = "Am-F-C-G",
     pattern: str = "contrary",

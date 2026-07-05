@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-430 MCP tools for headless openDAW control via Playwright bridge.
+431 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -502,7 +502,8 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `reorder_sections` — Full song structure rearrangement. JSON array of section boundaries in new order, rearranges note content back-to-back. Complements swap_sections.
 - `spread_voicing` — Chord voicing spread/compact. 4 modes: open (widen spacing), close (collapse to one octave), drop2 (jazz piano comping), drop3 (wider jazz voicing). spread_octaves 1-3.
 - `randomize_note_chance` — Randomize note playback probability (chance 0-100%). 5 distribution modes: uniform, decreasing, increasing, sparse, binary. Seeded PRNG. Generative MIDI — patterns that evolve per iteration.
-**Total: 430 tools**
+- `add_chord_tension` — Add jazz extension note to existing chord. 7 extensions: 9, b9, #9, 11, #11, 13, b13. Calculates pitch from chord root. Triad → Cmaj9, G7 → G7b13.
+**Total: 431 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 

@@ -13438,6 +13438,128 @@ class TestReharmonizeProgression:
         assert False, "default not found"
 
 
+class TestAddChordTension:
+    """Tests for add_chord_tension — jazz chord extension notes."""
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_add_chord_tension"]
+        assert len(tools) == 1
+
+    def test_has_extension_param(self):
+        """Has extension param with 7 options"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                arg_names = [a.arg for a in node.args.args]
+                assert "extension" in arg_names
+                assert "chord_position" in arg_names
+                assert "octave" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_extension_options(self):
+        """Supports 9/b9/#9/11/#11/13/b13 extensions"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                source = ast.unparse(node)
+                assert '"9"' in source
+                assert '"b9"' in source
+                assert '"#9"' in source
+                assert '"11"' in source
+                assert '"#11"' in source
+                assert '"13"' in source
+                assert '"b13"' in source
+                return
+        assert False, "function not found"
+
+    def test_validates_extension(self):
+        """Validates extension against allowed values"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                source = ast.unparse(node)
+                assert "valid_ext" in source
+                return
+        assert False, "function not found"
+
+    def test_extension_intervals(self):
+        """Has correct semitone intervals for each extension"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                source = ast.unparse(node)
+                assert "14" in source  # 9th
+                assert "13" in source  # b9
+                assert "17" in source  # 11th
+                assert "21" in source  # 13th
+                assert "20" in source  # b13
+                return
+        assert False, "function not found"
+
+    def test_validates_octave(self):
+        """octave must be 3-7"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                source = ast.unparse(node)
+                assert "3 <= octave <= 7" in source
+                return
+        assert False, "function not found"
+
+    def test_default_extension_is_9(self):
+        """Default extension is '9'"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                defaults = [ast.unparse(d) for d in node.args.defaults]
+                assert any('"9"' in d or "'9'" in d for d in defaults)
+                return
+        assert False, "function not found"
+
+    def test_complements_harmony_family(self):
+        """add_chord_tension complements spread_voicing and invert_chord_notes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_spread_voicing" in tool_names
+        assert "mcp_opendaw_invert_chord_notes" in tool_names
+        assert "mcp_opendaw_add_chord_tension" in tool_names
+
+    def test_param_count(self):
+        """Has exactly 7 parameters"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                assert len(node.args.args) == 7
+                return
+        assert False, "function not found"
+
+    def test_checks_existing_extension(self):
+        """Checks if extension note already exists in chord"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_add_chord_tension":
+                source = ast.unparse(node)
+                assert "already in chord" in source
+                return
+        assert False, "function not found"
+
+
 class TestSpreadVoicing:
     """Tests for spread_voicing — open/close/drop2/drop3 chord voicing."""
 
