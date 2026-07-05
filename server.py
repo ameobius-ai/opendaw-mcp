@@ -18582,6 +18582,193 @@ async def mcp_opendaw_diatonic_transpose_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_extract_motifs(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    min_motif_length: int = 3,
+    max_motif_length: int = 8,
+    min_repetitions: int = 2,
+    max_results: int = 20,
+) -> str:
+    """Extract repeating melodic motifs from a MIDI region.
+
+    A motif is a short melodic phrase (3-8 notes) identified by its interval
+    contour — the pattern of pitch changes between consecutive notes. The same
+    motif transposed to a different key still matches, because the relative
+    intervals are identical.
+
+    Essential for: understanding melodic structure of existing pieces, finding
+    repetitive patterns for variation, identifying verse/chorus motifs, and
+    building call-and-response arrangements from existing material.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks).
+    region_index: Region index (-1 = all regions on track).
+    min_motif_length: Minimum notes in a motif (default 3).
+    max_motif_length: Maximum notes in a motif (default 8).
+    min_repetitions: Minimum times a motif must appear to be reported (default 2).
+    max_results: Maximum motifs to return, sorted by significance (default 20).
+
+    Returns list of motifs with contour, rhythm pattern, contour type, and
+    occurrence positions.
+    """
+    if min_motif_length < 2:
+        return "Error: min_motif_length must be at least 2"
+    if max_motif_length < min_motif_length:
+        return "Error: max_motif_length must be >= min_motif_length"
+    if min_repetitions < 2:
+        return "Error: min_repetitions must be at least 2"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const minLen = {min_motif_length};
+        const maxLen = {max_motif_length};
+        const minReps = {min_repetitions};
+        const maxRes = {max_results};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+
+        const allMotifs = [];
+
+        function classifyContour(intervals) {{
+            if (intervals.length === 0) return "single";
+            const allUp = intervals.every(i => i > 0);
+            const allDown = intervals.every(i => i < 0);
+            const allFlat = intervals.every(i => i === 0);
+            if (allFlat) return "static";
+            if (allUp) return "ascending";
+            if (allDown) return "descending";
+            const half = Math.floor(intervals.length / 2);
+            const firstHalfUp = intervals.slice(0, half).reduce((a, b) => a + b, 0) > 0;
+            const secondHalfDown = intervals.slice(half).reduce((a, b) => a + b, 0) < 0;
+            const firstHalfDown = intervals.slice(0, half).reduce((a, b) => a + b, 0) < 0;
+            const secondHalfUp = intervals.slice(half).reduce((a, b) => a + b, 0) > 0;
+            if (firstHalfUp && secondHalfDown) return "arch";
+            if (firstHalfDown && secondHalfUp) return "V-shape";
+            let alternations = 0;
+            for (let i = 1; i < intervals.length; i++) {{
+                if ((intervals[i] > 0 && intervals[i-1] < 0) || (intervals[i] < 0 && intervals[i-1] > 0)) alternations++;
+            }}
+            if (alternations >= intervals.length - 1) return "wave";
+            return "mixed";
+        }}
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+
+                    const notes = noteEvents.map(n => ({{
+                        pitch: n.box.pitch.getValue(),
+                        position: n.box.position.getValue(),
+                        duration: n.box.duration.getValue(),
+                        velocity: n.box.velocity.getValue(),
+                    }})).sort((a, b) => a.position - b.position);
+
+                    if (notes.length < minLen) continue;
+
+                    const motifMap = new Map();
+
+                    for (let winSize = minLen; winSize <= Math.min(maxLen, notes.length); winSize++) {{
+                        for (let i = 0; i <= notes.length - winSize; i++) {{
+                            const window = notes.slice(i, i + winSize);
+                            const intervals = [];
+                            for (let j = 1; j < window.length; j++) {{
+                                intervals.push(window[j].pitch - window[j-1].pitch);
+                            }}
+                            const contourKey = intervals.join(",");
+                            const rhythmKey = window.map(n => Math.round(n.duration / 240)).join(",");
+
+                            const key = contourKey + "|" + rhythmKey;
+
+                            if (!motifMap.has(key)) {{
+                                motifMap.set(key, {{
+                                    intervals: intervals,
+                                    contour: contourKey,
+                                    rhythm: rhythmKey,
+                                    contour_type: classifyContour(intervals),
+                                    note_count: winSize,
+                                    occurrences: [],
+                                }});
+                            }}
+                            motifMap.get(key).occurrences.push({{
+                                start_index: i,
+                                start_position: window[0].position,
+                                pitches: window.map(n => n.pitch),
+                            }});
+                        }}
+                    }}
+
+                    for (const [key, motif] of motifMap) {{
+                        if (motif.occurrences.length >= minReps) {{
+                            // Significance score: repetitions * note_count
+                            const score = motif.occurrences.length * motif.note_count;
+                            allMotifs.push({{
+                                unit: u,
+                                track: t,
+                                contour: motif.contour,
+                                rhythm: motif.rhythm,
+                                contour_type: motif.contour_type,
+                                note_count: motif.note_count,
+                                repetitions: motif.occurrences.length,
+                                significance: score,
+                                occurrences: motif.occurrences.slice(0, 8),
+                            }});
+                        }}
+                    }}
+                }}
+            }}
+        }}
+
+        // Sort by significance (repetitions * note_count), then by repetitions
+        allMotifs.sort((a, b) => b.significance - a.significance || b.repetitions - a.repetitions);
+
+        // Deduplicate: remove motifs whose occurrences are all contained in a larger motif
+        const filtered = [];
+        const seenPositions = new Set();
+        for (const m of allMotifs) {{
+            // Check if all occurrences overlap with already-reported larger motifs
+            const allContained = m.occurrences.every(occ =>
+                seenPositions.has(m.unit + ":" + m.track + ":" + occ.start_index + ":" + m.note_count));
+            if (!allContained) {{
+                for (const occ of m.occurrences) {{
+                    for (let off = 0; off < m.note_count; off++) {{
+                        seenPositions.add(m.unit + ":" + m.track + ":" + (occ.start_index + off) + ":1");
+                    }}
+                }}
+                filtered.push(m);
+            }}
+        }}
+
+        return {{
+            success: true,
+            total_motifs_found: allMotifs.length,
+            motifs_reported: Math.min(maxRes, filtered.length),
+            motifs: filtered.slice(0, maxRes),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

@@ -140,6 +140,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 127. `identify_chords` — harmonic analysis: group notes by temporal overlap, match pitch-class sets against 10 chord types, return chord names with time positions
 128. `diatonic_transpose_notes` — scale-step transpose: move notes up/down by N steps within a scale (not semitones), preserves scale, skips out-of-scale notes
 129. `create_blues_arrangement` — 12-bar blues: shuffle drums + walking bass + dom7 stabs + blues scale lead, I-IV-V form, 120 BPM default
+130. `extract_motifs` — melodic analysis: extract repeating motifs (3-8 notes) by interval contour, classify contour type (ascending/descending/arch/V-shape/wave), significance scoring, deduplication
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

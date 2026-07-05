@@ -11614,3 +11614,163 @@ class TestBluesArrangement:
         # Find the blues recipe in the recipes dict
         assert '"blues": {' in source or '"blues":{' in source
 
+
+class TestExtractMotifs:
+    """Tests for extract_motifs — repeating melodic motif extraction"""
+
+    def test_tool_signature_exists(self):
+        """extract_motifs is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_extract_motifs" in tool_names
+
+    def test_has_7_params(self):
+        """Has unit_index, track_index, region_index, min_motif_length, max_motif_length, min_repetitions, max_results"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                arg_names = [a.arg for a in node.args.args]
+                assert "unit_index" in arg_names
+                assert "track_index" in arg_names
+                assert "region_index" in arg_names
+                assert "min_motif_length" in arg_names
+                assert "max_motif_length" in arg_names
+                assert "min_repetitions" in arg_names
+                assert "max_results" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_min_motif_length_is_3(self):
+        """Default min_motif_length is 3"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "min_motif_length" and isinstance(d, ast.Constant):
+                        assert d.value == 3
+                        return
+        assert False, "default not found"
+
+    def test_default_max_motif_length_is_8(self):
+        """Default max_motif_length is 8"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "max_motif_length" and isinstance(d, ast.Constant):
+                        assert d.value == 8
+                        return
+        assert False, "default not found"
+
+    def test_default_min_repetitions_is_2(self):
+        """Default min_repetitions is 2"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "min_repetitions" and isinstance(d, ast.Constant):
+                        assert d.value == 2
+                        return
+        assert False, "default not found"
+
+    def test_validates_min_motif_length(self):
+        """Validates min_motif_length >= 2"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                source = ast.unparse(node)
+                assert "min_motif_length must be at least 2" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_max_ge_min(self):
+        """Validates max_motif_length >= min_motif_length"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                source = ast.unparse(node)
+                assert "max_motif_length must be >= min_motif_length" in source
+                return
+        assert False, "function not found"
+
+    def test_has_contour_classification(self):
+        """Has contour type classification (ascending, descending, arch, etc.)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                source = ast.unparse(node)
+                assert "ascending" in source
+                assert "descending" in source
+                assert "arch" in source
+                return
+        assert False, "function not found"
+
+    def test_has_significance_scoring(self):
+        """Has significance scoring (repetitions * note_count)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                source = ast.unparse(node)
+                assert "significance" in source
+                return
+        assert False, "function not found"
+
+    def test_has_occurrences(self):
+        """Returns occurrences with start positions and pitches"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                source = ast.unparse(node)
+                assert "occurrences" in source
+                assert "start_position" in source
+                return
+        assert False, "function not found"
+
+    def test_has_deduplication(self):
+        """Has deduplication to avoid reporting sub-motifs of larger motifs"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                source = ast.unparse(node)
+                assert "seenPositions" in source or "filtered" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_interval_contour(self):
+        """Uses interval contour (pitch differences) for matching, not absolute pitches"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_extract_motifs":
+                source = ast.unparse(node)
+                # The contour is built from intervals (pitch differences)
+                assert "intervals" in source
+                assert "contour" in source
+                return
+        assert False, "function not found"
+

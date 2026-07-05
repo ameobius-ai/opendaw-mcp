@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.218.0 (2026-07-05)
+
+### Added
+- `extract_motifs` — Melodic motif extraction from MIDI regions. Identifies repeating melodic phrases (3-8 notes) by their interval contour — the pattern of pitch changes between consecutive notes. Same motif transposed to a different key still matches. Contour classification (ascending/descending/arch/V-shape/wave/static/mixed), rhythm pattern matching, significance scoring (repetitions × note_count), deduplication to avoid reporting sub-motifs of larger patterns. Returns occurrences with start positions and pitches. Fills the melodic-analysis gap — identify_chords does harmonic analysis, extract_motifs does melodic analysis. 12 unit tests. **393 MCP tools**, 2767 unit tests
+
 ## v1.217.0 (2026-07-05)
 
 ### Added
