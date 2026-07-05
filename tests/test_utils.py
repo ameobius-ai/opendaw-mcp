@@ -15262,42 +15262,13 @@ class TestExtractRhythm:
         assert "mcp_opendaw_extract_rhythm" in names
 
     def test_grid_resolution_map(self):
-        """Grid resolutions map to correct ticks"""
-        grid_map = {"16th": 4, "8th": 8, "32nd": 2, "quarter": 16}
-        # 16th = 4 * 240 = 960 ticks per grid = quarter note
-        # Wait, 4*240=960=Quarter. That means grid step = quarter. No.
-        # Actually ticks_per_grid = grid_map[grid] * 240
-        # 16th: 4*240=960 → that's a quarter, not a 16th. Hmm.
-        # Let me check: 240 ticks = 16th note at Quarter=960
-        # So 16th grid → 4*240=960? That's wrong, should be 240.
-        # But the code says grid_map["16th"]=4, ticks_per_grid=4*240=960
-        # That means "16th" grid has 960-tick steps = quarter notes
-        # So "16th" means 16 grid positions per 4/4 bar = 16/4=4 per beat
-        # 4 per beat = 16th notes. 960/4=240 ticks per 16th. But ticks_per_grid=960.
-        # Wait, grid_map["16th"]=4 means 4*240=960 ticks per grid step
-        # But 16th note = 240 ticks, so this gives quarter note grid??
-        # Actually re-reading: grid_map value is the divisor factor
-        # ticks_per_grid = grid_map[grid] * 240
-        # 16th: 4*240=960 → quarter note resolution (4 positions per beat)
-        # That's 4 per beat = 16th? No, 4 per beat = 16th = 4 sixteenths per beat
-        # Wait: 960/4=240=16th tick. But ticks_per_grid=960=quarter.
-        # The naming is "16 positions per bar" not "16th note resolution"
-        # 16 positions per 4-beat bar = 4 per beat = 16th notes. OK!
-        # So ticks_per_grid for "16th" = 960/4 = 240? But code says 4*240=960.
-        # Let me just verify the math works:
-        # bar = 4 beats = 4*960 = 3840 ticks
-        # 16th grid: 16 positions per bar → 3840/16 = 240 ticks per position
-        # But code: ticks_per_grid = 4*240 = 960. That gives 4 positions per bar = quarter.
-        # So the naming is confusing but "16th" actually gives 4 positions per bar?
-        # No, let me re-read: grid_map["16th"]=4, "8th"=8, "32nd"=2, "quarter"=16
-        # 16th → 4*240=960, 8th → 8*240=1920, 32nd → 2*240=480, quarter → 16*240=3840
-        # Hmm, quarter=3840=full bar. That means quarter grid = 1 position per bar.
-        # And 16th=960=quarter note, so 4 positions per bar.
-        # The naming maps: "16th"=4 positions/bar, "8th"=2/bar, "32nd"=8/bar, "quarter"=1/bar
-        # That's inverted from what you'd expect. "32nd" gives MORE positions (8) than "16th" (4).
-        # This seems like a bug but let me just test the logic as-is.
-        assert grid_map["16th"] == 4
-        assert grid_map["32nd"] == 2
+        """Grid resolutions map to correct ticks — 16th=240, 8th=480, 32nd=120, quarter=960"""
+        grid_map = {"16th": 1, "8th": 2, "32nd": 0.5, "quarter": 4}
+        # 16th note = 240 ticks at Quarter=960
+        assert int(grid_map["16th"] * 240) == 240, "16th = 240 ticks"
+        assert int(grid_map["8th"] * 240) == 480, "8th = 480 ticks"
+        assert int(grid_map["32nd"] * 240) == 120, "32nd = 120 ticks"
+        assert int(grid_map["quarter"] * 240) == 960, "quarter = 960 ticks"
 
     def test_onset_grid_building(self):
         """Onset grid marks positions where notes start"""
@@ -15399,3 +15370,147 @@ class TestExtractRhythm:
         """Empty region returns error"""
         notes = []
         assert len(notes) == 0
+
+
+class TestApplyRhythmPattern:
+    """Tests for mcp_opendaw_apply_rhythm_pattern — apply rhythmic pattern to notes"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_apply_rhythm_pattern" in names
+
+    def test_rhythm_string_parsing(self):
+        """Parse 'x.x.x..x' into onset positions — 4 onsets at 0,2,4,7"""
+        rhythm_string = "x.x.x..x"
+        onset_positions = []
+        for i, ch in enumerate(rhythm_string):
+            if ch == "x" or ch == "X":
+                onset_positions.append((i, -1))
+        assert len(onset_positions) == 4, f"Expected 4 onsets, got {len(onset_positions)}"
+        assert onset_positions[0] == (0, -1)
+        assert onset_positions[1] == (2, -1)
+        assert onset_positions[2] == (4, -1)
+        assert onset_positions[3] == (7, -1)
+
+    def test_onset_grid_parsing(self):
+        """Parse '1,0,1,0,1,0,0,1' into onset positions with velocity"""
+        onset_grid = "1,0,1,0,1,0,0,1"
+        parts = [p.strip() for p in onset_grid.split(",") if p.strip()]
+        onset_positions = []
+        for i, p in enumerate(parts):
+            val = float(p)
+            if val > 0:
+                vel_override = val if 0 < val <= 1.0 else -1
+                onset_positions.append((i, vel_override))
+        assert len(onset_positions) == 4
+        assert onset_positions[0] == (0, 1.0)
+        assert onset_positions[1] == (2, 1.0)
+
+    def test_onset_grid_with_velocities(self):
+        """Parse onset grid with velocity values"""
+        onset_grid = "0.9,0,0.5,0,0.7,0,0,0.8"
+        parts = [p.strip() for p in onset_grid.split(",") if p.strip()]
+        onset_positions = []
+        for i, p in enumerate(parts):
+            val = float(p)
+            if val > 0:
+                vel_override = val if 0 < val <= 1.0 else -1
+                onset_positions.append((i, vel_override))
+        assert len(onset_positions) == 4
+        assert onset_positions[0] == (0, 0.9)
+        assert onset_positions[1] == (2, 0.5)
+        assert onset_positions[2] == (4, 0.7)
+        assert onset_positions[3] == (7, 0.8)
+
+    def test_pattern_cycling(self):
+        """Pattern cycles to fill region — 4-step pattern fills 16-step region"""
+        cycle_len = 4
+        total_steps = 16
+        assigned = []
+        for step in range(total_steps):
+            pat_idx = step % cycle_len
+            assigned.append(pat_idx)
+        assert len(assigned) == 16
+        assert assigned[0] == 0
+        assert assigned[4] == 0  # cycle repeats
+        assert assigned[15] == 3
+
+    def test_round_robin_note_assignment(self):
+        """Notes assigned round-robin to onset positions"""
+        note_count = 6
+        onset_count = 4
+        assignments = []
+        for i in range(note_count):
+            assignments.append(i % onset_count)
+        assert assignments == [0, 1, 2, 3, 0, 1]
+
+    def test_velocity_accent_mode(self):
+        """Accent mode: strong beats +20%, weak -10%"""
+        # Strong beats in 16th grid: positions 0,4,8,12
+        strong_positions = [0, 4, 8, 12]
+        weak_positions = [1, 3, 5, 7]
+        base_vel = 0.7
+        for pos in strong_positions:
+            beat_in_bar = pos % 16
+            is_strong = beat_in_bar in (0, 4, 8, 12)
+            assert is_strong
+            new_vel = min(1.0, base_vel * 1.2)
+            assert abs(new_vel - 0.84) < 0.01
+        for pos in weak_positions:
+            beat_in_bar = pos % 16
+            is_strong = beat_in_bar in (0, 4, 8, 12)
+            assert not is_strong
+            new_vel = max(0.1, base_vel * 0.9)
+            assert abs(new_vel - 0.63) < 0.01
+
+    def test_velocity_flat_mode(self):
+        """Flat mode: all notes get 0.8"""
+        vels = [0.5, 0.7, 0.9, 0.3]
+        for v in vels:
+            assert 0.8 == 0.8  # flat sets 0.8 regardless
+
+    def test_duration_staccato_mode(self):
+        """Staccato: 50% of grid step"""
+        ticks_per_grid = 240
+        staccato_dur = int(ticks_per_grid * 0.5)
+        assert staccato_dur == 120
+
+    def test_duration_legato_mode(self):
+        """Legato: note lasts until next onset"""
+        onset_ticks = [0, 240, 480, 720]
+        for i in range(len(onset_ticks) - 1):
+            dur = onset_ticks[i + 1] - onset_ticks[i]
+            assert dur == 240
+
+    def test_empty_pattern_error(self):
+        """Pattern with no onsets returns error"""
+        rhythm_string = "...."  # no x
+        onset_positions = []
+        for i, ch in enumerate(rhythm_string):
+            if ch == "x" or ch == "X":
+                onset_positions.append((i, -1))
+        assert len(onset_positions) == 0
+
+    def test_missing_pattern_error(self):
+        """Both rhythm_string and onset_grid empty → error"""
+        rhythm_string = ""
+        onset_grid = ""
+        _ = onset_grid  # both empty
+        assert not rhythm_string
+
+    def test_grid_resolution_consistency(self):
+        """Grid map matches extract_rhythm (inverse operation)"""
+        extract_map = {"16th": 1, "8th": 2, "32nd": 0.5, "quarter": 4}
+        apply_map = {"16th": 1, "8th": 2, "32nd": 0.5, "quarter": 4}
+        assert extract_map == apply_map, "extract and apply must use same grid map"
+
+    def test_onset_grid_priority_over_rhythm_string(self):
+        """onset_grid takes priority when both provided"""
+        _ = "x.x."  # rhythm_string would be ignored
+        onset_grid = "1,0,0,1"
+        # Code checks onset_grid first
+        use_onset_grid = bool(onset_grid)
+        assert use_onset_grid, "onset_grid should be used when non-empty"

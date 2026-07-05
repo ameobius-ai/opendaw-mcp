@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.241.0 (2026-07-06)
+
+### Added
+- `apply_rhythm_pattern` — Apply rhythmic pattern to notes (inverse of extract_rhythm). Rhythm string or onset grid input, pattern cycling, round-robin note assignment, 4 velocity modes (preserve/accent/flat/pattern), 3 duration modes (preserve/staccato/legato). Closes rhythm analysis→modification loop.
+- Fixed `extract_rhythm` grid resolution bug — grid_map values were inverted (16th gave quarter-note resolution instead of 16th). Now correctly maps 16th=240 ticks, 8th=480, 32nd=120, quarter=960.
+
 ## v1.240.0 (2026-07-06)
 
 ### Added

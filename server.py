@@ -20929,11 +20929,11 @@ async def mcp_opendaw_extract_rhythm(
       rhythm = extract_rhythm(0, 0, grid="16th")
       # onset_grid, syncopation, ioi, rhythm_string
     """
-    grid_map = {"16th": 4, "8th": 8, "32nd": 2, "quarter": 16}
+    grid_map = {"16th": 1, "8th": 2, "32nd": 0.5, "quarter": 4}
     if grid not in grid_map:
         return f"Error: grid must be one of {list(grid_map.keys())}, got '{grid}'"
 
-    ticks_per_grid = grid_map[grid] * 240  # 240 = 16th note ticks at Quarter=960
+    ticks_per_grid = int(grid_map[grid] * 240)  # 240 = 16th note ticks at Quarter=960
 
     result = await bridge.evaluate(f"""async () => {{
         const h = window.DAW_HELPERS;
@@ -21047,6 +21047,212 @@ async def mcp_opendaw_extract_rhythm(
             ioi_min: ioiMin,
             ioi_max: ioiMax,
             note_count: notes.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_apply_rhythm_pattern(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    rhythm_string: str = "",
+    onset_grid: str = "",
+    grid: str = "16th",
+    velocity_mode: str = "preserve",
+    duration_mode: str = "preserve",
+) -> str:
+    """Apply a rhythmic pattern to existing notes — reposition onsets to match a target grid.
+
+    Takes a rhythm pattern (either a rhythm_string like "x.x.x..x" or an onset_grid
+    like "1,0,1,0,1,0,0,1") and repositions existing notes onto the onset positions.
+    This is the inverse of extract_rhythm — it lets you stamp a groove onto any note
+    content.
+
+    How it works:
+    1. Reads existing notes and their pitches/velocities/durations
+    2. Computes the target onset positions from the pattern (cycling if pattern
+       is shorter than the region)
+    3. Distributes notes across onset positions:
+       - If fewer onsets than notes: extra notes are placed at the nearest onset
+       - If more onsets than notes: notes are assigned round-robin to onsets
+    4. Optionally adjusts velocity (accent onsets) and duration (staccato/legato)
+
+    velocity_mode:
+    - "preserve": keep original velocities
+    - "accent": strong beats (0,4,8,12 in 16th) get +20% velocity, weak get -10%
+    - "flat": all notes get 0.8 velocity
+    - "pattern": use onset_velocities from extract_rhythm if provided in onset_grid
+
+    duration_mode:
+    - "preserve": keep original durations
+    - "staccato": each note lasts 50% of the grid step
+    - "legato": each note lasts until the next onset
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = first region).
+    rhythm_string: Compact pattern "x.x.x..x" (x=onset, .=rest). Used if onset_grid is empty.
+    onset_grid: Comma-separated "1,0,1,0,1,0,0,1" or "1;0.5;0;0.8" (value=velocity).
+      Takes priority over rhythm_string.
+    grid: Grid resolution (16th/8th/32nd/quarter).
+    velocity_mode: How to handle velocities (preserve/accent/flat/pattern).
+    duration_mode: How to handle durations (preserve/staccato/legato).
+
+    Returns modification summary with repositioned note count.
+
+    Example:
+      # Extract groove from drums, apply to bass
+      rhythm = extract_rhythm(0, 0, grid="16th")
+      # ... parse rhythm_string from result ...
+      apply_rhythm_pattern(0, 1, rhythm_string="x...x...x...x...", grid="16th")
+    """
+    grid_map = {"16th": 1, "8th": 2, "32nd": 0.5, "quarter": 4}
+    if grid not in grid_map:
+        return f"Error: grid must be one of {list(grid_map.keys())}, got '{grid}'"
+    if not rhythm_string and not onset_grid:
+        return "Error: must provide either rhythm_string or onset_grid"
+    valid_vel = {"preserve", "accent", "flat", "pattern"}
+    if velocity_mode not in valid_vel:
+        return f"Error: velocity_mode must be one of {list(valid_vel)}, got '{velocity_mode}'"
+    valid_dur = {"preserve", "staccato", "legato"}
+    if duration_mode not in valid_dur:
+        return f"Error: duration_mode must be one of {list(valid_dur)}, got '{duration_mode}'"
+
+    ticks_per_grid = int(grid_map[grid] * 240)
+
+    # Build onset array from inputs
+    onset_positions = []  # list of (gridIndex, velocityOverride or -1)
+    if onset_grid:
+        parts = [p.strip() for p in onset_grid.split(",") if p.strip()]
+        for i, p in enumerate(parts):
+            try:
+                val = float(p)
+                if val > 0:
+                    vel_override = val if 0 < val <= 1.0 else -1
+                    onset_positions.append((i, vel_override))
+            except ValueError:
+                continue
+    else:
+        for i, ch in enumerate(rhythm_string):
+            if ch == "x" or ch == "X":
+                onset_positions.append((i, -1))
+
+    if not onset_positions:
+        return "Error: no onsets found in pattern"
+
+    onset_positions_json = json.dumps(onset_positions)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regIdx = {region_index};
+        const ticksPerGrid = {ticks_per_grid};
+        const onsetPositions = {onset_positions_json};
+        const velMode = "{velocity_mode}";
+        const durMode = "{duration_mode}";
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const ri = regIdx < 0 ? 0 : regIdx;
+        if (ri >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[ri];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+
+        const notes = h.eventBoxes(collection);
+        if (notes.length === 0) return {{error: "No notes in region"}};
+
+        const regionPos = region.position.getValue();
+        const regionDur = region.duration.getValue();
+        const totalGridSteps = Math.ceil(regionDur / ticksPerGrid);
+
+        // Cycle the pattern to fill the region
+        const cycleLen = onsetPositions.length;
+        const targetOnsets = [];
+        for (let step = 0; step < totalGridSteps; step++) {{
+            const patIdx = step % cycleLen;
+            const gridIdx = onsetPositions[patIdx][0];
+            // Map pattern grid index to region grid index
+            const regionGridIdx = step;
+            const velOverride = onsetPositions[patIdx][1];
+            targetOnsets.push({{gridIdx: regionGridIdx, velOverride}});
+        }}
+
+        // Distribute notes across onsets
+        // Sort notes by current position to preserve pitch order
+        const sortedNotes = notes.map((n, i) => ({{
+            idx: i,
+            box: n,
+            pos: n.position.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+            dur: n.duration.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        // Compute onset tick positions
+        const onsetTicks = targetOnsets.map(o => o.gridIdx * ticksPerGrid);
+
+        // Assign notes to onsets round-robin
+        let modified = 0;
+        const editing = h.editing;
+        await editing.modify(async () => {{
+            for (let i = 0; i < sortedNotes.length; i++) {{
+                const note = sortedNotes[i];
+                const onsetIdx = i % onsetTicks.length;
+                const newTickPos = onsetTicks[onsetIdx];
+
+                // Set new position
+                note.box.position.setValue(newTickPos);
+
+                // Velocity
+                if (velMode === "accent") {{
+                    const beatInBar = Math.floor(newTickPos / ticksPerGrid) % 16;
+                    const isStrong = beatInBar === 0 || beatInBar === 4 || beatInBar === 8 || beatInBar === 12;
+                    const newVel = isStrong ? Math.min(1.0, note.vel * 1.2) : Math.max(0.1, note.vel * 0.9);
+                    note.box.velocity.setValue(newVel);
+                }} else if (velMode === "flat") {{
+                    note.box.velocity.setValue(0.8);
+                }} else if (velMode === "pattern" && note.vel >= 0) {{
+                    const ov = targetOnsets[onsetIdx].velOverride;
+                    if (ov > 0) note.box.velocity.setValue(ov);
+                }}
+
+                // Duration
+                if (durMode === "staccato") {{
+                    note.box.duration.setValue(Math.floor(ticksPerGrid * 0.5));
+                }} else if (durMode === "legato") {{
+                    // Last note or no next onset: keep original
+                    if (onsetIdx < onsetTicks.length - 1) {{
+                        note.box.duration.setValue(onsetTicks[onsetIdx + 1] - newTickPos);
+                    }}
+                }}
+                modified++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_repositioned: modified,
+            total_onsets_in_pattern: cycleLen,
+            total_grid_steps: totalGridSteps,
+            grid: "{grid}",
+            velocity_mode: velMode,
+            duration_mode: durMode,
+            region_duration_ticks: regionDur,
         }};
     }}""")
     return _wrap_eval(result)

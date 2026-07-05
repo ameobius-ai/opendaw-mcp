@@ -91,6 +91,7 @@ What do you want to create?
 ├── Note stats → note_stats (pitch/velocity/duration/density/histogram)
 ├── Melody analysis → analyze_melody (contour, intervals, climax, step/leap)
 ├── Rhythm analysis → extract_rhythm (onset grid, syncopation, swing, IOI)
+├── Rhythm apply → apply_rhythm_pattern (stamp pattern onto notes, inverse of extract)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
@@ -120,6 +121,7 @@ What do you want to create?
    ├── Note stats?         → note_stats (pitch/velocity/density/histogram)
    ├── Melody contour?     → analyze_melody (shape, climax, step/leap)
    ├── Rhythm pattern?     → extract_rhythm (onset grid, syncopation, swing)
+   ├── Apply rhythm?       → apply_rhythm_pattern (stamp groove onto notes)
    └── Chord identification? → identify_chords (reverse-engineer harmony)
 
 1. CREATE
