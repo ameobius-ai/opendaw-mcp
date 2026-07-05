@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-410 MCP tools for headless openDAW control via Playwright bridge.
+411 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -121,6 +121,7 @@
 - `duplicate_note_event` — Duplicate a note event within the same region with optional position/pitch offset.
 - `duplicate_notes` — Duplicate all notes within a region, shifting them after the last note.
 - `find_overlapping_notes` — Find notes that overlap a given pitch and time range within a note region.
+- `filter_notes` — Multi-criteria note filtering: pitch range, velocity range, time range. Actions: list (read-only), delete (remove matching), keep (remove non-matching). -1 = wildcard. Use for cleanup, isolation, trimming.
 - `get_note_range` — Get the pitch range and max duration of notes in a note region.
 - `list_notes` — List all note events within a region.
 - `quantize_notes` — Quantize note positions to a grid division.

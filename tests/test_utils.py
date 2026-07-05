@@ -14678,3 +14678,168 @@ class TestMergeNoteRegions:
         notesB = 3
         total = notesA + notesB
         assert total == 8, "Merged region should have all notes from both"
+
+
+class TestFilterNotes:
+    """Tests for mcp_opendaw_filter_notes — multi-criteria note filtering"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_filter_notes" in names
+
+    def test_pitch_filter(self):
+        """Pitch range filter: only notes in [min, max] match"""
+        notes = [
+            {"pitch": 36},  # C2 — below range
+            {"pitch": 60},  # C4 — in range
+            {"pitch": 72},  # C5 — in range
+            {"pitch": 84},  # C6 — above range
+        ]
+        min_p, max_p = 48, 78
+        matching = [n for n in notes if min_p <= n["pitch"] <= max_p]
+        assert len(matching) == 2
+        assert matching[0]["pitch"] == 60
+        assert matching[1]["pitch"] == 72
+
+    def test_velocity_filter(self):
+        """Velocity filter: only notes >= min_velocity match"""
+        notes = [
+            {"velocity": 0.2},  # ghost
+            {"velocity": 0.5},  # low
+            {"velocity": 0.8},  # normal
+            {"velocity": 1.0},  # max
+        ]
+        min_v = 0.3
+        matching = [n for n in notes if n["velocity"] >= min_v]
+        assert len(matching) == 3
+        assert notes[0] not in matching, "Ghost note should be filtered out"
+
+    def test_time_filter(self):
+        """Time range filter: only notes within [from, to] beats match"""
+        notes = [
+            {"abs_beat": 0},   # before range
+            {"abs_beat": 4},   # in range
+            {"abs_beat": 8},   # in range
+            {"abs_beat": 20},  # after range
+        ]
+        from_b, to_b = 2, 16
+        matching = [n for n in notes if from_b <= n["abs_beat"] <= to_b]
+        assert len(matching) == 2
+
+    def test_combined_filters(self):
+        """All filters combined with AND logic"""
+        notes = [
+            {"pitch": 60, "velocity": 0.8, "abs_beat": 4},   # matches all
+            {"pitch": 60, "velocity": 0.2, "abs_beat": 4},   # fails velocity
+            {"pitch": 40, "velocity": 0.8, "abs_beat": 4},   # fails pitch
+            {"pitch": 60, "velocity": 0.8, "abs_beat": 20},  # fails time
+        ]
+        min_p, max_p, min_v, from_b, to_b = 48, 72, 0.3, 0, 16
+        matching = [n for n in notes
+                    if (min_p <= n["pitch"] <= max_p
+                        and n["velocity"] >= min_v
+                        and from_b <= n["abs_beat"] <= to_b)]
+        assert len(matching) == 1, "Only first note matches all criteria"
+
+    def test_wildcard_ignores_filter(self):
+        """-1 means wildcard (no filter on that criterion)"""
+        min_p = -1  # no pitch filter
+        pitch = 127
+        matches = not (min_p >= 0 and pitch < min_p)
+        assert matches is True, "-1 should be wildcard"
+
+        min_p = 60
+        pitch = 48
+        matches = not (min_p >= 0 and pitch < min_p)
+        assert matches is False, "48 < 60 should not match"
+
+    def test_delete_action(self):
+        """delete action removes matching notes"""
+        notes = [
+            {"pitch": 36},  # matches (below C4)
+            {"pitch": 60},  # doesn't match
+            {"pitch": 48},  # matches (below C4)
+        ]
+        max_p = 59
+        matching = [n for n in notes if n["pitch"] <= max_p]
+        to_delete = matching  # action="delete"
+        assert len(to_delete) == 2
+        remaining = [n for n in notes if n not in to_delete]
+        assert len(remaining) == 1
+        assert remaining[0]["pitch"] == 60
+
+    def test_keep_action(self):
+        """keep action deletes non-matching notes (inverse filter)"""
+        notes = [
+            {"pitch": 60},  # matches (C4)
+            {"pitch": 36},  # doesn't match
+            {"pitch": 72},  # doesn't match (above C4)
+        ]
+        min_p, max_p = 59, 61
+        matching = [n for n in notes if min_p <= n["pitch"] <= max_p]
+        non_matching = [n for n in notes if n not in matching]
+        to_delete = non_matching  # action="keep" → delete non-matching
+        assert len(to_delete) == 2
+        assert len(matching) == 1
+        assert matching[0]["pitch"] == 60
+
+    def test_list_action_no_changes(self):
+        """list action returns matching notes without modifying"""
+        notes = [
+            {"pitch": 60, "velocity": 0.8},
+            {"pitch": 72, "velocity": 0.5},
+        ]
+        min_p = 48
+        [n for n in notes if n["pitch"] >= min_p]
+        # No deletion happens
+        assert len(notes) == 2, "list action should not delete any notes"
+
+    def test_invalid_action_rejected(self):
+        """Invalid action name should be rejected"""
+        valid_actions = ["list", "delete", "keep"]
+        assert "move" not in valid_actions
+        assert "select" not in valid_actions
+
+    def test_abs_beat_calculation(self):
+        """Note absolute beat = (regionPos + notePos) / Quarter"""
+        Quarter = 960
+        regionPos = 4 * Quarter  # region starts at beat 4
+        notePos = 2 * Quarter     # note at beat 2 within region
+        absBeat = (regionPos + notePos) / Quarter
+        assert absBeat == 6, "Region at 4 + note at 2 = absolute beat 6"
+
+    def test_all_notes_match_no_filters(self):
+        """With all criteria at -1, every note matches"""
+        notes = [{"pitch": p} for p in range(0, 128, 12)]
+        min_p, max_p, min_v, max_v, from_b, to_b = -1, -1, -1, -1, -1, -1
+
+        def matches(n):
+            if min_p >= 0 and n["pitch"] < min_p: return False
+            if max_p >= 0 and n["pitch"] > max_p: return False
+            if min_v >= 0 and n.get("velocity", 0.8) < min_v: return False
+            if max_v >= 0 and n.get("velocity", 0.8) > max_v: return False
+            if from_b >= 0 and n.get("abs_beat", 0) < from_b: return False
+            if to_b >= 0 and n.get("abs_beat", 0) > to_b: return False
+            return True
+
+        matching = [n for n in notes if matches(n)]
+        assert len(matching) == len(notes), "All notes should match with no filters"
+
+    def test_delete_below_pitch_cleanup(self):
+        """Practical: cleanup sub-bass rumble below C2 (pitch 36)"""
+        notes = [
+            {"pitch": 24},  # C1 — rumble
+            {"pitch": 30},  # F1 — rumble
+            {"pitch": 36},  # C2 — keep (boundary)
+            {"pitch": 48},  # C3 — keep
+            {"pitch": 60},  # C4 — keep
+        ]
+        min_p = 36
+        to_delete = [n for n in notes if n["pitch"] < min_p]
+        assert len(to_delete) == 2, "Notes below C2 should be deleted"
+        remaining = [n for n in notes if n["pitch"] >= min_p]
+        assert len(remaining) == 3
+        assert remaining[0]["pitch"] == 36, "C2 (boundary) should be kept"

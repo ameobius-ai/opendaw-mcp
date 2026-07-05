@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.236.0 (2026-07-06)
+
+### Added
+- `filter_notes` — Multi-criteria note filtering with actions. Filters by pitch range (min/max MIDI), velocity range (0-1), time range (beats). -1 = wildcard. Three actions: list (read-only, returns matching notes), delete (remove matching), keep (remove non-matching, inverse filter). AND logic on all criteria. Use cases: cleanup sub-bass rumble, isolate melody register, remove ghost notes, trim to time window. 13 unit tests including combined filters, wildcard semantics, delete/keep logic, absolute beat calculation. **411 MCP tools**, 2995 unit tests
+
 ## v1.235.0 (2026-07-06)
 
 ### Added

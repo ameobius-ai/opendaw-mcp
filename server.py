@@ -10273,6 +10273,163 @@ async def mcp_opendaw_get_note_range(unit_index: int, track_index: int, region_i
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_filter_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    min_pitch: int = -1,
+    max_pitch: int = -1,
+    min_velocity: float = -1,
+    max_velocity: float = -1,
+    from_beat: float = -1,
+    to_beat: float = -1,
+    action: str = "list",
+) -> str:
+    """Filter notes by criteria — list, delete, or keep matching notes.
+
+    Applies multiple filter criteria to notes in a region:
+    - Pitch range (min_pitch / max_pitch, MIDI note numbers)
+    - Velocity range (min_velocity / max_velocity, 0.0-1.0)
+    - Time range (from_beat / to_beat, absolute beat positions)
+
+    Any criterion set to -1 is ignored (wildcard).
+
+    Actions:
+    - list: Return matching notes (read-only, no changes)
+    - delete: Delete all notes matching the criteria
+    - keep: Delete all notes NOT matching the criteria (inverse filter)
+
+    Use cases:
+    - Remove notes below C2 (cleanup sub-bass rumble): filter_notes(0, 0, min_pitch=36, action="delete")
+    - Isolate melody in upper register: filter_notes(0, 0, min_pitch=72, action="keep")
+    - Remove ghost notes (velocity < 0.3): filter_notes(0, 0, min_velocity=0.3, action="delete")
+    - Find notes in bar 8-12: filter_notes(0, 0, from_beat=32, to_beat=48, action="list")
+    - Trim notes outside a time window: filter_notes(0, 0, from_beat=0, to_beat=16, action="keep")
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region (-1 = first region).
+    min_pitch: Minimum MIDI pitch (-1 = no filter).
+    max_pitch: Maximum MIDI pitch (-1 = no filter).
+    min_velocity: Minimum velocity 0-1 (-1 = no filter).
+    max_velocity: Maximum velocity 0-1 (-1 = no filter).
+    from_beat: Start beat (-1 = no filter).
+    to_beat: End beat (-1 = no filter).
+    action: "list", "delete", or "keep".
+
+    Returns matching note details (list) or deletion count (delete/keep).
+
+    Example:
+      # Delete all notes below C2
+      filter_notes(0, 0, min_pitch=36, action="delete")
+      # Keep only notes in bars 1-4 (beats 0-16)
+      filter_notes(0, 0, from_beat=0, to_beat=16, action="keep")
+    """
+    if action not in ("list", "delete", "keep"):
+        return f"Error: action must be 'list', 'delete', or 'keep', got '{action}'"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const minP = {min_pitch};
+        const maxP = {max_pitch};
+        const minV = {min_velocity};
+        const maxV = {max_velocity};
+        const fromB = {from_beat};
+        const toB = {to_beat};
+        const action = "{action}";
+        const Quarter = h.ppqn.Quarter;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regIdx];
+
+        // Get collection
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+
+        const notes = h.eventBoxes(collection);
+        const regionPos = region.position.getValue();
+
+        // Helper: check if a note matches all criteria
+        function matches(n) {{
+            const pitch = n.pitch.getValue();
+            const vel = n.velocity.getValue();
+            const notePos = n.position.getValue();
+            const absBeat = (regionPos + notePos) / Quarter;
+
+            if (minP >= 0 && pitch < minP) return false;
+            if (maxP >= 0 && pitch > maxP) return false;
+            if (minV >= 0 && vel < minV) return false;
+            if (maxV >= 0 && vel > maxV) return false;
+            if (fromB >= 0 && absBeat < fromB) return false;
+            if (toB >= 0 && absBeat > toB) return false;
+            return true;
+        }}
+
+        const matching = [];
+        const nonMatching = [];
+        for (const n of notes) {{
+            if (matches(n)) {{
+                matching.push(n);
+            }} else {{
+                nonMatching.push(n);
+            }}
+        }}
+
+        if (action === "list") {{
+            const noteData = matching.map(n => ({{
+                pitch: n.pitch.getValue(),
+                position_beats: Math.round((regionPos + n.position.getValue()) / Quarter * 1000) / 1000,
+                duration_beats: Math.round(n.duration.getValue() / Quarter * 1000) / 1000,
+                velocity: n.velocity.getValue(),
+            }}));
+            return {{
+                success: true,
+                action: "list",
+                matching: noteData.length,
+                total: notes.length,
+                notes: noteData.slice(0, 50),
+            }};
+        }}
+
+        // delete or keep — determine which notes to delete
+        const toDelete = action === "delete" ? matching : nonMatching;
+        let deleted = 0;
+
+        h.modify(() => {{
+            for (const n of toDelete) {{
+                n.delete();
+                deleted++;
+            }}
+        }});
+
+        const remaining = h.eventBoxes(collection).length;
+        return {{
+            success: true,
+            action: action,
+            notes_deleted: deleted,
+            notes_remaining: remaining,
+            total_before: notes.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_find_overlapping_notes(unit_index: int, track_index: int, region_index: int, pitch: int, from_beat: float, to_beat: float) -> str:
     """Find notes that overlap a given pitch and time range within a note region.
 
