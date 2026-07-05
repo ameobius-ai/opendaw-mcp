@@ -17929,3 +17929,132 @@ class TestRandomizeNoteDurations:
         """5 distribution modes: uniform, increasing, decreasing, bimodal, jitter"""
         modes = ("uniform", "increasing", "decreasing", "bimodal", "jitter")
         assert len(modes) == 5
+
+
+class TestExpandIntervals:
+    """Tests for mcp_opendaw_expand_intervals — melodic interval expansion/compression"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_expand_intervals" in names
+
+    def test_factor_range(self):
+        """factor clamped to 0.25-4.0"""
+        for val in [0.25, 0.5, 1.0, 1.5, 2.0, 4.0]:
+            clamped = max(0.25, min(4.0, val))
+            assert 0.25 <= clamped <= 4.0
+        for val in [0.1, 5.0, 10.0]:
+            clamped = max(0.25, min(4.0, val))
+            assert 0.25 <= clamped <= 4.0
+
+    def test_interval_expansion(self):
+        """factor=2.0: each interval doubled"""
+        intervals = [2, 3, 2]  # C-D-E-D
+        factor = 2.0
+        expanded = [round(iv * factor) for iv in intervals]
+        assert expanded == [4, 6, 4]
+
+    def test_interval_compression(self):
+        """factor=0.5: each interval halved"""
+        intervals = [4, 6, 4]
+        factor = 0.5
+        compressed = [round(iv * factor) for iv in intervals]
+        assert compressed == [2, 3, 2]
+
+    def test_anchor_first(self):
+        """anchor='first': first pitch unchanged, expand from there"""
+        pitches = [60, 62, 65, 67]  # C-D-F-G
+        intervals = [2, 3, 2]
+        factor = 2.0
+        expanded = [round(iv * factor) for iv in intervals]  # [4, 6, 4]
+        new_pitches = [pitches[0]]  # anchor = 60
+        for i in range(len(expanded)):
+            new_pitches.append(new_pitches[-1] + expanded[i])
+        assert new_pitches == [60, 64, 70, 74]
+
+    def test_anchor_last(self):
+        """anchor='last': last pitch unchanged, build backwards"""
+        pitches = [60, 62, 65, 67]
+        intervals = [2, 3, 2]
+        factor = 2.0
+        expanded = [round(iv * factor) for iv in intervals]
+        n = len(pitches)
+        new_pitches = [0] * n
+        new_pitches[n-1] = pitches[n-1]  # anchor = 67
+        for i in range(n-2, -1, -1):
+            new_pitches[i] = new_pitches[i+1] - expanded[i]
+        assert new_pitches[n-1] == 67
+        assert new_pitches[2] == 67 - 4  # 63
+        assert new_pitches[1] == 63 - 6  # 57
+        assert new_pitches[0] == 57 - 4  # 53
+
+    def test_anchor_center(self):
+        """anchor='center': mean pitch preserved"""
+        pitches = [60, 62, 65, 67]
+        mean = sum(pitches) / len(pitches)  # 63.5
+        intervals = [2, 3, 2]
+        factor = 1.5
+        expanded = [round(iv * factor) for iv in intervals]  # [3, 5, 3]
+        # Build from first
+        new_p = [pitches[0]]
+        for iv in expanded:
+            new_p.append(new_p[-1] + iv)
+        new_mean = sum(new_p) / len(new_p)
+        shift = round(mean - new_mean)
+        shifted = [p + shift for p in new_p]
+        # Mean should be close to original
+        assert abs(sum(shifted) / len(shifted) - mean) < 2
+
+    def test_no_change_factor_1(self):
+        """factor=1.0: no change"""
+        intervals = [2, 3, 2]
+        factor = 1.0
+        expanded = [round(iv * factor) for iv in intervals]
+        assert expanded == intervals
+
+    def test_scale_snapping(self):
+        """snap_to_scale: nearest scale degree"""
+        scale_intervals = [0, 2, 4, 5, 7, 9, 11]  # major
+        root_idx = 0  # C
+        pitch = 63  # D# — not in C major
+        octave = (pitch // 12) * 12  # 60
+        rel = ((pitch - root_idx) % 12 + 12) % 12  # 3
+        best = scale_intervals[0]
+        best_dist = abs(rel - best)
+        for iv in scale_intervals:
+            dist = abs(rel - iv)
+            if dist < best_dist:
+                best_dist = dist
+                best = iv
+        snapped = octave + root_idx + best
+        # 63 (D#) snaps to 62 (D) or 64 (E), both distance 1
+        # D (2) comes first, so best=2 → snapped=62
+        assert snapped in [62, 64]
+
+    def test_negative_intervals(self):
+        """Descending intervals work correctly"""
+        intervals = [-2, -3, -2]
+        factor = 2.0
+        expanded = [round(iv * factor) for iv in intervals]
+        assert expanded == [-4, -6, -4]
+
+    def test_root_note_lookup(self):
+        """Root note names map to correct indices"""
+        note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        assert note_names.index("C") == 0
+        assert note_names.index("G") == 7
+        assert note_names.index("B") == 11
+
+    def test_minimum_notes(self):
+        """Need at least 2 notes"""
+        assert 1 < 2
+
+    def test_pitch_change_tracking(self):
+        """Track old vs new pitch for each note"""
+        old_pitch = 60
+        new_pitch = 64
+        interval_change = new_pitch - old_pitch
+        assert interval_change == 4

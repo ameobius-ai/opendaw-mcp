@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.263.0 (2026-07-06)
+
+### Added
+- `expand_intervals` — Expand or compress melodic intervals by a factor (0.25-4.0). 3 anchors: first (expand forward), last (expand backward), center (symmetric around mean). Optional scale snapping (9 scales: major, minor, dorian, phrygian, lydian, mixolydian, locrian, harmonic_minor, melodic_minor). factor=2 doubles intervals (seconds→thirds), factor=0.5 halves. Motivic development, melodic transformation.
+
 ## v1.262.0 (2026-07-06)
 
 ### Added

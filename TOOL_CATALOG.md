@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-436 MCP tools for headless openDAW control via Playwright bridge.
+437 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -458,6 +458,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `merge_consecutive_notes` — Merge consecutive notes of the same pitch into sustained notes. same_pitch_only mode, max_gap_beats threshold, 4 velocity modes (first/last/max/avg). Cleans up repeated hits, converts staccato to sustained, simplifies busy passages.
 - `rotate_notes` — Rotate notes cyclically (cyclic shift / permutation). 3 axes: position (reassign note order), pitch (shift pitches cyclically), both (true permutation). normalize rotation modulo n. preserve_pitch_contour adjusts pitches to maintain original interval sequence. Serialism (Berg, Webern), jazz melodic rotation, pattern transformation.
 - `randomize_note_durations` — Randomize note durations with 5 distribution modes (uniform, increasing, decreasing, bimodal, jitter). Variation 0-1, min/max duration clamps, preserve_total scales to match original phrase length. Seeded PRNG for reproducibility. Generative duration variation, rhythmic humanization.
+- `expand_intervals` — Expand or compress melodic intervals by a factor (0.25-4.0). 3 anchors: first (expand forward), last (expand backward), center (symmetric). Optional scale snapping (9 scales). factor=2 doubles intervals (seconds→thirds), factor=0.5 halves (thirds→seconds). Motivic development, melodic transformation.
 - `scale_durations` — Scale duration of all notes in a region — MIDI note length control. 5 modes: multiply (×0.5 staccato), add (+0.5 beats), set (uniform), quantize (snap to 16th/8th/quarter/half grid), legato (extend to next note with gap). Returns original + new duration min/max/avg. Clamp via min_duration/max_duration.
 - `groove_transfer` — Transfer groove (timing + velocity feel) from a source region to a destination region. Extracts groove template (per-grid-slot timing offsets + velocity ratios) from source notes, then applies to destination notes. Groove cycles every groove_length beats (4=1 bar, 3=waltz). timing_strength + velocity_strength control blend. 16th/8th grid. NOT copying notes — transfers the feel.
 - `time_warp_notes` — Warp note positions AND durations by a factor — true half-time (0.5×) or double-time (2.0×) feel without changing BPM. Unlike scale_durations (only duration), this moves notes in time. 1-bar pattern → 2 bars (half-time) or 1 bar (from 2-bar, double-time). origin: "start" (region start) or "zero" (absolute). Range 0.1-8.0.
@@ -508,7 +509,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `spread_voicing` — Chord voicing spread/compact. 4 modes: open (widen spacing), close (collapse to one octave), drop2 (jazz piano comping), drop3 (wider jazz voicing). spread_octaves 1-3.
 - `randomize_note_chance` — Randomize note playback probability (chance 0-100%). 5 distribution modes: uniform, decreasing, increasing, sparse, binary. Seeded PRNG. Generative MIDI — patterns that evolve per iteration.
 - `add_chord_tension` — Add jazz extension note to existing chord. 7 extensions: 9, b9, #9, 11, #11, 13, b13. Calculates pitch from chord root. Triad → Cmaj9, G7 → G7b13.
-**Total: 436 tools**
+**Total: 437 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 

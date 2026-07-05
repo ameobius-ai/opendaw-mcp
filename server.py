@@ -30364,6 +30364,208 @@ async def mcp_opendaw_randomize_note_durations(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_expand_intervals(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    factor: float = 1.5,
+    anchor: str = "first",
+    snap_to_scale: str = "",
+    root: str = "C",
+) -> str:
+    """Expand or compress melodic intervals by a factor.
+
+    Multiplies the interval between each consecutive pair of notes by
+    `factor`. Values >1 widen the melody (small steps become leaps),
+    values <1 narrow it (leaps become steps). The first note's pitch
+    is kept as anchor (or centered around the mean pitch).
+
+    This is a fundamental transformation in motivic development:
+    - factor=2.0: seconds become thirds, thirds become fifths
+    - factor=0.5: thirds become seconds, fifths become thirds
+    - factor=1.5: gentle expansion, more expressive contour
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        factor: Interval multiplier (0.25-4.0). 1.0=no change,
+                2.0=double all intervals, 0.5=halve all intervals.
+        anchor: Anchor point —
+            "first" = keep first note pitch, expand from there,
+            "center" = keep mean pitch, expand symmetrically,
+            "last" = keep last note pitch, expand backwards.
+        snap_to_scale: Scale name for snapping results ("major", "minor",
+                       "dorian", "phrygian", "lydian", "mixolydian",
+                       "locrian", "harmonic_minor", "melodic_minor",
+                       "" = no snapping, chromatic result).
+        root: Root note for scale snapping (C, C#, D, ... B).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{error: "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const factorVal = Math.max(0.25, Math.min(4.0, {factor}));
+        const anchorMode = "{anchor}";
+        const snapScale = "{snap_to_scale}";
+        const rootNote = "{root}";
+
+        // Scale intervals (semitone offsets from root)
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{error: "Invalid root note: " + rootNote}};
+
+        function snapToScale(pitch) {{
+            if (!snapScale || !scaleMap[snapScale]) return pitch;
+            const intervals = scaleMap[snapScale];
+            const octave = Math.floor(pitch / 12) * 12;
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            // Find nearest scale degree
+            let best = intervals[0];
+            let bestDist = Math.abs(rel - intervals[0]);
+            for (const iv of intervals) {{
+                const dist = Math.abs(rel - iv);
+                if (dist < bestDist || (dist === bestDist && iv < best)) {{
+                    bestDist = dist;
+                    best = iv;
+                }}
+            }}
+            return octave + rootIdx + best;
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{error: "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length < 2) return {{error: "Need at least 2 notes to expand intervals"}};
+
+        // Read and sort by position
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        const n = srcData.length;
+        const origPitches = srcData.map(d => d.pitch);
+
+        // Calculate intervals
+        const intervals = [];
+        for (let i = 1; i < n; i++) {{
+            intervals.push(srcData[i].pitch - srcData[i-1].pitch);
+        }}
+
+        // Expand intervals
+        const expandedIntervals = intervals.map(iv => Math.round(iv * factorVal));
+
+        // Build new pitches based on anchor
+        const newPitches = new Array(n);
+        if (anchorMode === "first") {{
+            newPitches[0] = srcData[0].pitch;
+            for (let i = 1; i < n; i++) {{
+                newPitches[i] = newPitches[i-1] + expandedIntervals[i-1];
+            }}
+        }} else if (anchorMode === "last") {{
+            newPitches[n-1] = srcData[n-1].pitch;
+            for (let i = n - 2; i >= 0; i--) {{
+                newPitches[i] = newPitches[i+1] - expandedIntervals[i];
+            }}
+        }} else {{ // center
+            const meanPitch = Math.round(srcData.reduce((s, d) => s + d.pitch, 0) / n);
+            // Build from first, then shift to center
+            newPitches[0] = srcData[0].pitch;
+            for (let i = 1; i < n; i++) {{
+                newPitches[i] = newPitches[i-1] + expandedIntervals[i-1];
+            }}
+            const newMean = Math.round(newPitches.reduce((s, p) => s + p, 0) / n);
+            const shift = meanPitch - newMean;
+            for (let i = 0; i < n; i++) {{
+                newPitches[i] += shift;
+            }}
+        }}
+
+        // Snap to scale if requested
+        if (snapScale && scaleMap[snapScale]) {{
+            for (let i = 0; i < n; i++) {{
+                newPitches[i] = snapToScale(newPitches[i]);
+            }}
+        }}
+
+        // Apply new pitches
+        const editing = h.editing;
+        let updated = 0;
+        const pitchChanges = [];
+
+        await editing.modify(async () => {{
+            for (let i = 0; i < srcNotes.length; i++) {{
+                // Notes may not be in sorted order in srcNotes
+                // Match by position
+                const sortedIdx = srcData.findIndex(d =>
+                    d.pos === srcNotes[i].position.getValue()
+                );
+                if (sortedIdx >= 0) {{
+                    const oldPitch = srcNotes[i].pitch.getValue();
+                    srcNotes[i].pitch.setValue(newPitches[sortedIdx]);
+                    pitchChanges.push({{
+                        note: sortedIdx,
+                        old_pitch: oldPitch,
+                        new_pitch: newPitches[sortedIdx],
+                        interval_change: sortedIdx > 0 ? expandedIntervals[sortedIdx-1] - intervals[sortedIdx-1] : 0,
+                    }});
+                    updated++;
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_updated: updated,
+            factor: factorVal,
+            anchor: anchorMode,
+            snap_to_scale: snapScale,
+            root: rootNote,
+            original_pitches: origPitches,
+            new_pitches: newPitches,
+            original_intervals: intervals,
+            expanded_intervals: expandedIntervals,
+            pitch_changes: pitchChanges.slice(0, 10),
+            total_changes: pitchChanges.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 
