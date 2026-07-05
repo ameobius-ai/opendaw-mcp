@@ -2201,6 +2201,86 @@ class TestCreateChorale:
         assert [NOTE_TO_PC["D"] + iv for iv in CHORD_INTERVALS["aug"][:4]] == [2, 6, 10]
 
 
+class TestLooperDSP:
+    """Unit tests for werkstatt_looper.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_looper.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt looper" in code, "Missing @werkstatt looper header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_loop_buffer(self):
+        code = self._read_script()
+        assert "bufL" in code and "bufR" in code, "Missing stereo loop buffer"
+        assert "loopSamples" in code, "Missing loop length in samples"
+        assert "writePos" in code and "readPos" in code, "Missing read/write positions"
+
+    def test_record_play_overdub_states(self):
+        code = self._read_script()
+        assert "state = 0" in code or "currentState === 0" in code, "Missing record state"
+        assert "currentState === 1" in code or "playMode === 1" in code, "Missing play state"
+        assert "currentState === 2" in code or "playMode === 2" in code, "Missing overdub state"
+        assert "overdub" in code, "Missing overdub parameter"
+
+    def test_feedback_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        fb = [p for p in params if p["name"] == "feedback"][0]
+        assert fb["min"] == 0 and fb["max"] == 1, "feedback range should be 0-1"
+
+    def test_play_mode_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        pm = [p for p in params if p["name"] == "play_mode"][0]
+        assert pm["min"] == 0 and pm["max"] == 2, "play_mode range should be 0-2"
+
+    def test_speed_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        speed = [p for p in params if p["name"] == "speed"][0]
+        assert speed["min"] > 0 and speed["max"] >= 2, "speed should be positive and allow 2x+"
+
+    def test_reverse_mode(self):
+        code = self._read_script()
+        assert "reverse_mode" in code, "Missing reverse_mode param"
+        assert "reverse" in code, "Missing reverse variable"
+
+    def test_fade_edges(self):
+        code = self._read_script()
+        assert "fade_edges" in code, "Missing fade_edges param"
+        assert "_fadeGain" in code, "Missing fade gain function"
+        assert "fadeSamples" in code, "Missing fade samples calculation"
+
+    def test_monitor_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mon = [p for p in params if p["name"] == "monitor"][0]
+        assert mon["min"] == 0 and mon["max"] == 1, "monitor range should be 0-1"
+
+
 class TestScratchDSP:
     """Unit tests for werkstatt_scratch.js DSP script structure."""
 

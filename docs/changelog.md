@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.68.0 (2026-07-05)
+
+- **`werkstatt_looper.js` DSP script** — live looper with overdub. Records into circular buffer, variable speed (0.25x-4x), 3 play modes (auto/play/overdub), reverse mode, crossfade at loop boundaries. 10 params: loop_length, feedback, overdub, play_mode, speed, reverse_mode, monitor, fade_edges, mix, output
+- **57 DSP scripts** (44 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **595 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.67.0 (2026-07-05)
 
 - **`create_chorale` orchestration tool** — 4-voice SATB chorale generator with voice-leading rules. Parses chord progression, assigns soprano/alto/tenor/bass with smooth voice movement, parallel fifth/octave detection, voice range clamping. Supports maj/min/m7/maj7/dom7/sus2/sus4/dim/aug. Classic Bach chorale style

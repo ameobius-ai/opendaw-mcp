@@ -395,6 +395,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_vocoder.js` — Channel vocoder (8-24 log-spaced bandpass bank, modulator→carrier spectral envelope mapping, saw/square/noise carrier, emphasis, output HPF)
 - `werkstatt_reverse.js` — Real-time reverse playback (chunked circular buffer, variable speed 0.25x-4x, 3 trigger modes, 3 stereo modes, feedback, crossfade smoothing)
 - `werkstatt_scratch.js` — DJ vinyl scratch (turntable physics: triangle LFO back-and-forth, friction-based velocity inertia, pullback yank, wow/flutter pitch wobble, random crackle pops)
+- `werkstatt_looper.js` — Live looper with overdub (circular buffer, 3 play modes: auto/play/overdub, variable speed 0.25x-4x, reverse mode, crossfade at loop boundaries, input monitor)
 - `werkstatt_coldfold.js` — Wavefolding + bitcrush (drive, fold, crush, slew, mix)
 - `werkstatt_chorus.js` — Stereo chorus (rate, depth, delay, feedback)
 - `werkstatt_reverb.js` — Plate reverb (decay, predelay, wet, tone)

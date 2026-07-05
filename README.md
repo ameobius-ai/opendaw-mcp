@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-304-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-56-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-585%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-57-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-595%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **304** MCP tools | **86** Python examples (8 genre templates) |
-| **56** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **585** unit + E2E tests |
+| **304** MCP tools | **87** Python examples (8 genre templates) |
+| **57** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **595** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.68.0 (2026-07-05)
+
+- **`werkstatt_looper.js` DSP script** — live looper with overdub. Records audio into circular buffer, plays back with variable speed (0.25x-4x), overdubs new layers with adjustable feedback. Three play modes: auto (record then overdub), play (playback only), overdub (continuous layering). Reverse mode for backwards loops. Crossfade at loop boundaries prevents clicks. Input monitor for zero-latency monitoring. Classic for live electronica, guitar looping, ambient performance, Ed Sheeran-style live layering. 10 params: loop_length, feedback, overdub, play_mode, speed, reverse_mode, monitor, fade_edges, mix, output
+- **57 DSP scripts** (44 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **595 unit tests** (+10), E2E 8/8
 
 ### v1.67.0 (2026-07-05)
 
