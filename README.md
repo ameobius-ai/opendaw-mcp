@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-303-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-51-orange)](scripts/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-52-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-354%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -26,8 +26,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **303** MCP tools | **80** Python examples (8 genre templates) |
-| **51** DSP scripts | **10** agent skills |
+| **303** MCP tools | **81** Python examples (8 genre templates) |
+| **52** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **354** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.62.0 (2026-07-05)
+
+- **`werkstatt_harmonizer.js` DSP script** — dual-voice harmonizer with independent pitch shift (±12 semitones + ±50 cents), per-voice gain, detune LFO for chorus-like wobble, and delay-based pitch shifting. Creates choir/harmony effects from any input — two shifted voices with micro-detune. Distinct from pitch_shift (single voice) — harmonizer creates multiple harmonized copies. Classic for vocal harmonies, guitar harmonizers, synth thickening. 9 params: 2× shift_semi/cent/gain, detune, delay, mix
+- **52 DSP scripts** (39 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **546 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ### v1.61.0 (2026-07-05)
 

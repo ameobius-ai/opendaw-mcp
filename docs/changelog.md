@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.62.0 (2026-07-05)
+
+- **`werkstatt_harmonizer.js` DSP script** — dual-voice harmonizer with independent pitch shift (±12 semitones + ±50 cents), per-voice gain, detune LFO for chorus-like wobble, and delay-based pitch shifting. Creates choir/harmony effects from any input — two shifted voices with micro-detune. Distinct from pitch_shift (single voice) — harmonizer creates multiple harmonized copies. Classic for vocal harmonies, guitar harmonizers, synth thickening. 9 params: 2× shift_semi/cent/gain, detune, delay, mix
+- **52 DSP scripts** (39 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **546 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.61.0 (2026-07-05)
 
 - **`create_passacaglia` orchestration tool (303 MCP tools)** — repeating bass ostinato with evolving harmonies above. Baroque form (Bach BWV 582) adapted to modern contexts. 3 variation styles: block (sustained chords), arpeggiated (broken), melodic (stepwise counter-melody). Bass pattern as MIDI pitches + custom rhythm, chord cycling, 3/4 and 4/4 time. Distinct from ostinato (single pattern), pedal_point (single note), bordun (drone chord)

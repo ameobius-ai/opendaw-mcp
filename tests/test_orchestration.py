@@ -1746,3 +1746,86 @@ class TestPassacagliaGeneration:
         root, intervals = self._parse_chord("Ab")
         assert root == 8, f"Ab root should be 8, got {root}"
         assert intervals == [0, 4, 7], f"Expected [0,4,7], got {intervals}"
+
+
+class TestHarmonizerDSP:
+    """Unit tests for werkstatt_harmonizer.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_harmonizer.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt harmonizer" in code, "Missing @werkstatt harmonizer header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_shift1_semi_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        s1 = [p for p in params if p["name"] == "shift1_semi"][0]
+        assert s1["min"] == -12, "shift1_semi min should be -12"
+        assert s1["max"] == 12, "shift1_semi max should be 12"
+
+    def test_shift2_semi_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        s2 = [p for p in params if p["name"] == "shift2_semi"][0]
+        assert s2["min"] == -12, "shift2_semi min should be -12"
+        assert s2["max"] == 12, "shift2_semi max should be 12"
+
+    def test_detune_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        det = [p for p in params if p["name"] == "detune"][0]
+        assert det["min"] == 0
+        assert det["max"] == 1
+
+    def test_cent_params(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        for name in ["shift1_cent", "shift2_cent"]:
+            cent = [p for p in params if p["name"] == name][0]
+            assert cent["min"] == -50, f"{name} min should be -50"
+            assert cent["max"] == 50, f"{name} max should be 50"
+
+    def test_two_pitch_shifters(self):
+        code = self._read_script()
+        assert "buf1L" in code and "buf2L" in code, "Missing two pitch shifter buffers"
+        assert "ratio1" in code and "ratio2" in code, "Missing two pitch ratio calculations"
+
+    def test_pitch_ratio_calculation(self):
+        code = self._read_script()
+        assert "Math.pow(2" in code, "Missing pitch ratio (2^(semi/12))"
+        assert "/ 12" in code, "Missing semitone to ratio conversion"
+
+    def test_detune_lfo(self):
+        code = self._read_script()
+        assert "lfoPhase" in code, "Missing detune LFO phase"
+        assert "Math.sin" in code, "Missing LFO sine"
+        assert "detuneMod" in code, "Missing detune modulation"
+
+    def test_fractional_delay_read(self):
+        code = self._read_script()
+        assert "_pitchShift" in code, "Missing pitch shift function"
+        assert "frac" in code, "Missing fractional interpolation"
+        assert "idx0" in code or "idx1" in code, "Missing buffer index interpolation"

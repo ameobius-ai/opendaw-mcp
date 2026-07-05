@@ -1,8 +1,8 @@
 # DSP Scripts
 
-51 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+52 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 38 scripts
+## Werkstatt (Audio Effects) — 39 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -44,6 +44,7 @@
 | `werkstatt_auto_pan.js` | Auto-pan (LFO stereo positioning, waveform morph) | rate, depth, shape, phase, width, offset |
 | `werkstatt_comb_filter.js` | Comb filter (delay-line feedback, polarity, damping) | freq, feedback, damping, mix, polarity |
 | `werkstatt_formant_filter.js` | Formant filter (3-band vocal tract, vowel presets) | formant_a/b/c, bandwidth_a/b/c, vowel, resonance, mix |
+| `werkstatt_harmonizer.js` | Dual-voice harmonizer (pitch shift + detune) | shift1/2_semi, shift1/2_cent, shift1/2_gain, detune, delay, mix |
 
 ## Apparat (Instruments) — 7 scripts
 
