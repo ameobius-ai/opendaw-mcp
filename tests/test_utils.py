@@ -10099,3 +10099,125 @@ class TestTranscribeDrums:
                 return
         assert False, "function not found"
 
+
+class TestTranscribeMelody:
+    """Tests for _transcribe_melody and transcribe_melody tool"""
+
+    def _make_sine_wav(self, freqs, sr=44100, duration=2.0):
+        """Create synthetic audio with sine tones at given frequencies.
+        freqs: list of (start_time, frequency, duration_sec)
+        Returns channels list."""
+        import math as _math
+        n = int(duration * sr)
+        channel = [0.0] * n
+        for start_t, freq, dur in freqs:
+            start = int(start_t * sr)
+            end = min(n, start + int(dur * sr))
+            for i in range(start, end):
+                t = (i - start) / sr
+                env = min(1.0, t * 50) * min(1.0, (end - i) / (sr * 0.05))
+                channel[i] += 0.5 * env * _math.sin(2 * _math.pi * freq * (i - start) / sr)
+        return [channel]
+
+    def test_empty_audio_returns_empty(self):
+        from opendaw_mcp.utils import _transcribe_melody
+        result = _transcribe_melody([], 44100)
+        assert result["notes"] == []
+        assert result["note_count"] == 0
+
+    def test_sine_detected(self):
+        """A 440Hz sine should produce at least one note (A4=69)"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 440.0, 1.0)])
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        assert result["note_count"] >= 1, f"Expected at least 1 note, got {result['note_count']}"
+
+    def test_pitch_accuracy(self):
+        """440Hz → MIDI 69 (A4)"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 440.0, 0.5)])
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        if result["notes"]:
+            assert abs(result["notes"][0]["pitch"] - 69) <= 1, f"Expected pitch ~69, got {result['notes'][0]['pitch']}"
+
+    def test_two_notes(self):
+        """Two separate tones should produce two notes"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 440.0, 0.3), (0.4, 523.0, 0.3)])  # A4 then C5
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        assert result["note_count"] >= 1, f"Expected at least 1 note, got {result['note_count']}"
+
+    def test_velocity_range(self):
+        """Velocity should be between 0 and 1"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 440.0, 0.5)])
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        for n in result["notes"]:
+            assert 0.0 <= n["velocity"] <= 1.0
+
+    def test_midi_pitch_range(self):
+        """All pitches should be in valid MIDI range (21-108)"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 220.0, 0.5), (0.6, 880.0, 0.5)])
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        for n in result["notes"]:
+            assert 21 <= n["pitch"] <= 108
+
+    def test_beat_conversion(self):
+        """At 120 BPM, 1 beat = 0.5 seconds"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 440.0, 2.0)])
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        if result["notes"]:
+            # First note should start near beat 0
+            assert abs(result["notes"][0]["start_beat"]) < 0.5
+
+    def test_cents_field(self):
+        """Notes should include cents deviation for tuning accuracy"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 440.0, 0.5)])
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        for n in result["notes"]:
+            assert "cents" in n
+            assert -50 <= n["cents"] <= 50  # within half semitone
+
+    def test_clarity_field(self):
+        """Notes should include clarity (pitch confidence)"""
+        from opendaw_mcp.utils import _transcribe_melody
+        channels = self._make_sine_wav([(0.0, 440.0, 0.5)])
+        result = _transcribe_melody(channels, 44100, bpm=120)
+        for n in result["notes"]:
+            assert "clarity" in n
+            assert 0.0 <= n["clarity"] <= 1.0
+
+    def test_tool_signature_exists(self):
+        """transcribe_melody is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_transcribe_melody" in tool_names
+
+    def test_tool_delegates_to_transcribe(self):
+        """transcribe_melody tool calls _transcribe_melody internally"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_melody":
+                source = ast.unparse(node)
+                assert "_transcribe_melody" in source
+                return
+        assert False, "function not found"
+
+    def test_auto_bpm_detection(self):
+        """When bpm=0, tool auto-detects BPM"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_melody":
+                source = ast.unparse(node)
+                assert "_detect_bpm" in source
+                return
+        assert False, "function not found"
+

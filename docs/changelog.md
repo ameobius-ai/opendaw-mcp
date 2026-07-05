@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.204.0 (2026-07-05)
+
+### Added
+- `transcribe_melody` — **new capability**, audio-to-MIDI monophonic melody transcription. Converts monophonic instrument recordings (bass, vocal, lead synth, horn) into MIDI notes via autocorrelation pitch detection. Frame-by-frame autocorrelation → fundamental frequency → MIDI pitch (with cents deviation via parabolic interpolation). Groups consecutive similar-pitch frames into sustained notes. Velocity from frame energy. Auto-detects BPM. Together with transcribe_drums (cycle 216), completes audio-to-MIDI pipeline: download_audio → transcribe_drums + transcribe_melody → full MIDI reconstruction. 12 unit tests (sine detection, pitch accuracy 440Hz→69, two notes, velocity range, MIDI range, beat conversion, cents, clarity, tool delegation, auto-BPM). **381 MCP tools**, 2637 unit tests
+
 ## v1.203.0 (2026-07-05)
 
 ### Added

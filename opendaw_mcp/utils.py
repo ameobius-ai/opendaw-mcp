@@ -634,3 +634,201 @@ def _transcribe_drums(channels: list, sample_rate: int, bpm: float = None,
             "hat": sum(1 for n in notes if n["drum_type"] == "hat"),
         },
     }
+
+
+def _transcribe_melody(channels: list, sample_rate: int, bpm: float = None,
+                        frame_size: int = 2048, hop_size: int = 512,
+                        min_freq: float = 50.0, max_freq: float = 2000.0,
+                        onset_threshold: float = 0.05) -> dict:
+    """Transcribe monophonic melody from audio into MIDI notes.
+
+    Pure Python pitch detection via autocorrelation:
+    1. Mix to mono
+    2. For each frame: compute autocorrelation → find fundamental frequency
+    3. Convert frequency → MIDI pitch (with cents deviation)
+    4. Group consecutive similar-pitch frames into notes
+    5. Detect note onsets (energy jumps) and offsets (energy drops)
+    6. Convert frame times to beat positions (if bpm provided)
+
+    Returns dict with: notes (list of {pitch, start_beat, start_sec, duration,
+    velocity, cents}), bpm, note_count, duration_seconds.
+    """
+    import math as _math
+
+    if not channels or not channels[0]:
+        return {"notes": [], "bpm": bpm or 120.0, "note_count": 0, "duration_seconds": 0.0}
+
+    n_frames = len(channels[0])
+    duration = n_frames / sample_rate
+    n_ch = len(channels)
+
+    # Mix to mono
+    mono = []
+    for i in range(n_frames):
+        s = sum(channels[c][i] for c in range(n_ch)) / n_ch
+        mono.append(s)
+
+    min_lag = int(sample_rate / max_freq)
+    max_lag = int(sample_rate / min_freq)
+    if max_lag > frame_size:
+        max_lag = frame_size
+
+    n_hops = (n_frames - frame_size) // hop_size
+    if n_hops < 2:
+        return {"notes": [], "bpm": bpm or 120.0, "note_count": 0, "duration_seconds": duration}
+
+    def _detect_pitch(frame):
+        """Autocorrelation pitch detection. Returns (freq, clarity) or (None, 0)."""
+        # Normalize frame
+        energy = sum(s * s for s in frame)
+        if energy < 1e-8:
+            return None, 0.0
+
+        # Compute autocorrelation for lag range
+        best_lag = 0
+        best_corr = 0.0
+        for lag in range(min_lag, max_lag):
+            corr = 0.0
+            for i in range(len(frame) - lag):
+                corr += frame[i] * frame[i + lag]
+            corr = corr / (len(frame) - lag)
+            if corr > best_corr:
+                best_corr = corr
+                best_lag = lag
+
+        if best_lag == 0 or best_corr < 0.1:
+            return None, 0.0
+
+        # Parabolic interpolation for sub-sample accuracy
+        if best_lag > min_lag and best_lag < max_lag - 1:
+            # Recompute neighbors
+            corr_m = 0.0
+            corr_p = 0.0
+            for i in range(len(frame) - best_lag + 1):
+                corr_m += frame[i] * frame[i + best_lag - 1]
+            for i in range(len(frame) - best_lag - 1):
+                corr_p += frame[i] * frame[i + best_lag + 1]
+            denom = corr_m + best_corr + corr_p
+            if denom > 0:
+                shift = 0.5 * (corr_m - corr_p) / denom
+                best_lag = best_lag + shift
+
+        freq = sample_rate / best_lag
+        clarity = min(1.0, best_corr / (energy / len(frame) + 1e-10))
+        return freq, clarity
+
+    def _freq_to_midi(freq):
+        """Convert frequency to MIDI note + cents deviation."""
+        if freq <= 0:
+            return None, 0
+        midi_float = 69 + 12 * _math.log2(freq / 440.0)
+        midi_note = round(midi_float)
+        cents = round((midi_float - midi_note) * 100)
+        return midi_note, cents
+
+    # Process frames
+    frame_pitches = []  # (time_sec, freq, clarity, energy)
+    for h in range(n_hops):
+        start = h * hop_size
+        frame = mono[start:start + frame_size]
+        t = start / sample_rate
+
+        # Frame energy
+        fe = sum(s * s for s in frame) / frame_size
+        if fe < onset_threshold:
+            frame_pitches.append((t, None, 0.0, fe))
+            continue
+
+        freq, clarity = _detect_pitch(frame)
+        frame_pitches.append((t, freq, clarity, fe))
+
+    # Group consecutive pitched frames into notes
+    notes = []
+    actual_bpm = bpm if bpm and bpm > 0 else 120.0
+    beats_per_sec = actual_bpm / 60.0
+
+    current_note = None  # {start_time, pitches: [(freq, clarity)], energy}
+
+    for t, freq, clarity, energy in frame_pitches:
+        if freq is not None and clarity > 0.15:
+            midi_note, cents = _freq_to_midi(freq)
+            if midi_note is not None and 21 <= midi_note <= 108:
+                if current_note is None:
+                    # Start new note
+                    current_note = {
+                        "start_time": t,
+                        "pitches": [(midi_note, cents, clarity)],
+                        "energies": [energy],
+                    }
+                else:
+                    # Check if pitch is similar to current note
+                    last_pitch = current_note["pitches"][-1][0]
+                    if abs(midi_note - last_pitch) <= 1:
+                        # Same note — extend
+                        current_note["pitches"].append((midi_note, cents, clarity))
+                        current_note["energies"].append(energy)
+                    else:
+                        # Different pitch — close current note, start new
+                        notes.append(current_note)
+                        current_note = {
+                            "start_time": t,
+                            "pitches": [(midi_note, cents, clarity)],
+                            "energies": [energy],
+                        }
+        else:
+            # Silence or low clarity — close current note
+            if current_note is not None:
+                notes.append(current_note)
+                current_note = None
+
+    if current_note is not None:
+        notes.append(current_note)
+
+    # Convert note groups to output format
+    result_notes = []
+    for note in notes:
+        if len(note["pitches"]) < 2:
+            continue  # too short — skip
+
+        start_t = note["start_time"]
+        # Duration: number of frames * hop time
+        end_t = start_t + len(note["pitches"]) * hop_size / sample_rate
+        dur = end_t - start_t
+
+        # Average pitch (most common)
+        pitch_counts = {}
+        for p, c, cl in note["pitches"]:
+            pitch_counts[p] = pitch_counts.get(p, 0) + 1
+        avg_pitch = max(pitch_counts, key=pitch_counts.get)
+
+        # Average cents
+        relevant_cents = [c for p, c, cl in note["pitches"] if p == avg_pitch]
+        avg_cents = sum(relevant_cents) / len(relevant_cents) if relevant_cents else 0
+
+        # Velocity from energy
+        avg_energy = sum(note["energies"]) / len(note["energies"])
+        velocity = min(1.0, max(0.1, (avg_energy / 0.1) ** 0.5))
+
+        # Average clarity
+        avg_clarity = sum(cl for _, _, cl in note["pitches"]) / len(note["pitches"])
+
+        start_beat = start_t * beats_per_sec
+
+        result_notes.append({
+            "pitch": avg_pitch,
+            "start_beat": round(start_beat, 4),
+            "start_sec": round(start_t, 4),
+            "duration": round(dur, 4),
+            "velocity": round(velocity, 3),
+            "cents": round(avg_cents),
+            "clarity": round(avg_clarity, 3),
+        })
+
+    return {
+        "notes": result_notes,
+        "bpm": actual_bpm,
+        "note_count": len(result_notes),
+        "duration_seconds": round(duration, 2),
+        "frame_size": frame_size,
+        "hop_size": hop_size,
+    }

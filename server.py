@@ -42,6 +42,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _detect_bpm,
     _detect_key,
     _transcribe_drums,
+    _transcribe_melody,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -6395,6 +6396,118 @@ async def mcp_opendaw_transcribe_drums(
         })
     except Exception as e:
         return _err(f"Drum transcription error: {e}")
+
+@mcp.tool()
+async def mcp_opendaw_transcribe_melody(
+    filename: str,
+    bpm: float = 0,
+    unit_index: int = 0,
+    track_index: int = 0,
+) -> str:
+    """Transcribe monophonic melody from an audio file into MIDI notes on a DAW track.
+
+    Audio-to-MIDI melody transcription — converts a monophonic instrument
+    recording (bass, vocal, lead synth, horn) into MIDI notes. Pure Python,
+    no external deps.
+
+    Pipeline:
+    1. Parse WAV file
+    2. Frame-by-frame autocorrelation pitch detection
+    3. Convert frequency → MIDI pitch (with cents deviation for tuning accuracy)
+    4. Group consecutive similar-pitch frames into sustained notes
+    5. Estimate velocity from frame energy
+    6. Create MIDI notes on the specified track via create_notes_batch
+
+    Use cases:
+    - Extract a bass line from a Suno track → reuse as MIDI
+    - Transcribe a vocal melody → harmonize or transform
+    - Capture a horn line → arrange for other instruments
+    - Convert any monophonic audio to editable MIDI
+
+    filename: WAV file name (in exports dir) or absolute path.
+    bpm: Tempo for beat conversion (0 = auto-detect via detect_bpm).
+    unit_index: AU index with note tracks.
+    track_index: Track to place transcribed notes.
+
+    Returns: notes created, note count, bpm, duration, average clarity.
+
+    Example:
+      # Transcribe a bass line from a Suno track
+      result = transcribe_melody("suno_bass.wav", bpm=120)
+      # Auto-detect BPM
+      result = transcribe_melody("vocal.wav")  # bpm=0 → auto-detect
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        channels = wav["channels"]
+        sr = wav["sample_rate"]
+
+        # Auto-detect BPM if not provided
+        actual_bpm = bpm
+        if not bpm or bpm <= 0:
+            bpm_result = _detect_bpm(channels, sr)
+            actual_bpm = bpm_result["bpm"]
+
+        # Transcribe melody
+        result = _transcribe_melody(channels, sr, bpm=actual_bpm)
+
+        if not result["notes"]:
+            return json.dumps({
+                "success": True,
+                "notes_created": 0,
+                "bpm": actual_bpm,
+                "duration_seconds": result["duration_seconds"],
+                "message": "No pitched content detected"
+            })
+
+        # Convert to DAW note format
+        daw_notes = []
+        for n in result["notes"]:
+            daw_notes.append({
+                "pitch": n["pitch"],
+                "start": n["start_beat"],
+                "duration": n["duration"],
+                "velocity": n["velocity"],
+            })
+
+        notes_result = await mcp_opendaw_create_notes_batch(
+            json.dumps(daw_notes), unit_index, track_index)
+
+        try:
+            notes_data = json.loads(notes_result)
+        except Exception:
+            notes_data = {"raw": notes_result}
+
+        # Average clarity across all notes
+        avg_clarity = sum(n["clarity"] for n in result["notes"]) / len(result["notes"])
+
+        return json.dumps({
+            "success": True,
+            "notes_created": len(daw_notes),
+            "bpm": actual_bpm,
+            "note_count": result["note_count"],
+            "duration_seconds": result["duration_seconds"],
+            "avg_clarity": round(avg_clarity, 3),
+            "track_index": track_index,
+            "unit_index": unit_index,
+            "notes_result": notes_data.get("notes_created", len(daw_notes)),
+            "first_notes": result["notes"][:5],  # preview
+        })
+    except Exception as e:
+        return _err(f"Melody transcription error: {e}")
 
 @mcp.tool()
 async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: int = 3) -> str:
