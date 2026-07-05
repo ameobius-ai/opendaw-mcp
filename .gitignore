@@ -25,3 +25,5 @@ mcp-publisher
 opendaw_mcp.egg-info/
 dist/
 build/
+.vite/
+uv.lock
