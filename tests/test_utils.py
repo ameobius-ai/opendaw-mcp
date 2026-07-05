@@ -4316,3 +4316,99 @@ class TestSvfDSP:
     def test_process_method(self):
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
+
+
+class TestChorderDSP:
+    """Unit tests for spielwerk_chorder.js — chord voicer MIDI effect"""
+
+    SCRIPT = "spielwerk_chorder.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@spielwerk chorder" in code, "Missing @spielwerk chorder header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_chord_param(self):
+        params = self._parse_params(self._read_script())
+        c = [p for p in params if p["name"] == "chord"][0]
+        assert c["min"] == 0 and c["max"] == 12 and c["type"] == "int"
+
+    def test_voicing_param(self):
+        params = self._parse_params(self._read_script())
+        v = [p for p in params if p["name"] == "voicing"][0]
+        assert v["min"] == 0 and v["max"] == 4 and v["type"] == "int"
+
+    def test_inversion_param(self):
+        params = self._parse_params(self._read_script())
+        i = [p for p in params if p["name"] == "inversion"][0]
+        assert i["min"] == 0 and i["max"] == 3 and i["type"] == "int"
+
+    def test_strum_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "strum"][0]
+        assert s["min"] == 0 and s["max"] == 64 and s["type"] == "int"
+
+    def test_spread_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "spread"][0]
+        assert s["min"] == 0 and s["max"] == 24 and s["type"] == "int"
+
+    def test_chord_shapes_count(self):
+        code = self._read_script()
+        assert "[0, 4, 7]" in code, "Missing major triad shape"
+        assert "[0, 3, 7, 10]" in code, "Missing min7 shape"
+        assert "[0, 4, 7, 11]" in code, "Missing maj7 shape"
+        assert "[0, 3, 6, 9]" in code, "Missing dim7 shape"
+        assert "[0, 2, 7]" in code, "Missing sus2 shape"
+        assert "[0, 5, 7]" in code, "Missing sus4 shape"
+        assert "[0, 4, 7, 14]" in code, "Missing add9 shape"
+
+    def test_voicing_modes(self):
+        code = self._read_script()
+        assert "drop-2" in code, "Missing drop-2 voicing"
+        assert "drop-3" in code, "Missing drop-3 voicing"
+        assert "open" in code, "Missing open voicing"
+        assert "spread" in code, "Missing spread voicing"
+
+    def test_inversion_rotation(self):
+        code = self._read_script()
+        assert "shift()" in code, "Missing inversion rotation"
+        assert "+ 12" in code, "Missing octave shift for inversion"
+
+    def test_generator_process(self):
+        code = self._read_script()
+        assert "*process" in code, "Missing generator process method"
+        assert "yield" in code, "Missing yield (should be a generator)"
+
+    def test_pitch_range_guard(self):
+        code = self._read_script()
+        assert "p >= 0 && p <= 127" in code, "Missing pitch range guard"
+
+    def test_velocity_attenuation(self):
+        code = self._read_script()
+        assert "i * 0.04" in code, "Missing per-voice velocity attenuation"
+
+    def test_strum_position_offset(self):
+        code = self._read_script()
+        assert "i * strumAmt" in code, "Missing strum position offset"
+
+    def test_reset(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"

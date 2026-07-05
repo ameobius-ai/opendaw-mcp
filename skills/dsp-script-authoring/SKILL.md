@@ -557,7 +557,7 @@ process(io, block) {
 | `apparat_fm.js` | 2-op FM | carrier + modulator + feedback |
 | `apparat_supersaw.js` | Supersaw (7-voice) | 7 detuned saws + per-voice stereo pan + resonant LPF |
 
-### Spielwerk (8 MIDI effects)
+### Spielwerk (10 MIDI effects)
 
 | Script | Pattern | Key technique |
 |--------|---------|---------------|
@@ -570,6 +570,7 @@ process(io, block) {
 | `spielwerk_scale_quantizer.js` | Scale quantizer | 14 scales + nearest-note snap |
 | `spielwerk_harmonizer.js` | MIDI harmonizer | 3 voices, diatonic/fixed, 14 scales |
 | `spielwerk_prob_gate.js` | Probability gate | LCG note dropping, 3 modes, hold momentum, forced pass zones |
+| `spielwerk_chorder.js` | Chord voicer | 13 chord shapes, 5 voicings (close/drop2/drop3/open/spread), 4 inversions |
 
 ## Creating .opb Presets from Scripts
 

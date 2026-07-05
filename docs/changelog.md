@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.100.0 (2026-07-05)
+
+- **`spielwerk_chorder.js` DSP script (81 DSP, 10 Spielwerk)** — chord voicer MIDI effect: 13 chord shapes (major/minor/maj7/min7/dom7/dim/dim7/half-dim/aug/sus2/sus4/add9/m6), 5 voicing modes (close/drop-2/drop-3/open/spread), 4 inversions via rotation, octave shift, spread spacing, strum delay between voices, per-voice velocity attenuation. 7 params (chord/voicing/inversion/octave/spread/strum/velScale). 81 DSP scripts, 10 Spielwerk MIDI effects
+- **956 unit tests** (+15), E2E 8/8
+
 ## v1.99.0 (2026-07-05)
 
 - **`create_cross_rhythm` orchestration tool (311 MCP tools)** — cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar into n+m parts), cross-rhythm gives each voice its own period in beats — voices cycle independently, only realigning at LCM of all periods. 2-6 voices, velocity attenuation per voice, alignment interval (LCM) reported. African cross-rhythms, Steve Reich, Talking Heads, minimalism. 311 MCP tools
