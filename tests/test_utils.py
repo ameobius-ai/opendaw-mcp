@@ -5388,3 +5388,119 @@ class TestBowedStringDSP:
     def test_reset_method(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
+class TestAutoTuneDSP:
+    """Unit tests for werkstatt_auto_tune.js — pitch detection + correction"""
+
+    def _read_script(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_auto_tune.js")) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)
+            })
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt auto_tune" in code, "Missing @werkstatt header"
+
+    def test_label(self):
+        code = self._read_script()
+        assert "Auto-Tune" in code or "Pitch Correction" in code, "Missing label"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_param_names(self):
+        params = self._parse_params(self._read_script())
+        names = [p["name"] for p in params]
+        assert "key" in names, "Missing key param"
+        assert "scale" in names, "Missing scale param"
+        assert "retune" in names, "Missing retune param"
+        assert "strength" in names, "Missing strength param"
+        assert "mix" in names, "Missing mix param"
+        assert "output" in names, "Missing output param"
+
+    def test_key_param_type(self):
+        params = self._parse_params(self._read_script())
+        key = [p for p in params if p["name"] == "key"][0]
+        assert key["type"] == "int", f"key should be int, got {key['type']}"
+        assert key["min"] == 0 and key["max"] == 11, "key range should be 0-11"
+
+    def test_scale_param_type(self):
+        params = self._parse_params(self._read_script())
+        scale = [p for p in params if p["name"] == "scale"][0]
+        assert scale["type"] == "int", f"scale should be int, got {scale['type']}"
+        assert scale["min"] == 0 and scale["max"] == 6, "scale range should be 0-6"
+
+    def test_output_param_type(self):
+        params = self._parse_params(self._read_script())
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["type"] == "linear", f"output should be linear, got {out['type']}"
+
+    def test_scales_table(self):
+        code = self._read_script()
+        assert "SCALES" in code, "Missing SCALES table"
+        assert "[0,1,2,3,4,5,6,7,8,9,10,11]" in code, "Missing chromatic scale"
+        assert "[0,2,4,5,7,9,11]" in code, "Missing major scale"
+        assert "[0,2,3,5,7,10,12]" in code, "Missing minor scale"
+
+    def test_autocorrelation(self):
+        code = self._read_script()
+        assert "_detectPitch" in code, "Missing pitch detection method"
+        assert "bestLag" in code, "Missing lag tracking"
+
+    def test_parabolic_interpolation(self):
+        code = self._read_script()
+        assert "parabolic" in code.lower() or "y1" in code, "Missing parabolic interpolation"
+
+    def test_freq_to_midi(self):
+        code = self._read_script()
+        assert "_freqToMidi" in code, "Missing freqToMidi"
+        assert "69 + 12 * Math.log2" in code, "Missing standard freq-to-midi formula"
+
+    def test_midi_to_freq(self):
+        code = self._read_script()
+        assert "_midiToFreq" in code, "Missing midiToFreq"
+        assert "440 * Math.pow(2" in code, "Missing standard midi-to-freq formula"
+
+    def test_snap_to_scale(self):
+        code = self._read_script()
+        assert "_snapToScale" in code, "Missing snapToScale method"
+        assert "intervals" in code, "Missing intervals reference in snap"
+
+    def test_pitch_shift(self):
+        code = self._read_script()
+        assert "_processPitchShift" in code or "_pitchShift" in code, "Missing pitch shift method"
+        assert "psRatio" in code, "Missing pitch ratio"
+
+    def test_retune_smoothing(self):
+        code = self._read_script()
+        assert "retuneCoeff" in code, "Missing retune smoothing coefficient"
+        assert "psTargetRatio" in code, "Missing target ratio for smoothing"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10, value / 20)" in code, "Missing dB to linear conversion"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert ".fill(0)" in code, "Missing buffer reset in reset()"

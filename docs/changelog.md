@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.113.0 (2026-07-05)
+
+- **`werkstatt_auto_tune.js` DSP script (91 DSP, 72 Werkstatt)** — auto-tune pitch correction: autocorrelation pitch detection (60-1200 Hz range, parabolic interpolation for sub-sample accuracy) → snap-to-scale correction (7 scales: chromatic/major/minor/dorian/mixolydian/pentatonic minor/blues, 12 root notes) → time-domain pitch shifting via ring buffer with linear interpolation. Retune speed controls hard (robot, T-Pain) vs soft (natural) correction. Strength parameter blends between dry and fully corrected. Detune offset in cents. Cher "Believe" / Antares Auto-Tune style. 7 params (key/scale/retune/strength/detune/mix/output). 91 DSP scripts, 72 Werkstatt
+- **1230 unit tests** (+19)
+
 ## v1.112.0 (2026-07-05)
 
 - **`apparat_bowed_string.js` DSP script (90 DSP, 9 Apparat)** — bowed string physical modeling: digital waveguide with bow friction. Stribeck stick-slip curve models Helmholtz motion (bow sticks, slips, sticks). Two delay lines split at bow position (nut side + bridge side). String velocity = right wave - left wave at bow point. One-pole damping filter in waveguide loop (brightness control). 3 biquad resonators for violin body (280/450/650 Hz). Vibrato with rate/depth. noteOn seeds waveguide with noise. 9 params (bow_pressure/bow_speed/bow_position/freq/brightness/body_resonance/vibrato_rate/vibrato_depth/volume). 90 DSP scripts, 9 Apparat
