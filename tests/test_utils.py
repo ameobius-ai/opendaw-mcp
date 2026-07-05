@@ -5883,3 +5883,133 @@ class TestMatchingEQDSP:
         assert "reset()" in code, "Missing reset method"
         assert ".fill(0)" in code, "Missing buffer reset in reset()"
         assert ".fill(1)" in code, "Missing gain curve reset to 1"
+
+
+class TestSpectralDenoiseDSP:
+    """Unit tests for werkstatt_spectral_denoise.js — noise floor subtraction"""
+
+    def _read_script(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_spectral_denoise.js")) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)
+            })
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt spectral_denoise" in code, "Missing @werkstatt header"
+
+    def test_label(self):
+        code = self._read_script()
+        assert "Denoiser" in code or "Noise" in code, "Missing label"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_param_names(self):
+        params = self._parse_params(self._read_script())
+        names = [p["name"] for p in params]
+        assert "reduction" in names, "Missing reduction param"
+        assert "learn_time" in names, "Missing learn_time param"
+        assert "oversub" in names, "Missing oversub param"
+        assert "floor" in names, "Missing floor param"
+        assert "smoothing" in names, "Missing smoothing param"
+        assert "mix" in names, "Missing mix param"
+        assert "output" in names, "Missing output param"
+
+    def test_output_param_type(self):
+        params = self._parse_params(self._read_script())
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["type"] == "linear", f"output should be linear, got {out['type']}"
+
+    def test_fft_implementation(self):
+        code = self._read_script()
+        assert "_fft" in code, "Missing FFT method"
+        assert "halfLen" in code, "Missing FFT butterfly"
+
+    def test_fft_size(self):
+        code = self._read_script()
+        assert "FFT_SIZE = 1024" in code, "Missing FFT size 1024"
+
+    def test_hann_window(self):
+        code = self._read_script()
+        assert "0.5 * (1 - Math.cos" in code, "Missing Hann window"
+
+    def test_noise_learning(self):
+        code = self._read_script()
+        assert "noiseMag" in code, "Missing noise magnitude accumulation"
+        assert "noiseCount" in code, "Missing noise frame counter"
+        assert "noiseLearned" in code, "Missing noise learned flag"
+        assert "noiseFramesTarget" in code, "Missing noise learning target"
+
+    def test_spectral_subtraction(self):
+        code = self._read_script()
+        assert "noiseBin" in code, "Missing per-bin noise subtraction"
+        assert "oversubFactor" in code, "Missing oversubtraction factor"
+        assert "cleanMag" in code, "Missing clean magnitude computation"
+
+    def test_oversubtraction_range(self):
+        code = self._read_script()
+        # oversub 0→1x, 1→4x
+        assert "1 + this.p.oversub * 3" in code, "Missing oversubtraction range 1-4x"
+
+    def test_spectral_floor(self):
+        code = self._read_script()
+        assert "floorLevel" in code, "Missing spectral floor"
+        assert "minMag" in code, "Missing minimum magnitude from floor"
+
+    def test_half_wave_rectification(self):
+        code = self._read_script()
+        assert "cleanMag < 0" in code, "Missing half-wave rectification"
+        assert "cleanMag = 0" in code, "Missing rectification to zero"
+
+    def test_gain_smoothing(self):
+        code = self._read_script()
+        assert "smoothCoeff" in code, "Missing smoothing coefficient"
+        assert "prevGain" in code, "Missing previous gain for smoothing"
+        assert "smoothedGain" in code, "Missing smoothed gain"
+
+    def test_reduction_amount(self):
+        code = self._read_script()
+        assert "reductionDb" in code, "Missing reduction in dB"
+        assert "reductionGain" in code, "Missing reduction gain factor"
+        assert "-30" in code, "Missing -30 dB max reduction"
+
+    def test_learn_time_range(self):
+        code = self._read_script()
+        assert "0.5 + this.p.learn_time * 9.5" in code, "Missing learn time range 0.5-10s"
+
+    def test_conjugate_symmetry(self):
+        code = self._read_script()
+        assert "N - bin" in code or "mirror" in code, "Missing conjugate symmetry mirror"
+
+    def test_overlap_add(self):
+        code = self._read_script()
+        assert "outBuf" in code, "Missing output buffer for overlap-add"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10, value / 20)" in code, "Missing dB to linear conversion"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert ".fill(0)" in code, "Missing buffer reset in reset()"
+        assert ".fill(1)" in code, "Missing gain reset to 1"

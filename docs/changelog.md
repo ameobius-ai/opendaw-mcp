@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.119.0 (2026-07-05)
+
+- **`werkstatt_spectral_denoise.js` DSP script (95 DSP, 76 Werkstatt)** — spectral denoiser: restoration tool using noise floor subtraction. Two-phase: (1) noise learning — accumulates noise magnitude spectrum from input during 0.5-10s learning period, (2) denoising — per-bin spectral subtraction (Berouti & Schwartz 1979) with oversubtraction factor (1-4x), spectral floor (prevents musical noise), half-wave rectification, gain smoothing. Reduction 0 to -30 dB. iZotope RX Spectral De-noise / CEDAR DNS style — first restoration processor in the library. 7 params (reduction/learn_time/oversub/floor/smoothing/mix/output). 95 DSP scripts, 76 Werkstatt
+- **1353 unit tests** (+22)
+
 ## v1.118.0 (2026-07-05)
 
 - **`create_dembow` orchestration tool (316 MCP tools)** — reggaeton/dancehall dembow rhythm: the 3-3-2 syncopated gallop that drives virtually all reggaeton and Latin dancehall. From Bobby Dixon's "Dembow" riddim (1990 Jamaica) to Daddy Yankee "Gasolina" to Bad Bunny. 5 variants: classic (full gallop), dancehall (sparser), trap_latino (syncopated kick), perreo (ghost hits, underground), urbano (reggaeton+trap fusion). Kick + snare + ghost strokes. 1-bar cycle. 59 orchestration tools. 316 MCP tools
