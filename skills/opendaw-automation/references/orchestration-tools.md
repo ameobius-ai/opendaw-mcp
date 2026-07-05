@@ -152,6 +152,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 139. `displace_rhythm` — rhythmic displacement: shift notes by fixed offset (laid-back/pushed), two modes: shift (add offset, auto-extends region) and circular (rotate pattern within region — new patterns from same material), default 1/16 note, range -4 to 4 beats
 140. `thin_notes` — note density reduction: 3 strategies (interval=keep every Nth, velocity_threshold=remove ghost notes, random=probabilistic removal), preserve_strong_beats keeps beat 1 and 3
 141. `strum_notes` — guitar-style strumming: groups simultaneous notes, offsets by pitch order, 3 directions (down/up/random), configurable speed + jitter for humanization
+142. `constrain_note_range` — pitch range limiting: clamp (hard limit) or octave_wrap (shift by ±12 to fit, preserves pitch class), use for instrument range constraints
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

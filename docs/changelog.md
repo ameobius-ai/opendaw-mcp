@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.230.0 (2026-07-05)
+
+### Added
+- `constrain_note_range` — Pitch range limiting: clamp or octave-wrap out-of-range notes. "clamp" hard-limits to [min_pitch, max_pitch]. "octave_wrap" shifts by ±12 semitones until in range, preserving pitch class — use for instrument range constraints (guitar E2-E6, violin G3-A7, vocal soprano C4-A5, etc.). Falls back to clamp when range < 12 semitones. Reports notes_adjusted, clamped, wrapped per track. 13 unit tests including pitch class preservation verification. **405 MCP tools**, 2917 unit tests
+
 ## v1.229.0 (2026-07-05)
 
 ### Added

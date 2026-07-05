@@ -375,7 +375,7 @@ track_name_mastered/
 ### openDAW MCP
 - Server: `~/projects/creative-studio/agent-daw/opendaw-mcp/server.py`
 - Headless: `~/projects/creative-studio/agent-daw/headless-daw/` (Vite port 5174)
-- 404 MCP tools, 80+ orchestration tools, 111 DSP scripts
+- 405 MCP tools, 80+ orchestration tools, 111 DSP scripts
 - See `opendaw-automation` skill for full API reference (385 tools)
 
 ### DSP Scripts (108 available)
@@ -384,7 +384,7 @@ track_name_mastered/
 - 10 Spielwerk (MIDI effects): arpeggiator, powerchord, chordmemory, strum, velocity, mididelay
 
 ### Related skills
-- `opendaw-automation` — 404 MCP tools API reference
+- `opendaw-automation` — 405 MCP tools API reference
 - `coldwave-mix-mastering` — coldwave-specific session log (F01→F12, Glass.wav)
 - `stem-splitter-local` — SOTA stem separation (Demucs, BS-Roformer, MSST)
 - `songsee` — audio analysis CLI (spectrograms, features)

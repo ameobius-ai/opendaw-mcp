@@ -18614,6 +18614,178 @@ async def mcp_opendaw_strum_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_constrain_note_range(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    min_pitch: int = 0,
+    max_pitch: int = 127,
+    mode: str = "clamp",
+) -> str:
+    """Constrain notes to a pitch range — clamp or octave-wrap out-of-range notes.
+
+    After AI generation, transcription, or aggressive transposition, notes
+    can land outside the playable range of an instrument. This tool brings
+    them back inside.
+
+    Two modes:
+    - "clamp" — notes below min_pitch are set to min_pitch, notes above
+      max_pitch are set to max_pitch. Preserves the note but loses pitch
+      information. Use when exact range matters (e.g. MIDI 0-127 safety).
+    - "octave_wrap" — notes are shifted by octaves (±12 semitones) until
+      they fall within [min_pitch, max_pitch]. Preserves pitch class and
+      musical relationship. Use for instrument range constraints (violin,
+      guitar, vocal, flute). If a note can't fit even after wrapping
+      (range < 12 semitones), it's clamped.
+
+    Common instrument ranges (MIDI note numbers):
+    - Guitar (standard tuning): E2(40) to E6(88)
+    - Bass guitar: E1(28) to G4(67)
+    - Violin: G3(55) to A7(105)
+    - Cello: C2(36) to C6(84)
+    - Flute: C4(60) to D7(98)
+    - Vocal soprano: C4(60) to A5(81)
+    - Vocal bass: E2(40) to E4(64)
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    region_index: Region index (-1 = all regions on the track).
+    min_pitch: Minimum allowed MIDI pitch (0-127, default 0 = no lower bound).
+    max_pitch: Maximum allowed MIDI pitch (0-127, default 127 = no upper bound).
+    mode: "clamp" (hard limit) or "octave_wrap" (shift by octaves to fit).
+
+    Returns per-track notes adjusted, clamped count, wrapped count.
+
+    Example:
+      # Constrain to guitar range with octave wrapping
+      constrain_note_range(unit_index=0, track_index=2, min_pitch=40,
+                           max_pitch=88, mode="octave_wrap")
+
+      # Safety clamp to MIDI range
+      constrain_note_range(mode="clamp", min_pitch=0, max_pitch=127)
+    """
+    if not (0 <= min_pitch <= 127):
+        return "Error: min_pitch must be 0-127"
+    if not (0 <= max_pitch <= 127):
+        return "Error: max_pitch must be 0-127"
+    if min_pitch >= max_pitch:
+        return "Error: min_pitch must be less than max_pitch"
+    if mode not in ("clamp", "octave_wrap"):
+        return f"Error: mode must be 'clamp' or 'octave_wrap', got '{mode}'"
+
+    range_span = max_pitch - min_pitch
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const minP = {min_pitch};
+        const maxP = {max_pitch};
+        const modeStr = "{mode}";
+        const rangeSpan = {range_span};
+
+        const allUnits = h.allAUBoxes();
+        const trackResults = [];
+
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+                    if (noteEvents.length === 0) continue;
+
+                    let adjusted = 0;
+                    let clamped = 0;
+                    let wrapped = 0;
+
+                    h.modify(() => {{
+                        for (const n of noteEvents) {{
+                            const origPitch = n.box.pitch.getValue();
+                            if (origPitch >= minP && origPitch <= maxP) continue;
+                            adjusted++;
+
+                            if (modeStr === "clamp") {{
+                                if (origPitch < minP) {{
+                                    n.box.pitch.setValue(minP);
+                                    clamped++;
+                                }} else if (origPitch > maxP) {{
+                                    n.box.pitch.setValue(maxP);
+                                    clamped++;
+                                }}
+                            }} else {{
+                                // octave_wrap
+                                let pitch = origPitch;
+                                if (rangeSpan >= 12) {{
+                                    // Shift by octaves until in range
+                                    while (pitch < minP) {{
+                                        pitch += 12;
+                                        wrapped++;
+                                    }}
+                                    while (pitch > maxP) {{
+                                        pitch -= 12;
+                                        wrapped++;
+                                    }}
+                                    // If still out (shouldn't happen with span >= 12), clamp
+                                    if (pitch < minP) {{
+                                        pitch = minP;
+                                        clamped++;
+                                    }} else if (pitch > maxP) {{
+                                        pitch = maxP;
+                                        clamped++;
+                                    }}
+                                }} else {{
+                                    // Range too small for octave wrap, clamp
+                                    pitch = Math.max(minP, Math.min(maxP, pitch));
+                                    clamped++;
+                                }}
+                                n.box.pitch.setValue(pitch);
+                            }}
+                        }}
+                    }});
+
+                    trackResults.push({{
+                        unit: u,
+                        track: t,
+                        notes_adjusted: adjusted,
+                        clamped: clamped,
+                        wrapped: wrapped,
+                        min_pitch: minP,
+                        max_pitch: maxP,
+                        mode: modeStr,
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            min_pitch: minP,
+            max_pitch: maxP,
+            mode: modeStr,
+            tracks_processed: trackResults.length,
+            per_track: trackResults,
+            total_adjusted: trackResults.reduce((s, r) => s + r.notes_adjusted, 0),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_force_scale_notes(
     unit_index: int = -1,
     track_index: int = -1,

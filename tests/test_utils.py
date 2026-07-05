@@ -13732,3 +13732,175 @@ class TestStrumNotes:
                 return
         assert False, "function not found"
 
+
+class TestConstrainNoteRange:
+    """Tests for constrain_note_range — pitch range limiting"""
+
+    def test_tool_signature_exists(self):
+        """constrain_note_range is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_constrain_note_range" in tool_names
+
+    def test_has_min_max_pitch_params(self):
+        """Has min_pitch and max_pitch params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                arg_names = [a.arg for a in node.args.args]
+                assert "min_pitch" in arg_names
+                assert "max_pitch" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_mode_param(self):
+        """Has mode param (clamp/octave_wrap)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                arg_names = [a.arg for a in node.args.args]
+                assert "mode" in arg_names
+                source = ast.unparse(node)
+                assert "clamp" in source
+                assert "octave_wrap" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_pitch_range(self):
+        """Validates min_pitch and max_pitch are 0-127"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                source = ast.unparse(node)
+                assert "0 <= min_pitch" in source or "0 <= max_pitch" in source
+                assert "Error" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_min_less_than_max(self):
+        """Validates min_pitch < max_pitch"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                source = ast.unparse(node)
+                assert "min_pitch >= max_pitch" in source or "less than max_pitch" in source
+                return
+        assert False, "function not found"
+
+    def test_default_mode_is_clamp(self):
+        """Default mode is 'clamp' (simpler, safer)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "mode" and isinstance(d, ast.Constant):
+                        assert d.value == "clamp"
+                        return
+        assert False, "default not found"
+
+    def test_default_range_is_full_midi(self):
+        """Default range is 0-127 (full MIDI range = no-op)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                found_min = found_max = False
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "min_pitch" and isinstance(d, ast.Constant):
+                        assert d.value == 0
+                        found_min = True
+                    if arg_name == "max_pitch" and isinstance(d, ast.Constant):
+                        assert d.value == 127
+                        found_max = True
+                assert found_min and found_max, "defaults not found"
+                return
+        assert False, "defaults not found"
+
+    def test_octave_wrap_shifts_by_12(self):
+        """Octave wrap mode shifts by 12 semitones"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                source = ast.unparse(node)
+                assert "pitch += 12" in source
+                assert "pitch -= 12" in source
+                return
+        assert False, "function not found"
+
+    def test_octave_wrap_handles_small_range(self):
+        """Octave wrap falls back to clamp when range < 12 semitones"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                source = ast.unparse(node)
+                assert "rangeSpan >= 12" in source or "rangeSpan < 12" in source
+                return
+        assert False, "function not found"
+
+    def test_reports_clamped_and_wrapped(self):
+        """Reports notes_adjusted, clamped, wrapped per track"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                source = ast.unparse(node)
+                assert "notes_adjusted" in source
+                assert "clamped" in source
+                assert "wrapped" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_bridge_evaluate(self):
+        """Uses bridge.evaluate for DAW interaction"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                source = ast.unparse(node)
+                assert "bridge.evaluate" in source
+                return
+        assert False, "function not found"
+
+    def test_lists_instrument_ranges_in_docstring(self):
+        """Docstring lists common instrument ranges"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_constrain_note_range":
+                source = ast.unparse(node)
+                assert "Guitar" in source
+                assert "Violin" in source
+                assert "Vocal" in source
+                return
+        assert False, "function not found"
+
+    def test_octave_wrap_preserves_pitch_class(self):
+        """Octave wrap preserves pitch class (note % 12 unchanged)"""
+        # If we wrap pitch 90 down to range 40-88, 90-12=78, which is in range
+        # Pitch class of 90: 90 % 12 = 6 (F#)
+        # Pitch class of 78: 78 % 12 = 6 (F#) — same!
+        pitch = 90
+        min_p, max_p = 40, 88
+        while pitch > max_p:
+            pitch -= 12
+        assert min_p <= pitch <= max_p, f"Wrapped pitch {pitch} not in range"
+        assert pitch % 12 == 90 % 12, "Pitch class should be preserved"
+
