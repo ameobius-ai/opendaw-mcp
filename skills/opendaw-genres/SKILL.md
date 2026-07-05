@@ -562,6 +562,7 @@ Three capability layers transform raw arrangements into finished tracks:
    ├── Loop-based?          → create_XXX_arrangement (14 genres)
    ├── Song structure?      → create_genre_sections (8 electronic: intro→buildup→drop→breakdown→outro)
    ├── Varied sections?     → create_arrangement_variation (14 genres: drum density/bass octave/melody transform)
+   ├── Full song w/ vars?   → create_song_with_variations (14 genres: 12 presets, one call)
    └── One-call?            → create_full_genre_pipeline (14 genres, all steps in one call)
 
 2. MIX (effects per track)
@@ -581,6 +582,7 @@ Three capability layers transform raw arrangements into finished tracks:
 | Loop-based section (8-16 bars) | `create_XXX_arrangement` | 14 genres |
 | Full song with DJ structure | `create_genre_sections` | 8 electronic |
 | Varied sections (real transforms) | `create_arrangement_variation` | 14 genres |
+| Full song w/ variations (one call) | `create_song_with_variations` | 14 genres |
 | Zero-to-render in one call | `create_full_genre_pipeline` | 14 genres |
 
 #### Humanization intensity by genre

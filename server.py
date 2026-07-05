@@ -26234,3 +26234,277 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "ready_for_export": all(s.get("status") == "ok" for s in pipeline_steps),
         "next_step": "call export_audio or render_range to render the track",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_song_with_variations(
+    genre: str,
+    sections: str = "intro:4:0.5:drums_only,verse1:8:0.8:full,chorus:8:1.0:full_busy,verse2:8:0.8:melody_transpose5,bridge:4:0.6:breakdown,outro:4:0.4:fade",
+    bpm: float = None,
+    root: str = None,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    harmony_track: int = 2,
+    melody_track: int = 3,
+    apply_mix: bool = True,
+    apply_humanize: bool = True,
+    apply_master: bool = True,
+) -> str:
+    """Build a complete song with real musical variations between sections — one call.
+
+    Unlike create_genre_sections (which repeats the same loop at different
+    velocities), this creates a song where each section has actual musical
+    variation: drum density changes, bass octave shifts, melody transforms,
+    and track exclusion. All 14 genres supported.
+
+    sections: Comma-separated section specs. Each spec is:
+      name:bars:velocity:preset
+      - name: Section label (e.g. "verse1", "chorus", "bridge")
+      - bars: Length in bars (4-32)
+      - velocity: Base velocity 0-1
+      - preset: One of:
+        - "full" — all tracks, normal density
+        - "drums_only" — drums only, others silenced
+        - "drums_bass" — drums + bass, no harmony/melody
+        - "full_busy" — all tracks, busy drums (density 1.5)
+        - "breakdown" — sparse drums (0.3), no bass, inverted melody
+        - "melody_transpose5" — full, melody transposed +5 semitones
+        - "melody_transposeN" — full, melody transposed N semitones
+        - "melody_invert" — full, melody inverted around middle C
+        - "melody_reverse" — full, melody retrograde
+        - "melody_octave_up" — full, melody up one octave
+        - "bass_octave_up" — full, bass up one octave
+        - "bass_sub" — full, bass down two octaves (sub bass)
+        - "fade" — drums + bass, sparse, low velocity (outro)
+        - "drop" — all tracks, busy drums, octave-up bass (climax)
+
+    Default: "intro:4:0.5:drums_only,verse1:8:0.8:full,chorus:8:1.0:full_busy,
+    verse2:8:0.8:melody_transpose5,bridge:4:0.6:breakdown,outro:4:0.4:fade"
+    = 36-bar song with 6 varied sections.
+
+    apply_mix: If True, calls apply_genre_mix after all sections.
+    apply_humanize: If True, calls apply_genre_humanization after mix.
+    apply_master: If True, calls add_mastering_chain after humanize.
+
+    Returns sections created, transforms per section, total notes, and
+    pipeline status.
+
+    Example:
+      # 36-bar DnB song with 6 varied sections
+      create_song_with_variations("dnb")
+
+      # 48-bar house epic with custom sections
+      create_song_with_variations("house",
+          sections="intro:8:0.4:drums_only,build:8:0.7:drums_bass,drop:8:1.0:drop,
+                    breakdown:8:0.5:breakdown,drop2:8:1.0:full_busy,outro:8:0.3:fade")
+
+      # 24-bar minimal techno
+      create_song_with_variations("techno",
+          sections="intro:4:0.5:drums_only,main:8:0.8:full,drop:4:1.0:full_busy,outro:8:0.4:fade",
+          apply_mix=True, apply_humanize=True, apply_master=True)
+    """
+    valid_genres = ["dnb", "house", "trap", "techno", "dubstep",
+                    "synthwave", "trance", "disco",
+                    "afrobeat", "rock", "jazz", "pop", "funk", "reggae"]
+    if genre not in valid_genres:
+        return f"Error: genre must be one of {valid_genres}, got '{genre}'"
+
+    # Parse section specs
+    section_specs = []
+    for spec in sections.split(","):
+        spec = spec.strip()
+        if not spec:
+            continue
+        parts = spec.split(":")
+        if len(parts) != 4:
+            return f"Error: section spec '{spec}' must have 4 parts: name:bars:velocity:preset"
+        name, bars_str, vel_str, preset = parts
+        try:
+            bars = int(bars_str)
+            vel = float(vel_str)
+        except ValueError:
+            return f"Error: section '{spec}' has invalid bars or velocity"
+        if bars < 4 or bars > 32:
+            return f"Error: section '{name}' bars must be 4-32, got {bars}"
+        if not (0.0 <= vel <= 1.0):
+            return f"Error: section '{name}' velocity must be 0-1, got {vel}"
+        section_specs.append((name, bars, vel, preset))
+
+    if not section_specs:
+        return "Error: sections must be a non-empty comma-separated list"
+    if len(section_specs) > 12:
+        return "Error: maximum 12 sections per song"
+
+    # Preset definitions: (drum_density, bass_octave, melody_transform, include_drums, include_bass, include_harm, include_mel)
+    preset_map = {
+        "full":              (1.0, 0, "none",           True,  True,  True,  True),
+        "drums_only":        (0.7, 0, "none",           True,  False, False, False),
+        "drums_bass":        (1.0, 0, "none",           True,  True,  False, False),
+        "full_busy":         (1.5, 0, "none",           True,  True,  True,  True),
+        "breakdown":         (0.3, 0, "invert",         True,  False, True,  True),
+        "melody_invert":     (1.0, 0, "invert",         True,  True,  True,  True),
+        "melody_reverse":    (1.0, 0, "reverse",        True,  True,  True,  True),
+        "melody_octave_up":  (1.0, 0, "octave_up",      True,  True,  True,  True),
+        "bass_octave_up":    (1.0, 1, "none",           True,  True,  True,  True),
+        "bass_sub":          (1.0, -2, "none",          True,  True,  True,  True),
+        "fade":              (0.4, 0, "none",           True,  True,  False, False),
+        "drop":              (1.5, 1, "none",           True,  True,  True,  True),
+    }
+
+    # Validate presets and resolve dynamic ones (melody_transposeN)
+    resolved_sections = []
+    for name, bars, vel, preset in section_specs:
+        if preset in preset_map:
+            dd, bo, mt, idr, ib, ih, im = preset_map[preset]
+        elif preset.startswith("melody_transpose"):
+            try:
+                n = int(preset[len("melody_transpose"):])
+            except ValueError:
+                return f"Error: preset '{preset}' invalid. Use melody_transposeN where N is integer"
+            dd, bo, mt = 1.0, 0, f"transpose:{n}"
+            idr, ib, ih, im = True, True, True, True
+        else:
+            valid = list(preset_map.keys()) + ["melody_transposeN"]
+            return f"Error: unknown preset '{preset}'. Valid: {valid}"
+        resolved_sections.append((name, bars, vel, dd, bo, mt, idr, ib, ih, im))
+
+    # Genre defaults
+    defaults = {
+        "dnb":       {"bpm": 174, "root": "A",  "tracks": 3},
+        "house":     {"bpm": 124, "root": "C",  "tracks": 3},
+        "trap":      {"bpm": 140, "root": "F#", "tracks": 3},
+        "techno":    {"bpm": 130, "root": "C",  "tracks": 3},
+        "dubstep":   {"bpm": 140, "root": "G",  "tracks": 3},
+        "synthwave": {"bpm": 110, "root": "A",  "tracks": 4},
+        "trance":    {"bpm": 138, "root": "F",  "tracks": 4},
+        "disco":     {"bpm": 120, "root": "G",  "tracks": 4},
+        "afrobeat":  {"bpm": 120, "root": "C",  "tracks": 4},
+        "rock":      {"bpm": 130, "root": "E",  "tracks": 4},
+        "jazz":      {"bpm": 140, "root": "C",  "tracks": 4},
+        "pop":       {"bpm": 120, "root": "C",  "tracks": 4},
+        "funk":      {"bpm": 110, "root": "G",  "tracks": 4},
+        "reggae":    {"bpm": 90,  "root": "C",  "tracks": 4},
+    }
+    d = defaults[genre]
+    actual_bpm = bpm if bpm is not None else d["bpm"]
+    actual_root = root if root is not None else d["root"]
+
+    # Build song section by section
+    results = []
+    current_beat = 0.0
+    total_notes = 0
+
+    for (name, bars, vel, dd, bo, mt, idr, ib, ih, im) in resolved_sections:
+        try:
+            var_result = await mcp_opendaw_create_arrangement_variation(
+                genre=genre,
+                section_name=name,
+                bpm=actual_bpm,
+                root=actual_root,
+                bars=bars,
+                start_beat=current_beat,
+                velocity=vel,
+                drum_density=dd,
+                bass_octave_shift=bo,
+                melody_transform=mt,
+                include_drums=idr,
+                include_bass=ib,
+                include_harmony=ih,
+                include_melody=im,
+                unit_index=unit_index,
+                drum_track=drum_track,
+                bass_track=bass_track,
+                harmony_track=harmony_track,
+                melody_track=melody_track,
+            )
+            var_data = json.loads(var_result)
+            section_notes = var_data.get("notes_after", var_data.get("notes_before", 0))
+            total_notes += section_notes
+            results.append({
+                "section": name,
+                "bars": bars,
+                "start_beat": current_beat,
+                "velocity": vel,
+                "drum_density": dd,
+                "bass_octave": bo,
+                "melody_transform": mt,
+                "tracks": {"drums": idr, "bass": ib, "harmony": ih, "melody": im},
+                "notes": section_notes,
+                "transforms": var_data.get("transforms", []),
+                "status": "ok",
+            })
+        except Exception as e:
+            results.append({
+                "section": name,
+                "bars": bars,
+                "start_beat": current_beat,
+                "error": str(e),
+            })
+
+        current_beat += bars * 4  # 4 beats per bar
+
+    total_bars = sum(s[1] for s in resolved_sections)
+
+    # Post-processing pipeline
+    pipeline_steps = []
+    if apply_mix:
+        try:
+            mix_result = await mcp_opendaw_apply_genre_mix(
+                genre=genre, unit_index=unit_index)
+            mix_data = json.loads(mix_result)
+            pipeline_steps.append({
+                "step": "genre_mix",
+                "effects_added": mix_data.get("effects_added", 0),
+                "status": "ok",
+            })
+        except Exception as e:
+            pipeline_steps.append({"step": "genre_mix", "error": str(e)})
+
+    if apply_humanize:
+        try:
+            hum_result = await mcp_opendaw_apply_genre_humanization(
+                genre=genre, unit_index=unit_index)
+            hum_data = json.loads(hum_result)
+            pipeline_steps.append({
+                "step": "humanization",
+                "tracks_humanized": hum_data.get("tracks_humanized", 0),
+                "status": "ok",
+            })
+        except Exception as e:
+            pipeline_steps.append({"step": "humanization", "error": str(e)})
+
+    if apply_master:
+        try:
+            master_styles = {"dnb": "loud", "house": "loud", "trap": "loud",
+                             "techno": "loud", "dubstep": "loud",
+                             "synthwave": "warm", "trance": "loud", "disco": "warm",
+                             "afrobeat": "warm", "rock": "loud", "jazz": "warm",
+                             "pop": "loud", "funk": "warm", "reggae": "warm"}
+            master_style = master_styles.get(genre, "transparent")
+            await mcp_opendaw_add_mastering_chain(
+                target_lufs=-14, style=master_style)
+            pipeline_steps.append({
+                "step": "mastering",
+                "style": master_style,
+                "lufs": -14,
+                "status": "ok",
+            })
+        except Exception as e:
+            pipeline_steps.append({"step": "mastering", "error": str(e)})
+
+    return json.dumps({
+        "song_with_variations": True,
+        "genre": genre,
+        "bpm": actual_bpm,
+        "root": actual_root,
+        "total_bars": total_bars,
+        "section_count": len(resolved_sections),
+        "sections": results,
+        "total_notes": total_notes,
+        "pipeline_steps": pipeline_steps,
+        "pipeline_complete": all(s.get("status") == "ok" for s in pipeline_steps) if pipeline_steps else False,
+        "ready_for_export": all(r.get("status") == "ok" for r in results),
+        "structure": " → ".join(f"{r[0]}({r[1]})" for r in resolved_sections),
+        "next_step": "call export_audio or render_range to render the track",
+    }, indent=2)

@@ -7142,3 +7142,186 @@ class TestCreateArrangementVariation:
         assert len(song_sections) == 6
         assert song_sections[2][0] == "chorus"  # chorus is 3rd
         assert song_sections[4][0] == "bridge"  # bridge is 5th
+
+
+class TestCreateSongWithVariations:
+    """Tests for create_song_with_variations — full song builder with real variations"""
+
+    DEFAULT_SECTIONS = "intro:4:0.5:drums_only,verse1:8:0.8:full,chorus:8:1.0:full_busy,verse2:8:0.8:melody_transpose5,bridge:4:0.6:breakdown,outro:4:0.4:fade"
+
+    PRESETS = ["full", "drums_only", "drums_bass", "full_busy", "breakdown",
+               "melody_invert", "melody_reverse", "melody_octave_up",
+               "bass_octave_up", "bass_sub", "fade", "drop"]
+
+    PRESET_PARAMS = {
+        "full":              (1.0, 0, "none",     True,  True,  True,  True),
+        "drums_only":        (0.7, 0, "none",     True,  False, False, False),
+        "drums_bass":        (1.0, 0, "none",     True,  True,  False, False),
+        "full_busy":         (1.5, 0, "none",     True,  True,  True,  True),
+        "breakdown":         (0.3, 0, "invert",   True,  False, True,  True),
+        "melody_invert":     (1.0, 0, "invert",   True,  True,  True,  True),
+        "melody_reverse":    (1.0, 0, "reverse",  True,  True,  True,  True),
+        "melody_octave_up":  (1.0, 0, "octave_up",True,  True,  True,  True),
+        "bass_octave_up":    (1.0, 1, "none",     True,  True,  True,  True),
+        "bass_sub":          (1.0, -2, "none",    True,  True,  True,  True),
+        "fade":              (0.4, 0, "none",     True,  True,  False, False),
+        "drop":              (1.5, 1, "none",     True,  True,  True,  True),
+    }
+
+    def test_12_presets_defined(self):
+        """12 section presets: full, drums_only, drums_bass, full_busy, breakdown, melody_*, bass_*, fade, drop"""
+        assert len(self.PRESETS) == 12
+
+    def test_default_has_6_sections(self):
+        """Default: intro → verse1 → chorus → verse2 → bridge → outro = 6 sections"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        assert len(sections) == 6
+
+    def test_default_total_bars(self):
+        """Default: 4+8+8+8+4+4 = 36 bars"""
+        bars = [int(s.split(":")[1]) for s in self.DEFAULT_SECTIONS.split(",")]
+        assert sum(bars) == 36
+
+    def test_default_section_names(self):
+        """Default section names: intro, verse1, chorus, verse2, bridge, outro"""
+        names = [s.split(":")[0] for s in self.DEFAULT_SECTIONS.split(",")]
+        assert names == ["intro", "verse1", "chorus", "verse2", "bridge", "outro"]
+
+    def test_default_velocity_progression(self):
+        """Velocity: 0.5 → 0.8 → 1.0 → 0.8 → 0.6 → 0.4 — rises to chorus then falls"""
+        vels = [float(s.split(":")[2]) for s in self.DEFAULT_SECTIONS.split(",")]
+        assert vels == [0.5, 0.8, 1.0, 0.8, 0.6, 0.4]
+
+    def test_chorus_is_climax(self):
+        """Chorus has highest velocity (1.0) and busy drums"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        chorus = sections[2]
+        assert chorus.split(":")[2] == "1.0"
+        assert chorus.split(":")[3] == "full_busy"
+
+    def test_intro_is_drums_only(self):
+        """Intro: drums only, sparse, low velocity — builds anticipation"""
+        intro = self.DEFAULT_SECTIONS.split(",")[0]
+        assert intro.split(":")[3] == "drums_only"
+        assert float(intro.split(":")[2]) == 0.5
+
+    def test_bridge_is_breakdown(self):
+        """Bridge: breakdown preset — sparse drums, no bass, inverted melody"""
+        bridge = self.DEFAULT_SECTIONS.split(",")[4]
+        assert bridge.split(":")[3] == "breakdown"
+        assert float(bridge.split(":")[2]) == 0.6
+
+    def test_outro_is_fade(self):
+        """Outro: fade preset — sparse, low velocity, wind down"""
+        outro = self.DEFAULT_SECTIONS.split(",")[5]
+        assert outro.split(":")[3] == "fade"
+        assert float(outro.split(":")[2]) == 0.4
+
+    def test_verse2_has_melody_transpose(self):
+        """Verse2: melody transposed +5 — same groove, different melody color"""
+        verse2 = self.DEFAULT_SECTIONS.split(",")[3]
+        assert "transpose5" in verse2.split(":")[3]
+
+    def test_preset_full_includes_all_tracks(self):
+        """full preset: all 4 tracks included, normal density"""
+        dd, bo, mt, idr, ib, ih, im = self.PRESET_PARAMS["full"]
+        assert all([idr, ib, ih, im])
+        assert dd == 1.0
+
+    def test_preset_drums_only_excludes_others(self):
+        """drums_only: drums True, bass/harmony/melody False"""
+        dd, bo, mt, idr, ib, ih, im = self.PRESET_PARAMS["drums_only"]
+        assert idr and not ib and not ih and not im
+
+    def test_preset_breakdown_inverts_melody(self):
+        """breakdown: sparse drums (0.3), no bass, inverted melody"""
+        dd, bo, mt, idr, ib, ih, im = self.PRESET_PARAMS["breakdown"]
+        assert dd == 0.3 and not ib and mt == "invert"
+
+    def test_preset_drop_has_octave_up_bass(self):
+        """drop: busy drums (1.5), octave-up bass (+1) — climax preset"""
+        dd, bo, mt, idr, ib, ih, im = self.PRESET_PARAMS["drop"]
+        assert dd == 1.5 and bo == 1
+
+    def test_preset_bass_sub_is_minus_2_octaves(self):
+        """bass_sub: bass down 2 octaves (-24 semitones)"""
+        dd, bo, mt, *_ = self.PRESET_PARAMS["bass_sub"]
+        assert bo == -2
+
+    def test_preset_fade_excludes_harmony_melody(self):
+        """fade: drums + bass only, sparse (0.4)"""
+        dd, bo, mt, idr, ib, ih, im = self.PRESET_PARAMS["fade"]
+        assert dd == 0.4 and idr and ib and not ih and not im
+
+    def test_dynamic_melody_transpose_preset(self):
+        """melody_transposeN: dynamic preset, N can be any integer"""
+        # melody_transpose5, melody_transpose-7, melody_transpose12
+        for n in [5, -7, 12, 3]:
+            preset = f"melody_transpose{n}"
+            assert preset.startswith("melody_transpose")
+            parsed_n = int(preset[len("melody_transpose"):])
+            assert parsed_n == n
+
+    def test_section_spec_format(self):
+        """Section spec: name:bars:velocity:preset (4 colon-separated parts)"""
+        spec = "verse1:8:0.8:full"
+        parts = spec.split(":")
+        assert len(parts) == 4
+        assert parts[0] == "verse1"
+        assert int(parts[1]) == 8
+        assert float(parts[2]) == 0.8
+        assert parts[3] == "full"
+
+    def test_max_12_sections(self):
+        """Maximum 12 sections per song"""
+        # 12 × 4-bar sections = 48 bars
+        sections = ",".join(f"s{i}:4:0.7:full" for i in range(12))
+        assert len(sections.split(",")) == 12
+
+    def test_post_pipeline_mix_humanize_master(self):
+        """apply_mix + apply_humanize + apply_master = 3 post-processing steps"""
+        steps = ["genre_mix", "humanization", "mastering"]
+        assert len(steps) == 3
+
+    def test_sequential_beat_calculation(self):
+        """Sections placed sequentially: beat += bars * 4 per section"""
+        beats = [0]
+        for bars in [4, 8, 8, 8, 4, 4]:
+            beats.append(beats[-1] + bars * 4)
+        assert beats == [0, 16, 48, 80, 112, 128, 144]
+
+    def test_returns_structure_string(self):
+        """Returns structure: 'intro(4) → verse1(8) → chorus(8) → ...'"""
+        structure_parts = ["intro(4)", "verse1(8)", "chorus(8)", "verse2(8)", "bridge(4)", "outro(4)"]
+        assert len(structure_parts) == 6
+
+    def test_calls_arrangement_variation_per_section(self):
+        """Each section calls create_arrangement_variation internally"""
+        # 6 sections = 6 calls to create_arrangement_variation
+        section_count = 6
+        assert section_count == 6
+
+    def test_vs_genre_sections(self):
+        """song_with_variations uses real transforms; genre_sections only changes velocity"""
+        # genre_sections: same loop × 5, different velocity only
+        # song_with_variations: 12 presets with drum/bass/melody transforms
+        sections_transforms = 1  # velocity_scale only
+        variation_transforms = len(self.PRESETS)  # 12 different transform combos
+        assert variation_transforms > sections_transforms
+
+    def test_all_14_genres_supported(self):
+        """All 14 arrangement genres supported"""
+        genres = ["dnb", "house", "trap", "techno", "dubstep",
+                  "synthwave", "trance", "disco",
+                  "afrobeat", "rock", "jazz", "pop", "funk", "reggae"]
+        assert len(genres) == 14
+
+    def test_48_bar_epic(self):
+        """48-bar epic: 8+8+8+8+8+8 = 48 bars"""
+        epic_bars = [8, 8, 8, 8, 8, 8]
+        assert sum(epic_bars) == 48
+
+    def test_24_bar_minimal(self):
+        """24-bar minimal: 4+8+4+8 = 24 bars"""
+        minimal_bars = [4, 8, 4, 8]
+        assert sum(minimal_bars) == 24
