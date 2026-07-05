@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.121.0 (2026-07-05)
+
+- **Complete DSP documentation rewrite** — docs/dsp-scripts.md now lists all 95 scripts (76 Werkstatt + 9 Apparat + 10 Spielwerk) organized by category. Previously listed only ~30 scripts with wrong section headers ("40 Werkstatt"). Every script now has its name, label, and description. Categories: dynamics (10), saturation (8), EQ (5), filter (8), modulation (8), reverb (5), delay (5), pitch (5), time (3), stereo/spatial (4), spectral/fx (8), restoration (1), physical modeling (1), vocoder (1), phase vocoder (2), utility (4), vocal (1), instruments (9), MIDI effects (10). 65% of the library was previously invisible in docs.
+
 ## v1.120.0 (2026-07-05)
 
 - **`create_boom_bap` orchestration tool (317 MCP tools)** — boom-bap hip-hop drum pattern: the foundational beat of hip-hop. "boom" = kick, "bap" = snare. 5 variants: classic (90s, Nas/Illmatic), old_school (80s, Run-DMC), trap (rolling hats, Migos), lofi (laid-back, J Dilla), drill (UK, Central Cee). Kick + snare + hi-hat + ghost strokes. 2-bar cycle. From Run-DMC to Kendrick Lamar. 60 orchestration tools. 317 MCP tools

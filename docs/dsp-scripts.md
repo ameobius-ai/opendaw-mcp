@@ -2,160 +2,251 @@
 
 95 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 40 scripts
+## Werkstatt (Audio Effects) — 76 scripts
 
-| Script | Description | Parameters |
-|--------|-------------|------------|
-| `werkstatt_darksat.js` | Tape saturation / drive | drive, bias, tone, mix, output |
-| `werkstatt_waveshaper.js` | Custom-curve waveshaper (tanh/cubic/atan/Chebyshev) | drive, curve, bias, harmonics, tone, output, mix |
-| `werkstatt_moog_ladder.js` | Moog ladder filter 24dB/oct (4-stage, feedback resonance, 3 modes) | cutoff, resonance, drive, warmth, mode, mix |
-| `werkstatt_rotary_speaker.js` | Leslie rotary speaker (dual horn+rotor, Doppler, amplitude mod) | speed, depth, crossover, horn_level, rotor_level, acceleration, mix |
-| `werkstatt_coldfold.js` | Wavefolding + bitcrush | drive, fold, crush, slew, mix |
-| `werkstatt_overdrive.js` | Asymmetric soft-clip overdrive | drive, tone, level, mix |
-| `werkstatt_stereo_delay.js` | Stereo ping-pong delay | time, feedback, tone, mix |
-| `werkstatt_multifilter.js` | Chamberlin SVF (LP/HP/BP/Notch) | mode, freq, resonance, mix |
-| `werkstatt_compressor.js` | Soft-knee peak compressor | threshold, ratio, attack, release, makeup, mix, knee |
-| `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix |
-| `werkstatt_limiter.js` | Brickwall limiter w/ lookahead | ceiling, release, lookahead, dither, mix |
-| `werkstatt_exciter.js` | Harmonic exciter (band-split) | freq, harmonics, drive, mix, output |
-| `werkstatt_deesser.js` | De-esser (dynamic HF compressor) | freq, threshold, ratio, attack, release, mix, output |
-| `werkstatt_transient.js` | Transient shaper (dual envelope) | attack, sustain, mix, output |
-| `werkstatt_stereowidth.js` | Stereo width (M/S processor) | width, lowTrim, lowFreq, mix, output |
-| `werkstatt_multiband_imager.js` | Multiband stereo imager (3-band LR4 crossover, per-band M/S width, mono bass, link mode) | crossover1, crossover2, low_width, mid_width, high_width, bypass_low, link, mix, output |
-| `werkstatt_convolution_reverb.js` | Convolution reverb (generated stereo IR, early reflections + noise tail) | room_size, decay, damping, predelay, early_late, width, mix, output |
-| `werkstatt_gated_reverb.js` | Gated reverb (80s drum, Schroeder + envelope gate on dry input) | decay, predelay, damping, width, threshold, hold, release, mix, output |
-| `werkstatt_reverse_delay.js` | Reverse delay (reads buffer backwards, fade ramps, feedback) | time, feedback, levels, pan, fade, damping, mix, output |
-| `werkstatt_freq_shifter.js` | Frequency shifter (SSB, Hilbert transform, inharmonic shift) | shift, direction, feedback, mix, output |
-| `werkstatt_bass_enhancer.js` | Bass enhancer (psychoacoustic, MaxxBass style, sub-harmonic generation) | freq, sub_level, direct_level, harmonics, attack, release, mix, output |
-| `werkstatt_tilt_eq.js` | Tilt EQ (single-knob spectral balance, low+high shelf pair) | tilt, pivot, steepness, mix, output |
-| `werkstatt_svf.js` | State variable filter (Chamberlin, LP/BP/HP morph, notch, allpass) | cutoff, resonance, morph, output_mode, drive, mix, output |
-| `werkstatt_dynamic_eq.js` | Dynamic EQ (3 bands, envelope-followed peaking) | band1-3 freq/gain/Q/threshold/range, attack, release, mix, output |
-| `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix |
-| `werkstatt_reverb.js` | Algorithmic reverb | room, decay, damp, mix |
-| `werkstatt_chorus.js` | Stereo chorus | rate, depth, mix |
-| `werkstatt_phaser.js` | Phaser | rate, depth, feedback, mix |
-| `werkstatt_flanger.js` | Flanger | rate, depth, feedback, mix |
-| `werkstatt_tremolo.js` | Tremolo | rate, depth, shape, mix |
-| `werkstatt_vibrato.js` | Pitch vibrato (modulated delay) | rate, depth, shape, stereo |
-| `werkstatt_shimmer.js` | Shimmer reverb (pitch-shifted tail) | pitch, decay, mix |
-| `werkstatt_pitch_shift.js` | Pitch shifter | semitones, mix |
-| `werkstatt_granular_stretch.js` | Granular time stretch | grain_size, density, pitch |
-| `werkstatt_paulstretch.js` | Paulstretch extreme stretch | stretch, mix |
-| `werkstatt_spectral_freezer.js` | Spectral freeze | freeze, mix |
-| `werkstatt_allpass.js` | Allpass filter | frequency, feedback |
-| `werkstatt_dcremover.js` | DC blocker | — |
-| `werkstatt_envfollower.js` | Envelope follower | attack, release, threshold |
-| `werkstatt_noisegate.js` | Noise gate | threshold, attack, release, range |
-| `werkstatt_ringmod_env.js` | Ring modulator with envelope | frequency, depth, mix |
-| `werkstatt_adsr_trim.js` | ADSR-based trim | attack, decay, sustain, release |
-| `werkstatt_bitcrusher.js` | Standalone bitcrusher (quantize + rate reduce) | bits, rate, drive, offset, mix |
-| `werkstatt_spring_reverb.js` | Spring reverb (dispersive, boing) | decay, damp, tension, boing, mix |
-| `werkstatt_tube_saturator.js` | Tube/valve saturator (even harmonics, bias) | drive, warmth, bias, tone, output, mix |
-| `werkstatt_tape_delay.js` | Tape delay (wow/flutter, feedback saturation) | time, feedback, wow, flutter, saturation, mix |
-| `werkstatt_multitap_delay.js` | Multitap delay (4 taps, per-tap pan/fb, spread) | tap1-4_time/level/pan/fb, spread, damping, mix |
-| `werkstatt_dimension_chorus.js` | Dimension chorus (Roland D, dual LFO, no fb) | rate_l, rate_r, depth, center, phase_offset, width, brightness, mix |
-| `werkstatt_autowah.js` | Autowah (envelope-followed filter, 3 modes) | mode, base_freq, sweep_range, sensitivity, attack, release, resonance, direction, smooth, mix |
-| `werkstatt_graphic_eq.js` | 10-band graphic EQ (ISO frequencies, biquad peaking) | band_32, band_64, band_125, band_250, band_500, band_1k, band_2k, band_4k, band_8k, band_16k, master |
-| `werkstatt_auto_pan.js` | Auto-pan (LFO stereo positioning, waveform morph) | rate, depth, shape, phase, width, offset |
-| `werkstatt_comb_filter.js` | Comb filter (delay-line feedback, polarity, damping) | freq, feedback, damping, mix, polarity |
-| `werkstatt_formant_filter.js` | Formant filter (3-band vocal tract, vowel presets) | formant_a/b/c, bandwidth_a/b/c, vowel, resonance, mix |
-| `werkstatt_harmonizer.js` | Dual-voice harmonizer (pitch shift + detune) | shift1/2_semi, shift1/2_cent, shift1/2_gain, detune, delay, mix |
-| `werkstatt_octaver.js` | Octaver (sub-octave generator, Boss OC-2 style) | oct1, oct2, direct, smooth, track, trigger, output |
-| `werkstatt_fuzz.js` | Fuzz (Big Muff Pi style, hard clip + octave-up + tone stack) | sustain, tone, octave, gate, bias, level, dry, output |
-| `werkstatt_tape_stop.js` | Tape stop (exponential slow-down, pitch drop, state machine) | stop_time, trigger, restart, curve, wow, flutter, flutter_rate, mix, output |
-| `werkstatt_multiband_comp.js` | 3-band multiband compressor (LR4 crossover, per-band dynamics) | crossover1/2, low/mid/high × threshold/ratio/attack/release/gain, mix |
-| `werkstatt_vocoder.js` | Channel vocoder (bandpass bank, spectral envelope mapping) | bands, carrier_wave, carrier_freq, mod_response, mod_threshold, band_q, emphasis, highpass, mix, output |
-| `werkstatt_reverse.js` | Real-time reverse (chunked buffer, variable speed, trigger modes) | chunk_size, feedback, speed, smooth, dry_gain, wet_gain, mix, stereo_mode, trigger_mode, output |
-| `werkstatt_scratch.js` | DJ vinyl scratch (turntable physics, wow/flutter, crackle) | depth, rate, pullback, friction, wow, flutter, flutter_rate, crackle, mix, output |
-| `werkstatt_looper.js` | Live looper with overdub (record/play/overdub, reverse, variable speed) | loop_length, feedback, overdub, play_mode, speed, reverse_mode, monitor, fade_edges, mix, output |
-| `werkstatt_spectral_gate.js` | Multiband spectral gate (bandpass bank, per-band envelope gating) | bands, threshold, reduction, attack, release, min_freq, max_freq, tilt, mix, output |
+### Dynamics (10)
 
-## Apparat (Instruments) — 7 scripts
+| Script | Description |
+|--------|-------------|
+| `werkstatt_compressor.js` | Compressor |
+| `werkstatt_lookahead.js` | Lookahead Compressor |
+| `werkstatt_limiter.js` | Brickwall Limiter |
+| `werkstatt_exciter.js` | Harmonic Exciter |
+| `werkstatt_deesser.js` | De-Esser |
+| `werkstatt_transient.js` | Transient Shaper |
+| `werkstatt_noisegate.js` | Noise Gate |
+| `werkstatt_multiband_comp.js` | Multiband Compressor |
+| `werkstatt_bass_enhancer.js` | Bass Enhancer (Psychoacoustic) |
+| `werkstatt_expander.js` | Downward Expander |
 
-| Script | Description | Parameters |
-|--------|-------------|------------|
-| `apparat_darkbass.js` | Sub bass synthesizer | oscillator, envelope, filter |
-| `apparat_coldlead.js` | Cold lead synth | oscillator, envelope, filter |
-| `apparat_subcrusher.js` | Sub crusher (distorted bass) | oscillator, distortion, envelope |
-| `apparat_fm.js` | FM synthesis | carrier, modulator, ratio, depth |
-| `apparat_ringmod.js` | Ring modulation synth | carrier, modulator, depth |
-| `apparat_pluck.js` | Karplus-Strong plucked string | decay, damping, brightness, attack, release, detune, volume |
-| `apparat_wavetable.js` | Wavetable synth (8 tables, scan, unison) | pos, pos_lfo_rate, pos_lfo_depth, detune, unison, attack, decay, sustain, release, volume |
-| `apparat_supersaw.js` | Supersaw synth (7 detuned saws, stereo pan, resonant LP) | detune, spread, cutoff, resonance, attack, decay, sustain, release, volume |
+### Saturation/Distortion (8)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_darksat.js` | Dark Saturation |
+| `werkstatt_overdrive.js` | Overdrive |
+| `werkstatt_coldfold.js` | Cold Fold Distortion |
+| `werkstatt_bitcrusher.js` | Bitcrusher |
+| `werkstatt_tube_saturator.js` | Tube Saturator |
+| `werkstatt_waveshaper.js` | Waveshaper |
+| `werkstatt_fuzz.js` | Fuzz (Big Muff Pi / Fuzz Face style) |
+| `werkstatt_multiband_saturator.js` | Multiband Saturator |
+
+### EQ (5)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_paraeq.js` | Parametric EQ |
+| `werkstatt_graphic_eq.js` | Graphic EQ |
+| `werkstatt_dynamic_eq.js` | Dynamic EQ |
+| `werkstatt_tilt_eq.js` | Tilt EQ |
+| `werkstatt_matching_eq.js` | Matching EQ (Spectral Balance Corrector) |
+
+### Filter (8)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_multifilter.js` | Multi-Mode Filter |
+| `werkstatt_allpass.js` | Allpass Filter |
+| `werkstatt_dcremover.js` | DC Remover + Stereo Tool |
+| `werkstatt_comb_filter.js` | Comb Filter |
+| `werkstatt_formant_filter.js` | Formant Filter |
+| `werkstatt_moog_ladder.js` | Moog Ladder Filter |
+| `werkstatt_autowah.js` | Autowah |
+| `werkstatt_svf.js` | State Variable Filter (Chamberlin) |
+
+### Modulation (8)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_chorus.js` | Stereo Chorus |
+| `werkstatt_flanger.js` | Stereo Flanger |
+| `werkstatt_phaser.js` | Phaser |
+| `werkstatt_tremolo.js` | Tremolo |
+| `werkstatt_vibrato.js` | Pitch Vibrato |
+| `werkstatt_rotary_speaker.js` | Rotary Speaker (Leslie) |
+| `werkstatt_dimension_chorus.js` | Dimension Chorus |
+| `werkstatt_harmonic_tremolo.js` | Harmonic Tremolo (Fender) |
+
+### Reverb (5)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_reverb.js` | Plate Reverb |
+| `werkstatt_shimmer.js` | Shimmer Delay |
+| `werkstatt_spring_reverb.js` | Spring Reverb |
+| `werkstatt_convolution_reverb.js` | Convolution Reverb |
+| `werkstatt_gated_reverb.js` | Gated Reverb (80s Drum) |
+
+### Delay (5)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_stereo_delay.js` | Stereo Delay |
+| `werkstatt_tape_delay.js` | Tape Delay |
+| `werkstatt_multitap_delay.js` | Multitap Delay |
+| `werkstatt_reverse_delay.js` | Reverse Delay |
+| `werkstatt_grain_delay.js` | Grain Delay |
+
+### Pitch (5)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_pitch_shift.js` | Pitch Shifter |
+| `werkstatt_ringmod_env.js` | Ring Modulator (Envelope-Followed) |
+| `werkstatt_harmonizer.js` | Harmonizer |
+| `werkstatt_octaver.js` | Octaver (Sub-Octave Generator) |
+| `werkstatt_freq_shifter.js` | Frequency Shifter (SSB) |
+
+### Time (3)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_granular_stretch.js` | Granular Time-Stretch |
+| `werkstatt_paulstretch.js` | PaulStretch (Extreme Ambient Stretch) |
+| `werkstatt_tape_stop.js` | Tape Stop |
+
+### Stereo/Spatial (4)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_stereowidth.js` | Stereo Width (M/S) |
+| `werkstatt_auto_pan.js` | Auto-Pan |
+| `werkstatt_multiband_imager.js` | Multiband Stereo Imager |
+| `werkstatt_binaural.js` | Binaural Spatial Panner (HRTF) |
+
+### Spectral/FX (8)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_spectral_freezer.js` | Spectral Freeze (Sustain a spectral frame) |
+| `werkstatt_reverse.js` | Reverse |
+| `werkstatt_scratch.js` | Scratch |
+| `werkstatt_looper.js` | Looper |
+| `werkstatt_spectral_gate.js` | Spectral Gate |
+| `werkstatt_vinyl.js` | Vinyl Simulator |
+| `werkstatt_spectral_compressor.js` | Spectral Compressor (STFT) |
+| `werkstatt_spectral_denoise.js` | Spectral Denoiser (Noise Floor Subtraction) |
+
+### Restoration (1)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_spectral_denoise.js` | Spectral Denoiser (Berouti spectral subtraction, noise floor learning, oversubtraction, musical noise prevention) |
+
+### Physical Modeling (1)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_modal_resonator.js` | Modal Resonator (marimba/bell/plate/string/wine glass) |
+
+### Vocoder (1)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_vocoder.js` | Vocoder |
+
+### Phase Vocoder / Pitch-Shifting (2)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_phase_vocoder.js` | Phase Vocoder (FFT Pitch Shifter — Élastique/Melodyne quality) |
+| `werkstatt_time_stretch.js` | Phase Vocoder Time Stretch (preserves pitch, transient detection) |
+
+### Utility (4)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_adsr_trim.js` | ADSR Envelope Trim |
+| `werkstatt_envfollower.js` | Envelope Follower (with sidechain ducking) |
+| `werkstatt_auto_tune.js` | Auto-Tune (Pitch Correction — Cher/T-Pain style) |
+
+### Vocal (1)
+
+| Script | Description |
+|--------|-------------|
+| `werkstatt_auto_tune.js` | Auto-Tune (autocorrelation pitch detection + snap-to-scale + time-domain pitch shift) |
+
+## Apparat (Instruments) — 9 scripts
+
+| Script | Description |
+|--------|-------------|
+| `apparat_darkbass.js` | Dark Bass (waveform, cutoff, resonance, envelope) |
+| `apparat_coldlead.js` | Cold Lead (subtractive synth) |
+| `apparat_subcrusher.js` | SubCrusher Bass (distorted sub bass) |
+| `apparat_pluck.js` | Plucked String (Karplus-Strong) |
+| `apparat_fm.js` | FM Synth (2-operator) |
+| `apparat_ringmod.js` | Ring Modulator Synth |
+| `apparat_wavetable.js` | Wavetable Synth (8 tables, scan + LFO, unison) |
+| `apparat_supersaw.js` | Supersaw (7 detuned saws, JP-8000 style) |
+| `apparat_bowed_string.js` | Bowed String (waveguide + Stribeck bow friction) |
 
 ## Spielwerk (MIDI Effects) — 10 scripts
 
-| Script | Description | Parameters |
-|--------|-------------|------------|
-| `spielwerk_arpeggiator.js` | Arpeggiator | rate, octave, pattern |
-| `spielwerk_powerchord.js` | Powerchord generator | interval, voicing |
-| `spielwerk_chordmemory.js` | Chord memory | chord_type, voicing |
-| `spielwerk_mididelay.js` | MIDI delay | time, feedback, mix |
-| `spielwerk_strum.js` | Strum simulator | speed, direction |
-| `spielwerk_velocity.js` | Velocity processor | curve, min, max |
-| `spielwerk_scale_quantizer.js` | Scale quantizer (14 scales, 12 roots) | scale, root, direction |
-| `spielwerk_harmonizer.js` | MIDI harmonizer (3 voices, diatonic/fixed, 14 scales) | interval1-3, vel1-3, mode, key_root, scale |
-| `spielwerk_prob_gate.js` | Probability gate (subtractive, LCG note dropping) | chance, variation, seed, mode, min_pitch, max_pitch, velocity_boost, hold |
-| `spielwerk_chorder.js` | Chord voicer (13 shapes, 5 voicings, 4 inversions) | chord, voicing, inversion, octave, spread, strum, velScale |
+| Script | Description |
+|--------|-------------|
+| `spielwerk_arpeggiator.js` | Arpeggiator (rate, octave, pattern) |
+| `spielwerk_chordmemory.js` | Chord Memory (hold chords) |
+| `spielwerk_mididelay.js` | MIDI Delay (echo MIDI notes) |
+| `spielwerk_powerchord.js` | Power Chord (root + fifth) |
+| `spielwerk_strum.js` | Strummer (simulate guitar strumming) |
+| `spielwerk_velocity.js` | Velocity Scaler (adjust note velocities) |
+| `spielwerk_scale_quantizer.js` | Scale Quantizer (14 scales, 12 roots, snap direction) |
+| `spielwerk_harmonizer.js` | MIDI Harmonizer (3 voices, 14 scales) |
+| `spielwerk_prob_gate.js` | Probability Gate (subtractive MIDI — random note removal) |
+| `spielwerk_chorder.js` | Chorder (13 chord types, 5 voicing modes, 4 inversions, strum delay) |
 
 ## Using DSP scripts
 
 ```python
-# Load a Werkstatt script onto an effect
-with open("scripts/werkstatt_darksat.js") as f:
-    code = f.read()
+# Load a DSP script into a Werkstatt device
+import json
+code = open("scripts/werkstatt_compressor.js").read()
+await mcp.call("set_script_device_code", {
+    "device_type": "werkstatt",
+    "unit_index": 0,
+    "device_index": 0,
+    "code": code
+})
 
-await server.mcp_opendaw_add_effect(unit_index=0, effect_type="Werkstatt")
-await server.mcp_opendaw_set_script_device_code(
-    unit_index=0, effect_index=0, code=code
-)
-
-# Tweak parameters
-await server.mcp_opendaw_set_script_param(
-    unit_index=0, effect_index=0, param_name="drive", value=0.7
-)
+# Set a parameter
+await mcp.call("set_script_param", {
+    "device_type": "werkstatt",
+    "unit_index": 0,
+    "device_index": 0,
+    "param_label": "threshold",
+    "value": 0.5
+})
 ```
-
-## Writing your own
 
 DSP scripts use the Werkstatt/Apparat/Spielwerk processor API:
 
 ```javascript
-// @werkstatt myEffect 1 1
-// @param {float} gain 0.5 0 1 "Gain"
-// @param {float} drive 0.3 0 1 "Drive"
-// @param {bool} bypass false "Bypass"
+// @werkstatt my_effect 1 1
+// @param gain 0.5 0 1 linear
 
-function processAudio(inputs, outputs, parameters) {
-    const input = inputs[0];
-    const output = outputs[0];
+class Processor {
+  p = {gain: 0.5}
+  sr = sampleRate
 
-    for (let ch = 0; ch < input.length; ch++) {
-        const inCh = input[ch];
-        const outCh = output[ch];
-        const gain = parameters.gain[ch];
-        const drive = parameters.drive[ch];
+  paramChanged(name, value) {
+    this.p[name] = value
+  }
 
-        for (let i = 0; i < inCh.length; i++) {
-            let sample = inCh[i] * gain;
-            // Tanh approximation for soft clipping
-            sample = Math.tanh(sample * (1 + drive * 5));
-            outCh[i] = sample;
-        }
+  processAudio(inputs, outputs) {
+    const input = inputs[0]
+    const output = outputs[0]
+    for (let ch = 0; ch < output.length; ch++) {
+      const inCh = input[ch] || input[0]
+      const outCh = output[ch]
+      for (let i = 0; i < outCh.length; i++) {
+        outCh[i] = inCh[i] * this.p.gain
+      }
     }
+  }
+
+  reset() {
+    // Clear state
+  }
 }
 ```
-
-### Key APIs
-
-| API | Description |
-|-----|-------------|
-| `processAudio(inputs, outputs, parameters)` | Audio processing callback |
-| `paramChanged(name, value)` | Called when a parameter changes |
-| `this.sampleRate` | Audio sample rate (44100 or 48000) |
-| `this.blockSize` | Audio block size (128) |
-| `inputs[ch][sample]` | Input audio (Float32Array) |
-| `outputs[ch][sample]` | Output audio (Float32Array) |
-| `parameters.name[ch]` | Parameter values per channel |
-
-→ See [Scriptable Devices](tools/scriptable.md) for the full API reference.
