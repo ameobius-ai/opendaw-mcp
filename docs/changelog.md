@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.107.0 (2026-07-05)
+
+- **`werkstatt_expander.js` DSP script (86 DSP, 68 Werkstatt)** — downward expander: compressor complement, attenuates signals below threshold. Ratio controls expansion strength (1:1→20:1), range caps max attenuation (0→-60 dB), soft knee for smooth transition, stereo linked detection, attack/release smoothing. At ratio=∞ becomes a gate. Used for noise reduction, drum transient enhancement, spill cleanup. 8 params (threshold/ratio/attack/release/range/mix/knee/output). 86 DSP scripts, 68 Werkstatt
+- **1117 unit tests** (+76)
+
 ## v1.106.0 (2026-07-05)
 
 - **`create_euclidean_rhythm` orchestration tool (313 MCP tools)** — Euclidean rhythm generator: Björklund's algorithm distributes k onsets across n steps maximally evenly. Generates most of the world's classic rhythms: E(3,8)=tresillo, E(5,8)=cinquillo, E(7,16)=samba, E(7,12)=bembé, E(4,9)=Aksak, E(3,7)=Persian. Rotation shifts pattern clockwise. Accents on first onset per bar. Returns pattern as binary string and E(k,n) notation. 313 MCP tools, 56 orchestration

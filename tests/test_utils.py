@@ -4697,6 +4697,116 @@ class TestVinylDSP:
         assert "wetL" in code and "wetR" in code, "Missing stereo processing"
 
 
+class TestExpanderDSP:
+    """Unit tests for werkstatt_expander.js — downward expander"""
+
+    SCRIPT = "werkstatt_expander.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt expander" in code, "Missing @werkstatt expander header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_threshold_param(self):
+        params = self._parse_params(self._read_script())
+        t = [p for p in params if p["name"] == "threshold"][0]
+        assert t["default"] == 0.7 and t["type"] == "linear"
+
+    def test_ratio_param(self):
+        params = self._parse_params(self._read_script())
+        r = [p for p in params if p["name"] == "ratio"][0]
+        assert r["type"] == "linear"
+
+    def test_range_param(self):
+        params = self._parse_params(self._read_script())
+        r = [p for p in params if p["name"] == "range"][0]
+        assert r["default"] == 0.8 and r["type"] == "linear"
+
+    def test_knee_param(self):
+        params = self._parse_params(self._read_script())
+        k = [p for p in params if p["name"] == "knee"][0]
+        assert k["type"] == "linear"
+
+    def test_output_param_db(self):
+        params = self._parse_params(self._read_script())
+        o = [p for p in params if p["name"] == "output"][0]
+        assert o["min"] == -12 and o["max"] == 6 and o["type"] == "linear"
+
+    def test_downward_expansion(self):
+        code = self._read_script()
+        assert "belowDb" in code, "Missing below-threshold detection"
+        assert "ratioNum - 1" in code, "Missing ratio application for expansion"
+
+    def test_range_cap(self):
+        code = self._read_script()
+        assert "maxAttenDb" in code, "Missing max attenuation cap"
+        assert "Math.min(gr" in code, "Missing range cap on gain reduction"
+
+    def test_soft_knee(self):
+        code = self._read_script()
+        assert "kneeWidth" in code, "Missing soft knee width"
+        assert "t * " in code, "Missing knee quadratic blend"
+
+    def test_envelope_follower(self):
+        code = self._read_script()
+        assert "this.envL" in code and "this.envR" in code, "Missing envelope state"
+        assert "attackCoeff" in code and "releaseCoeff" in code, "Missing attack/release coefficients"
+
+    def test_attack_release_smoothing(self):
+        code = self._read_script()
+        assert "targetGain < env" in code, "Missing attack/release direction logic"
+
+    def test_stereo_detection(self):
+        code = self._read_script()
+        assert "Math.max(detL, detR)" in code, "Missing stereo linked detection"
+
+    def test_db_conversion(self):
+        code = self._read_script()
+        assert "_dbToGain" in code, "Missing dB-to-gain conversion"
+        assert "_gainToDb" in code, "Missing gain-to-dB conversion"
+        assert "Math.log10" in code, "Missing log10 for dB conversion"
+
+    def test_time_constants(self):
+        code = self._read_script()
+        assert "_msToCoeff" in code, "Missing ms-to-coefficient time constant"
+        assert "Math.exp(-1" in code, "Missing exponential time constant"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "1 - p.mix" in code, "Missing dry gain calculation"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+
+
 class TestGrainDelayDSP:
     """Unit tests for werkstatt_grain_delay.js — granular delay"""
 
