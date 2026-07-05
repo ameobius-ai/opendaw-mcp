@@ -29,6 +29,7 @@ What do you want to create?
 ├── Glissando (scale run) → create_glissando (chromatic/diatonic/pentatonic, any direction, velocity curves)
 ├── Sequence (transposed repeat) → create_sequence (up/down/alternating, baroque/jazz/film score builds)
 ├── Pedal point (sustained bass) → create_pedal_point (bass drone under changing chords, film/organ/rock)
+├── Chorale (SATB voice leading) → create_chorale (4-voice harmony with parallel fifth detection, Bach/vocal/strings)
 ├── Bordun (drone chord) → create_bordun (sustained chord layer, open fifths/octaves, bagpipes/tanpura/ambient)
 ├── Canon (imitation) → create_canon (same melody in 2-6 voices with delayed entry + transposition, Pachelbel/rounds/fugues)
 ├── Comping (rhythmic chords) → create_comping (chord progression × rhythm grid, jazz/funk/reggae/country/neo-soul)

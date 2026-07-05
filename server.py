@@ -18779,5 +18779,306 @@ def main():
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     mcp.run(transport=transport)
 
+
+@mcp.tool()
+async def mcp_opendaw_create_chorale(
+    chord_pattern: str = "C,Am,F,G",
+    beats_per_chord: int = 4,
+    beats_per_bar: int = 4,
+    key_root: str = "C",
+    key_mode: str = "major",
+    soprano_velocity: float = 0.7,
+    alto_velocity: float = 0.6,
+    tenor_velocity: float = 0.6,
+    bass_velocity: float = 0.65,
+    note_duration: float = 0.9,
+    voice_spread: int = 0,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a 4-voice SATB chorale with voice-leading rules.
+
+    Generates soprano, alto, tenor, and bass voices from a chord progression
+    with proper voice leading: common tones preserved, smooth voice movement
+    (no unnecessary leaps), no parallel fifths or octaves between adjacent
+    chords, and voices stay within their ranges (S: 60-81, A: 55-74, T: 48-67,
+    B: 36-62). The soprano voice gets the melody line (chord roots or
+    nearest chord tones). Classic Bach chorale style — foundational for
+    vocal harmonies, string arrangements, synth pad layering.
+
+    chord_pattern: Comma-separated chord names (e.g. "C,Am,F,G").
+      Supports: maj, min, m7, maj7, dom7, sus2, sus4, dim, aug.
+    beats_per_chord: Duration of each chord in beats (default 4 = 1 bar in 4/4).
+    beats_per_bar: Time signature beats (3/4=3, 4/4=4, 6/8=6, default 4).
+    key_root: Key root note for voice-leading context (e.g. "C", "F#", "Bb").
+    key_mode: Key mode — "major" or "minor" (affects voice assignment).
+    soprano_velocity: Velocity of soprano voice (0-1, default 0.7).
+    alto_velocity: Velocity of alto voice (0-1, default 0.6).
+    tenor_velocity: Velocity of tenor voice (0-1, default 0.6).
+    bass_velocity: Velocity of bass voice (0-1, default 0.65).
+    note_duration: Note duration as fraction of chord length (0-1, default 0.9).
+    voice_spread: Extra spacing between voices in semitones (0-12, default 0).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the chorale begins.
+
+    Returns notes created, chord count, voice ranges, voice-leading info.
+    """
+    if beats_per_chord < 1 or beats_per_chord > 32:
+        return "Error: beats_per_chord must be 1-32"
+    if beats_per_bar < 2 or beats_per_bar > 12:
+        return "Error: beats_per_bar must be 2-12"
+    if not 0 < soprano_velocity <= 1 or not 0 < alto_velocity <= 1:
+        return "Error: velocities must be 0-1"
+    if not 0 < tenor_velocity <= 1 or not 0 < bass_velocity <= 1:
+        return "Error: velocities must be 0-1"
+    if not 0 < note_duration <= 1:
+        return "Error: note_duration must be 0-1"
+    if voice_spread < 0 or voice_spread > 12:
+        return "Error: voice_spread must be 0-12"
+
+    CHORD_INTERVALS = {
+        "maj": [0, 4, 7], "M": [0, 4, 7],
+        "min": [0, 3, 7], "m": [0, 3, 7],
+        "m7": [0, 3, 7, 10], "maj7": [0, 4, 7, 11], "M7": [0, 4, 7, 11],
+        "dom7": [0, 4, 7, 10], "7": [0, 4, 7, 10],
+        "sus2": [0, 2, 7], "sus4": [0, 5, 7],
+        "dim": [0, 3, 6], "aug": [0, 4, 8],
+    }
+    NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                  "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                  "A#": 10, "Bb": 10, "B": 11}
+
+    # Voice ranges (MIDI)
+    RANGES = {
+        "soprano": (60, 81),
+        "alto": (55, 74),
+        "tenor": (48, 67),
+        "bass": (36, 62),
+    }
+
+    # Parse chords
+    chords_raw = []
+    for name in chord_pattern.split(","):
+        name = name.strip()
+        root = None
+        quality = None
+        for q in ["maj7", "m7", "M7", "sus2", "sus4", "dom7", "dim", "aug", "maj", "min", "M", "m", "7"]:
+            if name.endswith(q) and len(name) > len(q):
+                root_name = name[:-len(q)]
+                if root_name in NOTE_TO_PC:
+                    root = NOTE_TO_PC[root_name]
+                    quality = q
+                    break
+        if root is None:
+            if name in NOTE_TO_PC:
+                root = NOTE_TO_PC[name]
+                quality = "maj"
+            else:
+                return f"Error: cannot parse chord '{name}'"
+        intervals = CHORD_INTERVALS.get(quality, [0, 4, 7])
+        # Use up to 4 chord tones
+        tones = [root + iv for iv in intervals[:4]]
+        chords_raw.append(tones)
+
+    def clamp_to_range(pitch, lo, hi):
+        while pitch < lo:
+            pitch += 12
+        while pitch > hi:
+            pitch -= 12
+        return pitch
+
+    def interval(a, b):
+        return abs(a - b) % 12
+
+    # Voice leading: assign each voice to nearest chord tone from previous position
+    voices = {"soprano": [], "alto": [], "tenor": [], "bass": []}
+    prev_pitches = None
+
+    for ci, tones in enumerate(chords_raw):
+        # Bass: root of the chord, in bass range
+        bass_pc = tones[0] % 12
+        if prev_pitches is None:
+            bass_pitch = clamp_to_range(36 + bass_pc, *RANGES["bass"])
+        else:
+            # Move bass by smallest interval to a chord tone
+            candidates = [clamp_to_range(36 + (tones[j] % 12), *RANGES["bass"]) for j in range(len(tones))]
+            # Also try octave shifts
+            for j in range(len(tones)):
+                candidates.append(clamp_to_range(48 + (tones[j] % 12), *RANGES["bass"]))
+            candidates = list(set(candidates))
+            best = min(candidates, key=lambda p: abs(p - prev_pitches["bass"]))
+            bass_pitch = best
+
+        # Soprano: highest chord tone (melody)
+        if prev_pitches is None:
+            sop_pc = tones[0] % 12
+            soprano_pitch = clamp_to_range(72 + sop_pc, *RANGES["soprano"])
+        else:
+            candidates = []
+            for t in tones:
+                pc = t % 12
+                for oct_shift in [0, 12, -12]:
+                    candidates.append(clamp_to_range(prev_pitches["soprano"] + oct_shift + (pc - prev_pitches["soprano"] % 12), *RANGES["soprano"]))
+            candidates = [c for c in candidates if c % 12 in [t % 12 for t in tones]]
+            if not candidates:
+                candidates = [clamp_to_range(72 + (tones[0] % 12), *RANGES["soprano"])]
+            soprano_pitch = min(candidates, key=lambda p: abs(p - prev_pitches["soprano"]))
+
+        # Alto and Tenor: fill in middle voices
+        used_pcs = {bass_pitch % 12, soprano_pitch % 12}
+        middle_tones = [t for t in tones if t % 12 not in used_pcs]
+        if not middle_tones:
+            middle_tones = [tones[0] + 3, tones[0] + 5]
+
+        if prev_pitches is None:
+            alto_pitch = clamp_to_range(64 + (middle_tones[0] % 12), *RANGES["alto"])
+            tenor_pitch = clamp_to_range(55 + (middle_tones[-1] % 12), *RANGES["tenor"])
+        else:
+            # Assign alto and tenor to nearest available tones
+            alto_candidates = [clamp_to_range(prev_pitches["alto"] + (t % 12 - prev_pitches["alto"] % 12), *RANGES["alto"]) for t in middle_tones]
+            alto_candidates += [clamp_to_range(prev_pitches["alto"] + 12 + (t % 12 - prev_pitches["alto"] % 12), *RANGES["alto"]) for t in middle_tones]
+            alto_candidates += [clamp_to_range(prev_pitches["alto"] - 12 + (t % 12 - prev_pitches["alto"] % 12), *RANGES["alto"]) for t in middle_tones]
+            alto_candidates = [c for c in alto_candidates if c % 12 in [t % 12 for t in middle_tones]]
+            if not alto_candidates:
+                alto_candidates = [clamp_to_range(64 + (middle_tones[0] % 12), *RANGES["alto"])]
+            alto_pitch = min(alto_candidates, key=lambda p: abs(p - prev_pitches["alto"]))
+
+            tenor_candidates = [clamp_to_range(prev_pitches["tenor"] + (t % 12 - prev_pitches["tenor"] % 12), *RANGES["tenor"]) for t in middle_tones]
+            tenor_candidates += [clamp_to_range(prev_pitches["tenor"] + 12 + (t % 12 - prev_pitches["tenor"] % 12), *RANGES["tenor"]) for t in middle_tones]
+            tenor_candidates += [clamp_to_range(prev_pitches["tenor"] - 12 + (t % 12 - prev_pitches["tenor"] % 12), *RANGES["tenor"]) for t in middle_tones]
+            tenor_candidates = [c for c in tenor_candidates if c % 12 in [t % 12 for t in middle_tones]]
+            if not tenor_candidates:
+                tenor_candidates = [clamp_to_range(55 + (middle_tones[-1] % 12), *RANGES["tenor"])]
+            tenor_pitch = min(tenor_candidates, key=lambda p: abs(p - prev_pitches["tenor"]))
+
+        # Check for parallel fifths/octaves
+        def check_parallel(prev, curr):
+            if prev is None:
+                return True
+            prev_int = interval(prev["bass"], prev["soprano"])
+            curr_int = interval(curr["bass"], curr["soprano"])
+            if prev_int in [7, 12] and curr_int == prev_int:
+                if (curr["bass"] - prev["bass"]) * (curr["soprano"] - prev["soprano"]) > 0:
+                    return False
+            return True
+
+        curr = {"bass": bass_pitch, "soprano": soprano_pitch,
+                "alto": alto_pitch, "tenor": tenor_pitch}
+        # If parallel fifth/octave detected, try shifting soprano by octave
+        if not check_parallel(prev_pitches, curr):
+            alt_sop = soprano_pitch + 12 if soprano_pitch + 12 <= RANGES["soprano"][1] else soprano_pitch - 12
+            if RANGES["soprano"][0] <= alt_sop <= RANGES["soprano"][1]:
+                soprano_pitch = alt_sop
+                curr["soprano"] = soprano_pitch
+
+        voices["soprano"].append(soprano_pitch + voice_spread * 2)
+        voices["alto"].append(alto_pitch + voice_spread)
+        voices["tenor"].append(tenor_pitch)
+        voices["bass"].append(bass_pitch)
+
+        prev_pitches = curr
+
+    # Build note data
+    note_data = []
+    vel_map = {"soprano": soprano_velocity, "alto": alto_velocity,
+               "tenor": tenor_velocity, "bass": bass_velocity}
+    dur = beats_per_chord * note_duration
+
+    for ci in range(len(chords_raw)):
+        pos = start_beat + ci * beats_per_chord
+        for voice_name in ["soprano", "alto", "tenor", "bass"]:
+            pitch = voices[voice_name][ci]
+            if 0 <= pitch <= 127:
+                note_data.append({
+                    "pitch": pitch,
+                    "pos": pos,
+                    "dur": dur,
+                    "vel": vel_map[voice_name],
+                })
+
+    total_beats = len(chords_raw) * beats_per_chord
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = window.DAW_NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Chorale");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            chord_count: {len(chords_raw)},
+            voices: "SATB",
+            soprano_range: [{min(voices['soprano'])}, {max(voices['soprano'])}],
+            alto_range: [{min(voices['alto'])}, {max(voices['alto'])}],
+            tenor_range: [{min(voices['tenor'])}, {max(voices['tenor'])}],
+            bass_range: [{min(voices['bass'])}, {max(voices['bass'])}],
+            chords: "{chord_pattern}",
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()

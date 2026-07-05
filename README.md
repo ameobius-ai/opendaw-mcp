@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-303-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-304-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-56-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-575%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-585%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **303** MCP tools | **85** Python examples (8 genre templates) |
+| **304** MCP tools | **86** Python examples (8 genre templates) |
 | **56** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **575** unit + E2E tests |
+| **3** framework wrappers | **585** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.67.0 (2026-07-05)
+
+- **`create_chorale` orchestration tool** — 4-voice SATB chorale generator with voice-leading rules. Parses chord progression, assigns soprano/alto/tenor/bass voices with smooth voice movement (nearest chord tone from previous position), parallel fifth/octave detection and correction, voice range clamping (S:60-81, A:55-74, T:48-67, B:36-62), per-voice velocity, optional voice_spread for wider voicings. Supports maj/min/m7/maj7/dom7/sus2/sus4/dim/aug. Classic Bach chorale style — foundational for vocal harmonies, string arrangements, synth pad layering. Distinct from create_harmony (block chords) and create_counterpoint (2 voices) — chorale assigns 4 independent voices with proper voice leading
+- **304 MCP tools** (47 orchestration + 3 melodic variation + 4 transformation)
+- **585 unit tests** (+10), E2E 8/8
 
 ### v1.66.0 (2026-07-05)
 

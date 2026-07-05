@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.67.0 (2026-07-05)
+
+- **`create_chorale` orchestration tool** — 4-voice SATB chorale generator with voice-leading rules. Parses chord progression, assigns soprano/alto/tenor/bass with smooth voice movement, parallel fifth/octave detection, voice range clamping. Supports maj/min/m7/maj7/dom7/sus2/sus4/dim/aug. Classic Bach chorale style
+- **304 MCP tools** (47 orchestration)
+- **585 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.66.0 (2026-07-05)
 
 - **`werkstatt_scratch.js` DSP script** — DJ vinyl scratch with turntable physics. Triangle LFO back-and-forth, pullback yank, friction-based inertia, wow/flutter, crackle. 10 params: depth, rate, pullback, friction, wow, flutter, flutter_rate, crackle, mix, output

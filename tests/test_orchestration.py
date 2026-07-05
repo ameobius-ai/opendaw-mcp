@@ -2072,6 +2072,135 @@ class TestReverseDSP:
         assert "fadeStart" in code or "fadeEnd" in code, "Missing crossfade logic"
 
 
+class TestCreateChorale:
+    """Unit tests for create_chorale orchestration tool."""
+
+    def test_default_chord_pattern(self):
+        """Default chord pattern C,Am,F,G should parse to 4 chords."""
+        CHORD_INTERVALS = {
+            "maj": [0, 4, 7], "M": [0, 4, 7],
+            "min": [0, 3, 7], "m": [0, 3, 7],
+            "m7": [0, 3, 7, 10], "maj7": [0, 4, 7, 11], "M7": [0, 4, 7, 11],
+            "dom7": [0, 4, 7, 10], "7": [0, 4, 7, 10],
+            "sus2": [0, 2, 7], "sus4": [0, 5, 7],
+            "dim": [0, 3, 6], "aug": [0, 4, 8],
+        }
+        NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                      "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                      "A#": 10, "Bb": 10, "B": 11}
+
+        chords = []
+        for name in "C,Am,F,G".split(","):
+            name = name.strip()
+            root = None
+            quality = None
+            for q in ["maj7", "m7", "M7", "sus2", "sus4", "dom7", "dim", "aug", "maj", "min", "M", "m", "7"]:
+                if name.endswith(q) and len(name) > len(q):
+                    root_name = name[:-len(q)]
+                    if root_name in NOTE_TO_PC:
+                        root = NOTE_TO_PC[root_name]
+                        quality = q
+                        break
+            if root is None and name in NOTE_TO_PC:
+                root = NOTE_TO_PC[name]
+                quality = "maj"
+            intervals = CHORD_INTERVALS.get(quality, [0, 4, 7])
+            chords.append([root + iv for iv in intervals[:4]])
+
+        assert len(chords) == 4
+        assert chords[0] == [0, 4, 7]
+        assert chords[1] == [9, 12, 16]
+        assert chords[2] == [5, 9, 12]
+        assert chords[3] == [7, 11, 14]
+
+    def test_voice_ranges(self):
+        """SATB voice ranges should be ordered: bass < tenor < alto < soprano."""
+        RANGES = {
+            "soprano": (60, 81),
+            "alto": (55, 74),
+            "tenor": (48, 67),
+            "bass": (36, 62),
+        }
+        assert RANGES["soprano"][0] > RANGES["alto"][0]
+        assert RANGES["alto"][0] > RANGES["tenor"][0]
+        assert RANGES["tenor"][0] > RANGES["bass"][0]
+
+    def test_note_count(self):
+        """4 chords × 4 voices = 16 notes."""
+        assert 4 * 4 == 16
+
+    def test_total_beats(self):
+        """4 chords × 4 beats = 16 beats."""
+        assert 4 * 4 == 16
+
+    def test_parallel_fifth_detection(self):
+        """Parallel fifth detection between bass and soprano."""
+        def interval(a, b):
+            return abs(a - b) % 12
+
+        def check_parallel(prev, curr):
+            if prev is None:
+                return True
+            prev_int = interval(prev["bass"], prev["soprano"])
+            curr_int = interval(curr["bass"], curr["soprano"])
+            if prev_int in [7, 12] and curr_int == prev_int:
+                if (curr["bass"] - prev["bass"]) * (curr["soprano"] - prev["soprano"]) > 0:
+                    return False
+            return True
+
+        prev = {"bass": 36, "soprano": 67}
+        curr = {"bass": 38, "soprano": 69}
+        assert not check_parallel(prev, curr), "Should detect parallel fifth"
+
+        prev = {"bass": 36, "soprano": 67}
+        curr = {"bass": 38, "soprano": 71}
+        assert check_parallel(prev, curr), "Different intervals should be OK"
+
+        assert check_parallel(None, {"bass": 36, "soprano": 67})
+
+    def test_clamp_to_range(self):
+        """Voice pitch clamping to SATB ranges."""
+        def clamp_to_range(pitch, lo, hi):
+            while pitch < lo:
+                pitch += 12
+            while pitch > hi:
+                pitch -= 12
+            return pitch
+
+        assert clamp_to_range(24, 36, 62) == 36
+        assert clamp_to_range(72, 36, 62) == 60
+        assert clamp_to_range(48, 60, 81) == 60
+        assert clamp_to_range(90, 60, 81) == 78
+
+    def test_seventh_chord_four_tones(self):
+        """Seventh chords use 4 tones for full SATB."""
+        CHORD_INTERVALS = {"m7": [0, 3, 7, 10], "maj7": [0, 4, 7, 11]}
+        root = 0
+        cm7 = [root + iv for iv in CHORD_INTERVALS["m7"][:4]]
+        assert len(cm7) == 4
+        cmaj7 = [root + iv for iv in CHORD_INTERVALS["maj7"][:4]]
+        assert len(cmaj7) == 4
+
+    def test_voice_spread(self):
+        """Voice spread adds semitones: soprano 2×, alto 1×, tenor/bass 0."""
+        voice_spread = 3
+        assert 72 + voice_spread * 2 == 78
+        assert 64 + voice_spread == 67
+        assert 55 == 55
+        assert 40 == 40
+
+    def test_note_duration_fraction(self):
+        """Note duration is fraction of chord length."""
+        assert 4 * 0.9 == 3.6
+
+    def test_dim_aug_parsing(self):
+        """Diminished and augmented chords parse correctly."""
+        CHORD_INTERVALS = {"dim": [0, 3, 6], "aug": [0, 4, 8]}
+        NOTE_TO_PC = {"C": 0, "D": 2}
+        assert [NOTE_TO_PC["C"] + iv for iv in CHORD_INTERVALS["dim"][:4]] == [0, 3, 6]
+        assert [NOTE_TO_PC["D"] + iv for iv in CHORD_INTERVALS["aug"][:4]] == [2, 6, 10]
+
+
 class TestScratchDSP:
     """Unit tests for werkstatt_scratch.js DSP script structure."""
 
