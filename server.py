@@ -3416,6 +3416,104 @@ async def mcp_opendaw_invert_notes(unit_index: int, track_index: int, region_ind
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_augment_notes(
+    factor: float,
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    mode: str = "scale",
+) -> str:
+    """Augment or diminish note durations — the fourth classical transformation.
+
+    Multiplies note durations by a factor. Combined with transpose, reverse, and
+    invert, this completes the set of four fundamental motivic transformations
+    used by Bach, Beethoven, and every composition teacher since.
+
+    - factor > 1.0: augmentation (longer notes, slower feel). 2.0 = double duration.
+    - factor < 1.0: diminution (shorter notes, faster feel). 0.5 = half duration.
+    - factor = 1.0: no change (useful for testing).
+
+    Think Beethoven 5th: the opening G-G-G-Eb motif returns augmented (twice as slow)
+    in the recapitulation. Or Bach fugues where the subject appears in diminution
+    (twice as fast) in the finale.
+
+    factor: Duration multiplier (0.25-4.0). 2.0 = augmentation, 0.5 = diminution.
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = all regions on the track).
+    mode: How to handle note positions —
+      "scale" (default): multiply both duration AND position relative to region start.
+        The entire phrase slows down or speeds up — notes stay in sequence.
+      "stretch": multiply only duration, leave positions unchanged.
+        Notes become longer/shorter but don't move — may overlap or leave gaps.
+
+    Returns count of notes augmented and notes skipped (duration too short/long).
+    """
+    if factor < 0.25 or factor > 4.0:
+        return f"Error: factor must be 0.25-4.0, got {factor}"
+    if mode not in ("scale", "stretch"):
+        return f"Error: mode must be 'scale' or 'stretch', got '{mode}'"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const factorVal = {factor};
+        const modeStr = "{mode}";
+
+        let augmented = 0;
+        let skipped = 0;
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const regions = h.regionBoxes(noteTracks[trackIdx]);
+        const targetRegions = regionIdx < 0 ? regions : (regionIdx < regions.length ? [regions[regionIdx]] : []);
+
+        h.modify(() => {{
+            for (const region of targetRegions) {{
+                try {{
+                    const regionPos = region.position.getValue();
+                    const vertex = region.events.targetVertex.unwrap();
+                    const collBox = vertex.box || vertex;
+                    if (!collBox || !collBox.events) continue;
+
+                    const noteEvents = h.eventBoxes(collBox);
+                    for (const evt of noteEvents) {{
+                        const oldDur = evt.duration.getValue();
+                        const newDur = Math.round(oldDur * factorVal);
+                        if (newDur < 1) {{
+                            skipped++;
+                            continue;
+                        }}
+                        evt.duration.setValue(newDur);
+
+                        if (modeStr === "scale") {{
+                            const oldPos = evt.position.getValue();
+                            const relPos = oldPos - regionPos;
+                            const newPos = regionPos + Math.round(relPos * factorVal);
+                            evt.position.setValue(newPos);
+                        }}
+                        augmented++;
+                    }}
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            factor: factorVal,
+            mode: modeStr,
+            notes_augmented: augmented,
+            notes_skipped: skipped,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_delete_note_region(unit_index: int, track_index: int, region_index: int) -> str:
     """Delete a note region from the timeline.
 

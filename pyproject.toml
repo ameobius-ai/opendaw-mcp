@@ -1,7 +1,7 @@
 [project]
 name = "opendaw-mcp"
-version = "1.41.0"
-description = "293 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation"
+version = "1.42.0"
+description = "294 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"

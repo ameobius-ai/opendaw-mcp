@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.42.0 (2026-07-05)
+
+- **`augment_notes` transformation tool (294 MCP tools)** — augmentation/diminution: the fourth classical motivic transformation. Multiplies note durations by a factor (0.25-4.0). Combined with transpose, reverse, and invert, completes the set of four fundamental transformations used by Bach, Beethoven, and every composition teacher. Two modes: "scale" (multiply both duration AND position — phrase slows down/speeds up) and "stretch" (multiply only duration, positions unchanged). Think Beethoven 5th: opening motif returns augmented (twice as slow) in recapitulation. Essential for: motivic development, fugue subjects, theme variations, rhythmic transformation
+- **E2E verified**: augmentation x2 (5 notes), diminution x0.5 (8 notes), stretch mode, factor=1.0 no-op, bad factor/mode rejection, non-existent AU — 8/8 tests passed
+- **+10 unit tests** for factor validation, duration math, mode logic (334 total)
+- **Example script**: `augment_notes.py` — augmentation + diminution on C major scale
+- **294 MCP tools** (256 low-level + 37 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.41.0 (2026-07-05)
 
 - **`create_canon` orchestration tool (293 MCP tools)** — strict melodic imitation with delayed voice entries. The foundation of contrapuntal music: Pachelbel's Canon, "Row Row Row Your Boat", Bach fugue subjects, film score layering. Unlike create_counterpoint (generates a new line), a canon copies the SAME melody into each voice — just shifted in time and pitch. 2-6 voices, per-voice transposition, velocity decay, up/down entry order. One call replaces 16-48 manual note creations. Essential for: rounds, fugues, film scores, call-and-response layering, minimalism

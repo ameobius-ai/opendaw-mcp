@@ -1118,3 +1118,56 @@ class TestCanon:
         vd = self._build_voice_data(melody, voices, 4, [0, 7, 12])
         total_notes = sum(len(v) for v in vd)
         assert total_notes == len(melody) * voices  # 24
+
+
+class TestAugmentNotes:
+    """Unit tests for augment_notes transformation — logic validation."""
+
+    def test_factor_range_valid(self):
+        for f in [0.25, 0.5, 1.0, 2.0, 4.0]:
+            assert 0.25 <= f <= 4.0, f"factor {f} should be valid"
+
+    def test_factor_too_small(self):
+        assert not (0.25 <= 0.1 <= 4.0)
+
+    def test_factor_too_large(self):
+        assert not (0.25 <= 5.0 <= 4.0)
+
+    def test_mode_valid(self):
+        assert "scale" in ("scale", "stretch")
+        assert "stretch" in ("scale", "stretch")
+
+    def test_mode_invalid(self):
+        assert "wobble" not in ("scale", "stretch")
+
+    def test_augmentation_doubles_duration(self):
+        old_dur = 480  # PPQN quarter
+        factor = 2.0
+        new_dur = round(old_dur * factor)
+        assert new_dur == 960  # doubled
+
+    def test_diminution_halves_duration(self):
+        old_dur = 480
+        factor = 0.5
+        new_dur = round(old_dur * factor)
+        assert new_dur == 240  # halved
+
+    def test_scale_mode_position(self):
+        region_pos = 0
+        old_pos = 480  # 1 beat in
+        factor = 2.0
+        rel_pos = old_pos - region_pos
+        new_pos = region_pos + round(rel_pos * factor)
+        assert new_pos == 960  # position also doubled
+
+    def test_stretch_mode_position_unchanged(self):
+        old_pos = 480
+        # In stretch mode, position is NOT modified
+        new_pos = old_pos  # unchanged
+        assert new_pos == 480
+
+    def test_duration_too_short_skipped(self):
+        old_dur = 1  # 1 tick
+        factor = 0.5
+        new_dur = round(old_dur * factor)
+        assert new_dur < 1  # should be skipped

@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-293 MCP tools for headless openDAW control via Playwright bridge.
+294 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -129,6 +129,7 @@
 - `transpose_notes` — Transpose all notes by a number of semitones. Supports region_index and skips out-of-range notes.
 - `reverse_notes` — Reverse note order in a region (retrograde). Positions mirrored, durations/velocities preserved.
 - `invert_notes` — Invert melody around a pitch axis (mirror reflection). newPitch = 2*axis - oldPitch.
+- `augment_notes` — Augment or diminish note durations by a factor (0.25-4.0). The fourth classical transformation. "scale" mode (phrase slows/speeds) or "stretch" mode (durations only).
 
 ## Note Editing (2)
 - `consolidate_note` — Consolidate a repeated note (playCount > 1) into individual separate notes.
