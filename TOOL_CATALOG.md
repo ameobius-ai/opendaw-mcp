@@ -382,9 +382,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 283 tools**
 
-## DSP Scripts (scripts/) — 64 scripts
+## DSP Scripts (scripts/) — 65 scripts
 
-### Werkstatt (Audio Effects) — 49 scripts
+### Werkstatt (Audio Effects) — 50 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_tube_saturator.js` — Tube saturator (even harmonics, asymmetrical bias, warmth, tone, output, mix)
@@ -431,6 +431,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_transient.js` — Transient shaper, dual envelope (attack, sustain, mix, output)
 - `werkstatt_stereowidth.js` — Stereo width M/S processor (width, lowTrim, lowFreq, mix, output)
 - `werkstatt_convolution_reverb.js` — Convolution reverb (generated stereo IR, early reflections + decaying noise tail, room_size, decay, damping, predelay, early/late balance, width, mix, output)
+- `werkstatt_dynamic_eq.js` — Dynamic EQ (3 bands, peaking biquad + envelope follower, per-band threshold/range, attack/release, mix, output)
 
 ### Apparat (Instruments) — 8 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

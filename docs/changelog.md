@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.81.0 (2026-07-05)
+
+- **`werkstatt_dynamic_eq.js` DSP script** — dynamic EQ: 3 bands, peaking biquad + envelope follower, per-band threshold/range. 65 DSP scripts
+- **771 unit tests** (+9), E2E 8/8
+- ruff clean, CI green
+
 ## v1.80.0 (2026-07-05)
 
 - **`spielwerk_scale_quantizer.js` DSP script** — MIDI scale quantizer: 14 scales, 12 roots, snap direction. Forces notes into scale. 64 DSP scripts

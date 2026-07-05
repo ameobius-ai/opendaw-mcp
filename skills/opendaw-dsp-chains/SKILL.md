@@ -365,7 +365,7 @@ await mcp_opendaw_set_script_param("werkstatt", 0, 3, "lowTrim", 0.5)
 | Modulation | chorus, flanger, phaser, tremolo, vibrato, auto_pan |
 | Reverb | reverb, spring_reverb, shimmer, convolution_reverb |
 | Delay | stereo_delay, tape_delay |
-| EQ | paraeq, graphic_eq |
+| EQ | paraeq, graphic_eq, dynamic_eq |
 | Pitch | pitch_shift, ringmod_env, harmonizer |
 | Time | granular_stretch, paulstretch |
 | Stereo | stereowidth, auto_pan |

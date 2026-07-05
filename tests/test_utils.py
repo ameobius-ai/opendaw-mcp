@@ -2945,3 +2945,75 @@ class TestScaleQuantizerDSP:
     def test_reset_method(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
+class TestDynamicEqDSP:
+    """Unit tests for werkstatt_dynamic_eq.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "werkstatt_dynamic_eq.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt dynamic_eq" in code
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 19, f"Expected 19 params, got {len(params)}"
+
+    def test_three_bands(self):
+        code = self._read_script()
+        assert "band1_freq" in code and "band2_freq" in code and "band3_freq" in code
+        assert "band1_threshold" in code and "band2_threshold" in code and "band3_threshold" in code
+        assert "band1_range" in code and "band2_range" in code and "band3_range" in code
+
+    def test_biquad_peaking(self):
+        code = self._read_script()
+        assert "_peakCoeffs" in code, "Missing peaking biquad coefficient method"
+        assert "b0" in code and "a0" in code, "Missing biquad coefficients"
+
+    def test_detection_filter(self):
+        code = self._read_script()
+        assert "detCoeffs" in code, "Missing detection filter coefficients"
+        assert "detLevel" in code, "Missing detection level computation"
+
+    def test_envelope_follower(self):
+        code = self._read_script()
+        assert "env" in code, "Missing envelope follower state"
+        assert "atkCoef" in code and "relCoef" in code, "Missing attack/release coefficients"
+
+    def test_dynamic_gain(self):
+        code = self._read_script()
+        assert "dynGainDb" in code, "Missing dynamic gain computation"
+        assert "range" in code, "Missing range parameter usage"
+
+    def test_attack_release(self):
+        params = self._parse_params(self._read_script())
+        atk = [p for p in params if p["name"] == "attack"][0]
+        rel = [p for p in params if p["name"] == "release"][0]
+        assert atk["scale"] == "linear"
+        assert rel["scale"] == "linear"
+
+    def test_mix_and_output(self):
+        params = self._parse_params(self._read_script())
+        mix = [p for p in params if p["name"] == "mix"][0]
+        out_p = [p for p in params if p["name"] == "output"][0]
+        assert mix["min"] == 0 and mix["max"] == 1
+        assert out_p["min"] == -12 and out_p["max"] == 12
