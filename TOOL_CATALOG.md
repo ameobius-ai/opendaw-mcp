@@ -127,6 +127,7 @@
 - `set_note_advanced` — Set advanced note properties — chance, cent, playCount, playCurve.
 - `set_note_properties` — Edit properties of a single note within a region.
 - `transpose_notes` — Transpose all notes by a number of semitones. Supports region_index and skips out-of-range notes.
+- `copy_notes_to_track` — Copy notes from one track/region to another — MIDI layering and doubling. Optional transpose (semitones), time_offset (beats), velocity_scale. Use cases: layer drums, create octave harmony, echo/call-and-response, doubles. Cross-AU support via dest_unit_index.
 - `reverse_notes` — Reverse note order in a region (retrograde). Positions mirrored, durations/velocities preserved.
 - `invert_notes` — Invert melody around a pitch axis (mirror reflection). newPitch = 2*axis - oldPitch.
 - `augment_notes` — Augment or diminish note durations by a factor (0.25-4.0). The fourth classical transformation. "scale" mode (phrase slows/speeds) or "stretch" mode (durations only).
@@ -455,7 +456,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 
-**Total: 384 tools**
+**Total: 385 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 

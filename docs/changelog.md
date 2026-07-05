@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.209.0 (2026-07-05)
+
+### Added
+- `copy_notes_to_track` — Copy notes from one track/region to another track. MIDI layering and doubling tool. Optional transpose (semitones), time_offset (beats), velocity_scale for the copied notes. Cross-AU support via dest_unit_index. Use cases: layer drums (copy to second track with different instrument), create harmony (copy melody +12 octave), echo/call-and-response (copy with time_offset), doubles (copy with slight transpose for thickening). Creates notes via NoteEventBox.create in destination region. 9 unit tests. **385 MCP tools**, 2687 unit tests
+
 ## v1.208.0 (2026-07-05)
 
 ### Added

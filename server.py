@@ -3367,6 +3367,138 @@ Returns count of notes transposed and notes skipped (out of MIDI range 0-127).
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_copy_notes_to_track(
+    source_unit_index: int,
+    source_track_index: int,
+    dest_track_index: int,
+    source_region_index: int = -1,
+    dest_unit_index: int = -1,
+    transpose: int = 0,
+    time_offset: float = 0,
+    velocity_scale: float = 1.0,
+) -> str:
+    """Copy notes from one track/region to another track — MIDI layering and doubling.
+
+    Copies all notes from a source region to a destination track's first region.
+    Optional transpose (semitones), time offset (beats), and velocity scaling.
+
+    Use cases:
+    - Layer drums: copy drum track to second track with different instrument
+    - Create harmony: copy melody +12 (octave) or +7 (fifth)
+    - Call-and-response: copy with time_offset to create echo
+    - Doubles: copy to same track position with slight transpose for thickening
+
+    source_unit_index: Source AU index.
+    source_track_index: Source note track index.
+    dest_track_index: Destination note track index.
+    source_region_index: Source region (-1 = first region).
+    dest_unit_index: Destination AU index (-1 = same as source).
+    transpose: Semitone offset (-127 to 127, 0 = same pitch).
+    time_offset: Beat offset for copied notes (0 = same position, 2 = two beats later).
+    velocity_scale: Multiply velocity of copied notes (1.0 = same, 0.7 = quieter layer).
+
+    Returns count of notes copied.
+
+    Example:
+      # Layer drums — copy track 0 to track 2
+      copy_notes_to_track(0, 0, 2)
+      # Create octave harmony — copy melody +12
+      copy_notes_to_track(0, 3, 4, transpose=12, velocity_scale=0.7)
+      # Echo effect — copy 2 beats later at half velocity
+      copy_notes_to_track(0, 0, 1, time_offset=2, velocity_scale=0.5)
+    """
+    if not (-127 <= transpose <= 127):
+        return f"Error: transpose must be -127 to 127, got {transpose}"
+    if not (0.0 <= velocity_scale <= 2.0):
+        return f"Error: velocity_scale must be 0-2, got {velocity_scale}"
+    dest_unit = dest_unit_index if dest_unit_index >= 0 else source_unit_index
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const srcUnitIdx = {source_unit_index};
+        const srcTrackIdx = {source_track_index};
+        const destUnitIdx = {dest_unit};
+        const destTrackIdx = {dest_track_index};
+        const srcRegionIdx = {source_region_index};
+        const semis = {transpose};
+        const tOff = {time_offset};
+        const velScale = {velocity_scale};
+
+        const allUnits = h.allAUBoxes();
+        if (srcUnitIdx < 0 || srcUnitIdx >= allUnits.length) return {{error: "source_unit_index out of range"}};
+        if (destUnitIdx < 0 || destUnitIdx >= allUnits.length) return {{error: "dest_unit_index out of range"}};
+
+        const srcAu = allUnits[srcUnitIdx];
+        const srcTracks = h.trackBoxes(srcAu);
+        if (srcTrackIdx < 0 || srcTrackIdx >= srcTracks.length) return {{error: "source_track_index out of range"}};
+        const srcTrack = srcTracks[srcTrackIdx];
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (srcRegions.length === 0) return {{error: "No regions on source track"}};
+        const srcRegIdx2 = srcRegionIdx < 0 ? 0 : srcRegionIdx;
+        if (srcRegIdx2 >= srcRegions.length) return {{error: "source_region_index out of range"}};
+        const srcRegion = srcRegions[srcRegIdx2];
+
+        const destAu = allUnits[destUnitIdx];
+        const destTracks = h.trackBoxes(destAu);
+        if (destTrackIdx < 0 || destTrackIdx >= destTracks.length) return {{error: "dest_track_index out of range"}};
+        const destTrack = destTracks[destTrackIdx];
+        const destRegions = h.regionBoxes(destTrack);
+        if (destRegions.length === 0) return {{error: "No regions on destination track — create a region first"}};
+        const destRegion = destRegions[0];
+
+        // Read source notes
+        const srcEventsField = srcRegion.events.targetVertex.unwrap();
+        const srcCollBox = srcEventsField.box;
+        const srcNotes = [...srcCollBox.events.pointerHub.incoming()];
+        if (srcNotes.length === 0) return {{error: "No notes in source region"}};
+
+        // Read destination note collection
+        const destEventsField = destRegion.events.targetVertex.unwrap();
+        const destCollBox = destEventsField.box;
+
+        let copied = 0;
+        let skipped = 0;
+
+        h.modify(() => {{
+            for (const n of srcNotes) {{
+                const pitch = n.box.pitch.getValue() + semis;
+                if (pitch < 0 || pitch > 127) {{
+                    skipped++;
+                    continue;
+                }}
+                const pos = n.box.position.getValue() + tOff;
+                const dur = n.box.duration.getValue();
+                const vel = Math.max(0, Math.min(1, n.box.velocity.getValue() * velScale));
+
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(pos));
+                    box.duration.setValue(Math.round(dur));
+                    box.velocity.setValue(vel);
+                    box.pitch.setValue(pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(destCollBox.events);
+                }});
+                copied++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_copied: copied,
+            notes_skipped: skipped,
+            transpose: semis,
+            time_offset: tOff,
+            velocity_scale: velScale,
+            source: {{unit: srcUnitIdx, track: srcTrackIdx, region: srcRegIdx2}},
+            dest: {{unit: destUnitIdx, track: destTrackIdx}},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_reverse_notes(unit_index: int, track_index: int, region_index: int = -1) -> str:
     """Reverse the order of notes in a region — retrograde variation.
 

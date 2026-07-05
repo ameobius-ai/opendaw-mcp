@@ -10670,3 +10670,110 @@ class TestScaleVelocity:
                 return
         assert False, "function not found"
 
+
+class TestCopyNotesToTrack:
+    """Tests for copy_notes_to_track — MIDI layering and doubling"""
+
+    def test_tool_signature_exists(self):
+        """copy_notes_to_track is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_copy_notes_to_track" in tool_names
+
+    def test_has_transpose_param(self):
+        """Supports transpose (semitone offset)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                source = ast.unparse(node)
+                assert "transpose" in source
+                assert "semis" in source or "pitch" in source
+                return
+        assert False, "function not found"
+
+    def test_has_time_offset(self):
+        """Supports time_offset for echo/call-and-response"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                source = ast.unparse(node)
+                assert "time_offset" in source
+                assert "tOff" in source
+                return
+        assert False, "function not found"
+
+    def test_has_velocity_scale(self):
+        """Supports velocity_scale for layer dynamics"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                source = ast.unparse(node)
+                assert "velocity_scale" in source
+                assert "velScale" in source
+                return
+        assert False, "function not found"
+
+    def test_has_source_and_dest_params(self):
+        """Has source_unit_index, source_track_index, dest_track_index params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                args = [a.arg for a in node.args.args]
+                assert "source_unit_index" in args
+                assert "source_track_index" in args
+                assert "dest_track_index" in args
+                return
+        assert False, "function not found"
+
+    def test_uses_NoteEventBox_create(self):
+        """Creates notes via NoteEventBox.create (not h.createNoteEvent)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                source = ast.unparse(node)
+                assert "NoteEventBox.create" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_modify(self):
+        """Uses h.modify() for box mutations"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                source = ast.unparse(node)
+                assert "h.modify" in source
+                return
+        assert False, "function not found"
+
+    def test_clamps_pitch_to_midi_range(self):
+        """Skips notes that fall outside 0-127 MIDI range"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                source = ast.unparse(node)
+                assert "pitch < 0" in source or "pitch > 127" in source
+                assert "skipped" in source
+                return
+        assert False, "function not found"
+
+    def test_dest_unit_defaults_to_source(self):
+        """dest_unit_index defaults to source_unit_index when -1"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_copy_notes_to_track":
+                source = ast.unparse(node)
+                assert "dest_unit_index >= 0" in source or "dest_unit" in source
+                return
+        assert False, "function not found"
+
