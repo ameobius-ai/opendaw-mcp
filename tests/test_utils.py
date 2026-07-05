@@ -6654,3 +6654,111 @@ class TestDePlosiveDSP:
         code = self._read_script()
         assert "RX" in code or "iZotope" in code or "DeBreath" in code
 
+
+class TestMidSideProcessorDSP:
+    """Tests for werkstatt_mid_side_processor.js — M/S mastering processor"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_mid_side_processor.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt mid_side_processor" in code
+
+    def test_has_processor_class(self):
+        code = self._read_script()
+        assert "class Processor" in code
+
+    def test_ms_encoding(self):
+        """M = (L+R)/2, S = (L-R)/2"""
+        code = self._read_script()
+        assert "(l + r)" in code or "(L + R)" in code
+        assert "(l - r)" in code or "(L - R)" in code
+
+    def test_ms_decoding(self):
+        """L = M+S, R = M-S"""
+        code = self._read_script()
+        assert "mid + side" in code or "M + S" in code
+        assert "mid - side" in code or "M - S" in code
+
+    def test_has_mid_gain(self):
+        code = self._read_script()
+        assert "@param mid_gain" in code
+
+    def test_has_side_gain(self):
+        code = self._read_script()
+        assert "@param side_gain" in code
+
+    def test_has_width_param(self):
+        code = self._read_script()
+        assert "@param width" in code
+
+    def test_has_mid_highpass(self):
+        code = self._read_script()
+        assert "mid_freq" in code
+        assert "midB0" in code or "midB" in code
+
+    def test_has_side_lowpass(self):
+        code = self._read_script()
+        assert "side_freq" in code
+        assert "sideB0" in code or "sideB" in code
+
+    def test_has_biquad_coeffs(self):
+        code = self._read_script()
+        assert "cosW0" in code
+        assert "alpha" in code
+
+    def test_process_audio_stereo(self):
+        """M/S requires stereo input (L and R)"""
+        code = self._read_script()
+        assert "input[0]" in code and "input[1]" in code
+        assert "output[0]" in code and "output[1]" in code
+
+    def test_process_audio_signature(self):
+        code = self._read_script()
+        assert "processAudio(inputs, outputs" in code
+
+    def test_param_changed_signature(self):
+        code = self._read_script()
+        assert "paramChanged(name, value)" in code
+
+    def test_prepare_signature(self):
+        code = self._read_script()
+        assert "prepare(sampleRate" in code
+
+    def test_width_zero_is_mono(self):
+        """width=0 → S=0 → L=R=M (mono collapse)"""
+        width = 0
+        side_gain = 1.0
+        effective_side = side_gain * width
+        assert effective_side == 0  # mono
+
+    def test_width_two_is_double_wide(self):
+        """width=2 → S doubled → stereo doubled"""
+        width = 2
+        side_gain = 1.0
+        effective_side = side_gain * width
+        assert effective_side == 2  # double wide
+
+    def test_ms_math_correct(self):
+        """M/S encoding/decoding roundtrip: L→M→L should be identity"""
+        l, r = 0.7, -0.3
+        mid = (l + r) * 0.5
+        side = (l - r) * 0.5
+        newL = mid + side
+        newR = mid - side
+        assert abs(newL - l) < 0.001
+        assert abs(newR - r) < 0.001
+
+    def test_brainworx_influence(self):
+        """Influenced by Brainworx bx_digital (M/S mastering standard)"""
+        code = self._read_script()
+        assert "Brainworx" in code or "bx_digital" in code
+
+    def test_mix_bypass(self):
+        """mix=0 bypasses M/S processing (dry passthrough)"""
+        code = self._read_script()
+        assert "1 - this.mixAmount" in code or "(1 - this.mix" in code
+

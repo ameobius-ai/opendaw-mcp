@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.166.0 (2026-07-05)
+
+- **werkstatt_mid_side_processor.js** — new mastering DSP. Mid/Side encoder/decoder with independent gain and filtering per channel. M = (L+R)/2 (center: vocals, bass, kick), S = (L-R)/2 (stereo: wide instruments, ambience). Mid highpass removes low-end rumble from center, side lowpass tames harsh stereo content. Width control (0=mono collapse, 1=original, 2=double wide). Biquad filters on both channels. Influenced by Brainworx bx_digital. 19 unit tests. 102 DSP scripts, 2211 tests.
+
 ## v1.165.0 (2026-07-05)
 
 - **werkstatt_de_plosive.js** — new restoration DSP. Adaptive highpass filter that detects plosive bursts (P, B, T sounds) in vocals and dynamically engages a biquad highpass only when plosive energy is detected. Clean vocal passes through untouched. Parameters: threshold (detection sensitivity), freq (80-300 Hz cutoff), attack/release (engagement speed), q (resonance), mix. Influenced by iZotope RX De-plosive. 18 unit tests. 101 DSP scripts. 2192 tests.
