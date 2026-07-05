@@ -1,6 +1,6 @@
 ---
 name: suno-to-opendaw
-description: "End-to-end pipeline: Suno AI generation → SOTA stem separation → openDAW import → mix/master → export. The killer workflow that no other MCP server offers. 7 stem-split modes, 263 DAW tools, adaptive mastering. From prompt to finished track."
+description: "End-to-end pipeline: Suno AI generation → download → SOTA stem separation → openDAW import → mix/master → export. The killer workflow that no other MCP server offers. 7 stem-split modes, 372 DAW tools, 108 DSP scripts, adaptive mastering. From prompt to finished track."
 tags: [suno, opendaw, stem-splitting, mix-master, pipeline, e2e, ai-music, workflow]
 ---
 
@@ -75,7 +75,9 @@ Suno возвращает 2 вариации: audio URLs + artwork + lyrics. В�
 ```python
 result = chirp_generate(prompt="...", style="...", title="...")
 # result → [{title, audio_url, image_url, lyric, state}, ...]
-# Download audio_url → WAV/MP3 for next stage
+# Download audio_url → local file for next stage
+await mcp_opendaw_download_audio(url=result[0]["audio_url"], filename="suno_track.wav")
+# → /tmp/suno_track.wav ready for import_audio_to_tracks
 ```
 
 ## Stage 2: Split (Stem Separation)
@@ -126,29 +128,35 @@ mcp_opendaw_split_stems("stems/vocals.wav", mode="dereverb", import_to_daw=True)
 
 ## Stage 3: Import (openDAW)
 
-Stems → openDAW tracks. `split_stems(import_to_daw=True)` auto-imports.
+**One call.** `import_audio_to_tracks` replaces all manual load + create + place calls.
 
-### Manual import (if split was done CLI)
+### Simple import (no stem splitting)
 
 ```python
-# Load each stem
-sample_ids = []
-for stem in ["bass", "drums", "vocals", "other"]:
-    sid = await mcp_opendaw_load_audio(f"stems/{stem}.wav", stem)
-    sample_ids.append(sid)
-
-# Create audio tracks
-for i, stem in enumerate(["bass", "drums", "vocals", "other"]):
-    track_idx = await mcp_opendaw_create_audio_track()
-    await mcp_opendaw_create_audio_region(0, track_idx, sample_ids[i], position=0, duration=...)
+# File → single track in DAW
+await mcp_opendaw_import_audio_to_tracks(file_path="/tmp/suno_track.wav")
+# Returns: {tracks_created: 1, tracks: [{stem: "full", unit_index, track_index, sample_id, duration}]}
 ```
 
-### Auto-import (preferred)
+### Stem-split import (one call = split + create + load + place × N stems)
 
 ```python
-result = await mcp_opendaw_split_stems("track.wav", mode="bs6", import_to_daw=True)
-# Returns: {stems: [{name, path, sample_id}], ...}
-# Each stem already loaded as audio region on a new track
+# File → 6 stems → 6 tracks, each loaded and placed
+await mcp_opendaw_import_audio_to_tracks(
+    file_path="/tmp/suno_track.wav",
+    mode="bs6",      # 6-stem separation
+    start_beat=0,    # position on timeline
+)
+# Returns: {tracks_created: 6, tracks: [{stem: "bass", ...}, {stem: "drums", ...}, ...]}
+```
+
+### Full download-to-import (Suno CDN URL → DAW)
+
+```python
+# S1+S2+S3 in two calls:
+dl = await mcp_opendaw_download_audio(url=suno_audio_url, filename="track.wav")
+imp = await mcp_opendaw_import_audio_to_tracks(file_path="/tmp/track.wav", mode="bs6")
+# → 6 stems in DAW, ready for mixing
 ```
 
 ### Decision Point: Anchor Strategy
@@ -315,45 +323,45 @@ print(f'True peak: {20*np.log10(np.max(np.abs(y))):.1f} dB')
 
 ```python
 import asyncio
-from server import HeadlessDawBridge
+from server import (
+    bridge,
+    mcp_opendaw_download_audio,
+    mcp_opendaw_import_audio_to_tracks,
+    mcp_opendaw_apply_genre_mix,
+    mcp_opendaw_add_mastering_chain,
+    mcp_opendaw_render_full,
+    mcp_opendaw_set_bpm,
+)
 
-async def suno_to_opendaw():
-    bridge = HeadlessDawBridge()
+async def suno_to_opendaw_full(suno_url: str, bpm: float = 120):
+    """Full pipeline: Suno URL → stems → mix → master → render."""
     await bridge.start()
 
-    # S1: Generate (or user provides Suno URL)
-    # ... download Suno audio to /tmp/suno_track.wav ...
+    # S1: Download Suno track
+    dl = await mcp_opendaw_download_audio(url=suno_url, filename="suno_track.wav")
+    path = dl["file_path"]
 
-    # S2: Split — 6 stems, auto-import to DAW
-    split = await bridge.evaluate(f"""
-        () => {{
-            // Use MCP split_stems tool logic
-            return {{stems: 6, modes: "bs6"}};
-        }}
-    """)
-    # Or call mcp_opendaw_split_stems directly
+    # S2+S3: Split into 6 stems and import to DAW (one call)
+    imp = await mcp_opendaw_import_audio_to_tracks(file_path=path, mode="bs6")
+    tracks = imp["tracks"]
+    num = imp["tracks_created"]
 
-    # S3: Import — already done by import_to_daw=True
-    # Stems loaded as tracks 0-5
+    # S4: Set BPM
+    await mcp_opendaw_set_bpm(bpm=bpm)
 
-    # S4: Arrange — set BPM, add markers
-    await bridge.evaluate("""
-        () => {
-            const h = window.DAW_HELPERS;
-            h.api.setBpm(128);
-            return {bpm: 128};
-        }
-    """)
+    # S5: Apply genre mix (compressor, EQ, saturation per stem)
+    await mcp_opendaw_apply_genre_mix(
+        genre="pop", unit_index=0, num_tracks=min(num, 4), sidechain=True)
 
-    # S5: Mix — pan, levels, effects
-    # ... see adaptive-mix-mastering skill ...
-
-    # S6: Master + Export
-    # ... render_audio, measure LUFS, adjust ...
+    # S6: Master + render
+    await mcp_opendaw_add_mastering_chain(target_lufs=-14, style="transparent")
+    await mcp_opendaw_render_full(filename="suno_final", sample_rate=48000)
 
     await bridge.stop()
+    return f"Done: {num} stems → mixed → mastered → rendered"
 
-asyncio.run(suno_to_opendaw())
+# Usage:
+# asyncio.run(suno_to_opendaw_full("https://cdn.suno.ai/abc123.wav"))
 ```
 
 ## Pitfalls (Suno-specific)
@@ -373,12 +381,17 @@ asyncio.run(suno_to_opendaw())
 - `opendaw-track-architecture` — tracks, regions, clips, notes, tempo
 - `opendaw-sound-design` — instruments + scriptable DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain, render
-- `opendaw-automation` — 263 MCP tools full API reference
+- `opendaw-automation` — 372 MCP tools full API reference
 
 ## Tooling
 
-- **Suno**: `chirp_generate` (7 models, simple/custom mode)
+- **Suno**: `chirp_generate` (7 models, simple/custom mode, 2 variations per call)
+- **Download**: `mcp_opendaw_download_audio` (URL → local file, streaming, 60s timeout)
+- **Import**: `mcp_opendaw_import_audio_to_tracks` (file → stems → tracks, one call)
 - **Stem splitter**: `mcp_opendaw_split_stems` (7 modes, GPU local)
-- **openDAW MCP**: 263 tools (v1.13.1)
+- **openDAW MCP**: 372 tools (v1.193.0)
+- **DSP scripts**: 108 scripts (88 Werkstatt + 9 Apparat + 10 Spielwerk)
+- **Mix**: `apply_genre_mix` (15 genres), `apply_full_mix` (one-call chains+mastering)
+- **Master**: `add_mastering_chain` (EQ + comp + maximizer, LUFS targeting)
+- **Render**: `render_full` (auto-detect length + 4 beat tail)
 - **Analysis**: pyloudnorm + librosa (LUFS, BPM, spectral)
-- **DSP scripts**: 26 scripts (15 Werkstatt + 5 Apparat + 6 Spielwerk)
