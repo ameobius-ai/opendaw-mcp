@@ -1,25 +1,36 @@
 # DSP Scripts
 
-26 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+37 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 15 scripts
+## Werkstatt (Audio Effects) — 26 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
 | `werkstatt_darksat.js` | Tape saturation / drive | drive, bias, tone, mix, output |
 | `werkstatt_coldfold.js` | Wavefolding + bitcrush | drive, fold, crush, slew, mix |
+| `werkstatt_overdrive.js` | Asymmetric soft-clip overdrive | drive, tone, level, mix |
+| `werkstatt_stereo_delay.js` | Stereo ping-pong delay | time, feedback, tone, mix |
+| `werkstatt_multifilter.js` | Chamberlin SVF (LP/HP/BP/Notch) | mode, freq, resonance, mix |
+| `werkstatt_compressor.js` | Soft-knee peak compressor | threshold, ratio, attack, release, makeup, mix, knee |
+| `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix |
+| `werkstatt_limiter.js` | Brickwall limiter w/ lookahead | ceiling, release, lookahead, dither, mix |
+| `werkstatt_exciter.js` | Harmonic exciter (band-split) | freq, harmonics, drive, mix, output |
+| `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix |
 | `werkstatt_reverb.js` | Algorithmic reverb | room, decay, damp, mix |
 | `werkstatt_chorus.js` | Stereo chorus | rate, depth, mix |
 | `werkstatt_phaser.js` | Phaser | rate, depth, feedback, mix |
+| `werkstatt_flanger.js` | Flanger | rate, depth, feedback, mix |
+| `werkstatt_tremolo.js` | Tremolo | rate, depth, shape, mix |
 | `werkstatt_shimmer.js` | Shimmer reverb (pitch-shifted tail) | pitch, decay, mix |
 | `werkstatt_pitch_shift.js` | Pitch shifter | semitones, mix |
 | `werkstatt_granular_stretch.js` | Granular time stretch | grain_size, density, pitch |
 | `werkstatt_paulstretch.js` | Paulstretch extreme stretch | stretch, mix |
+| `werkstatt_spectral_freezer.js` | Spectral freeze | freeze, mix |
 | `werkstatt_allpass.js` | Allpass filter | frequency, feedback |
 | `werkstatt_dcremover.js` | DC blocker | — |
 | `werkstatt_envfollower.js` | Envelope follower | attack, release, threshold |
+| `werkstatt_noisegate.js` | Noise gate | threshold, attack, release, range |
 | `werkstatt_ringmod_env.js` | Ring modulator with envelope | frequency, depth, mix |
-| `werkstatt_lookahead.js` | Lookahead limiter | threshold, release, makeup |
 | `werkstatt_adsr_trim.js` | ADSR-based trim | attack, decay, sustain, release |
 
 ## Apparat (Instruments) — 5 scripts

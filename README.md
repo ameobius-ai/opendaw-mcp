@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-263-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-8-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-36-orange)](scripts/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-37-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-93%20unit%20%2B%207%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -510,8 +510,9 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.26.0 (2026-07-05)
 
 - **`werkstatt_limiter.js`** — brickwall limiter with lookahead buffer + TPDF dither. 5 params: ceiling (0-1), release (10-500 ms), lookahead (0.1-5 ms), dither (TPDF on/off), mix. Instant attack, smooth release, circular lookahead buffer. Completes dynamics chain: compressor → limiter. Essential for mastering
-- **36 DSP scripts** (25 Werkstatt + 5 Apparat + 6 Spielwerk)
-- **E2E verified**: compiled via ScriptCompiler, 5 params, ceiling 0.9→0.8, lookahead 0.5→0.9, code header readback OK
+- **`werkstatt_exciter.js`** — harmonic exciter with band-split architecture. 5 params: freq (crossover 800Hz-12kHz), harmonics (0-1), drive (0-1), mix (0-1), output (±24 dB). Cascaded one-pole HPF isolates highs, cubic nonlinearity adds odd harmonics, parallel wet/dry. Completes mastering chain: EQ → compressor → exciter → limiter
+- **37 DSP scripts** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params, freq 0.3→0.75, harmonics 0.5→0.85, code header readback OK
 - ruff clean, CI green
 
 ### v1.25.1 (2026-07-05)

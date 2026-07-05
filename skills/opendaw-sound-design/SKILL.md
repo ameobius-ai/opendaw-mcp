@@ -256,6 +256,7 @@ class Processor {
 | `werkstatt_compressor.js` | Soft-knee peak compressor | threshold, ratio, attack, release, makeup, mix, knee | |
 | `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix | |
 | `werkstatt_limiter.js` | Brickwall limiter w/ lookahead | ceiling, release, lookahead, dither, mix | |
+| `werkstatt_exciter.js` | Harmonic exciter (band-split) | freq, harmonics, drive, mix, output | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
 | `werkstatt_paulstretch.js` | Extreme time-stretch | stretch, window, mix | #209 |
@@ -305,6 +306,7 @@ class Processor {
 | Compressor (peak, soft-knee) | `werkstatt_compressor.js` | Werkstatt |
 | Compressor (lookahead) | `werkstatt_lookahead.js` | Werkstatt |
 | Limiter (brickwall) | `werkstatt_limiter.js` | Werkstatt |
+| Exciter (harmonic) | `werkstatt_exciter.js` | Werkstatt |
 | Chorus/width | `werkstatt_chorus.js` | Werkstatt |
 | Phaser | `werkstatt_phaser.js` | Werkstatt |
 | Flanger | `werkstatt_flanger.js` | Werkstatt |

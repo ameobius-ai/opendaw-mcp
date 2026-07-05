@@ -1,10 +1,17 @@
 # Changelog
 
+## v1.27.0 (2026-07-05)
+
+- **`werkstatt_exciter.js`** — harmonic exciter, band-split architecture. 5 params: freq (800Hz-12kHz crossover), harmonics, drive, mix, output. Cascaded one-pole HPF + cubic nonlinearity, parallel wet/dry. Completes mastering chain: EQ → compressor → exciter → limiter
+- **37 DSP scripts** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 5 params, freq 0.3→0.75, harmonics 0.5→0.85
+
 ## v1.26.0 (2026-07-05)
 
 - **`werkstatt_limiter.js`** — brickwall limiter w/ lookahead + TPDF dither. 5 params: ceiling, release, lookahead, dither, mix. Instant attack, smooth release, circular buffer
-- **36 DSP scripts** (25 Werkstatt + 5 Apparat + 6 Spielwerk)
-- **E2E verified**: compiled, 5 params, ceiling 0.9→0.8, lookahead 0.5→0.9
+- **`werkstatt_exciter.js`** — harmonic exciter, band-split architecture. 5 params: freq (800Hz-12kHz crossover), harmonics, drive, mix, output. Cascaded one-pole HPF + cubic nonlinearity, parallel wet/dry. Completes mastering chain: EQ → compressor → exciter → limiter
+- **37 DSP scripts** (26 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 5 params, freq 0.3→0.75, harmonics 0.5→0.85
 
 ## v1.25.1 (2026-07-05)
 
