@@ -27,8 +27,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **302** MCP tools | **76** Python examples (8 genre templates) |
-| **44** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **282** unit + **25** E2E tests |
+| **45** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **292** unit + **26** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,14 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.54.0 (2026-07-05)
+
+- **`werkstatt_spring_reverb.js` DSP script** — spring reverb with dispersive delay lines, transient-driven "boing" chirp response, and 4 detuned springs. Parameters: decay, damp, tension (delay time), boing (transient sensitivity), mix. Classic for surf rock, dub, guitar amps. Completes reverb family: algorithmic ✅ shimmer ✅ spring ✅
+- **45 DSP scripts** (32 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params, decay/tension/boing/damp set
+- **Example script**: `werkstatt_spring_reverb.py` — surf rock, dub, tight amp presets
+- ruff clean, CI green
 
 ### v1.53.0 (2026-07-05)
 

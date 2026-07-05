@@ -2038,3 +2038,85 @@ class TestIsorhythm:
         notes = self._build_notes("1,0.5,0.5", "60", repeats=2)
         assert len(notes) == 6
         assert all(n["pitch"] == 60 for n in notes)
+
+
+class TestSpringReverbDSP:
+    """Unit tests for werkstatt_spring_reverb.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_spring_reverb.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt spring_reverb" in code, "Missing @werkstatt spring_reverb header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 5, f"Expected 5 params, got {len(params)}"
+
+    def test_decay_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        decay = [p for p in params if p["name"] == "decay"][0]
+        assert decay["min"] == 0
+        assert decay["max"] == 1
+
+    def test_damp_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        damp = [p for p in params if p["name"] == "damp"][0]
+        assert damp["min"] == 0
+        assert damp["max"] == 1
+
+    def test_tension_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        tension = [p for p in params if p["name"] == "tension"][0]
+        assert tension["min"] == 0
+        assert tension["max"] == 1
+
+    def test_boing_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        boing = [p for p in params if p["name"] == "boing"][0]
+        assert boing["min"] == 0
+        assert boing["max"] == 1
+
+    def test_mix_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mix = [p for p in params if p["name"] == "mix"][0]
+        assert mix["min"] == 0
+        assert mix["max"] == 1
+
+    def test_delay_buffers(self):
+        code = self._read_script()
+        assert "Float32Array" in code, "Missing delay buffers"
+        assert "this.delays" in code, "Missing delay arrays"
+
+    def test_transient_detection(self):
+        code = self._read_script()
+        assert "chirp" in code.lower(), "Missing transient/chirp detection for boing effect"
+        assert "prevInput" in code, "Missing transient detection (prevInput)"
+
+    def test_multiple_springs(self):
+        code = self._read_script()
+        assert "4" in code and ("spring" in code.lower() or "delays" in code), "Missing multi-spring architecture"
+        assert "offsets" in code or "detuned" in code, "Missing detuned spring offsets"

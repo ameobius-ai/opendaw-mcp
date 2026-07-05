@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.54.0 (2026-07-05)
+
+- **`werkstatt_spring_reverb.js` DSP script** — spring reverb with dispersive delay lines, transient-driven "boing" chirp response, and 4 detuned springs. Parameters: decay, damp, tension (delay time), boing (transient sensitivity), mix. Classic for surf rock, dub, guitar amps. Completes reverb family: algorithmic ✅ shimmer ✅ spring ✅
+- **45 DSP scripts** (32 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params, decay/tension/boing/damp set
+- **Example script**: `werkstatt_spring_reverb.py` — surf rock, dub, tight amp presets
+- ruff clean, CI green
+
 ## v1.53.0 (2026-07-05)
 
 - **`create_isorhythm` orchestration tool (302 MCP tools)** — repeating rhythm (talea) × repeating pitch (color) as independent cycles. When lengths differ, patterns phase-shift until realigning at LCM. Medieval motets (Machaut), Messiaen, Boulez. Distinct from ostinato (which repeats rhythm+pitch together)
