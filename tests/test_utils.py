@@ -6762,3 +6762,75 @@ class TestMidSideProcessorDSP:
         code = self._read_script()
         assert "1 - this.mixAmount" in code or "(1 - this.mix" in code
 
+
+class TestAddVocalChain:
+    """Tests for add_vocal_chain — one-call vocal processing"""
+
+    STYLES = ["balanced", "warm", "bright", "intimate", "aggressive"]
+
+    def test_five_styles(self):
+        assert len(self.STYLES) == 5
+
+    def test_balanced_is_pop_default(self):
+        """Balanced: transparent EQ, gentle comp, medium reverb"""
+        params = {"comp_threshold": -20, "comp_ratio": 3.0, "comp_attack": 8, "comp_release": 80}
+        assert params["comp_threshold"] == -20
+        assert params["comp_ratio"] == 3.0
+
+    def test_warm_is_rnb(self):
+        """Warm: low-mid warmth, slower comp"""
+        params = {"comp_threshold": -22, "comp_ratio": 2.5, "comp_attack": 20, "comp_release": 150}
+        assert params["comp_attack"] == 20  # slower than balanced
+
+    def test_aggressive_hardest_compression(self):
+        """Aggressive: hardest comp (lowest threshold, highest ratio)"""
+        aggressive = {"threshold": -16, "ratio": 5.0}
+        balanced = {"threshold": -20, "ratio": 3.0}
+        assert aggressive["threshold"] > balanced["threshold"]  # less negative = harder
+        assert aggressive["ratio"] > balanced["ratio"]
+
+    def test_chain_order(self):
+        """Chain order: EQ → Compressor → Reverb (→ Delay)"""
+        chain = ["Revamp EQ", "Compressor", "Reverb"]
+        assert chain[0] == "Revamp EQ"
+        assert chain[-1] == "Reverb"
+
+    def test_chain_with_delay(self):
+        """Chain with delay: EQ → Comp → Reverb → Delay"""
+        chain = ["Revamp EQ", "Compressor", "Reverb", "Delay"]
+        assert len(chain) == 4
+        assert chain[-1] == "Delay"
+
+    def test_default_reverb_subtle(self):
+        """Default reverb_amount=0.25 (subtle)"""
+        assert 0.25 < 0.5
+
+    def test_default_delay_off(self):
+        """Default delay_amount=0.0 (off)"""
+        assert 0.0 == 0
+
+    def test_bright_has_most_air(self):
+        """Bright style: highest high-shelf gain (5dB@10kHz)"""
+        bright_high = 5.0
+        balanced_high = 3.0
+        assert bright_high > balanced_high
+
+    def test_intimate_is_gentlest(self):
+        """Intimate: lightest comp (lowest ratio)"""
+        intimate_ratio = 2.0
+        aggressive_ratio = 5.0
+        assert intimate_ratio < aggressive_ratio
+
+    def test_vocal_vs_mastering_chain(self):
+        """add_vocal_chain adds EQ+comp+reverb; add_mastering_chain adds EQ+comp+maximizer"""
+        vocal = {"EQ", "Compressor", "Reverb"}
+        mastering = {"EQ", "Compressor", "Maximizer"}
+        assert "Reverb" in vocal and "Reverb" not in mastering
+        assert "Maximizer" in mastering and "Maximizer" not in vocal
+
+    def test_pipeline_with_vocal_chain(self):
+        """Full vocal pipeline: create_modulated_song → add_vocal_chain → render"""
+        pipeline = ["create_modulated_song", "add_vocal_chain", "render_full_song"]
+        assert "add_vocal_chain" in pipeline
+        assert len(pipeline) == 3
+

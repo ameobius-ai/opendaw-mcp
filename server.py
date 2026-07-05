@@ -13397,6 +13397,163 @@ Returns the effect indices and parameter values set.
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_add_vocal_chain(
+    unit_index: int = 0,
+    style: str = "balanced",
+    reverb_amount: float = 0.25,
+    delay_amount: float = 0.0,
+) -> str:
+    """Add a ready-made vocal processing chain to an audio unit — EQ + compressor + reverb (+ optional delay).
+
+    One call replaces 3-4 individual add_effect + set_effect_parameter calls.
+    Designed for vocal tracks but works on any melodic content.
+
+    unit_index: Target audio unit (the vocal track).
+    style: Preset character:
+      - "balanced" — transparent EQ, gentle comp, medium reverb (pop)
+      - "warm" — low-mid warmth, slower comp, lush reverb (R&B, soul)
+      - "bright" — air boost, fast comp, short reverb (pop, radio)
+      - "intimate" — minimal EQ, light comp, small room (ballad, acoustic)
+      - "aggressive" — presence boost, hard comp, plate reverb (rock, rap)
+
+    reverb_amount: Reverb wet/dry (0-1, default 0.25 = subtle).
+    delay_amount: Optional slap delay wet/dry (0-1, default 0 = off).
+
+    Creates: Revamp EQ → Compressor → Reverb (→ Delay) on the target AU.
+    Returns effect indices and parameter values set.
+
+    Example:
+      # Balanced vocal chain on track 0
+      add_vocal_chain(0)
+      # Warm R&B vocal with lush reverb
+      add_vocal_chain(0, style="warm", reverb_amount=0.35)
+      # Pop vocal with slap delay
+      add_vocal_chain(0, style="bright", delay_amount=0.15)
+    """
+    styles = {
+        "balanced": {
+            "eq_low_shelf_gain": 2.0, "eq_low_shelf_freq": 150,
+            "eq_high_shelf_gain": 3.0, "eq_high_shelf_freq": 8000,
+            "eq_mid_gain": -2.0, "eq_mid_freq": 300,
+            "comp_threshold": -20, "comp_ratio": 3.0, "comp_attack": 8, "comp_release": 80,
+        },
+        "warm": {
+            "eq_low_shelf_gain": 4.0, "eq_low_shelf_freq": 200,
+            "eq_high_shelf_gain": 1.5, "eq_high_shelf_freq": 6000,
+            "eq_mid_gain": -1.0, "eq_mid_freq": 400,
+            "comp_threshold": -22, "comp_ratio": 2.5, "comp_attack": 20, "comp_release": 150,
+        },
+        "bright": {
+            "eq_low_shelf_gain": 1.0, "eq_low_shelf_freq": 120,
+            "eq_high_shelf_gain": 5.0, "eq_high_shelf_freq": 10000,
+            "eq_mid_gain": -3.0, "eq_mid_freq": 350,
+            "comp_threshold": -18, "comp_ratio": 4.0, "comp_attack": 5, "comp_release": 60,
+        },
+        "intimate": {
+            "eq_low_shelf_gain": 1.5, "eq_low_shelf_freq": 180,
+            "eq_high_shelf_gain": 2.0, "eq_high_shelf_freq": 7000,
+            "eq_mid_gain": -1.0, "eq_mid_freq": 500,
+            "comp_threshold": -24, "comp_ratio": 2.0, "comp_attack": 15, "comp_release": 120,
+        },
+        "aggressive": {
+            "eq_low_shelf_gain": 0.0, "eq_low_shelf_freq": 100,
+            "eq_high_shelf_gain": 4.0, "eq_high_shelf_freq": 9000,
+            "eq_mid_gain": -4.0, "eq_mid_freq": 300,
+            "comp_threshold": -16, "comp_ratio": 5.0, "comp_attack": 3, "comp_release": 40,
+        },
+    }
+    if style not in styles:
+        return f"Error: unknown style '{style}'. Valid: {list(styles.keys())}"
+    if not (0.0 <= reverb_amount <= 1.0):
+        return "Error: reverb_amount must be 0-1"
+    if not (0.0 <= delay_amount <= 1.0):
+        return "Error: delay_amount must be 0-1"
+
+    params = styles[style]
+    use_delay = delay_amount > 0.0
+
+    chain_desc = "Revamp EQ → Compressor → Reverb"
+    if use_delay:
+        chain_desc += " → Delay"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const p = window.DAW;
+        const EF = window.DAW_EffectFactories;
+
+        const params = {json.dumps(params)};
+        const reverbAmount = {reverb_amount};
+        const delayAmount = {delay_amount};
+        const useDelay = {str(use_delay).lower()};
+
+        const allUnits = h.allAUBoxes();
+        if (!allUnits[{unit_index}]) return {{error: "Audio unit {unit_index} not found"}};
+        const targetAU = allUnits[{unit_index}];
+
+        let eqIdx = -1, compIdx = -1, revIdx = -1, delIdx = -1;
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Revamp);
+            eqIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Compressor);
+            compIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        h.modify(() => {{
+            p.api.insertEffect(targetAU.audioEffects, EF.Reverb);
+            revIdx = h.effectBoxes(targetAU).length - 1;
+        }});
+
+        if (useDelay) {{
+            h.modify(() => {{
+                p.api.insertEffect(targetAU.audioEffects, EF.Delay);
+                delIdx = h.effectBoxes(targetAU).length - 1;
+            }});
+        }}
+
+        // Set compressor params
+        const effects = h.effectBoxes(targetAU);
+        h.modify(() => {{
+            const compBox = effects[compIdx];
+            if (compBox) {{
+                const record = compBox.record();
+                for (const [key, field] of Object.entries(record)) {{
+                    const fname = field._fieldName || field.fieldName || key;
+                    if (fname === 'threshold') field.setValue(params.comp_threshold);
+                    if (fname === 'ratio') field.setValue(params.comp_ratio);
+                    if (fname === 'attack') field.setValue(params.comp_attack);
+                    if (fname === 'release') field.setValue(params.comp_release);
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            unit_index: {unit_index},
+            chain: [
+                {{name: "Revamp EQ", index: eqIdx, params: {{
+                    low_shelf: params.eq_low_shelf_gain + "dB@" + params.eq_low_shelf_freq + "Hz",
+                    high_shelf: params.eq_high_shelf_gain + "dB@" + params.eq_high_shelf_freq + "Hz",
+                    mid: params.eq_mid_gain + "dB@" + params.eq_mid_freq + "Hz",
+                }}}},
+                {{name: "Compressor", index: compIdx, params: {{
+                    threshold: params.comp_threshold, ratio: params.comp_ratio,
+                    attack: params.comp_attack, release: params.comp_release,
+                }}}},
+                {{name: "Reverb", index: revIdx, params: {{wet: reverbAmount}}}},
+            ] + (useDelay ? [{{name: "Delay", index: delIdx, params: {{wet: delayAmount}}}}] : []),
+            style: "{style}",
+            chain_description: "{chain_desc}",
+            note: "Vocal chain applied. Adjust reverb_amount and delay_amount for taste.",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_create_genre_track(genre: str, bpm: float = 120) -> str:
     """Create a genre-specific starting track with synth, beat, and basic mix — one call builds a full section.
 

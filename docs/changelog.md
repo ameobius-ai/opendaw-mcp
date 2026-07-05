@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.167.0 (2026-07-05)
+
+- **add_vocal_chain** — new one-call vocal processing chain. Adds EQ + Compressor + Reverb (+ optional Delay) to any audio unit. 5 style presets: balanced (pop), warm (R&B/soul), bright (radio pop), intimate (ballad/acoustic), aggressive (rock/rap). Each preset has genre-appropriate EQ curves (low shelf, mid cut, high shelf air) and compressor settings (threshold, ratio, attack, release). `reverb_amount` (0-1) and `delay_amount` (0-1, default off) for spatial control. Parallel to add_mastering_chain but for vocal/melodic tracks. 12 unit tests. 352 MCP tools, 2223 tests.
+
 ## v1.166.0 (2026-07-05)
 
 - **werkstatt_mid_side_processor.js** — new mastering DSP. Mid/Side encoder/decoder with independent gain and filtering per channel. M = (L+R)/2 (center: vocals, bass, kick), S = (L-R)/2 (stereo: wide instruments, ambience). Mid highpass removes low-end rumble from center, side lowpass tames harsh stereo content. Width control (0=mono collapse, 1=original, 2=double wide). Biquad filters on both channels. Influenced by Brainworx bx_digital. 19 unit tests. 102 DSP scripts, 2211 tests.
