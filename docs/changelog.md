@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.74.0 (2026-07-05)
+
+- **`opendaw-dsp-chains` agent skill** — 10 production-ready DSP signal chain recipes (vocal, guitar, drum bus, synth bass, lofi, mastering, acid, ambient, vocoder, distortion). Exact scripts + order + params. 11 skills total
+- ruff clean, CI green
+
 ## v1.73.0 (2026-07-05)
 
 - **`werkstatt_moog_ladder.js` DSP script** — Moog ladder 24dB/oct filter, 4 cascaded stages, feedback resonance, tanh nonlinearity, 3 modes (LP/HP/BP), drive, warmth

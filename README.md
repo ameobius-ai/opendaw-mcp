@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **306** MCP tools | **91** Python examples (8 genre templates) |
-| **60** DSP scripts | **10** agent skills |
+| **60** DSP scripts | **11** agent skills |
 | **3** framework wrappers | **702** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -115,6 +115,7 @@ The `skills/` directory contains structured skill files for AI agents (Hermes, C
 | `opendaw-genres` | Genre templates | Concrete parameters per genre — BPM, track layout, drum patterns, bass lines, chords, effect chains, pan, LUFS targets. 8 genres: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. Not theory — actual tool calls and values. |
 | `opendaw-effect-routing` | Effects + routing | Effect chains, sends/returns, sidechain, buses, mixing, mastering chain, render/export. How to route audio and deliver final output. |
 | `opendaw-composition-patterns` | Composition | When and how to use 26 orchestration tools. Decision tree by musical goal, genre-specific recipes, parameter guidelines, pitfalls. Hip-hop/house/jazz/DnB/ambient/expressive MIDI workflows. |
+| `opendaw-dsp-chains` | DSP signal chains | 10 production-ready DSP chain recipes: vocal, guitar, drum bus, synth bass, lofi, mastering, acid, ambient, vocoder, distortion. Exact Werkstatt scripts, order, parameters. Pitfalls: EQ→dynamics→saturation→time order, no double saturation, reverb/limiter last. |
 
 ### Using skills with Hermes
 
@@ -506,6 +507,11 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.74.0 (2026-07-05)
+
+- **`opendaw-dsp-chains` agent skill** — 10 production-ready DSP signal chain recipes: vocal, guitar, drum bus, synth bass, lofi character, mastering, acid house, ambient pad, vocoder/vocal FX, distortion/metal. Each chain specifies exact Werkstatt scripts, order, and parameter values. Includes pitfalls section (EQ→dynamics→saturation→time order, no double saturation, reverb/limiter always last, moog self-oscillation warning, vocoder carrier requirements). DSP script index by family. 11 agent skills total
+- ruff clean, CI green
 
 ## v1.73.0 (2026-07-05)
 
