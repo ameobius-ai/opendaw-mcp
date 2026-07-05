@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.207.0 (2026-07-05)
+
+### Added
+- `create_rnb_arrangement` — 18th multi-track genre arrangement. Contemporary R&B (The Weeknd / Frank Ocean / SZA): half-time drums with triplet hi-hat rolls (trap influence), deep sub bass (long sustained root), dark extended chord voicings (min9/maj7/min7 on i-VI-III-VII minor-key progression), vocal-style lead with pentatonic minor + blue notes (b5), wide interval leaps, melismatic fills. 68 BPM, C minor default, 4 tracks. Integrated into all genre registries: create_full_genre_pipeline, create_arrangement_variation, create_song_with_variations, apply_genre_mix (comp+EQ+reverb+delay+sidechain recipe), apply_genre_humanization (timing 0.08, bias 0.02). Also added lofi + soul to all registries where missing. 15 unit tests. **383 MCP tools**, 2669 unit tests
+
 ## v1.206.0 (2026-07-05)
 
 ### Added

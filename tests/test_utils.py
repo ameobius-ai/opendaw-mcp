@@ -10370,3 +10370,186 @@ class TestTranscribeAudio:
                 return
         assert False, "function not found"
 
+
+class TestRnbArrangement:
+    """Tests for create_rnb_arrangement — contemporary R&B 4-track arrangement"""
+
+    def test_tool_signature_exists(self):
+        """create_rnb_arrangement is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_rnb_arrangement" in tool_names
+
+    def test_default_bpm_68(self):
+        """Default BPM is 68 (modern R&B sweet spot)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bpm" and isinstance(d, ast.Constant):
+                        assert d.value == 68
+                return
+        assert False, "function not found"
+
+    def test_default_root_C(self):
+        """Default root is C (dark R&B key)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert '"C"' in source or "'C'" in source
+                return
+        assert False, "function not found"
+
+    def test_minor_key_progression(self):
+        """Harmony uses i-VI-III-VII minor-key progression"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert "i-VI-III-VII" in source or "i_VI_III_VII" in source
+                assert "min9" in source
+                assert "maj7" in source
+                return
+        assert False, "function not found"
+
+    def test_half_time_drums(self):
+        """Drums are half-time with triplet hi-hats (trap/R&B influence)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert "half_time" in source.lower() or "half-time" in source.lower()
+                assert "triplet" in source.lower()
+                assert "clap" in source.lower() or "clap_p" in source
+                return
+        assert False, "function not found"
+
+    def test_sub_bass(self):
+        """Bass is deep sub bass (long sustained root)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert "sub" in source.lower()
+                return
+        assert False, "function not found"
+
+    def test_vocal_style_lead(self):
+        """Lead has vocal-style melodic phrases with blue notes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert "blue_note" in source or "blue" in source.lower()
+                assert "pentatonic_minor" in source or "PENTATONIC_MINOR" in source
+                return
+        assert False, "function not found"
+
+    def test_four_tracks(self):
+        """Arrangement uses 4 tracks: drums, bass, chord, lead"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert "drum_track" in source
+                assert "bass_track" in source
+                assert "chord_track" in source
+                assert "lead_track" in source
+                return
+        assert False, "function not found"
+
+    def test_delegates_to_notes_batch(self):
+        """Creates notes via create_notes_batch"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert "mcp_opendaw_create_notes_batch" in source
+                return
+        assert False, "function not found"
+
+    def test_rnb_in_full_genre_pipeline(self):
+        """rnb is registered in create_full_genre_pipeline defaults + arrangement_fns"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_full_genre_pipeline":
+                source = ast.unparse(node)
+                assert "'rnb'" in source or '"rnb"' in source
+                assert "mcp_opendaw_create_rnb_arrangement" in source
+                return
+        assert False, "full genre pipeline not found"
+
+    def test_bpm_range_validation(self):
+        """BPM validated to 55-85 range"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_rnb_arrangement":
+                source = ast.unparse(node)
+                assert "55" in source
+                assert "85" in source
+                return
+        assert False, "function not found"
+
+    def test_rnb_in_genre_mix(self):
+        """rnb is in apply_genre_mix valid_genres"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_apply_genre_mix":
+                source = ast.unparse(node)
+                assert '"rnb"' in source or "'rnb'" in source
+                return
+        assert False, "apply_genre_mix not found"
+
+    def test_rnb_in_humanization(self):
+        """rnb is in apply_genre_humanization valid_genres"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_apply_genre_humanization":
+                source = ast.unparse(node)
+                assert '"rnb"' in source or "'rnb'" in source
+                return
+        assert False, "apply_genre_humanization not found"
+
+    def test_rnb_in_arrangement_variation(self):
+        """rnb is in create_arrangement_variation defaults + arrangement_fns"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_arrangement_variation":
+                source = ast.unparse(node)
+                assert '"rnb"' in source or "'rnb'" in source
+                assert "mcp_opendaw_create_rnb_arrangement" in source
+                return
+        assert False, "create_arrangement_variation not found"
+
+    def test_rnb_in_song_with_variations(self):
+        """rnb is in create_song_with_variations defaults"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_song_with_variations":
+                source = ast.unparse(node)
+                assert '"rnb"' in source or "'rnb'" in source
+                return
+        assert False, "create_song_with_variations not found"
+

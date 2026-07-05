@@ -27310,6 +27310,245 @@ async def mcp_opendaw_create_lofi_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_rnb_arrangement(
+    bpm: float = 68,
+    bars: int = 8,
+    root: str = "C",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    chord_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.72,
+) -> str:
+    """Create a full modern R&B arrangement — trap-influenced drums + deep sub bass + extended chords + vocal-style lead.
+
+    Contemporary R&B (The Weeknd / Frank Ocean / SZA / Brent Faiyaz) — dark, atmospheric, slow-burn:
+    - Track 0: Drums — half-time R&B groove: kick on 1 with syncopated ghost,
+                     snare/clap on 3, triplet hi-hat rolls. Programmable feel —
+                     not live, but loose. Half-time at 68 BPM feels like 34 BPM.
+    - Track 1: Bass — deep sub bass: long sustained root notes, occasional
+                     octave/fifth movement. More sustain than soul, less movement
+                     than funk. The low-end foundation — felt more than heard.
+    - Track 2: Chords — dark extended voicings (min9, maj7, dom9, min7b5)
+                     on i-VI-III-VII minor-key progression. Rhodes/synth pad
+                     texture with long sustains. The Weeknd's signature dark
+                     harmony — minor key with lush 9ths.
+    - Track 3: Lead — vocal-style melodic phrases: wide interval leaps,
+                     pentatonic minor with blue notes, long sustained notes
+                     with melismatic fills. Call-and-response phrasing —
+                     the "sung" quality without actual vocals.
+
+    At 68 BPM (default), this creates the contemporary R&B pocket — slow,
+    atmospheric, dark. The i-VI-III-VII progression (same as synthwave but
+    with extended chords and half the tempo) is the modern R&B harmonic
+    language. Half-time drums + sub bass + dark 9ths = The Weeknd "After Hours"
+    aesthetic.
+
+    bpm: Tempo (55-85, default 68 = modern R&B sweet spot).
+    bars: Arrangement length (4-16, default 8). Must be multiple of 4.
+    root: Root note (C minor = dark R&B key, common for The Weeknd).
+    octave: MIDI octave for bass (2 = C2=36, sub bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / chord_track / lead_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_rnb_arrangement(bpm=68, root="C", bars=8)
+      create_rnb_arrangement(bpm=75, root="Ab", bars=16)
+    """
+    if not (55 <= bpm <= 85):
+        return "Error: bpm must be 55-85"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    chord_base = (octave + 3) * 12 + root_pc
+    lead_base = (octave + 4) * 12 + root_pc
+
+    # i-VI-III-VII in natural minor — dark R&B progression
+    # Extended voicings: min9, maj7, min9, min7
+    _MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10]
+    chord_degrees = [0, 5, 2, 6]  # i, VI, III, VII
+    chord_voicings = {
+        0: [0, 3, 7, 10, 14],   # i = min9 (root, b3, 5, b7, 9)
+        5: [0, 4, 7, 11],        # VI = maj7 (root, 3, 5, 7)
+        2: [0, 3, 7, 10, 14],   # III = min9 (root, b3, 5, b7, 9) — III in natural minor
+        6: [0, 3, 7, 10],        # VII = min7 (root, b3, 5, b7)
+    }
+    chord_labels = ["min9", "maj7", "min9", "min7"]
+    bars_per_chord = 2
+    total_chords = len(chord_degrees)
+    cycle_bars = total_chords * bars_per_chord  # 8 bars per cycle
+    cycles = bars // cycle_bars
+    if bars % cycle_bars != 0:
+        cycles += 1
+
+    # --- DRUMS: half-time R&B groove (1-bar cycle) ---
+    # Kick on 1 + syncopated ghost, clap on 3 (half-time backbeat),
+    # triplet hi-hat rolls for the modern R&B trap influence
+    kick_p, snare_p, hat_p, clap_p, openhat_p = 36, 38, 42, 39, 46
+    drum_notes = []
+    drum_cycle = 4.0
+    for c in range(bars):
+        off = c * drum_cycle
+        # Kick: beat 1 strong, syncopated ghost on "and-a" of 2
+        drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + 0.0, 4),
+                          "duration": 0.3, "velocity": round(velocity * 1.0, 3)})
+        drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + 2.75, 4),
+                          "duration": 0.15, "velocity": round(velocity * 0.5, 3)})
+        # Clap: half-time backbeat on beat 3
+        drum_notes.append({"pitch": clap_p, "start": round(start_beat + off + 2.0, 4),
+                          "duration": 0.1, "velocity": round(velocity * 0.85, 3)})
+        drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + 2.0, 4),
+                          "duration": 0.08, "velocity": round(velocity * 0.4, 3)})
+        # Hi-hat: triplet 16ths — the trap/R&B feel
+        # 12 triplet positions per bar (4 beats × 3 triplets)
+        for beat in range(4):
+            for trip in range(3):
+                hat_off = beat + trip * (1.0 / 3.0)
+                vm = 0.3 + (0.15 if trip == 2 else 0.0)  # accent last triplet
+                if beat == 2 and trip == 0:
+                    continue  # space for clap
+                drum_notes.append({"pitch": hat_p, "start": round(start_beat + off + hat_off, 4),
+                                  "duration": 0.04, "velocity": round(velocity * vm, 3)})
+        # Open hat accent on "and" of 4
+        drum_notes.append({"pitch": openhat_p, "start": round(start_beat + off + 3.5, 4),
+                          "duration": 0.08, "velocity": round(velocity * 0.4, 3)})
+
+    # --- BASS: deep sub bass (2-bar phrase per chord) ---
+    # Long sustained root with occasional octave — felt, not heard
+    bass_notes = []
+    for cycle_idx in range(cycles):
+        for ci, deg in enumerate(chord_degrees):
+            chord_start_bar = cycle_idx * cycle_bars + ci * bars_per_chord
+            chord_start = chord_start_bar * 4.0
+            chord_len = bars_per_chord * 4.0
+            chord_root_pc = (root_pc + _MINOR_SCALE[deg]) % 12
+            chord_root = bass_base + chord_root_pc
+
+            # Sub bass: long root sustain, octave on bar 2
+            bass_notes.append({"pitch": chord_root, "start": round(start_beat + chord_start, 4),
+                              "duration": chord_len * 0.85, "velocity": round(velocity * 0.9, 3)})
+            # Octave on bar 2 beat 1 (subtle movement)
+            bass_notes.append({"pitch": chord_root + 12, "start": round(start_beat + chord_start + chord_len * 0.5, 4),
+                              "duration": chord_len * 0.3, "velocity": round(velocity * 0.6, 3)})
+
+    # --- CHORDS: dark extended voicings (2-bar sustain per chord) ---
+    # Rhodes/synth pad — long sustain, lush 9ths, dark minor texture
+    chord_notes = []
+    for cycle_idx in range(cycles):
+        for ci, deg in enumerate(chord_degrees):
+            chord_start_bar = cycle_idx * cycle_bars + ci * bars_per_chord
+            chord_start = chord_start_bar * 4.0
+            chord_len = bars_per_chord * 4.0
+            chord_root_pc = (root_pc + _MINOR_SCALE[deg]) % 12
+            voicing = chord_voicings[deg]
+
+            # Sustained chord — hit on beat 1, sustain through bar
+            for interval in voicing:
+                chord_notes.append({
+                    "pitch": chord_base + chord_root_pc + interval,
+                    "start": round(start_beat + chord_start, 4),
+                    "duration": chord_len * 0.9,
+                    "velocity": round(velocity * 0.55, 3),  # soft pads
+                })
+            # Light re-stab on bar 2
+            for interval in voicing[:3]:  # thinner re-stab
+                chord_notes.append({
+                    "pitch": chord_base + chord_root_pc + interval,
+                    "start": round(start_beat + chord_start + chord_len * 0.5, 4),
+                    "duration": chord_len * 0.3,
+                    "velocity": round(velocity * 0.35, 3),
+                })
+
+    # --- LEAD: vocal-style melodic phrases ---
+    # Pentatonic minor + blue notes, wide leaps, call-and-response
+    _PENTATONIC_MINOR = [0, 3, 5, 7, 10]
+    _BLUE_NOTE = 6  # b5 blue note
+    lead_notes = []
+    for c in range(bars):
+        off = c * 4.0
+        deg = chord_degrees[c % 4]
+        chord_root_pc = (root_pc + _MINOR_SCALE[deg]) % 12
+
+        if c % 2 == 0:
+            # Phrase 1: long sustained note (beat 1) + melismatic fill (beat 3-4)
+            pidx = (c // 2) % 4
+            pitch1 = lead_base + chord_root_pc + _PENTATONIC_MINOR[pidx]
+            lead_notes.append({"pitch": pitch1, "start": round(start_beat + off, 4),
+                              "duration": 2.0, "velocity": round(velocity * 0.75, 3)})
+            # Melismatic fill: 3 quick notes descending
+            for fi in range(3):
+                fidx = (pidx - fi) % 5
+                pitch_f = lead_base + chord_root_pc + _PENTATONIC_MINOR[fidx]
+                lead_notes.append({"pitch": pitch_f, "start": round(start_beat + off + 2.5 + fi * 0.4, 4),
+                                  "duration": 0.3, "velocity": round(velocity * (0.55 + fi * 0.05), 3)})
+        else:
+            # Phrase 2: wide leap then resolution — the "sung" quality
+            pidx = (c + 1) % 5
+            # High note (wide leap up)
+            pitch_hi = lead_base + chord_root_pc + _PENTATONIC_MINOR[pidx] + 12
+            lead_notes.append({"pitch": pitch_hi, "start": round(start_beat + off + 0.5, 4),
+                              "duration": 1.0, "velocity": round(velocity * 0.8, 3)})
+            # Blue note (b5) for tension
+            pitch_blue = lead_base + chord_root_pc + _BLUE_NOTE
+            lead_notes.append({"pitch": pitch_blue, "start": round(start_beat + off + 1.75, 4),
+                              "duration": 0.4, "velocity": round(velocity * 0.5, 3)})
+            # Resolution down to pentatonic
+            pitch_res = lead_base + chord_root_pc + _PENTATONIC_MINOR[(pidx + 2) % 5]
+            lead_notes.append({"pitch": pitch_res, "start": round(start_beat + off + 2.5, 4),
+                              "duration": 1.2, "velocity": round(velocity * 0.65, 3)})
+
+    # Create all notes via batch API
+    drum_json = json.dumps(drum_notes)
+    bass_json = json.dumps(bass_notes)
+    chord_json = json.dumps(chord_notes)
+    lead_json = json.dumps(lead_notes)
+
+    drum_result = await mcp_opendaw_create_notes_batch(drum_json, unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, bass_track)
+    chord_result = await mcp_opendaw_create_notes_batch(chord_json, unit_index, chord_track)
+    lead_result = await mcp_opendaw_create_notes_batch(lead_json, unit_index, lead_track)
+
+    drum_data = json.loads(drum_result) if isinstance(drum_result, str) else drum_result
+    bass_data = json.loads(bass_result) if isinstance(bass_result, str) else bass_result
+    chord_data = json.loads(chord_result) if isinstance(chord_result, str) else chord_result
+    lead_data = json.loads(lead_result) if isinstance(lead_result, str) else lead_result
+
+    return json.dumps({
+        "success": True,
+        "genre": "rnb",
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "chords": {"track": chord_track, "notes": len(chord_notes), "result": chord_data.get("notes_created", len(chord_notes))},
+            "lead": {"track": lead_track, "notes": len(lead_notes), "result": lead_data.get("notes_created", len(lead_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(chord_notes) + len(lead_notes),
+        "drum_pattern": "half_time_triplet_hat",
+        "bass_pattern": "deep_sub_sustain",
+        "chord_type": "dark_extended_9ths",
+        "lead_type": "vocal_style_pentatonic_blue",
+        "harmony": "i_VI_III_VII_minor",
+        "chords": chord_labels,
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_reggae_arrangement(
     bpm: float = 80,
     bars: int = 8,
@@ -28303,7 +28542,8 @@ async def mcp_opendaw_apply_genre_mix(
       apply_genre_mix("jazz", unit_index=0, num_tracks=4, sidechain=False)
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
-                    "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco"]
+                    "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco",
+                    "lofi", "soul", "rnb"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
     if not (2 <= num_tracks <= 4):
@@ -28489,6 +28729,39 @@ async def mcp_opendaw_apply_genre_mix(
             "sidechain": False,  # organic-electronic hybrid, no sidechain
             "sc_params": {},
         },
+        "lofi": {
+            "effects": [
+                (0, "Compressor", {"threshold": -8, "ratio": 2, "attack": 10, "release": 100}),
+                (0, "Revamp", {"low": 0, "high": -2}),    # drums: dull, vinyl
+                (1, "Waveshaper", {"drive": 0.3}),         # bass: subtle warmth
+                (2, "Reverb", {"decay": 0.6}),             # chords: washy lofi reverb
+                (3, "Reverb", {"decay": 0.5}),             # melody: space
+            ],
+            "sidechain": False,
+            "sc_params": {},
+        },
+        "soul": {
+            "effects": [
+                (0, "Compressor", {"threshold": -12, "ratio": 3, "attack": 5, "release": 80}),
+                (0, "Revamp", {"low": 1, "high": 1}),     # drums: warm
+                (1, "Revamp", {"low": 2, "high": 0}),     # bass: warm
+                (2, "Reverb", {"decay": 0.3}),            # Rhodes: tight room
+                (3, "Reverb", {"decay": 0.4}),            # horns: room
+            ],
+            "sidechain": False,
+            "sc_params": {},
+        },
+        "rnb": {
+            "effects": [
+                (0, "Compressor", {"threshold": -10, "ratio": 4, "attack": 3, "release": 60}),
+                (0, "Revamp", {"low": 1, "high": 2}),     # drums: punchy
+                (1, "Revamp", {"low": 3, "high": -1}),    # sub bass: focused low
+                (2, "Reverb", {"decay": 0.7}),            # dark chords: long washy reverb
+                (3, "Delay", {"time": 0.5, "feedback": 0.3}),  # lead: vocal-style delay
+            ],
+            "sidechain": True,   # R&B uses subtle sidechain
+            "sc_params": {"threshold": -18, "ratio": 2},
+        },
     }
 
     recipe = recipes[genre]
@@ -28600,7 +28873,7 @@ async def mcp_opendaw_apply_genre_humanization(
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave",
-                    "trance", "disco"]
+                    "trance", "disco", "lofi", "soul", "rnb"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
 
@@ -28615,6 +28888,9 @@ async def mcp_opendaw_apply_genre_humanization(
         "pop":       {"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0,  "bias": 0.0},
         "afrobeat":  {"timing": 0.12, "velocity": 0.15, "duration": 0.08, "swing": 0.0,  "bias": 0.0},
         "disco":     {"timing": 0.06, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.0},
+        "lofi":      {"timing": 0.15, "velocity": 0.18, "duration": 0.10, "swing": 0.58, "bias": 0.03},
+        "soul":      {"timing": 0.10, "velocity": 0.12, "duration": 0.06, "swing": 0.0,  "bias": 0.02},
+        "rnb":       {"timing": 0.08, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.02},
         # Electronic — tight and consistent
         "dnb":       {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
         "liquid_dnb":{"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0,  "bias": 0.01},
@@ -28960,6 +29236,9 @@ async def mcp_opendaw_create_arrangement_variation(
         "pop":       {"bpm": 120, "root": "C",  "tracks": 4},
         "funk":      {"bpm": 110, "root": "G",  "tracks": 4},
         "reggae":    {"bpm": 90,  "root": "C",  "tracks": 4},
+        "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4},
+        "soul":      {"bpm": 72,  "root": "C",  "tracks": 4},
+        "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
@@ -28981,6 +29260,9 @@ async def mcp_opendaw_create_arrangement_variation(
         "pop":       mcp_opendaw_create_pop_arrangement,
         "funk":      mcp_opendaw_create_funk_arrangement,
         "reggae":    mcp_opendaw_create_reggae_arrangement,
+        "lofi":      mcp_opendaw_create_lofi_arrangement,
+        "soul":      mcp_opendaw_create_soul_arrangement,
+        "rnb":       mcp_opendaw_create_rnb_arrangement,
     }
     arr_fn = arrangement_fns[genre]
 
@@ -29333,6 +29615,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "disco":     {"bpm": 120, "root": "G",  "tracks": 4, "master_style": "warm"},
         "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4, "master_style": "warm"},
         "soul":      {"bpm": 72,  "root": "C",  "tracks": 4, "master_style": "warm"},
+        "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4, "master_style": "warm"},
     }
 
     if genre not in defaults:
@@ -29401,6 +29684,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "disco":     mcp_opendaw_create_disco_arrangement,
         "lofi":      mcp_opendaw_create_lofi_arrangement,
         "soul":      mcp_opendaw_create_soul_arrangement,
+        "rnb":       mcp_opendaw_create_rnb_arrangement,
     }
 
     try:
@@ -29719,6 +30003,9 @@ async def mcp_opendaw_create_song_with_variations(
         "pop":       {"bpm": 120, "root": "C",  "tracks": 4},
         "funk":      {"bpm": 110, "root": "G",  "tracks": 4},
         "reggae":    {"bpm": 90,  "root": "C",  "tracks": 4},
+        "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4},
+        "soul":      {"bpm": 72,  "root": "C",  "tracks": 4},
+        "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
