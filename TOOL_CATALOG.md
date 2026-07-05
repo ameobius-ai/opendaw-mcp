@@ -386,9 +386,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 313 tools**
 
-## DSP Scripts (scripts/) — 86 scripts
+## DSP Scripts (scripts/) — 87 scripts
 
-### Werkstatt (Audio Effects) — 68 scripts
+### Werkstatt (Audio Effects) — 69 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -454,6 +454,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_vinyl.js` — Vinyl simulator (crackle/pops via LCG-triggered envelopes, surface noise, wow/flutter pitch wobble via fractional delay, wear high-freq rolloff)
 - `werkstatt_grain_delay.js` — Grain delay (Hann-windowed grains read from delay buffer with pitch shift, scatter, reverse, pan, feedback)
 - `werkstatt_expander.js` — Downward expander (compressor complement: attenuates signals below threshold, ratio controls expansion strength, range caps max attenuation, soft knee, stereo linked detection, gate at ratio=∞)
+- `werkstatt_binaural.js` — Binaural spatial panner (3D positioning via Woodworth ITD formula, frequency-dependent ILD head shadow, pinna elevation spectral notches, distance attenuation + air absorption, room reverb with decorrelation, azimuth/elevation/distance/head_size/room/mix/output)
 
 ### Apparat (Instruments) — 8 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

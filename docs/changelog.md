@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.108.0 (2026-07-05)
+
+- **`werkstatt_binaural.js` DSP script (87 DSP, 69 Werkstatt)** — binaural spatial panner: 3D sound positioning via HRTF approximation. Woodworth formula for ITD (interaural time difference), frequency-dependent ILD (head shadow effect, HF attenuated on shadowed ear), pinna elevation spectral notches (2 peaking biquads, notch frequency shifts with elevation), distance attenuation (inverse distance law + air absorption HF rolloff), room reverb with LCG decorrelation. 7 params (azimuth/elevation/distance/head_size/room/mix/output). 87 DSP scripts, 69 Werkstatt
+- **1137 unit tests** (+20)
+
 ## v1.107.0 (2026-07-05)
 
 - **`werkstatt_expander.js` DSP script (86 DSP, 68 Werkstatt)** — downward expander: compressor complement, attenuates signals below threshold. Ratio controls expansion strength (1:1→20:1), range caps max attenuation (0→-60 dB), soft knee for smooth transition, stereo linked detection, attack/release smoothing. At ratio=∞ becomes a gate. Used for noise reduction, drum transient enhancement, spill cleanup. 8 params (threshold/ratio/attack/release/range/mix/knee/output). 86 DSP scripts, 68 Werkstatt

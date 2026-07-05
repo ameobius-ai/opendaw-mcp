@@ -4900,3 +4900,124 @@ class TestGrainDelayDSP:
     def test_dry_wet_mix(self):
         code = self._read_script()
         assert "dry" in code and "wet" in code, "Missing dry/wet mix"
+
+
+class TestBinauralDSP:
+    """Unit tests for werkstatt_binaural.js — binaural spatial panner"""
+
+    SCRIPT = "werkstatt_binaural.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt binaural" in code, "Missing @werkstatt binaural header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_azimuth_param(self):
+        params = self._parse_params(self._read_script())
+        a = [p for p in params if p["name"] == "azimuth"][0]
+        assert a["min"] == -180 and a["max"] == 180 and a["type"] == "linear"
+
+    def test_elevation_param(self):
+        params = self._parse_params(self._read_script())
+        e = [p for p in params if p["name"] == "elevation"][0]
+        assert e["min"] == -90 and e["max"] == 90 and e["type"] == "linear"
+
+    def test_distance_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "distance"][0]
+        assert d["type"] == "exp" and d["default"] == 1
+
+    def test_head_size_param(self):
+        params = self._parse_params(self._read_script())
+        h = [p for p in params if p["name"] == "head_size"][0]
+        assert h["type"] == "linear"
+
+    def test_output_param_db(self):
+        params = self._parse_params(self._read_script())
+        o = [p for p in params if p["name"] == "output"][0]
+        assert o["min"] == -12 and o["max"] == 6 and o["type"] == "linear"
+
+    def test_itd_woodworth(self):
+        code = self._read_script()
+        assert "Woodworth" in code, "Missing Woodworth formula reference"
+        assert "azRad + Math.sin(azRad)" in code, "Missing Woodworth ITD formula"
+
+    def test_itd_delay_buffers(self):
+        code = self._read_script()
+        assert "delayBufL" in code and "delayBufR" in code, "Missing ITD delay buffers"
+        assert "_readDelay" in code, "Missing fractional delay read"
+        assert "delaySamplesL" in code, "Missing per-channel delay samples"
+
+    def test_ild_shadow(self):
+        code = self._read_script()
+        assert "ildMax" in code, "Missing ILD max calculation"
+        assert "ildStateL" in code, "Missing ILD state"
+        assert "sin(absAz" in code, "Missing azimuth-dependent ILD"
+
+    def test_pinna_notches(self):
+        code = self._read_script()
+        assert "pinnaNotch1" in code and "pinnaNotch2" in code, "Missing pinna notch frequencies"
+        assert "_biquadPeak" in code, "Missing biquad peak for pinna notches"
+        assert "elev" in code, "Missing elevation in pinna calculation"
+
+    def test_distance_attenuation(self):
+        code = self._read_script()
+        assert "distAtten" in code, "Missing distance attenuation"
+        assert "1 / Math.max" in code, "Missing inverse distance law"
+
+    def test_air_absorption(self):
+        code = self._read_script()
+        assert "airAbsorb" in code, "Missing air absorption"
+        assert "distance > 1" in code, "Missing distance threshold for air absorption"
+
+    def test_room_reverb(self):
+        code = self._read_script()
+        assert "_comb" in code, "Missing comb filter for room"
+        assert "_allpass" in code, "Missing allpass for room"
+        assert "roomAmount" in code, "Missing room amount"
+
+    def test_decorrelation(self):
+        code = self._read_script()
+        assert "_rand" in code, "Missing LCG for decorrelation"
+        assert "1103515245" in code, "Missing LCG constant"
+        assert "revL" in code and "revR" in code, "Missing decorrelated L/R reverb"
+
+    def test_stereo_output(self):
+        code = self._read_script()
+        assert "outL" in code and "outR" in code, "Missing stereo output"
+        assert "outL[i]" in code and "outR[i]" in code, "Missing per-sample stereo output"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "1 - p.mix" in code, "Missing dry gain"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
