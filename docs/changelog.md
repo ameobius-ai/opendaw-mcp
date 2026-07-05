@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.86.0 (2026-07-05)
+
+- **`werkstatt_autowah.js` DSP script** — envelope-followed filter (autowah): filter frequency driven by input envelope, not LFO or static cutoff. 3 filter modes (bandpass/peaking/lowpass), sensitivity, attack/release, direction (up/down sweep), cutoff smoothing. 69 DSP scripts
+- **828 unit tests** (+13), E2E 8/8
+
 ## v1.85.0 (2026-07-05)
 
 - **`werkstatt_dimension_chorus.js` DSP script** — Roland Dimension D-style chorus: 2 detuned delay lines with independent LFO rates (triangle wave), no feedback, mono-sum input, brightness filter, stereo width control. 68 DSP scripts

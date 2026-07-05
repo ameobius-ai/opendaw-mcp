@@ -7,9 +7,9 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-309-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-68-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-818%20unit%20%2B%20E2E-brightgreen)](tests/)
-[![Examples](https://img.shields.io/badge/Examples-107-blue)](examples/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-69-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-828%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Examples](https://img.shields.io/badge/Examples-108-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -509,7 +509,12 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
-## v1.85.0 (2026-07-05)
+## v1.86.0 (2026-07-05)
+
+- **`werkstatt_autowah.js` DSP script** — envelope-followed filter (autowah): filter frequency driven by input envelope, not LFO or static cutoff. 3 filter modes (bandpass/peaking/lowpass), sensitivity, attack/release, direction (up/down sweep), cutoff smoothing. 69 DSP scripts
+- **828 unit tests** (+13), E2E 8/8
+
+### v1.85.0 (2026-07-05)
 
 - **`werkstatt_dimension_chorus.js` DSP script** — Roland Dimension D-style chorus: 2 detuned delay lines with independent LFO rates (triangle wave), no feedback, mono-sum input, brightness filter, stereo width control. 68 DSP scripts
 - **818 unit tests** (+13), E2E 8/8

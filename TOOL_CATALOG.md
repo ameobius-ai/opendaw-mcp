@@ -383,13 +383,14 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 283 tools**
 
-## DSP Scripts (scripts/) — 68 scripts
+## DSP Scripts (scripts/) — 69 scripts
 
-### Werkstatt (Audio Effects) — 52 scripts
+### Werkstatt (Audio Effects) — 53 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
 - `werkstatt_dimension_chorus.js` — Dimension chorus (Roland Dimension D: dual detuned delay lines, independent LFO rates, triangle wave, no feedback, mono-sum input, brightness filter, stereo width)
+- `werkstatt_autowah.js` — Autowah (envelope-followed filter: 3 modes bandpass/peaking/lowpass, sensitivity, attack/release, up/down sweep direction, cutoff smoothing)
 - `werkstatt_tube_saturator.js` — Tube saturator (even harmonics, asymmetrical bias, warmth, tone, output, mix)
 - `werkstatt_spring_reverb.js` — Spring reverb (dispersive, boing transient, tension, damp, mix)
 - `werkstatt_bitcrusher.js` — Standalone bitcrusher (bits 1-16, rate reduction, drive, DC offset, mix)

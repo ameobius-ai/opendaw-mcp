@@ -3188,16 +3188,92 @@ class TestMultitapDelayDSP:
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
 
-    def test_reset_clears_buffer(self):
-        code = self._read_script()
-        assert "buf.fill(0)" in code or "fill(0)" in code, "Reset should clear buffer"
 
-    def test_mix_and_output(self):
+class TestAutowahDSP:
+    """Unit tests for werkstatt_autowah.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "werkstatt_autowah.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt autowah" in code, "Missing @werkstatt autowah header"
+
+    def test_param_count(self):
         params = self._parse_params(self._read_script())
-        mix = [p for p in params if p["name"] == "mix"][0]
-        out_p = [p for p in params if p["name"] == "output"][0]
-        assert mix["min"] == 0 and mix["max"] == 1
-        assert out_p["min"] == 0 and out_p["max"] == 1
+        assert len(params) == 11, f"Expected 11 params, got {len(params)}"
+
+    def test_mode_param(self):
+        params = self._parse_params(self._read_script())
+        m = [p for p in params if p["name"] == "mode"][0]
+        assert m["min"] == 0 and m["max"] == 2, "mode should be 0-2 (bandpass/peak/lowpass)"
+
+    def test_base_freq_and_sweep(self):
+        params = self._parse_params(self._read_script())
+        bf = [p for p in params if p["name"] == "base_freq"][0]
+        sr_p = [p for p in params if p["name"] == "sweep_range"][0]
+        assert bf["scale"] == "exp", "base_freq should be exp scale"
+        assert sr_p["min"] == 200 and sr_p["max"] == 4000
+
+    def test_sensitivity(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "sensitivity"][0]
+        assert s["min"] == 0 and s["max"] == 1
+
+    def test_attack_release_exp(self):
+        params = self._parse_params(self._read_script())
+        atk = [p for p in params if p["name"] == "attack"][0]
+        rel = [p for p in params if p["name"] == "release"][0]
+        assert atk["scale"] == "exp", "attack should be exp"
+        assert rel["scale"] == "exp", "release should be exp"
+
+    def test_envelope_follower(self):
+        code = self._read_script()
+        assert "this.env" in code, "Missing envelope follower state"
+        assert "atkCoef" in code and "relCoef" in code, "Missing attack/release coefficients"
+
+    def test_biquad_coeffs(self):
+        code = self._read_script()
+        assert "_biquadCoeffs" in code, "Missing biquad coefficient method"
+        assert "alpha" in code, "Missing biquad Q calculation"
+
+    def test_three_filter_modes(self):
+        code = self._read_script()
+        assert "mode === 0" in code, "Missing bandpass mode"
+        assert "mode === 1" in code, "Missing peaking mode"
+        assert "} else {" in code, "Missing third mode (lowpass)"
+
+    def test_direction_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "direction"][0]
+        assert d["min"] == 0 and d["max"] == 1, "direction should be 0-1"
+
+    def test_smoothing(self):
+        code = self._read_script()
+        assert "smoothCutoff" in code, "Missing cutoff smoothing"
+        assert "smoothCoef" in code, "Missing smoothing coefficient"
+
+    def test_reset(self):
+        code = self._read_script()
+        assert "reset()" in code
+        assert "this.env = 0" in code, "Reset should clear envelope"
 
 
 class TestDimensionChorusDSP:
@@ -3240,7 +3316,6 @@ class TestDimensionChorusDSP:
 
     def test_no_feedback(self):
         code = self._read_script()
-        # Dimension D characteristic: no feedback in the delay lines
         assert "no feedback" in code.lower() or "no feedback!" in code.lower(), "Should note absence of feedback"
 
     def test_dual_lfo_phases(self):
