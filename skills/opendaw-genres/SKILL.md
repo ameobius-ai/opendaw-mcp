@@ -472,7 +472,7 @@ await mcp_opendaw_add_mastering_chain(target_lufs=-16, style="transparent")  # a
 - `opendaw-sound-design` — instruments + DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain
 - `suno-to-opendaw` — Suno→stems→openDAW E2E
-- `opendaw-automation` — 337 MCP tools full API reference
+- `opendaw-automation` — 339 MCP tools full API reference
 
 ## Multi-Track Arrangement Tools (14 genres)
 
@@ -552,3 +552,59 @@ User wants...
 | Jazz | Walking (quarter notes through ii-V-I) | Chord-tone movement |
 | Funk | Slap (thumb/pluck, 16th density) | 16 notes per bar |
 | Rock | Root-fifth walking | Locks with kick |
+
+### Full Pipeline: Create → Mix → Humanize → Master
+
+Three capability layers transform raw arrangements into finished tracks:
+
+```
+1. CREATE notes
+   ├── Loop-based?     → create_XXX_arrangement (14 genres)
+   ├── Song structure? → create_genre_sections (8 electronic: intro→buildup→drop→breakdown→outro)
+   └── One-call?       → create_full_genre_pipeline (14 genres, all steps in one call)
+
+2. MIX (effects per track)
+   └── apply_genre_mix (14 genres: compressor/EQ/saturation/reverb/delay/sidechain per genre)
+
+3. HUMANIZE (make MIDI feel alive)
+   └── apply_genre_humanization (14 genres: jazz=loose+swing, electronic=tight, funk=behind beat)
+
+4. MASTER
+   └── add_mastering_chain (LUFS target: -14 Spotify, -10 loud, -16 Apple)
+```
+
+#### Which structure tool to use?
+
+| Need | Tool | Genres |
+|------|------|--------|
+| Loop-based section (8-16 bars) | `create_XXX_arrangement` | 14 genres |
+| Full song with DJ structure | `create_genre_sections` | 8 electronic |
+| Zero-to-render in one call | `create_full_genre_pipeline` | 14 genres |
+
+#### Humanization intensity by genre
+
+| Genre | Timing | Velocity | Swing | Bias |
+|-------|--------|----------|-------|------|
+| Jazz | 0.20 (loosest) | 0.20 | 0.66 | — |
+| Reggae | 0.12 | 0.15 | — | +0.03 (laid-back) |
+| Funk | 0.10 | 0.15 | — | +0.02 (pocket) |
+| Rock | 0.10 | 0.12 | — | — |
+| Afrobeat | 0.12 | 0.15 | — | — |
+| Disco | 0.06 | 0.10 | — | — |
+| Pop | 0.05 | 0.08 | — | — |
+| Synthwave | 0.04 | 0.06 | — | — |
+| DnB/House/Trap/Dubstep | 0.03 | 0.05 | — | — |
+| Techno/Trance | 0.02 (tightest) | 0.04 | — | — |
+
+Per-track scaling: drums=1.0, melody=0.8, harmony=0.7, bass=0.5 (bass stays tight)
+
+#### Section energy profile (create_genre_sections)
+
+```
+energy  1.0 ┤                    ████
+        0.7 ┤          ████████  ░░░░
+        0.6 ┤          ░░░░░░░░  ░░░░  ████████
+        0.5 ┤  ████████░░░░░░░░  ░░░░  ░░░░░░░░
+        0.4 ┤  ░░░░░░░░░░░░░░░░  ░░░░  ░░░░░░░░████
+            └──intro───buildup───drop───breakdown──outro──
+```
