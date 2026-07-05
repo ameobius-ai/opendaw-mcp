@@ -2120,3 +2120,87 @@ class TestSpringReverbDSP:
         code = self._read_script()
         assert "4" in code and ("spring" in code.lower() or "delays" in code), "Missing multi-spring architecture"
         assert "offsets" in code or "detuned" in code, "Missing detuned spring offsets"
+
+
+class TestTubeSaturatorDSP:
+    """Unit tests for werkstatt_tube_saturator.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_tube_saturator.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt tube_saturator" in code, "Missing @werkstatt tube_saturator header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 6, f"Expected 6 params, got {len(params)}"
+
+    def test_drive_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        drive = [p for p in params if p["name"] == "drive"][0]
+        assert drive["min"] == 0
+        assert drive["max"] == 1
+
+    def test_warmth_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        warmth = [p for p in params if p["name"] == "warmth"][0]
+        assert warmth["min"] == 0
+        assert warmth["max"] == 1
+
+    def test_bias_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        bias = [p for p in params if p["name"] == "bias"][0]
+        assert bias["min"] == -0.5
+        assert bias["max"] == 0.5
+
+    def test_tone_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        tone = [p for p in params if p["name"] == "tone"][0]
+        assert tone["min"] == 0
+        assert tone["max"] == 1
+
+    def test_output_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["min"] == 0
+        assert out["max"] == 1
+
+    def test_mix_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mix = [p for p in params if p["name"] == "mix"][0]
+        assert mix["min"] == 0
+        assert mix["max"] == 1
+
+    def test_asymmetrical_waveshaper(self):
+        code = self._read_script()
+        assert "tanh" in code, "Missing tanh waveshaper"
+        assert "bias" in code, "Missing bias for asymmetrical transfer (even harmonics)"
+
+    def test_even_odd_harmonic_blend(self):
+        code = self._read_script()
+        assert "warmth" in code, "Missing warmth control for even/odd harmonic blend"
+        assert "even" in code and "odd" in code, "Missing even/odd harmonic separation"

@@ -27,8 +27,8 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **302** MCP tools | **76** Python examples (8 genre templates) |
-| **45** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **292** unit + **26** E2E tests |
+| **46** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **302** unit + **27** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,14 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.55.0 (2026-07-05)
+
+- **`werkstatt_tube_saturator.js` DSP script** — tube/valve saturator with asymmetrical transfer curve (even harmonic dominance), warmth control (even/odd blend), bias, post-saturation tone filter, output gain. 6 params: drive, warmth, bias, tone, output, mix. Distinct from tape (darksat) and soft-clip (overdrive). Completes saturation family: tape ✅ overdrive ✅ wavefold ✅ bitcrusher ✅ tube ✅
+- **46 DSP scripts** (33 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 6 params, drive/warmth/bias/tone set
+- **Example script**: `werkstatt_tube_saturator.py` — gentle warmth, aggressive crunch, vintage vocal
+- ruff clean, CI green
 
 ### v1.54.0 (2026-07-05)
 

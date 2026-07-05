@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.55.0 (2026-07-05)
+
+- **`werkstatt_tube_saturator.js` DSP script** — tube/valve saturator with asymmetrical transfer curve (even harmonic dominance), warmth control (even/odd blend), bias, post-saturation tone filter, output gain. 6 params: drive, warmth, bias, tone, output, mix. Distinct from tape (darksat) and soft-clip (overdrive). Completes saturation family: tape ✅ overdrive ✅ wavefold ✅ bitcrusher ✅ tube ✅
+- **46 DSP scripts** (33 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 6 params, drive/warmth/bias/tone set
+- **Example script**: `werkstatt_tube_saturator.py` — gentle warmth, aggressive crunch, vintage vocal
+- ruff clean, CI green
+
 ## v1.54.0 (2026-07-05)
 
 - **`werkstatt_spring_reverb.js` DSP script** — spring reverb with dispersive delay lines, transient-driven "boing" chirp response, and 4 detuned springs. Parameters: decay, damp, tension (delay time), boing (transient sensitivity), mix. Classic for surf rock, dub, guitar amps. Completes reverb family: algorithmic ✅ shimmer ✅ spring ✅
