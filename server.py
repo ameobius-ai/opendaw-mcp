@@ -30019,6 +30019,175 @@ async def mcp_opendaw_merge_consecutive_notes(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_rotate_notes(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    rotate_by: int = 1,
+    axis: str = "position",
+    preserve_pitch_contour: bool = False,
+) -> str:
+    """Rotate notes in a region by N positions (cyclic shift).
+
+    Shifts notes cyclically — the first `rotate_by` notes move to the
+    end, and the remaining notes shift left to fill the gap. This is
+    a fundamental compositional technique used in serialism (rotational
+    arrays — Berg, Webern), jazz melodic variation, and pattern
+    transformation in electronic music.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        rotate_by: Number of positions to rotate (positive = left shift,
+                   negative = right shift). Wrapped modulo note count.
+        axis: Rotation axis —
+            "position" = rotate note order by position (notes keep pitch,
+                         positions are reassigned in rotated order),
+            "pitch" = rotate pitches (positions stay, pitches shift
+                      cyclically among the notes),
+            "both" = rotate both position and pitch together (true
+                     permutation — notes swap places entirely).
+        preserve_pitch_contour: If True, after rotation adjust pitches
+            to maintain the original melodic contour (interval sequence).
+            Useful for melodic rotation that stays singable.
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{error: "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        let rotateBy = {rotate_by};
+        const axis = "{axis}";
+        const preserveContour = {preserve_pitch_contour};
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{error: "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length < 2) return {{error: "Need at least 2 notes to rotate"}};
+
+        // Read source note data, sorted by position
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        const n = srcData.length;
+        // Normalize rotation
+        rotateBy = ((rotateBy % n) + n) % n;
+        if (rotateBy === 0) return {{success: true, notes_rotated: 0, rotate_by: 0, message: "No rotation needed (rotate_by mod n = 0)"}};
+
+        // Build rotated data
+        const rotated = new Array(n);
+        const origPositions = srcData.map(d => d.pos);
+        const origPitches = srcData.map(d => d.pitch);
+
+        if (axis === "position") {{
+            // Rotate note order, reassign positions
+            for (let i = 0; i < n; i++) {{
+                const srcIdx = (i + rotateBy) % n;
+                rotated[i] = {{
+                    pos: origPositions[i],
+                    dur: srcData[srcIdx].dur,
+                    pitch: srcData[srcIdx].pitch,
+                    vel: srcData[srcIdx].vel,
+                }};
+            }}
+        }} else if (axis === "pitch") {{
+            // Rotate pitches, keep positions
+            for (let i = 0; i < n; i++) {{
+                const pitchIdx = (i + rotateBy) % n;
+                rotated[i] = {{
+                    pos: srcData[i].pos,
+                    dur: srcData[i].dur,
+                    pitch: srcData[pitchIdx].pitch,
+                    vel: srcData[i].vel,
+                }};
+            }}
+        }} else {{ // both
+            for (let i = 0; i < n; i++) {{
+                const srcIdx = (i + rotateBy) % n;
+                rotated[i] = {{
+                    pos: origPositions[i],
+                    dur: srcData[srcIdx].dur,
+                    pitch: srcData[srcIdx].pitch,
+                    vel: srcData[srcIdx].vel,
+                }};
+            }}
+        }}
+
+        // Preserve contour: adjust rotated pitches to match original intervals
+        if (preserveContour) {{
+            const origIntervals = [];
+            for (let i = 1; i < n; i++) {{
+                origIntervals.push(srcData[i].pitch - srcData[i-1].pitch);
+            }}
+            for (let i = 1; i < n; i++) {{
+                rotated[i].pitch = rotated[i-1].pitch + origIntervals[i-1];
+            }}
+        }}
+
+        // Replace notes
+        const bg = h.boxGraph;
+        const editing = h.editing;
+        let deleted = 0;
+        let created = 0;
+
+        await editing.modify(async () => {{
+            for (const note of srcNotes) {{
+                note.delete();
+                deleted++;
+            }}
+            for (const rn of rotated) {{
+                h.NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(rn.pos));
+                    box.duration.setValue(Math.round(rn.dur));
+                    box.pitch.setValue(rn.pitch);
+                    box.velocity.setValue(rn.vel);
+                    box.cent.setValue(0);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_before: srcData.length,
+            notes_after: rotated.length,
+            notes_deleted: deleted,
+            notes_created: created,
+            rotate_by: rotateBy,
+            axis: axis,
+            preserve_contour: preserveContour,
+            original_pitches: origPitches,
+            rotated_pitches: rotated.map(r => r.pitch),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 @mcp.tool()

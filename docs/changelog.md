@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.261.0 (2026-07-06)
+
+### Added
+- `rotate_notes` — Rotate notes cyclically (cyclic shift / permutation). 3 axes: position (reassign note order), pitch (shift pitches), both (true permutation). Rotation normalized modulo n. preserve_pitch_contour maintains original interval sequence. Serialism (Berg, Webern), jazz melodic rotation, pattern transformation.
+
 ## v1.260.0 (2026-07-06)
 
 ### Added

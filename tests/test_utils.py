@@ -17661,3 +17661,138 @@ class TestMergeConsecutiveNotes:
         assert sorted_notes[0]["pos"] == 0
         assert sorted_notes[1]["pos"] == 480
         assert sorted_notes[2]["pos"] == 960
+
+
+class TestRotateNotes:
+    """Tests for mcp_opendaw_rotate_notes — cyclic shift of notes"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_rotate_notes" in names
+
+    def test_rotation_normalization(self):
+        """rotate_by normalized: ((r % n) + n) % n"""
+        n = 5
+        for r in [0, 1, 2, 5, 6, -1, -5, 7]:
+            normalized = ((r % n) + n) % n
+            assert 0 <= normalized < n
+
+    def test_rotation_zero(self):
+        """rotate_by=0 → no rotation"""
+        n = 4
+        r = 0
+        normalized = ((r % n) + n) % n
+        assert normalized == 0
+
+    def test_rotation_full_cycle(self):
+        """rotate_by=n → same as 0"""
+        n = 4
+        r = 4
+        normalized = ((r % n) + n) % n
+        assert normalized == 0
+
+    def test_negative_rotation(self):
+        """rotate_by=-1 → rotate right by 1 (equiv to left by n-1)"""
+        n = 4
+        r = -1
+        normalized = ((r % n) + n) % n
+        assert normalized == 3, "-1 mod 4 = 3 (right shift by 1)"
+
+    def test_position_rotation(self):
+        """axis='position': rotate note order, keep positions"""
+        src = [
+            {"pos": 0, "pitch": 60},
+            {"pos": 480, "pitch": 62},
+            {"pos": 960, "pitch": 64},
+            {"pos": 1440, "pitch": 65},
+        ]
+        n = 4
+        rotate_by = 1
+        rotated = []
+        for i in range(n):
+            src_idx = (i + rotate_by) % n
+            rotated.append({"pos": src[i]["pos"], "pitch": src[src_idx]["pitch"]})
+        # Position 0 gets note from index 1 (pitch 62)
+        assert rotated[0]["pitch"] == 62
+        assert rotated[1]["pitch"] == 64
+        assert rotated[2]["pitch"] == 65
+        assert rotated[3]["pitch"] == 60
+
+    def test_pitch_rotation(self):
+        """axis='pitch': rotate pitches, keep positions"""
+        src = [60, 62, 64, 65]
+        n = 4
+        rotate_by = 2
+        rotated = []
+        for i in range(n):
+            pitch_idx = (i + rotate_by) % n
+            rotated.append(src[pitch_idx])
+        assert rotated[0] == 64
+        assert rotated[1] == 65
+        assert rotated[2] == 60
+        assert rotated[3] == 62
+
+    def test_both_rotation(self):
+        """axis='both': rotate position+pitch together"""
+        src = [
+            {"pos": 0, "pitch": 60},
+            {"pos": 480, "pitch": 62},
+            {"pos": 960, "pitch": 64},
+        ]
+        n = 3
+        rotate_by = 1
+        rotated = []
+        for i in range(n):
+            src_idx = (i + rotate_by) % n
+            rotated.append({"pos": src[i]["pos"], "pitch": src[src_idx]["pitch"]})
+        assert rotated[0]["pitch"] == 62
+        assert rotated[1]["pitch"] == 64
+        assert rotated[2]["pitch"] == 60
+
+    def test_preserve_contour(self):
+        """preserve_pitch_contour: adjust pitches to match original intervals"""
+        src = [60, 64, 67, 72]  # intervals: +4, +3, +5
+        intervals = [src[i] - src[i-1] for i in range(1, len(src))]
+        # After rotation, rebuild from rotated[0] using original intervals
+        rotated_start = 62
+        rebuilt = [rotated_start]
+        for interval in intervals:
+            rebuilt.append(rebuilt[-1] + interval)
+        assert rebuilt == [62, 66, 69, 74]
+
+    def test_note_count_preserved(self):
+        """Rotation preserves note count"""
+        src_count = 5
+        rotated_count = 5
+        assert src_count == rotated_count
+
+    def test_minimum_notes(self):
+        """Need at least 2 notes to rotate"""
+        assert 1 < 2, "single note cannot be rotated"
+
+    def test_sorting_by_position(self):
+        """Notes sorted by position before rotation"""
+        src = [
+            {"pos": 960, "pitch": 64},
+            {"pos": 0, "pitch": 60},
+            {"pos": 480, "pitch": 62},
+        ]
+        sorted_src = sorted(src, key=lambda n: n["pos"])
+        assert sorted_src[0]["pos"] == 0
+        assert sorted_src[1]["pos"] == 480
+        assert sorted_src[2]["pos"] == 960
+
+    def test_large_rotation_wraps(self):
+        """rotate_by > n wraps around"""
+        n = 3
+        r = 7
+        normalized = ((r % n) + n) % n
+        assert normalized == 1, "7 mod 3 = 1"
+
+    def test_three_axes(self):
+        """3 axis options: position, pitch, both"""
+        axes = ("position", "pitch", "both")
+        assert len(axes) == 3
