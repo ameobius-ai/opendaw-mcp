@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.64.0 (2026-07-05)
+
+- **`werkstatt_vocoder.js` DSP script** — channel vocoder with 8-24 log-spaced bandpass filter bank. Maps modulator (vocal/input) spectral envelope onto a carrier oscillator (saw/square/noise). Per-band envelope followers with adjustable response time and threshold gating. Emphasis control boosts high bands for intelligibility. Output highpass removes rumble. Classic for robotic voice effects, synth vocal textures, Daft Punk-style sounds. 10 params: bands, carrier_wave, carrier_freq, mod_response, mod_threshold, band_q, emphasis, highpass, mix, output
+- **54 DSP scripts** (41 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **555 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.63.0 (2026-07-05)
 
 - **`werkstatt_multiband_comp.js` DSP script** — 3-band multiband compressor with Linkwitz-Riley 4th order crossovers (24dB/oct). Independent threshold/ratio/attack/release/makeup gain per band (low/mid/high). Crossover frequencies 50-8000 Hz (exponential). Envelope followers per band with peak detection. Classic mastering tool — controls dynamics separately in low/mid/high frequency ranges. 18 params: 2 crossovers + 5 per band × 3 + mix

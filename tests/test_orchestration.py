@@ -1906,3 +1906,83 @@ class TestMultibandCompDSP:
         mix = [p for p in params if p["name"] == "mix"][0]
         assert mix["min"] == 0
         assert mix["max"] == 1
+
+
+class TestVocoderDSP:
+    """Unit tests for werkstatt_vocoder.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_vocoder.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt vocoder" in code, "Missing @werkstatt vocoder header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_band_count_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        bands = [p for p in params if p["name"] == "bands"][0]
+        assert bands["min"] == 8 and bands["max"] == 24, "bands range should be 8-24"
+
+    def test_carrier_wave_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        wave = [p for p in params if p["name"] == "carrier_wave"][0]
+        assert wave["min"] == 0 and wave["max"] == 2, "carrier_wave range should be 0-2"
+
+    def test_bandpass_filter_bank(self):
+        code = self._read_script()
+        assert "_bandpassCoeffs" in code, "Missing bandpass coefficient calculation"
+        assert "_bandFreq" in code, "Missing band frequency calculation"
+        assert "MAX_BANDS" in code, "Missing MAX_BANDS constant"
+
+    def test_envelope_followers(self):
+        code = self._read_script()
+        assert "envCoeff" in code, "Missing envelope coefficient"
+        assert "mod_response" in code, "Missing mod_response parameter"
+        assert "this.env" in code, "Missing per-band envelope array"
+
+    def test_carrier_oscillator(self):
+        code = self._read_script()
+        assert "_carrierSample" in code, "Missing carrier oscillator"
+        assert "carPhase" in code, "Missing carrier phase"
+        assert "carPhaseInc" in code, "Missing carrier phase increment"
+
+    def test_spectral_mapping(self):
+        code = self._read_script()
+        assert "modState" in code, "Missing modulator filter state"
+        assert "carState" in code, "Missing carrier filter state"
+        assert "carBand * env" in code or "bandOut" in code, "Missing envelope-to-carrier gain application"
+
+    def test_log_spacing(self):
+        code = self._read_script()
+        assert "Math.pow" in code and "FREQ_LO" in code and "FREQ_HI" in code, "Missing logarithmic band spacing"
+
+    def test_mix_and_output(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mix = [p for p in params if p["name"] == "mix"][0]
+        out_p = [p for p in params if p["name"] == "output"][0]
+        assert mix["min"] == 0 and mix["max"] == 1, "mix range should be 0-1"
+        assert out_p["min"] == -12 and out_p["max"] == 12, "output range should be -12 to 12 dB"

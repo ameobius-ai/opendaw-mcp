@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-303-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-53-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-354%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-54-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-555%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **303** MCP tools | **82** Python examples (8 genre templates) |
-| **53** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **354** unit + E2E tests |
+| **303** MCP tools | **83** Python examples (8 genre templates) |
+| **54** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **555** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -507,17 +507,23 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.64.0 (2026-07-05)
+
+- **`werkstatt_vocoder.js` DSP script** — channel vocoder with 8-24 log-spaced bandpass filter bank. Maps modulator (vocal/input) spectral envelope onto a carrier oscillator (saw/square/noise). Per-band envelope followers with adjustable response time and threshold gating. Emphasis control boosts high bands for intelligibility. Output highpass removes rumble. Classic for robotic voice effects, synth vocal textures, Daft Punk-style sounds. 10 params: bands, carrier_wave, carrier_freq, mod_response, mod_threshold, band_q, emphasis, highpass, mix, output
+- **54 DSP scripts** (41 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **565 unit tests** (+10), E2E 8/8
+
 ### v1.63.0 (2026-07-05)
 
 - **`werkstatt_multiband_comp.js` DSP script** — 3-band multiband compressor with Linkwitz-Riley 4th order crossovers (24dB/oct). Independent threshold/ratio/attack/release/makeup gain per band (low/mid/high). Crossover frequencies 50-8000 Hz (exponential). Envelope followers per band with peak detection. Classic mastering tool — controls dynamics separately in low/mid/high frequency ranges. 18 params: 2 crossovers + 5 per band × 3 + mix
-- **53 DSP scripts** (40 Werkstatt + 7 Apparat + 6 Spielwerk)
-- **555 unit tests** (+10), E2E 8/8
+- **54 DSP scripts** (41 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **565 unit tests** (+10), E2E 8/8
 - ruff clean, CI green
 
 ### v1.62.0 (2026-07-05)
 
 - **`werkstatt_harmonizer.js` DSP script** — dual-voice harmonizer with independent pitch shift (±12 semitones + ±50 cents), per-voice gain, detune LFO for chorus-like wobble, and delay-based pitch shifting. Creates choir/harmony effects from any input — two shifted voices with micro-detune. Distinct from pitch_shift (single voice) — harmonizer creates multiple harmonized copies. Classic for vocal harmonies, guitar harmonizers, synth thickening. 9 params: 2× shift_semi/cent/gain, detune, delay, mix
-- **52 DSP scripts** (39 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **54 DSP scripts** (41 Werkstatt + 7 Apparat + 6 Spielwerk)
 - **546 unit tests** (+10), E2E 8/8
 - ruff clean, CI green
 

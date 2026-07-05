@@ -391,6 +391,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_formant_filter.js` — Formant filter (3-band vocal tract, 5 vowel presets, manual F1/F2/F3, bandwidth, resonance)
 - `werkstatt_harmonizer.js` — Dual-voice harmonizer (±12 semi + ±50 cent per voice, detune LFO, delay-based pitch shift)
 - `werkstatt_multiband_comp.js` — 3-band multiband compressor (LR4 crossover, per-band threshold/ratio/attack/release/gain)
+- `werkstatt_vocoder.js` — Channel vocoder (8-24 log-spaced bandpass bank, modulator→carrier spectral envelope mapping, saw/square/noise carrier, emphasis, output HPF)
 - `werkstatt_coldfold.js` — Wavefolding + bitcrush (drive, fold, crush, slew, mix)
 - `werkstatt_chorus.js` — Stereo chorus (rate, depth, delay, feedback)
 - `werkstatt_reverb.js` — Plate reverb (decay, predelay, wet, tone)
