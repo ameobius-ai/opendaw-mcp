@@ -147,6 +147,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 134. `create_country_arrangement` — country/Americana: straight 8th drums + root-five bass + boom-chick guitar + major pentatonic fiddle lead, I-IV-V 8-bar form, 120 BPM default
 135. `create_metal_arrangement` — heavy metal: double kick drums + palm-muted power chord riffs (phrygian dominant) + root-following bass + shred lead, riff-based 4-bar, 160 BPM default
 136. `create_harmony_line` — diatonic harmony from existing melody: 5 intervals (third/sixth/fifth/fourth/octave), above/below direction, scale-step shifts, auto-creates target track/region
+137. `create_voice_led_progression` — chord pads with smooth voice leading: re-voices each chord for minimal voice movement, common tones stationary, reports per-chord movement stats, voice_range constrains spread
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

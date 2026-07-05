@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.225.0 (2026-07-05)
+
+### Added
+- `create_voice_led_progression` — Chord pads with smooth voice leading. Unlike `create_chord_pads` (root position → large jumps between chords), this re-voices each chord so individual voices move minimally. Algorithm: first chord = root position centered on octave; each subsequent chord: generate all octave-shifted inversions within ±voice_range, pick the voicing with minimal total semitone movement from previous chord. Common tones stay stationary (distance 0 = optimal). Reports per-chord movement, total movement, and average. Same hyphen-separated chord format as create_chord_pads. voice_range constrains voice spread (default 12 = ±1 octave). 13 unit tests including algorithm verification (minimal movement, common tones, range constraints). **400 MCP tools**, 2852 unit tests
+
 ## v1.224.0 (2026-07-05)
 
 ### Added

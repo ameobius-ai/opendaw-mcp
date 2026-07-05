@@ -33639,6 +33639,269 @@ async def mcp_opendaw_create_chord_pads(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_voice_led_progression(
+    progression: str = "Am-F-C-G",
+    bars_per_chord: int = 4,
+    octave: int = 3,
+    velocity: float = 0.65,
+    unit_index: int = 0,
+    track_index: int = 2,
+    start_beat: float = 0,
+    note_duration: float = 3.8,
+    voice_range: int = 12,
+) -> str:
+    """Create chord pads with smooth voice leading — minimal movement between chords.
+
+    Unlike create_chord_pads (which voices every chord in root position causing
+    large jumps), this tool re-voices each chord so individual voices move as
+    little as possible. Common tones stay stationary, other voices resolve by
+    nearest semitone step. The result: strings/pads that glide instead of jump.
+
+    progression: Hyphen-separated chords (same format as create_chord_pads).
+      "Am-F-C-G" = i-VI-III-VII in A minor.
+      "C-Am-F-G" = I-vi-IV-V in C major.
+      "Dm7-G7-Cmaj7-Am7" = ii-V-I-vi in C (jazz).
+
+    bars_per_chord: Bars per chord (default 4).
+    octave: Center octave for voicing range (3 = C3-C4 register, typical pads).
+    velocity: Note velocity (0-1, default 0.65).
+    unit_index: AU index with note tracks.
+    track_index: Track for chord pads (typically 2 = harmony).
+    start_beat: Where the progression starts.
+    note_duration: Sustain length in beats (default 3.8 = near-full bar).
+    voice_range: Max semitone span from center pitch for each voice (default 12
+      = one octave either side of center). Prevents voices from drifting too
+      high or low. 7 = tighter, 18 = wider range.
+
+    Returns chord voicings, voice movements, and total notes.
+
+    Voice leading algorithm:
+      1. First chord: root-position voicing centered on octave.
+      2. For each subsequent chord:
+         a. Find all pitch-class rotations/inversions of the chord.
+         b. For each candidate voicing, compute total voice movement
+            (sum of semitone distances from previous voicing, by voice index).
+         c. Pick the voicing with minimal total movement.
+         d. Constraint: each voice stays within ±voice_range of center.
+      3. Common tones naturally stay (distance 0 = optimal).
+    """
+    # Parse chord progression (same logic as create_chord_pads)
+    chord_specs = []
+    for chord_str in progression.split("-"):
+        chord_str = chord_str.strip()
+        if not chord_str:
+            continue
+        root = ""
+        chord_type = "maj"
+        if len(chord_str) >= 2 and chord_str[1] in "#b":
+            root = chord_str[:2]
+            remainder = chord_str[2:]
+        else:
+            root = chord_str[0]
+            remainder = chord_str[1:]
+        if remainder:
+            if remainder == "m":
+                chord_type = "min"
+            elif remainder == "7":
+                chord_type = "dom7"
+            elif remainder == "maj7":
+                chord_type = "maj7"
+            elif remainder == "m7":
+                chord_type = "min7"
+            elif remainder == "sus2":
+                chord_type = "sus2"
+            elif remainder == "sus4":
+                chord_type = "sus4"
+            elif remainder == "add9":
+                chord_type = "add9"
+            elif remainder == "dim":
+                chord_type = "dim"
+            elif remainder == "aug":
+                chord_type = "aug"
+            elif remainder == "maj":
+                chord_type = "maj"
+            else:
+                return f"Error: unknown chord type '{remainder}' in chord '{chord_str}'. Valid: m, 7, maj7, m7, sus2, sus4, add9, dim, aug, maj"
+        if root not in NOTE_TO_PITCH:
+            return f"Error: unknown root note '{root}' in chord '{chord_str}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+        chord_specs.append((root, chord_type, chord_str))
+
+    if not chord_specs:
+        return "Error: progression must be a non-empty hyphen-separated chord list"
+    if len(chord_specs) > 16:
+        return "Error: maximum 16 chords per progression"
+    if bars_per_chord < 1 or bars_per_chord > 16:
+        return "Error: bars_per_chord must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+    if voice_range < 3 or voice_range > 24:
+        return "Error: voice_range must be 3-24"
+
+    center = (octave + 1) * 12  # e.g. octave=3 → 48
+    lo = center - voice_range
+    hi = center + voice_range
+
+    def _generate_voicings(intervals: list[int]) -> list[list[int]]:
+        """Generate all octave-shifted inversions of a chord within range."""
+        # Start from root-position at center
+        base = center + NOTE_TO_PITCH[root]  # not perfect, root changes per chord
+        return _generate_voicings_raw(intervals, base, lo, hi)
+
+    def _generate_voicings_raw(intervals: list[int], base_pitch: int, lo: int, hi: int) -> list[list[int]]:
+        """Generate all octave-shifted variants of a chord near base_pitch."""
+        # Get pitch classes
+        pcs = [(base_pitch + iv) % 12 for iv in intervals]
+        n = len(pcs)
+        voicings = []
+        # For each rotation (inversion), try different octave placements
+        for start_oct in range(lo // 12, hi // 12 + 2):
+            for inv in range(n):
+                voicing = []
+                valid = True
+                for i in range(n):
+                    pc = pcs[(i + inv) % n]
+                    # Place this pitch class near the previous voice's pitch
+                    if i == 0:
+                        candidate = start_oct * 12 + pc
+                    else:
+                        prev = voicing[-1]
+                        candidate = prev + ((pc - prev % 12 + 12) % 12)
+                        # Ensure ascending within voicing
+                        if candidate <= prev:
+                            candidate += 12
+                    if candidate < lo or candidate > hi:
+                        valid = False
+                        break
+                    voicing.append(candidate)
+                if valid and len(voicing) == n:
+                    # Deduplicate
+                    if voicing not in voicings:
+                        voicings.append(voicing)
+        return voicings
+
+    def _best_voicing(prev_voicing: list[int], candidates: list[list[int]]) -> tuple[list[int], list[int]]:
+        """Pick candidate voicing with minimal total voice movement."""
+        if not candidates:
+            # Fallback: root position at center
+            return ([center + NOTE_TO_PITCH[root] + iv for iv in intervals],
+                    [0] * len(intervals))
+        n = len(prev_voicing)
+        best = None
+        best_cost = 999999
+        for cand in candidates:
+            # Align by voice index, compute semitone distances
+            # If voice counts differ, pad with nearest
+            cost = 0
+            movements = []
+            max_len = max(n, len(cand))
+            for i in range(max_len):
+                if i < n and i < len(cand):
+                    dist = abs(cand[i] - prev_voicing[i])
+                    cost += dist
+                    movements.append(dist)
+                elif i < len(cand):
+                    # Extra voice — small penalty for adding
+                    cost += 2
+                    movements.append(2)
+                else:
+                    # Missing voice — small penalty
+                    cost += 2
+                    movements.append(2)
+            if cost < best_cost:
+                best_cost = cost
+                best = cand
+                best_movements = movements
+        return best, best_movements
+
+    all_notes = []
+    chord_info = []
+    prev_voicing = None
+    current_beat = start_beat
+
+    for ci, (root, chord_type, label) in enumerate(chord_specs):
+        intervals = CHORD_INTERVALS[chord_type]
+        root_pc = NOTE_TO_PITCH[root]
+
+        if ci == 0:
+            # First chord: root position centered on octave
+            voicing = [center + root_pc + iv for iv in intervals]
+            # Clamp to range
+            voicing = [max(lo, min(hi, p)) for p in voicing]
+            movements = [0] * len(voicing)
+        else:
+            # Generate candidate voicings and pick best
+            base_pitch = center + root_pc
+            candidates = _generate_voicings_raw(intervals, base_pitch, lo, hi)
+            if not candidates:
+                # Fallback: root position
+                voicing = [center + root_pc + iv for iv in intervals]
+                voicing = [max(lo, min(hi, p)) for p in voicing]
+                movements = [abs(voicing[i] - prev_voicing[i]) if i < len(prev_voicing) else 0
+                             for i in range(len(voicing))]
+            else:
+                voicing, movements = _best_voicing(prev_voicing, candidates)
+
+        # Sort voices ascending (soprano on top)
+        voicing_sorted = sorted(voicing)
+
+        chord_info.append({
+            "chord": label,
+            "root": root,
+            "type": chord_type,
+            "voicing": voicing_sorted,
+            "movement": movements,
+            "total_movement": sum(movements),
+            "start_beat": current_beat,
+            "bars": bars_per_chord,
+        })
+
+        for pitch in voicing_sorted:
+            all_notes.append({
+                "pitch": pitch,
+                "start": round(current_beat, 4),
+                "duration": note_duration,
+                "velocity": round(velocity, 3),
+            })
+
+        prev_voicing = sorted(voicing)
+        current_beat += bars_per_chord * 4
+
+    # Create notes via batch
+    notes_json = json.dumps(all_notes)
+    result = await mcp_opendaw_create_notes_batch(
+        notes_json, unit_index, track_index)
+
+    try:
+        batch_data = json.loads(result)
+        notes_created = batch_data.get("notes_created", len(all_notes))
+    except Exception:
+        notes_created = len(all_notes)
+
+    total_bars = len(chord_specs) * bars_per_chord
+    total_movement = sum(c["total_movement"] for c in chord_info[1:])
+
+    return json.dumps({
+        "voice_led_progression": True,
+        "progression": progression,
+        "chords": chord_info,
+        "chord_count": len(chord_specs),
+        "total_movement": total_movement,
+        "avg_movement_per_chord": round(total_movement / max(1, len(chord_specs) - 1), 2),
+        "bars_per_chord": bars_per_chord,
+        "total_bars": total_bars,
+        "octave": octave,
+        "voice_range": voice_range,
+        "notes_created": notes_created,
+        "total_notes": len(all_notes),
+        "track": track_index,
+        "start_beat": start_beat,
+        "next_step": "compare with create_chord_pads for root-position voicings, then apply_genre_mix and render_full_song",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_arpeggiated_progression(
     progression: str = "Am-F-C-G",
     pattern: str = "up",
