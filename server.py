@@ -21842,3 +21842,140 @@ async def mcp_opendaw_create_trap_rolls(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_electronic_bass(
+    bass_type: str = "house_offbeat",
+    bars: int = 2,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    root: str = "C",
+    octave: int = 2,
+    velocity: float = 0.9,
+) -> str:
+    """Create an electronic bassline pattern — genre-specific bass for dance music.
+
+    Electronic basslines are fundamentally different from melodic basslines: they're
+    rhythmic engines that lock with the kick drum. Each genre has a characteristic
+    bass technique that defines its sound.
+
+    bass_type:
+      "house_offbeat"  — House off-beat bass: sustained notes on the "&" of each beat
+                         (between kicks). The classic house bass that creates the
+                         "untz-untz-untz" feel. Frankie Knuckles / Detroit house.
+      "techno_sub"     — Techno sub-bass: one long sustained root per bar, minimal.
+                         Pure low-end energy. Berlin techno / Marcel Dettmann.
+      "dnb_reese"      — DnB Reese bass: sustained note on beat 1, then syncopated
+                         stabs on the "e" and "a" of beats 2-4. Dark, detuned. Noisia.
+      "dubstep_wobble" — Dubstep wobble: quarters on 1+3, wub pattern on 2+4
+                         with repeated 16ths and fifth movement. Skrillex / Excision.
+      "acid_303"       — Acid 303: fast 16ths alternating root/octave with fifth
+                         drops. TB-303 squelch. Phuture / Hardfloor.
+      "garage_2step"   — UK garage 2-step bass: notes on 1 and 2.66, ghost on 3.5.
+                         Bouncy, syncopated. MJ Cole / Disclosure.
+
+    bars: Pattern length (1-16).
+    root: Root note name (C, C#, D, etc. or flats Db, Eb).
+    octave: MIDI octave (2 = C2=36).
+    velocity: Base velocity 0-1.
+
+    Returns notes created, bass type, and pitch info.
+
+    Example:
+      create_electronic_bass(bass_type="house_offbeat", root="C", track_index=0)
+      create_electronic_bass(bass_type="dnb_reese", root="A", track_index=1, bars=4)
+    """
+    bass_type = bass_type.strip().lower().replace(" ", "_")
+    valid_types = ["house_offbeat", "techno_sub", "dnb_reese", "dubstep_wobble", "acid_303", "garage_2step"]
+    if bass_type not in valid_types:
+        return f"Error: unknown bass_type '{bass_type}'. Valid: {', '.join(valid_types)}"
+
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    root_pc = NOTE_TO_PITCH[root]
+    base = (octave + 1) * 12 + root_pc
+
+    # Patterns: (beat_position, pitch_offset, duration, vel_mult, is_ghost)
+    patterns = {
+        "house_offbeat": [
+            (0.5, 0, 0.4, 1.0, False), (1.5, 0, 0.4, 1.0, False),
+            (2.5, 0, 0.4, 1.0, False), (3.5, 0, 0.4, 1.0, False),
+        ],
+        "techno_sub": [
+            (0.0, 0, 3.8, 1.0, False),
+        ],
+        "dnb_reese": [
+            (0.0, 0, 1.5, 1.0, False),
+            (1.75, 0, 0.2, 0.8, False), (2.25, 0, 0.2, 0.8, False),
+            (2.75, 0, 0.2, 0.8, False), (3.25, 12, 0.15, 0.7, False),
+            (3.75, 0, 0.2, 0.9, False),
+        ],
+        "dubstep_wobble": [
+            (0.0, 0, 0.9, 1.0, False),
+            (1.0, 0, 0.12, 0.85, False), (1.25, 0, 0.12, 0.85, False),
+            (1.5, 7, 0.12, 0.85, False), (1.75, 0, 0.12, 0.85, False),
+            (2.0, 0, 0.9, 1.0, False),
+            (3.0, 0, 0.12, 0.85, False), (3.25, 0, 0.12, 0.85, False),
+            (3.5, 7, 0.12, 0.85, False), (3.75, 0, 0.12, 0.85, False),
+        ],
+        "acid_303": [
+            (0.0, 0, 0.2, 1.0, False), (0.25, 12, 0.15, 0.7, False),
+            (0.5, 0, 0.2, 0.9, False), (0.75, 12, 0.15, 0.7, False),
+            (1.0, 0, 0.2, 1.0, False), (1.25, 7, 0.15, 0.8, False),
+            (1.5, 0, 0.2, 0.9, False), (1.75, 12, 0.15, 0.7, False),
+            (2.0, 0, 0.2, 1.0, False), (2.25, 12, 0.15, 0.7, False),
+            (2.5, 0, 0.2, 0.9, False), (2.75, 12, 0.15, 0.7, False),
+            (3.0, 0, 0.2, 1.0, False), (3.25, 7, 0.15, 0.8, False),
+            (3.5, 0, 0.2, 0.9, False), (3.75, 12, 0.15, 0.7, False),
+        ],
+        "garage_2step": [
+            (0.0, 0, 0.5, 1.0, False),
+            (2.66, 0, 0.3, 0.9, False),
+            (3.5, 12, 0.15, 0.6, True),
+        ],
+    }
+
+    strokes = patterns[bass_type]
+    cycle_len = 4.0
+
+    all_notes = []
+    ghost_count = 0
+
+    for b in range(bars):
+        offset = b * cycle_len
+        for beat, pitch_off, dur, vel_mult, is_ghost in strokes:
+            vel = velocity * vel_mult
+            if is_ghost:
+                vel = max(0.0, vel - 0.3)
+                ghost_count += 1
+            all_notes.append({
+                "pitch": base + pitch_off,
+                "start": round(start_beat + offset + beat, 4),
+                "duration": dur,
+                "velocity": round(vel, 3),
+            })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["electronic_bass"] = True
+        data["bass_type"] = bass_type
+        data["root"] = root
+        data["base_pitch"] = base
+        data["bars"] = bars
+        data["ghost_notes"] = ghost_count
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str

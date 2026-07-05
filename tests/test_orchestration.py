@@ -4352,3 +4352,164 @@ class TestCreateTrapRolls:
     def test_valid_types_list(self):
         valid = {"modern", "migos", "bubble", "skrrt", "evolving"}
         assert set(self.TRAP_ROLL_PATTERNS.keys()) == valid
+
+
+class TestCreateElectronicBass:
+    """Tests for create_electronic_bass orchestration tool"""
+
+    BASS_PATTERNS = {
+        "house_offbeat": [
+            (0.5, 0, 0.4, 1.0, False), (1.5, 0, 0.4, 1.0, False),
+            (2.5, 0, 0.4, 1.0, False), (3.5, 0, 0.4, 1.0, False),
+        ],
+        "techno_sub": [
+            (0.0, 0, 3.8, 1.0, False),
+        ],
+        "dnb_reese": [
+            (0.0, 0, 1.5, 1.0, False),
+            (1.75, 0, 0.2, 0.8, False), (2.25, 0, 0.2, 0.8, False),
+            (2.75, 0, 0.2, 0.8, False), (3.25, 12, 0.15, 0.7, False),
+            (3.75, 0, 0.2, 0.9, False),
+        ],
+        "dubstep_wobble": [
+            (0.0, 0, 0.9, 1.0, False),
+            (1.0, 0, 0.12, 0.85, False), (1.25, 0, 0.12, 0.85, False),
+            (1.5, 7, 0.12, 0.85, False), (1.75, 0, 0.12, 0.85, False),
+            (2.0, 0, 0.9, 1.0, False),
+            (3.0, 0, 0.12, 0.85, False), (3.25, 0, 0.12, 0.85, False),
+            (3.5, 7, 0.12, 0.85, False), (3.75, 0, 0.12, 0.85, False),
+        ],
+        "acid_303": [
+            (0.0, 0, 0.2, 1.0, False), (0.25, 12, 0.15, 0.7, False),
+            (0.5, 0, 0.2, 0.9, False), (0.75, 12, 0.15, 0.7, False),
+            (1.0, 0, 0.2, 1.0, False), (1.25, 7, 0.15, 0.8, False),
+            (1.5, 0, 0.2, 0.9, False), (1.75, 12, 0.15, 0.7, False),
+            (2.0, 0, 0.2, 1.0, False), (2.25, 12, 0.15, 0.7, False),
+            (2.5, 0, 0.2, 0.9, False), (2.75, 12, 0.15, 0.7, False),
+            (3.0, 0, 0.2, 1.0, False), (3.25, 7, 0.15, 0.8, False),
+            (3.5, 0, 0.2, 0.9, False), (3.75, 12, 0.15, 0.7, False),
+        ],
+        "garage_2step": [
+            (0.0, 0, 0.5, 1.0, False),
+            (2.66, 0, 0.3, 0.9, False),
+            (3.5, 12, 0.15, 0.6, True),
+        ],
+    }
+
+    def test_house_offbeat_between_kicks(self):
+        """House bass on off-beats (0.5, 1.5, 2.5, 3.5) — between kick quarters"""
+        strokes = self.BASS_PATTERNS["house_offbeat"]
+        beats = [b for b, _, _, _, _ in strokes]
+        assert 0.5 in beats, "Missing off-beat at 0.5"
+        assert 1.5 in beats, "Missing off-beat at 1.5"
+        assert 0.0 not in beats, "Should NOT have bass on beat 1 (kick territory)"
+
+    def test_techno_sub_long_sustained(self):
+        """Techno sub: single long sustained note per bar"""
+        strokes = self.BASS_PATTERNS["techno_sub"]
+        assert len(strokes) == 1, "Techno sub should be a single sustained note"
+        assert strokes[0][2] >= 3.0, "Techno sub should be long duration"
+
+    def test_dnb_reese_syncopated_stabs(self):
+        """DnB Reese: sustained on beat 1, then stabs on e/a of 2-4"""
+        strokes = self.BASS_PATTERNS["dnb_reese"]
+        beats = [b for b, _, _, _, _ in strokes]
+        assert 0.0 in beats, "Missing sustained note on beat 1"
+        assert 1.75 in beats, "Missing stab on 'a' of beat 2"
+
+    def test_dnb_reese_has_octave_jump(self):
+        strokes = self.BASS_PATTERNS["dnb_reese"]
+        pitch_offs = [po for _, po, _, _, _ in strokes]
+        assert 12 in pitch_offs, "Missing octave jump in Reese bass"
+
+    def test_dubstep_wobble_quarters_on_1_3(self):
+        """Dubstep: sustained notes on beats 1 and 3"""
+        strokes = self.BASS_PATTERNS["dubstep_wobble"]
+        quarters = [(b, d) for b, _, d, _, _ in strokes if b in (0.0, 2.0)]
+        assert len(quarters) == 2, "Missing sustained notes on beats 1 and 3"
+        assert all(d >= 0.5 for _, d in quarters), "Beat 1/3 notes should be long"
+
+    def test_dubstep_wobble_has_fifth(self):
+        """Dubstep wobble uses fifth interval for movement"""
+        strokes = self.BASS_PATTERNS["dubstep_wobble"]
+        pitch_offs = [po for _, po, _, _, _ in strokes]
+        assert 7 in pitch_offs, "Missing fifth in wobble pattern"
+
+    def test_acid_303_16th_notes(self):
+        """Acid 303: 16th note pattern"""
+        strokes = self.BASS_PATTERNS["acid_303"]
+        assert len(strokes) == 16, "Acid 303 should have 16 notes per bar"
+        beats = [b for b, _, _, _, _ in strokes]
+        assert 0.25 in beats, "Missing 16th at 0.25"
+        assert 0.75 in beats, "Missing 16th at 0.75"
+
+    def test_acid_303_octave_alternation(self):
+        """Acid alternates between root and octave"""
+        strokes = self.BASS_PATTERNS["acid_303"]
+        pitch_offs = [po for _, po, _, _, _ in strokes]
+        assert 0 in pitch_offs, "Missing root"
+        assert 12 in pitch_offs, "Missing octave"
+
+    def test_acid_303_has_fifth_drops(self):
+        strokes = self.BASS_PATTERNS["acid_303"]
+        pitch_offs = [po for _, po, _, _, _ in strokes]
+        assert 7 in pitch_offs, "Missing fifth drop in acid pattern"
+
+    def test_garage_2step_syncopated(self):
+        """2-step: bass on 1 and 2.66 — the skip"""
+        strokes = self.BASS_PATTERNS["garage_2step"]
+        beats = [b for b, _, _, _, _ in strokes]
+        assert 0.0 in beats, "Missing bass on beat 1"
+        assert 2.66 in beats, "Missing syncopated bass at 2.66"
+        assert 2.0 not in beats, "2-step should NOT have bass on beat 3 (skip)"
+
+    def test_garage_2step_has_ghost(self):
+        strokes = self.BASS_PATTERNS["garage_2step"]
+        ghosts = [(b, g) for b, _, _, _, g in strokes if g]
+        assert len(ghosts) >= 1, "2-step should have a ghost note"
+
+    def test_cycle_length_one_bar(self):
+        cycle_len = 4.0
+        for name, strokes in self.BASS_PATTERNS.items():
+            max_beat = max(b for b, _, _, _, _ in strokes)
+            assert max_beat < cycle_len, f"{name}: beat {max_beat} exceeds cycle {cycle_len}"
+
+    def test_all_have_root_offset(self):
+        """All patterns use root (offset 0) as the primary pitch"""
+        for name, strokes in self.BASS_PATTERNS.items():
+            pitch_offs = [po for _, po, _, _, _ in strokes]
+            assert 0 in pitch_offs, f"{name}: missing root (offset 0)"
+
+    def test_velocity_mult_range(self):
+        for name, strokes in self.BASS_PATTERNS.items():
+            for _, _, _, vm, _ in strokes:
+                assert 0.0 < vm <= 1.0, f"{name}: velocity mult {vm} out of range"
+
+    def test_bar_repetition(self):
+        bars = 4
+        cycle_len = 4.0
+        strokes = self.BASS_PATTERNS["house_offbeat"]
+        all_notes = []
+        for b in range(bars):
+            for beat, po, dur, vm, g in strokes:
+                all_notes.append({"start": b * cycle_len + beat, "pitch_off": po})
+        assert len(all_notes) == len(strokes) * bars
+        # Second bar's first note = cycle_len + first_beat (0.5 for house_offbeat)
+        first_beat = strokes[0][0]
+        assert all_notes[len(strokes)]["start"] == cycle_len + first_beat
+
+    def test_type_normalization(self):
+        raw = "House Offbeat"
+        normalized = raw.strip().lower().replace(" ", "_")
+        assert normalized == "house_offbeat"
+
+    def test_valid_types_list(self):
+        valid = {"house_offbeat", "techno_sub", "dnb_reese", "dubstep_wobble", "acid_303", "garage_2step"}
+        assert set(self.BASS_PATTERNS.keys()) == valid
+
+    def test_pitch_offset_values(self):
+        """Pitch offsets should only be 0 (root), 7 (fifth), or 12 (octave)"""
+        valid_offsets = {0, 7, 12}
+        for name, strokes in self.BASS_PATTERNS.items():
+            for _, po, _, _, _ in strokes:
+                assert po in valid_offsets, f"{name}: unexpected pitch offset {po}"
