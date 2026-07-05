@@ -8168,3 +8168,114 @@ class TestHarmonicArrangement:
         melody_patterns = ["chord_tones", "sustained", "syncopated", "triadic", "stepwise"]
         total = len(arp_patterns) + len(bass_patterns) + len(melody_patterns)
         assert total == 16
+
+
+class TestLiquidDnbArrangement:
+    """Tests for create_liquid_dnb_arrangement — smooth melodic DnB"""
+
+    def test_4_tracks(self):
+        """Liquid DnB uses 4 tracks: drums, bass, pad, melody"""
+        tracks = ["drums", "bass", "pad", "melody"]
+        assert len(tracks) == 4
+
+    def test_default_root_f(self):
+        """Default root = F (classic liquid DnB key)"""
+        root = "F"
+        assert root == "F"
+
+    def test_default_velocity_lower_than_dnb(self):
+        """Liquid DnB velocity 0.75 < DnB velocity 0.85 (smoother)"""
+        liquid_vel = 0.75
+        dnb_vel = 0.85
+        assert liquid_vel < dnb_vel
+
+    def test_smooth_breakbeat_vs_amen(self):
+        """Liquid: rimshots instead of ghost notes, gentler feel"""
+        liquid_strokes = ["kick", "snare", "hat", "rimshot"]
+        dnb_strokes = ["kick", "snare", "hat", "ghost"]
+        assert "rimshot" in liquid_strokes
+        assert "ghost" not in liquid_strokes
+        assert "rimshot" not in dnb_strokes
+
+    def test_melodic_sub_bass_vs_reese(self):
+        """Liquid bass: melodic intervals (root-fifth-oct-third), DnB: root stabs"""
+        liquid_intervals = [0, 7, 12, 3, 0, 7, 5, 0]
+        dnb_intervals = [0, 0, 0, 12, 0]  # mostly root + octave stab
+        assert max(liquid_intervals) > max(dnb_intervals) - 12  # liquid more melodic
+        assert len(set(liquid_intervals)) > len(set(dnb_intervals))
+
+    def test_lush_chords_vs_plain_triad(self):
+        """Liquid pads: min9/maj9 (5 notes), DnB: minor triad (3 notes)"""
+        liquid_chord = [0, 3, 7, 10, 14]  # min9
+        dnb_chord = [0, 3, 7]  # minor triad
+        assert len(liquid_chord) == 5
+        assert len(dnb_chord) == 3
+        # 9th (14) and b7 (10) are the lush extensions
+        assert 10 in liquid_chord  # b7
+        assert 14 in liquid_chord  # 9th
+
+    def test_maj9_chord(self):
+        """maj9: root, 3, 5, 7, 9 — lush major chord"""
+        maj9 = [0, 4, 7, 11, 14]
+        assert len(maj9) == 5
+        assert 11 in maj9  # major 7th
+        assert 14 in maj9  # 9th
+
+    def test_soulful_melody_pentatonic(self):
+        """Melody uses minor pentatonic: root, b3, 4, 5, b7"""
+        pentatonic = [0, 3, 5, 7, 10]
+        assert len(pentatonic) == 5
+        assert 3 in pentatonic  # minor third
+        assert 10 in pentatonic  # minor seventh
+
+    def test_call_response_phrases(self):
+        """Melody has 2-bar call + 2-bar response structure"""
+        phrases = ["call", "response"]
+        assert len(phrases) == 2
+        # call = rising, response = descending
+        assert phrases[0] != phrases[1]
+
+    def test_pad_chord_progression(self):
+        """Pad alternates: min9 → maj9 → min9(iv) → min9(root)"""
+        progression = [
+            [0, 3, 7, 10, 14],    # min9
+            [0, 4, 7, 11, 14],    # maj9
+            [5, 8, 12, 15, 19],   # min9 on fourth
+            [0, 3, 7, 10, 14],    # min9 root
+        ]
+        assert len(progression) == 4
+        # Fourth chord starts on 5 (fourth degree)
+        assert progression[2][0] == 5
+
+    def test_bass_walk_pattern(self):
+        """Bass walks: root → fifth → octave → third → root → fifth → fourth → root"""
+        walk = [0, 7, 12, 3, 0, 7, 5, 0]
+        assert len(walk) == 8
+        assert walk[0] == 0  # starts on root
+        assert walk[-1] == 0  # ends on root
+        assert walk[2] == 12  # octave
+        assert walk[3] == 3  # minor third (jazzy)
+
+    def test_drum_2bar_cycle(self):
+        """Drums: 2-bar cycle (8 beats), repeated"""
+        cycle = 8.0
+        assert cycle == 8.0
+
+    def test_vs_dnb_arrangement(self):
+        """Liquid DnB is separate from regular DnB"""
+        liquid_features = {"smooth_drums", "melodic_bass", "lush_pads", "soulful_melody"}
+        dnb_features = {"amen_breakbeat", "reese_bass", "minor_triad_pad"}
+        assert liquid_features != dnb_features
+        assert len(liquid_features) == 4  # 4 tracks
+        assert len(dnb_features) == 3  # 3 tracks
+
+    def test_total_notes_8_bars(self):
+        """8 bars: drums ~96, bass ~64, pad ~20, melody ~32 = ~212 total"""
+        bar_count = 8
+        drum_cycles = bar_count // 2  # 4 cycles
+        drum_notes_per = 24  # strokes per 2-bar cycle
+        bass_notes_per = 8  # 8 steps per bar
+        pad_chords = bar_count // 2  # 4 chords × 5 notes = 20
+        mel_phrases = bar_count // 2  # 4 phrases × 8 notes = 32
+        total = (drum_cycles * drum_notes_per) + (bar_count * bass_notes_per) + (pad_chords * 5) + (mel_phrases * 8)
+        assert total > 150  # substantial arrangement

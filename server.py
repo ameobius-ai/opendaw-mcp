@@ -27597,3 +27597,212 @@ async def mcp_opendaw_create_harmonic_arrangement(
         "start_beat": start_beat,
         "next_step": "call apply_genre_mix then render_full_song to complete production",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_liquid_dnb_arrangement(
+    bpm: float = 174,
+    bars: int = 8,
+    root: str = "F",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    pad_track: int = 2,
+    melody_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.75,
+) -> str:
+    """Create a full liquid drum & bass arrangement across 4 tracks.
+
+    Liquid DnB is the smooth, melodic cousin of DnB. Instead of Reese bass
+    and Amen breakbeat fury, liquid uses:
+    - Track 0: Smooth breakbeat (gentler ghost notes, more flowing hats)
+    - Track 1: Melodic sub-bass (jazzy movement, not just root stabs)
+    - Track 2: Lush extended chords (maj7/min9, not plain triads)
+    - Track 3: Soulful jazz-influenced lead melody
+
+    Think LTJ Bukem, Calibre, High Contrast, Hospital Records.
+
+    bpm: Tempo (160-185, default 174).
+    bars: Arrangement length (4-32, default 8).
+    root: Root note (default F = classic liquid key).
+    octave: Bass octave (2 = sub-bass range).
+    velocity: Base velocity (default 0.75 = smoother than DnB's 0.85).
+
+    Example:
+      create_liquid_dnb_arrangement(bpm=174, root="F", bars=8)
+      create_liquid_dnb_arrangement(bpm=170, root="Am", bars=16, velocity=0.7)
+    """
+    if not (140 <= bpm <= 200):
+        return "Error: bpm must be 140-200"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    pad_base = (octave + 3) * 12 + root_pc
+    mel_base = (octave + 5) * 12 + root_pc
+
+    # --- DRUMS: Smooth breakbeat (2-bar cycle, gentler than Amen) ---
+    # Key differences from DnB: fewer ghost notes, more flowing hats,
+    # softer velocities, rimshot on off-beats for liquid feel
+    drum_pattern = [
+        (0.0, "kick"), (0.0, "hat"), (0.5, "hat"), (1.0, "snare"), (1.0, "hat"),
+        (1.5, "hat"), (2.0, "hat"), (2.5, "hat"),
+        (2.75, "rimshot"), (3.0, "snare"), (3.0, "hat"), (3.5, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (0.75, "hat"), (5.0, "snare"), (5.0, "hat"),
+        (5.5, "hat"), (6.0, "hat"), (6.5, "hat"),
+        (6.75, "rimshot"), (7.0, "snare"), (7.0, "hat"), (7.5, "hat"),
+    ]
+
+    kick_p, snare_p, hat_p, rim_p = 36, 38, 42, 37
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "rimshot": rim_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": velocity,
+        "hat": max(0.0, velocity - 0.2),
+        "rimshot": max(0.0, velocity - 0.15),
+    }
+    drum_dur_map = {"kick": 0.25, "snare": 0.15, "hat": 0.06, "rimshot": 0.05}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: Melodic sub-bass (jazz-influenced movement) ---
+    # Unlike DnB's Reese stabs, liquid bass is melodic:
+    # walks root → fifth → octave → third → back, with longer sustains
+    bass_intervals = [0, 7, 12, 3, 0, 7, 5, 0]  # root, fifth, oct, third, root, fifth, fourth, root
+    bass_durations = [1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    bass_vel_mult = [1.0, 0.85, 0.9, 0.8, 0.95, 0.85, 0.8, 1.0]
+
+    bass_notes = []
+    bass_cycle = 4.0
+    for b in range(bars):
+        off = b * bass_cycle
+        for i, (interval, dur, vm) in enumerate(zip(bass_intervals, bass_durations, bass_vel_mult)):
+            pitch = bass_base + interval
+            if 0 <= pitch <= 127:
+                bass_notes.append({
+                    "pitch": pitch,
+                    "start": round(start_beat + off + i * 0.5, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm * 0.9, 3),
+                })
+
+    # --- PAD: Lush extended chords (min9/maj7, 2 bars per chord) ---
+    # Liquid pads use 7ths and 9ths for that warm, jazzy feel
+    # Alternate between minor 9th and major 7th for harmonic movement
+    pad_chords = [
+        [0, 3, 7, 10, 14],   # min9 (root, b3, 5, b7, 9)
+        [0, 4, 7, 11, 14],   # maj9 (root, 3, 5, 7, 9)
+        [5, 8, 12, 15, 19],  # min9 on fourth
+        [0, 3, 7, 10, 14],   # min9 back to root
+    ]
+
+    pad_notes = []
+    pad_cycle = 8.0  # 2 bars per chord
+    pad_cycles = bars // 2
+    for c in range(pad_cycles):
+        off = c * pad_cycle
+        chord = pad_chords[c % len(pad_chords)]
+        for interval in chord:
+            pitch = pad_base + interval
+            if 0 <= pitch <= 127:
+                pad_notes.append({
+                    "pitch": pitch,
+                    "start": round(start_beat + off, 4),
+                    "duration": pad_cycle - 0.2,
+                    "velocity": round(velocity * 0.5, 3),
+                })
+
+    # --- MELODY: Soulful jazz-influenced lead ---
+    # Pentatonic-based with occasional blue notes (b3, b7)
+    # Phrase structure: 2-bar call, 2-bar response
+    mel_scale = [0, 3, 5, 7, 10, 12, 15, 17]  # minor pentatonic + octaves
+    mel_phrases = [
+        # Call (2 bars): rising pentatonic phrase
+        [(0, 0.5, 0.7), (0.5, 0.5, 0.65), (1.0, 0.5, 0.75), (1.5, 0.25, 0.7),
+         (1.75, 0.25, 0.65), (2.0, 0.5, 0.8), (2.5, 0.5, 0.7), (3.0, 1.0, 0.6)],
+        # Response (2 bars): descending with blue note
+        [(0, 1.0, 0.75), (1.0, 0.5, 0.7), (1.5, 0.25, 0.65),
+         (1.75, 0.25, 0.7), (2.0, 0.5, 0.8), (2.5, 0.5, 0.75), (3.0, 0.5, 0.7), (3.5, 0.5, 0.6)],
+    ]
+
+    mel_notes = []
+    mel_cycle = 8.0  # 2-bar phrases
+    mel_cycles = bars // 2
+    for c in range(mel_cycles):
+        off = c * mel_cycle
+        phrase = mel_phrases[c % 2]
+        for beat, dur, vm in phrase:
+            # Pick scale note (phrase position determines pitch contour)
+            scale_idx = (c * 2 + int(beat * 2)) % len(mel_scale)
+            pitch = mel_base + mel_scale[scale_idx]
+            if 0 <= pitch <= 127:
+                mel_notes.append({
+                    "pitch": pitch,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm * 0.85, 3),
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    pad_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(pad_notes), unit_index, pad_track)
+    mel_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(mel_notes), unit_index, melody_track)
+
+    def _extract(r):
+        try:
+            return json.loads(r).get("notes_created", 0)
+        except Exception:
+            return 0
+
+    drum_n = _extract(drum_result) or len(drum_notes)
+    bass_n = _extract(bass_result) or len(bass_notes)
+    pad_n = _extract(pad_result) or len(pad_notes)
+    mel_n = _extract(mel_result) or len(mel_notes)
+
+    return json.dumps({
+        "liquid_dnb_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": drum_n, "pattern": "smooth_breakbeat"},
+            "bass": {"track": bass_track, "notes": bass_n, "pattern": "melodic_sub_bass"},
+            "pad": {"track": pad_track, "notes": pad_n, "pattern": "lush_min9_maj9"},
+            "melody": {"track": melody_track, "notes": mel_n, "pattern": "soulful_pentatonic"},
+        },
+        "total_notes": drum_n + bass_n + pad_n + mel_n,
+        "velocity": velocity,
+        "genre": "liquid_dnb",
+        "influences": "LTJ Bukem, Calibre, High Contrast, Hospital Records",
+        "key_features": [
+            "smooth breakbeat (rimshots, fewer ghosts)",
+            "melodic sub-bass (root-fifth-oct-third walks)",
+            "lush extended chords (min9/maj9, not plain triads)",
+            "soulful pentatonic lead with call-response phrases",
+        ],
+    }, indent=2)

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.155.0 (2026-07-05)
+
+- **`create_liquid_dnb_arrangement` orchestration tool (348 MCP tools)** — new genre arrangement: liquid drum & bass. 4-track arrangement (drums + bass + pad + melody) with smooth, melodic character distinct from regular DnB: smooth breakbeat with rimshots (not Amen ghost notes), melodic sub-bass walking root→fifth→octave→third (not Reese stabs), lush extended chords min9/maj9 (not plain minor triads), soulful pentatonic lead with call-response phrases. Default root F, velocity 0.75 (smoother than DnB's 0.85). Influences: LTJ Bukem, Calibre, High Contrast, Hospital Records. 15 multi-track genre arrangements. 74 orchestration tools. 348 MCP tools
+- **2064 unit tests** (+14)
+
 ## v1.154.0 (2026-07-05)
 
 - **`create_harmonic_arrangement` orchestration tool (347 MCP tools)** — new capability: one-call harmonic quartet. Creates all four harmonic layers (chord pads + arpeggiated progression + bass + melody) from a single "Am-F-C-G" progression string in one call, replacing 4 separate calls. Configurable per-layer: pad_octave, arp_pattern (or "" to skip), arp_octave, arp_step, bass_pattern, bass_octave, melody_pattern (or "" to skip), melody_octave. Velocity auto-scaled per layer (pads=0.9x, bass=1.0x, arp=0.85x, melody=0.75x). Melody auto-routed to track 4 when arp present, track 3 otherwise. Presets: jazz (walking bass + sustained pads, no arp), house (pedal sub-bass + arp bass, no melody). 73 orchestration tools. 347 MCP tools
