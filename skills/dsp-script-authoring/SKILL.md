@@ -518,6 +518,7 @@ process(io, block) {
 | `werkstatt_darksat.js` | Tape saturation | tanh + DC blocker + tone shelving |
 | `werkstatt_coldfold.js` | Wavefolding | mirror reflection + bitcrush |
 | `werkstatt_reverb.js` | Plate reverb | 4 comb + 2 allpass per channel |
+| `werkstatt_convolution_reverb.js` | Convolution reverb | generated stereo IR + time-domain direct convolution |
 | `werkstatt_chorus.js` | Modulated delay | LFO + fractional read |
 | `werkstatt_phaser.js` | Allpass cascade | 6-stage allpass + quadrature LFO |
 | `werkstatt_lookahead.js` | Compressor | envelope follower + lookahead buffer |

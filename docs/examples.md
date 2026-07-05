@@ -1,6 +1,6 @@
 # Examples
 
-58 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge. See also `examples/create_two_hand_piano.py` for piano arrangements.
+100 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge. See also `examples/create_two_hand_piano.py` for piano arrangements.
 
 ## Genre Templates (8)
 

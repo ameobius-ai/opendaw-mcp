@@ -264,6 +264,7 @@ class Processor {
 | `werkstatt_deesser.js` | De-esser (dynamic HF compressor) | freq, threshold, ratio, attack, release, mix, output | |
 | `werkstatt_transient.js` | Transient shaper (dual envelope) | attack, sustain, mix, output | |
 | `werkstatt_stereowidth.js` | Stereo width (M/S processor) | width, lowTrim, lowFreq, mix, output | |
+| `werkstatt_convolution_reverb.js` | Convolution reverb (generated stereo IR, early reflections + noise tail) | room_size, decay, damping, predelay, early_late, width, mix, output | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
 | `werkstatt_paulstretch.js` | Extreme time-stretch | stretch, window, mix | #209 |
@@ -324,6 +325,7 @@ class Processor {
 | Reverb (plate) | `werkstatt_reverb.js` | Werkstatt |
 | Reverb (shimmer) | `werkstatt_shimmer.js` | Werkstatt |
 | Reverb (spring) | `werkstatt_spring_reverb.js` | Werkstatt |
+| Reverb (convolution) | `werkstatt_convolution_reverb.js` | Werkstatt |
 | Delay (stereo) | `werkstatt_stereo_delay.js` | Werkstatt |
 | Delay (tape, wow/flutter) | `werkstatt_tape_delay.js` | Werkstatt |
 | Delay (MIDI) | `spielwerk_mididelay.js` | Spielwerk |

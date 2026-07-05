@@ -1,6 +1,6 @@
 ---
 name: opendaw-dsp-chains
-description: "DSP signal chain recipes for openDAW Werkstatt effects. Production-ready chains: vocal, guitar, drum bus, synth bass, lofi, mastering, ambient, acid. Which DSP scripts to combine, in what order, with what parameters. 60 DSP scripts, 10+ chains."
+description: "DSP signal chain recipes for openDAW Werkstatt effects. Production-ready chains: vocal, guitar, drum bus, synth bass, lofi, mastering, ambient, acid, cinematic. Which DSP scripts to combine, in what order, with what parameters. 62 DSP scripts, 11+ chains."
 tags: [opendaw, dsp, chains, production, werkstatt, sound-design, mixing]
 ---
 
@@ -316,6 +316,35 @@ await mcp_opendaw_set_script_param("werkstatt", 0, 3, "crush", 0.3)
 await mcp_opendaw_set_script_param("werkstatt", 0, 3, "mix", 0.3)
 ```
 
+### 11. Cinematic Drum Room Chain
+
+```
+Input → paraeq → transient → convolution_reverb → stereowidth → Output
+```
+
+```python
+# ParaEQ: remove boxiness
+await mcp_opendaw_set_script_param("werkstatt", 0, 0, "band2_freq", 350)
+await mcp_opendaw_set_script_param("werkstatt", 0, 0, "band2_gain", -3)
+
+# Transient: punch up attack
+await mcp_opendaw_set_script_param("werkstatt", 0, 1, "attack", 1.5)
+await mcp_opendaw_set_script_param("werkstatt", 0, 1, "sustain", 0.7)
+
+# Convolution reverb: large room ambience
+await mcp_opendaw_set_script_param("werkstatt", 0, 2, "room_size", 0.8)
+await mcp_opendaw_set_script_param("werkstatt", 0, 2, "decay", 0.6)
+await mcp_opendaw_set_script_param("werkstatt", 0, 2, "damping", 0.3)
+await mcp_opendaw_set_script_param("werkstatt", 0, 2, "predelay", 0.03)
+await mcp_opendaw_set_script_param("werkstatt", 0, 2, "early_late", 0.4)
+await mcp_opendaw_set_script_param("werkstatt", 0, 2, "width", 0.8)
+await mcp_opendaw_set_script_param("werkstatt", 0, 2, "mix", 0.35)
+
+# Stereo width: widen the room
+await mcp_opendaw_set_script_param("werkstatt", 0, 3, "width", 1.2)
+await mcp_opendaw_set_script_param("werkstatt", 0, 3, "lowTrim", 0.5)
+```
+
 ## Pitfalls
 
 - **Order matters**: EQ before compression = different sound than compression before EQ. Generally: corrective EQ → dynamics → saturation → time effects (reverb/delay)
@@ -334,7 +363,7 @@ await mcp_opendaw_set_script_param("werkstatt", 0, 3, "mix", 0.3)
 | Dynamics | compressor, lookahead, limiter, exciter, deesser, transient, noisegate, multiband_comp |
 | Filter | multifilter, moog_ladder, allpass, comb, formant |
 | Modulation | chorus, flanger, phaser, tremolo, vibrato, auto_pan |
-| Reverb | reverb, spring_reverb, shimmer |
+| Reverb | reverb, spring_reverb, shimmer, convolution_reverb |
 | Delay | stereo_delay, tape_delay |
 | EQ | paraeq, graphic_eq |
 | Pitch | pitch_shift, ringmod_env, harmonizer |

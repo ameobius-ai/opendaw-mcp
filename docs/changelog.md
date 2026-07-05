@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.78.0 (2026-07-05)
+
+- **`werkstatt_convolution_reverb.js` DSP script** — convolution reverb with generated stereo IR. Time-domain direct convolution: early reflections (7 taps) + decaying noise tail through lowpass. 8 params: room_size, decay, damping, predelay, early_late, width, mix, output. 62 DSP scripts
+- **742 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.77.0 (2026-07-05)
 
 - **`create_motif_development` orchestration tool** — through-composed melodic development: 2-8 note motif → continuous evolving line. 11 stages: statement/sequence/fragment/invert/octave/expand/compress/cadence. Beethoven 5th approach. 51 orchestration tools

@@ -5,10 +5,11 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-305-brightgreen)](TOOL_CATALOG.md)
-[![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-58-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-615%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-308-brightgreen)](TOOL_CATALOG.md)
+[![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-62-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-742%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Examples](https://img.shields.io/badge/Examples-100-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -507,6 +508,14 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.78.0 (2026-07-05)
+
+- **`werkstatt_convolution_reverb.js` DSP script** — convolution reverb with generated stereo impulse response. Time-domain direct convolution with a procedurally generated IR: early reflections (7 discrete taps with stereo spread) + exponentially decaying noise tail through one-pole lowpass. Room size controls IR length (50-300ms), decay controls exponential envelope, damping controls lowpass cutoff (2k-16k Hz), predelay shifts reflections, early/late balance mixes discrete taps vs diffuse tail, width controls stereo spread of reflections. 8 params: room_size, decay, damping, predelay, early_late, width, mix, output. Unlike algorithmic reverb (feedback delay network), convolution uses an actual IR — the gold standard for realistic acoustic spaces. IR capped at 8192 samples for CPU. Classic for: realistic room/hall/cathedral ambience, drum room sound, vocal space, film post-production
+- **62 DSP scripts** (49 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **742 unit tests** (+10), E2E 8/8
+- **100 Python examples**
+- ruff clean, CI green
 
 ## v1.77.0 (2026-07-05)
 

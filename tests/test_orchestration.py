@@ -2357,6 +2357,80 @@ class TestSpectralGateDSP:
         assert "_updateHp" in code, "Missing highpass update function"
 
 
+class TestConvolutionReverbDSP:
+    """Unit tests for werkstatt_convolution_reverb.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "werkstatt_convolution_reverb.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt convolution_reverb" in code
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_room_size_param(self):
+        params = self._parse_params(self._read_script())
+        rs = [p for p in params if p["name"] == "room_size"][0]
+        assert rs["min"] == 0 and rs["max"] == 1
+        assert rs["scale"] == "linear"
+
+    def test_ir_generation(self):
+        code = self._read_script()
+        assert "generateIR" in code, "Missing IR generation method"
+        assert "irL" in code and "irR" in code, "Missing stereo IR buffers"
+        assert "Float32Array" in code, "Missing Float32Array for IR"
+
+    def test_convolution_kernel(self):
+        code = self._read_script()
+        assert "direct convolution" in code.lower() or "convolution" in code.lower(), \
+            "Missing convolution logic"
+        assert "irLen" in code, "Missing IR length tracking"
+        assert "histPos" in code, "Missing ring buffer position"
+
+    def test_early_reflections(self):
+        code = self._read_script()
+        assert "erTaps" in code, "Missing early reflection taps"
+        assert "early_late" in code, "Missing early/late balance param"
+
+    def test_decay_envelope(self):
+        code = self._read_script()
+        assert "decayRate" in code, "Missing decay envelope"
+        assert "Math.pow" in code, "Missing exponential decay"
+
+    def test_damping_lowpass(self):
+        code = self._read_script()
+        assert "lpAlpha" in code, "Missing damping lowpass coefficient"
+        assert "dampCut" in code, "Missing damping cutoff frequency"
+
+    def test_predelay(self):
+        code = self._read_script()
+        assert "predelay" in code, "Missing predelay param"
+        assert "preSamps" in code, "Missing predelay sample calculation"
+
+    def test_stereo_width(self):
+        code = self._read_script()
+        assert "width" in code, "Missing stereo width param"
+        assert "spread" in code, "Missing stereo spread in early reflections"
+
+
 class TestCreateFugue:
     """Unit tests for create_fugue orchestration tool."""
 
