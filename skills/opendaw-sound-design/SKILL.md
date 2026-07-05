@@ -259,6 +259,7 @@ class Processor {
 | `werkstatt_exciter.js` | Harmonic exciter (band-split) | freq, harmonics, drive, mix, output | |
 | `werkstatt_deesser.js` | De-esser (dynamic HF compressor) | freq, threshold, ratio, attack, release, mix, output | |
 | `werkstatt_transient.js` | Transient shaper (dual envelope) | attack, sustain, mix, output | |
+| `werkstatt_stereowidth.js` | Stereo width (M/S processor) | width, lowTrim, lowFreq, mix, output | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
 | `werkstatt_paulstretch.js` | Extreme time-stretch | stretch, window, mix | #209 |
@@ -312,6 +313,7 @@ class Processor {
 | Exciter (harmonic) | `werkstatt_exciter.js` | Werkstatt |
 | De-esser (dynamic HF) | `werkstatt_deesser.js` | Werkstatt |
 | Transient shaper | `werkstatt_transient.js` | Werkstatt |
+| Stereo width (M/S) | `werkstatt_stereowidth.js` | Werkstatt |
 | Chorus/width | `werkstatt_chorus.js` | Werkstatt |
 | Phaser | `werkstatt_phaser.js` | Werkstatt |
 | Flanger | `werkstatt_flanger.js` | Werkstatt |

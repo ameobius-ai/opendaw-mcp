@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.31.0 (2026-07-05)
+
+- **`werkstatt_stereowidth.js`** — M/S stereo width processor. 5 params: width (0=mono, 0.5=neutral, 1.5=wide), lowTrim (mono bass below crossover), lowFreq (50-500Hz crossover), mix, output. M/S encode → width scaling on side → low-freq trim → M/S decode. Essential for mastering: wide highs, mono bass
+- **41 DSP scripts** (29 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 5 params, width 0.5→1.2, lowTrim 0→0.7
+
 ## v1.30.0 (2026-07-05)
 
 - **`apparat_pluck.js`** — Karplus-Strong plucked string synth. 7 params: decay (string decay rate), damping (lowpass strength), brightness (noise burst spectral content), attack, release, detune, volume. Noise burst excites delay line, averaging filter creates natural string decay. Unique physical modeling sound unavailable in other Apparat scripts

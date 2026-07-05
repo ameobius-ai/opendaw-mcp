@@ -390,6 +390,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_exciter.js` — Harmonic exciter, band-split architecture (freq, harmonics, drive, mix, output)
 - `werkstatt_deesser.js` — De-esser, dynamic high-frequency compressor (freq, threshold, ratio, attack, release, mix, output)
 - `werkstatt_transient.js` — Transient shaper, dual envelope (attack, sustain, mix, output)
+- `werkstatt_stereowidth.js` — Stereo width M/S processor (width, lowTrim, lowFreq, mix, output)
 
 ### Apparat (Instruments) — 6 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

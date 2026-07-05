@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-283-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-40-orange)](scripts/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-41-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-272%20unit%20%2B%2014%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -507,6 +507,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.31.0 (2026-07-05)
+
+- **`werkstatt_stereowidth.js`** — M/S stereo width processor. 5 params: width (0=mono, 0.5=neutral, 1.5=wide), lowTrim (mono bass below crossover), lowFreq (50-500Hz crossover), mix, output. M/S encode → width scaling on side → low-freq trim → M/S decode. Essential for mastering: wide highs, mono bass
+- **41 DSP scripts** (29 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 5 params, width 0.5→1.2, lowTrim 0→0.7
+- ruff clean, CI green
+
 ### v1.30.0 (2026-07-05)
 
 - **`apparat_pluck.js`** — Karplus-Strong plucked string synth. 7 params: decay (string decay rate), damping (lowpass strength), brightness (noise burst spectral content), attack, release, detune, volume. Noise burst excites delay line, averaging filter creates natural string decay. Unique physical modeling sound unavailable in other Apparat scripts
@@ -740,17 +747,17 @@ Apache-2.0 — see [LICENSE](LICENSE)
 ### v1.12.0 (2026-07-04)
 
 - **Agent Skills**: 10 structured skill files in `skills/` directory — adaptive mix→master, suno-to-opendaw (Suno→stems→mix→master E2E), dsp-script-authoring (custom DSP), opendaw-genres (8 genre templates), opendaw-automation (283 tools, 146 ref files), track architecture, sound design, effect routing, composition patterns. Decision points for genre-adaptive workflows. Agent-agnostic.
-- **40 DSP scripts total** (28 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **41 DSP scripts total** (29 Werkstatt + 6 Apparat + 6 Spielwerk)
 
 ### v1.11.9 (2026-07-04)
 
 - **CodeRabbit fixes**: reverb stereo width (separate L/R comb banks with decorrelated delay times, M/S width on reverb tail), paulstretch cursor split (independent read/write cursors, proper frame emission gating)
-- **40 DSP scripts total** (28 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **41 DSP scripts total** (29 Werkstatt + 6 Apparat + 6 Spielwerk)
 
 ### v1.11.8 (2026-07-04)
 
 - **New Werkstatt script**: ring modulator with envelope-followed frequency modulation (#277) — workaround for MIDI input limitation in Werkstatt audio effects
-- **40 DSP scripts total** (28 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **41 DSP scripts total** (29 Werkstatt + 6 Apparat + 6 Spielwerk)
 
 ### v1.11.7 (2026-07-04)
 
@@ -760,13 +767,13 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 - **4 new Spielwerk MIDI effect scripts**: chord memory, strummer, velocity scaler, MIDI delay
 - **1 new Python example**: Suno→openDAW pipeline (import AI track, mastering chain, reverb send, arp layer, render+stems)
-- **40 DSP scripts total** (28 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **41 DSP scripts total** (29 Werkstatt + 6 Apparat + 6 Spielwerk)
 
 ### v1.11.5 (2026-07-04)
 
 - **7 new DSP scripts**: DC remover + stereo width (#91), allpass filter (#133), 2-operator FM synth (#138), chord memory, strummer, velocity scaler, MIDI delay
 - **Coldfold fix**: removed unused `range` variable (CodeRabbit review)
-- **40 DSP scripts total** (28 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **41 DSP scripts total** (29 Werkstatt + 6 Apparat + 6 Spielwerk)
 
 ### v1.11.4 (2026-07-04)
 
