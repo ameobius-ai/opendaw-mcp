@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-263-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-8-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-26-orange)](scripts/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-35-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-93%20unit%20%2B%207%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **283** MCP tools | **55** Python examples (8 genre templates) |
-| **33** DSP scripts | **10** agent skills |
+| **35** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **241** unit + **11** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.25.0 (2026-07-05)
+
+- **`werkstatt_paraeq.js`** — 3-band parametric EQ + HP/LP filters. 12 params: 3 × (freq, gain ±18 dB, Q 0.1-6) + hp_freq + lp_freq + mix. Biquad filters (RBJ Audio EQ Cookbook). Signal chain: HP → Band1 → Band2 → Band3 → LP. Closes critical EQ gap — parametric EQ is fundamental to mixing, was the most requested missing DSP category
+- **35 DSP scripts** (24 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 12 params with correct defaults, band1_gain 0→6 dB, band2_q 1→3.5, code header readback OK
+- ruff clean, CI green
 
 ### v1.24.0 (2026-07-05)
 

@@ -385,6 +385,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_overdrive.js` — Asymmetric soft-clip overdrive (drive, tone, level, bias, dry)
 - `werkstatt_multifilter.js` — Multi-mode SVF filter: LP/HP/BP/Notch (mode, cutoff, resonance, drive, mix)
 - `werkstatt_compressor.js` — Soft-knee peak compressor (threshold, ratio, attack, release, makeup, mix, knee)
+- `werkstatt_paraeq.js` — 3-band parametric EQ + HP/LP (band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix)
 
 ### Apparat (Instruments) — 5 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.25.0 (2026-07-05)
+
+- **`werkstatt_paraeq.js`** — 3-band parametric EQ + HP/LP. 12 params: 3 × (freq, gain, Q) + hp_freq + lp_freq + mix. Biquad (RBJ cookbook), signal chain HP→B1→B2→B3→LP
+- **35 DSP scripts** (24 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 12 params, band1_gain 0→6, band2_q 1→3.5
+
 ## v1.24.0 (2026-07-05)
 
 - **`werkstatt_compressor.js`** — soft-knee peak compressor. 7 params: threshold, ratio, attack, release, makeup, mix, knee. Peak detection, one-pole envelope, stereo-linked
