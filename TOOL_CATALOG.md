@@ -382,7 +382,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 283 tools**
 
-## DSP Scripts (scripts/) — 62 scripts
+## DSP Scripts (scripts/) — 63 scripts
 
 ### Werkstatt (Audio Effects) — 49 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
@@ -432,7 +432,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_stereowidth.js` — Stereo width M/S processor (width, lowTrim, lowFreq, mix, output)
 - `werkstatt_convolution_reverb.js` — Convolution reverb (generated stereo IR, early reflections + decaying noise tail, room_size, decay, damping, predelay, early/late balance, width, mix, output)
 
-### Apparat (Instruments) — 7 scripts
+### Apparat (Instruments) — 8 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
 - `apparat_coldlead.js` — Cold lead synth (oscillator, envelope, filter)
 - `apparat_subcrusher.js` — Sub crusher (distorted bass, oscillator, distortion)
@@ -440,6 +440,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apparat_ringmod.js` — Ring modulation synth (carrier, modulator, depth)
 - `apparat_pluck.js` — Karplus-Strong plucked string (decay, damping, brightness, attack, release, detune, volume)
 - `apparat_wavetable.js` — Wavetable synth (8 tables, scan position + LFO, unison detune, ADSR, volume)
+- `apparat_supersaw.js` — Supersaw synth (7 detuned saws, per-voice stereo pan, resonant lowpass, ADSR)
 
 ### Spielwerk (MIDI Effects) — 6 scripts
 - `spielwerk_arpeggiator.js` — MIDI arpeggiator (rate, octave, pattern)

@@ -541,6 +541,7 @@ process(io, block) {
 | `apparat_coldlead.js` | Lead with glide | portamento + SVF + ADSR |
 | `apparat_ringmod.js` | Ring mod synth | sine carrier × modulator |
 | `apparat_fm.js` | 2-op FM | carrier + modulator + feedback |
+| `apparat_supersaw.js` | Supersaw (7-voice) | 7 detuned saws + per-voice stereo pan + resonant LPF |
 
 ### Spielwerk (6 MIDI effects)
 

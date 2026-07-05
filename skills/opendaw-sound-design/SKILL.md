@@ -304,6 +304,7 @@ class Processor {
 | `apparat_fm.js` | 2-operator FM synth | carrier, ratio, mod_depth, waveform, ADSR, volume | #138 |
 | `apparat_pluck.js` | Karplus-Strong plucked string | decay, damping, brightness, attack, release, detune, volume | |
 | `apparat_wavetable.js` | Wavetable synth (8 tables, scan, unison) | pos, pos_lfo_rate, pos_lfo_depth, detune, unison, ADSR, volume | |
+| `apparat_supersaw.js` | Supersaw synth (7 detuned saws, stereo pan, resonant LP) | detune, spread, cutoff, resonance, ADSR, volume | |
 
 ### Spielwerk (6 MIDI effects)
 
@@ -368,6 +369,7 @@ class Processor {
 | Lead synth | `apparat_coldlead.js` | Apparat |
 | FM synth | `apparat_fm.js` | Apparat |
 | Wavetable synth | `apparat_wavetable.js` | Apparat |
+| Supersaw synth | `apparat_supersaw.js` | Apparat |
 | Ring mod (MIDI) | `apparat_ringmod.js` | Apparat |
 | Plucked string (KS) | `apparat_pluck.js` | Apparat |
 | Ring mod (audio) | `werkstatt_ringmod_env.js` | Werkstatt |

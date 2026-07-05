@@ -67,6 +67,7 @@
 | `apparat_ringmod.js` | Ring modulation synth | carrier, modulator, depth |
 | `apparat_pluck.js` | Karplus-Strong plucked string | decay, damping, brightness, attack, release, detune, volume |
 | `apparat_wavetable.js` | Wavetable synth (8 tables, scan, unison) | pos, pos_lfo_rate, pos_lfo_depth, detune, unison, attack, decay, sustain, release, volume |
+| `apparat_supersaw.js` | Supersaw synth (7 detuned saws, stereo pan, resonant LP) | detune, spread, cutoff, resonance, attack, decay, sustain, release, volume |
 
 ## Spielwerk (MIDI Effects) — 6 scripts
 

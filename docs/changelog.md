@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.79.0 (2026-07-05)
+
+- **`apparat_supersaw.js` DSP script** — JP-8000 supersaw: 7 detuned saws, per-voice stereo pan, resonant lowpass. 9 params. 63 DSP scripts
+- **752 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.78.0 (2026-07-05)
 
 - **`werkstatt_convolution_reverb.js` DSP script** — convolution reverb with generated stereo IR. Time-domain direct convolution: early reflections (7 taps) + decaying noise tail through lowpass. 8 params: room_size, decay, damping, predelay, early_late, width, mix, output. 62 DSP scripts

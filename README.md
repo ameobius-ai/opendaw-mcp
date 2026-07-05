@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-308-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-62-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-742%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-63-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-752%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Examples](https://img.shields.io/badge/Examples-100-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -508,6 +508,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.79.0 (2026-07-05)
+
+- **`apparat_supersaw.js` DSP script** — JP-8000 style supersaw synthesizer. 7 detuned sawtooth oscillators with fixed detune pattern (-12/-7/-4/0/+4/+7/+12 cents), per-voice equal-power stereo pan (center voice = center, outer voices spread wide), resonant one-pole lowpass filter with cutoff (50Hz-16kHz exponential) + resonance feedback. 9 params: detune, spread, cutoff, resonance, attack, decay, sustain, release, volume. Unlike wavetable synth (scanned tables, mono), supersaw uses 7 independent sawtooth phases with dedicated stereo placement — the iconic trance/hardstyle/EDM lead sound. ADSR envelope, randomized phase init per noteOn for rich texture
+- **63 DSP scripts** (49 Werkstatt + 8 Apparat + 6 Spielwerk)
+- **752 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ## v1.78.0 (2026-07-05)
 

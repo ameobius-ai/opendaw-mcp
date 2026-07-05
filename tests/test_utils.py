@@ -1613,6 +1613,80 @@ class TestWavetableDSP:
         assert "noteOff" in code, "Missing noteOff handler"
 
 
+class TestSupersawDSP:
+    """Unit tests for apparat_supersaw.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "apparat_supersaw.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@apparat supersaw" in code, "Missing @apparat supersaw header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_detune_param(self):
+        params = self._parse_params(self._read_script())
+        det = [p for p in params if p["name"] == "detune"][0]
+        assert det["min"] == 0 and det["max"] == 0.5
+
+    def test_spread_param(self):
+        params = self._parse_params(self._read_script())
+        sp = [p for p in params if p["name"] == "spread"][0]
+        assert sp["min"] == 0 and sp["max"] == 1
+
+    def test_seven_voices(self):
+        code = self._read_script()
+        assert "NUM = 7" in code, "Expected 7 supersaw voices"
+        assert "detuneCents" in code, "Missing detune cents array"
+
+    def test_stereo_pan(self):
+        code = self._read_script()
+        assert "pans" in code, "Missing per-voice pan array"
+        assert "panAngles" in code, "Missing pan angle computation"
+        assert "Math.cos" in code and "Math.sin" in code, "Missing equal-power pan"
+
+    def test_sawtooth_osc(self):
+        code = self._read_script()
+        assert "_saw" in code, "Missing sawtooth oscillator"
+        assert "Math.floor(phase + 0.5)" in code, "Missing sawtooth waveform"
+
+    def test_resonant_filter(self):
+        code = self._read_script()
+        assert "cutCoeff" in code, "Missing filter coefficient"
+        assert "resAmt" in code, "Missing resonance amount"
+        assert "lpL" in code and "lpR" in code, "Missing per-channel filter state"
+
+    def test_adsr_envelope(self):
+        code = self._read_script()
+        assert "envState" in code, "Missing ADSR envelope state"
+        assert "aCoef" in code and "rCoef" in code, "Missing ADSR coefficients"
+
+    def test_note_on_off(self):
+        code = self._read_script()
+        assert "noteOn" in code, "Missing noteOn handler"
+        assert "noteOff" in code, "Missing noteOff handler"
+
+
 class TestHemiola:
     """Unit tests for create_hemiola orchestration tool logic."""
 
