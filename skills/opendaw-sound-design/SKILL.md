@@ -237,9 +237,9 @@ class Processor {
 4. **Apparat is the ONLY scriptable device with MIDI.** `noteOn`/`noteOff` in UserProcessor interface.
 5. **Maximizer at effect index 0.** Find Werkstatt by class name: `fx.findIndex(b => b.constructor.name === 'WerkstattDeviceBox')`.
 
-## DSP Script Library (33 scripts)
+## DSP Script Library (47 scripts)
 
-### Werkstatt (22 audio effects)
+### Werkstatt (34 audio effects)
 
 | Script | Effect | Key params | Issue |
 |--------|--------|------------|-------|
@@ -267,6 +267,10 @@ class Processor {
 | `werkstatt_envfollower.js` | Envelope follower | attack, release, depth, threshold, invert, makeup | #139 |
 | `werkstatt_adsr_trim.js` | ADSR envelope trim | attack, decay, sustain, release, threshold, mix | #241 |
 | `werkstatt_granular_stretch.js` | Granular time-stretch | stretch, grain, overlap, pitch, mix | #201 |
+| `werkstatt_bitcrusher.js` | Standalone bitcrusher (quantize + rate reduce) | bits, rate, drive, offset, mix | |
+| `werkstatt_spring_reverb.js` | Spring reverb (dispersive, boing) | decay, damp, tension, boing, mix | |
+| `werkstatt_tube_saturator.js` | Tube/valve saturator (even harmonics, bias) | drive, warmth, bias, tone, output, mix | |
+| `werkstatt_tape_delay.js` | Tape delay (wow/flutter, feedback saturation) | time, feedback, wow, flutter, saturation, mix | |
 | `werkstatt_pitch_shift.js` | Real-time pitch shift | semitones, cents, latency, mix | #188 |
 | `werkstatt_dcremover.js` | DC remover + stereo width | dc_freq, width, balance, mix | #91 |
 | `werkstatt_allpass.js` | Allpass filter + cascade | freq, stages, invert, feedback, mix | #133 |
@@ -305,8 +309,12 @@ class Processor {
 | Overdrive/distortion | `werkstatt_overdrive.js` | Werkstatt |
 | Reverb (plate) | `werkstatt_reverb.js` | Werkstatt |
 | Reverb (shimmer) | `werkstatt_shimmer.js` | Werkstatt |
+| Reverb (spring) | `werkstatt_spring_reverb.js` | Werkstatt |
 | Delay (stereo) | `werkstatt_stereo_delay.js` | Werkstatt |
+| Delay (tape, wow/flutter) | `werkstatt_tape_delay.js` | Werkstatt |
 | Delay (MIDI) | `spielwerk_mididelay.js` | Spielwerk |
+| Saturation (tube/valve) | `werkstatt_tube_saturator.js` | Werkstatt |
+| Bitcrusher (lo-fi) | `werkstatt_bitcrusher.js` | Werkstatt |
 | Filter (LP/HP/BP/Notch) | `werkstatt_multifilter.js` | Werkstatt |
 | EQ (parametric, 3-band) | `werkstatt_paraeq.js` | Werkstatt |
 | Compressor (peak, soft-knee) | `werkstatt_compressor.js` | Werkstatt |

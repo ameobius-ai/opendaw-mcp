@@ -46,6 +46,15 @@ Orchestration tools solve this by combining multiple low-level operations into a
 33. `create_glissando` — smooth scale run between two pitches (6 scale types, 5 rates, 4 velocity curves, asc/desc)
 34. `create_sequence` — transposed melodic repetition (up/down/alternating, adjustable transposition, velocity decay)
 35. `create_pedal_point` — sustained bass under changing chords (retrigger/sustained, chord name parsing, time signatures)
+36. `create_comping` — rhythmic chordal accompaniment (chord JSON × rhythm grid, jazz/funk/reggae/country/neo-soul)
+37. `create_ostinato` — repeating melodic/rhythmic pattern as foundation layer (scale-based, 1-16 repeats)
+38. `create_mordent` — ornament: main→neighbor→main (upper/lower, Bach/Mozart)
+39. `create_turn` — ornament: main→up→main→down→main (gruppetto, upper/lower, Mozart/Beethoven/Bach)
+40. `create_appoggiatura` — ornament: approach→main (tension→release, above/below, Bach/Mozart/Chopin)
+41. `create_hemiola` — 3:2 rhythmic displacement creating cross-rhythm illusion (Afro-Cuban/jazz/minimalism)
+42. `create_bordun` — continuously sustained drone chord as textural layer (open fifths/octaves, bagpipes/tanpura/ambient)
+43. `create_hocket` — melodic line split between 2-4 voices (alternate/pairs/phrase, medieval/African/gamelan/Reich)
+44. `create_isorhythm` — repeating rhythm (talea) × repeating pitch (color) as independent cycles (phase shift at LCM, Machaut/Messiaen)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
