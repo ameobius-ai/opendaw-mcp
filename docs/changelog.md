@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.165.0 (2026-07-05)
+
+- **werkstatt_de_plosive.js** — new restoration DSP. Adaptive highpass filter that detects plosive bursts (P, B, T sounds) in vocals and dynamically engages a biquad highpass only when plosive energy is detected. Clean vocal passes through untouched. Parameters: threshold (detection sensitivity), freq (80-300 Hz cutoff), attack/release (engagement speed), q (resonance), mix. Influenced by iZotope RX De-plosive. 18 unit tests. 101 DSP scripts. 2192 tests.
+
 ## v1.164.0 (2026-07-05)
 
 - **create_modulated_song: drum_genre integration** — new `drum_genre` parameter adds genre drum arrangement (drums + bass) for the full song length BEFORE harmonic sections. When set, pads and bass are auto-skipped in harmonic sections (genre provides them). `bpm` parameter controls tempo. All 15 genres supported. Summary now includes `drum_notes`, `harmonic_notes`, and `drums` info. Backward compatible — default `drum_genre=""` = harmony only. 10 new unit tests. 2174 tests.

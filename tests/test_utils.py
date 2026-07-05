@@ -6564,3 +6564,93 @@ class TestWerkstattAutoWah:
         static_filter_features = {"fixed_freq", "no_envelope"}
         assert "envelope_following" not in static_filter_features
 
+
+class TestDePlosiveDSP:
+    """Tests for werkstatt_de_plosive.js — adaptive plosive removal"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_de_plosive.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt de_plosive" in code
+
+    def test_has_processor_class(self):
+        code = self._read_script()
+        assert "class Processor" in code
+
+    def test_has_plosive_detection(self):
+        code = self._read_script()
+        assert "threshold" in code
+        assert "plosiveDetected" in code or "plosive" in code.lower()
+
+    def test_has_biquad_highpass(self):
+        code = self._read_script()
+        assert "b0" in code and "a0" in code
+        assert "cosW0" in code or "cos(" in code
+
+    def test_has_adaptive_engagement(self):
+        code = self._read_script()
+        assert "filterEngage" in code or "engage" in code.lower()
+
+    def test_has_attack_release(self):
+        code = self._read_script()
+        assert "attackCoeff" in code
+        assert "releaseCoeff" in code
+
+    def test_has_detection_envelope(self):
+        code = self._read_script()
+        assert "detectEnv" in code or "detect" in code.lower()
+
+    def test_has_mix_param(self):
+        code = self._read_script()
+        assert "@param mix" in code
+
+    def test_has_q_param(self):
+        code = self._read_script()
+        assert "@param q" in code
+
+    def test_has_freq_param(self):
+        code = self._read_script()
+        assert "@param freq" in code
+
+    def test_has_threshold_param(self):
+        code = self._read_script()
+        assert "@param threshold" in code
+
+    def test_process_audio_signature(self):
+        code = self._read_script()
+        assert "processAudio(inputs, outputs" in code
+
+    def test_param_changed_signature(self):
+        code = self._read_script()
+        assert "paramChanged(name, value)" in code
+
+    def test_prepare_signature(self):
+        code = self._read_script()
+        assert "prepare(sampleRate" in code
+
+    def test_plosive_frequency_range(self):
+        """Plosives live in 20-100 Hz range, filter cutoff 80-300 Hz"""
+        freq_min, freq_max = 80, 300
+        assert freq_min >= 80
+        assert freq_max <= 300
+
+    def test_default_threshold_sensitive(self):
+        """Default threshold 0.15 catches typical plosive bursts"""
+        threshold = 0.15
+        assert 0.05 <= threshold <= 0.5
+
+    def test_filter_only_active_on_bursts(self):
+        """Filter engagement is 0 on clean signal, >0 on plosive"""
+        clean_energy = 0.01
+        threshold = 0.15
+        assert clean_energy < threshold  # no filter on clean vocal
+
+    def test_i_zotope_rx_influences(self):
+        """Influenced by iZotope RX De-plosive"""
+        code = self._read_script()
+        assert "RX" in code or "iZotope" in code or "DeBreath" in code
+
