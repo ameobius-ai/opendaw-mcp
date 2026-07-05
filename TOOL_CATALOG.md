@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-287 MCP tools for headless openDAW control via Playwright bridge.
+288 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -327,7 +327,7 @@
 - `save_effect_preset` — Encode an audio effect chain as a .opb preset bundle (ZIP: meta.json + preset.odp). Uses PresetEncoder.encodeEffects. Shareable, drag-and-drop into openDAW.
 - `load_effect_preset` — Load a .opb preset file and decode it via PresetDecoder into a project skeleton. Returns imported unit count.
 
-## Orchestration Tools (28)
+## Orchestration Tools (29)
 High-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 - `create_notes_batch` — Create multiple MIDI notes from a JSON array in one call. Replaces 10-50 create_note calls.
@@ -344,6 +344,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_stab` — Generate rhythmic chord stabs for house/disco/funk. Grid pattern with 'x' (stab), '-' (rest), '.' (ghost). Cycles through chord progressions. Adjustable octave, velocity, stab duration.
 - `create_break` — Generate classic drum breaks (Amen, Think, Ashanti, Funky Drummer, When the Levee, Synthetic). 1-8 bars with variation modes (none/fill/humanize/drop) and swing.
 - `create_bass_drop` — Generate descending pitch sweep into sustained sub bass for dubstep/EDM/trap drops. 3 curves (linear/exp/log), adjustable sweep/hold duration.
+- `create_chop` — Slice source pitches into segments and rearrange. 5 modes: reverse (Dilla flip), stutter (glitch repeat), shuffle (Madlib random), ping-pong (ABBA), gate (chopped break). Octave shift, velocity variation, inner-pitch reverse.
 - `create_ostinato` — Create a repeating melodic/rhythmic pattern as a foundation layer. Scale-based, 1-16 repeats. Common in minimalism, electronic, and film music.
 - `create_crescendo` — Apply crescendo/decrescendo to existing notes. Linear, exponential, or logarithmic velocity curves. One call modifies all notes in a region.
 - `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.

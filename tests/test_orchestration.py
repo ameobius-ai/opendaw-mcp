@@ -1085,3 +1085,129 @@ class TestBassDropPatternGeneration:
         notes = self._generate_bass_drop(sweep_beats=3, hold_beats=2, start_beat=0)
         hold = notes[-1]
         assert abs(hold["pos"] - 3) < 0.01, f"Hold should start at beat 3, got {hold['pos']}"
+
+
+class TestChopPatternGeneration:
+    """Test the Python-side pattern generation logic of create_chop."""
+
+    def _generate_chop(self, pitches="60,62,64,67", chop_mode="reverse",
+                       segment_beats=0.5, stutter_count=2, octave_shift=0,
+                       velocity_variation=0.2, reverse_pitch_in_segment=False,
+                       velocity=0.9, seed=42, start_beat=0):
+        """Replicate the pattern generation logic from create_chop."""
+        import random as _rng
+        rng = _rng.Random(seed)
+
+        pitch_list = [int(p.strip()) for p in pitches.split(",")]
+        shifted = [max(0, min(127, p + octave_shift * 12)) for p in pitch_list]
+        segments = list(range(len(shifted)))
+
+        if chop_mode == "reverse":
+            seg_order = segments[::-1]
+        elif chop_mode == "stutter":
+            seg_order = []
+            for s in segments:
+                seg_order.extend([s] * stutter_count)
+        elif chop_mode == "shuffle":
+            seg_order = segments[:]
+            rng.shuffle(seg_order)
+        elif chop_mode == "ping-pong":
+            seg_order = segments + segments[::-1]
+        elif chop_mode == "gate":
+            seg_order = [s for i, s in enumerate(segments) if i % 2 == 0]
+        else:
+            seg_order = segments
+
+        if reverse_pitch_in_segment:
+            shifted = shifted[::-1]
+
+        note_data = []
+        for idx, seg_i in enumerate(seg_order):
+            pos = start_beat + idx * segment_beats
+            vel = velocity
+            if velocity_variation > 0:
+                vel = max(0.1, min(1.0, vel + rng.uniform(-velocity_variation, velocity_variation)))
+            note_data.append({
+                "pitch": shifted[seg_i],
+                "pos": pos,
+                "dur": segment_beats * 0.9,
+                "vel": round(vel, 3),
+            })
+        return note_data, seg_order, shifted
+
+    def test_reverse_order(self):
+        notes, seg, _ = self._generate_chop(pitches="60,62,64,67", chop_mode="reverse")
+        assert len(notes) == 4
+        assert seg == [3, 2, 1, 0]
+        assert notes[0]["pitch"] == 67, f"First reversed pitch should be 67, got {notes[0]['pitch']}"
+        assert notes[-1]["pitch"] == 60
+
+    def test_stutter_count(self):
+        notes, seg, _ = self._generate_chop(pitches="60,62,64", chop_mode="stutter", stutter_count=3)
+        assert len(notes) == 9, f"Expected 9 (3x3), got {len(notes)}"
+        assert seg == [0, 0, 0, 1, 1, 1, 2, 2, 2]
+
+    def test_shuffle_same_seed(self):
+        notes1, seg1, _ = self._generate_chop(pitches="60,62,64,67", chop_mode="shuffle", seed=42)
+        notes2, seg2, _ = self._generate_chop(pitches="60,62,64,67", chop_mode="shuffle", seed=42)
+        assert seg1 == seg2, "Same seed should produce same shuffle order"
+        assert len(notes1) == 4
+
+    def test_shuffle_different_seed(self):
+        _, seg1, _ = self._generate_chop(pitches="60,62,64,67,69", chop_mode="shuffle", seed=1)
+        _, seg2, _ = self._generate_chop(pitches="60,62,64,67,69", chop_mode="shuffle", seed=999)
+        # Very unlikely to be identical with different seeds
+        assert seg1 != seg2, "Different seeds should produce different shuffle orders"
+
+    def test_ping_pong(self):
+        notes, seg, _ = self._generate_chop(pitches="60,62,64,67", chop_mode="ping-pong")
+        assert len(notes) == 8, f"Expected 8 (4+4), got {len(notes)}"
+        assert seg == [0, 1, 2, 3, 3, 2, 1, 0]
+
+    def test_gate(self):
+        notes, seg, _ = self._generate_chop(pitches="60,62,64,67,69,71", chop_mode="gate")
+        assert len(notes) == 3, f"Expected 3 (6/2), got {len(notes)}"
+        assert seg == [0, 2, 4]
+
+    def test_octave_shift_down(self):
+        notes, _, shifted = self._generate_chop(pitches="60,62,64,67", octave_shift=-1)
+        assert all(p <= 60 for p in shifted), "Octave -1 should shift all pitches down"
+        assert shifted == [48, 50, 52, 55]
+
+    def test_octave_shift_up(self):
+        _, _, shifted = self._generate_chop(pitches="60,62,64,67", octave_shift=1)
+        assert shifted == [72, 74, 76, 79]
+
+    def test_velocity_variation_bounds(self):
+        notes, _, _ = self._generate_chop(velocity=0.9, velocity_variation=0.2)
+        for n in notes:
+            assert 0.1 <= n["vel"] <= 1.0, f"Velocity {n['vel']} out of bounds"
+
+    def test_no_velocity_variation(self):
+        notes, _, _ = self._generate_chop(velocity_variation=0.0)
+        for n in notes:
+            assert n["vel"] == 0.9, f"Without variation, all velocities should be 0.9, got {n['vel']}"
+
+    def test_segment_duration(self):
+        notes, _, _ = self._generate_chop(segment_beats=0.25)
+        assert abs(notes[0]["dur"] - 0.225) < 0.01, f"Duration should be 0.25*0.9=0.225, got {notes[0]['dur']}"
+
+    def test_position_spacing(self):
+        notes, _, _ = self._generate_chop(pitches="60,62,64,67", chop_mode="reverse", segment_beats=0.5)
+        for i in range(1, len(notes)):
+            gap = notes[i]["pos"] - notes[i - 1]["pos"]
+            assert abs(gap - 0.5) < 0.01, f"Gap should be 0.5 beats, got {gap}"
+
+    def test_reverse_pitch_in_segment(self):
+        notes, _, shifted = self._generate_chop(
+            pitches="60,62,64,67", chop_mode="reverse",
+            reverse_pitch_in_segment=True
+        )
+        # Original: [60,62,64,67], reversed: [67,64,62,60]
+        # Then reverse mode picks segments [3,2,1,0] from reversed list
+        # seg_order [3,2,1,0] → shifted[3]=60, shifted[2]=62, shifted[1]=64, shifted[0]=67
+        assert shifted == [67, 64, 62, 60], f"Expected [67,64,62,60], got {shifted}"
+        assert notes[0]["pitch"] == 60
+        assert notes[1]["pitch"] == 62
+        assert notes[2]["pitch"] == 64
+        assert notes[3]["pitch"] == 67

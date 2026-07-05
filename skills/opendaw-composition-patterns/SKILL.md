@@ -20,6 +20,7 @@ What do you want to create?
 ├── Stabs (house/disco/funk) → create_stab (rhythmic chord jabs, x-./. grid, ghost notes)
 ├── Drum break (classic) → create_break (Amen/Think/Funky Drummer/etc, variation + swing)
 ├── Bass drop (dubstep/EDM) → create_bass_drop (descending sweep + sustained sub bass)
+├── Chop (sample flip) → create_chop (reverse/stutter/shuffle/ping-pong/gate, Dilla/Madlib/glitch)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │
@@ -169,7 +170,17 @@ await mcp_opendaw_create_ghost_notes(unit_index=0, density=0.3, velocity=0.25, s
 # 4. Humanize for natural feel
 await mcp_opendaw_humanize_notes(velocity_amount=0.12, timing_amount=0.10, swing=0.0)
 
-# 5. Mix preset
+# 5. Sample flip — Dilla-style chop on melody track
+await mcp_opendaw_create_chop(
+    pitches="60,62,64,67,69,71,72,74",
+    chop_mode="shuffle",
+    segment_beats=0.375,
+    velocity_variation=0.15,
+    seed=1337,
+    unit_index=1,  # melody/synth track
+)
+
+# 6. Mix preset
 await mcp_opendaw_apply_mix_preset("lofi")
 ```
 

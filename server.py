@@ -15624,6 +15624,197 @@ async def mcp_opendaw_create_bass_drop(start_pitch: int = 48, end_pitch: int = 2
 
 
 @mcp.tool()
+async def mcp_opendaw_create_chop(
+    pitches: str = "60,62,64,67,60,64,62,60",
+    chop_mode: str = "reverse",
+    segment_beats: float = 0.5,
+    stutter_count: int = 2,
+    octave_shift: int = 0,
+    velocity_variation: float = 0.2,
+    reverse_pitch_in_segment: bool = False,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    velocity: float = 0.9,
+    seed: int = 42,
+) -> str:
+    """Create a chop — slice source pitches into segments and rearrange them.
+
+    The quintessential hip-hop/EDM sampling technique: take a sequence of pitches,
+    cut it into equal segments, then rearrange (reverse, stutter, shuffle, ping-pong).
+    Think Dilla chops, Madlib sample flips, Virtual Riot bass chops, or glitch-hop
+    stutter effects. Each segment becomes a self-contained musical cell.
+
+    pitches: Comma-separated MIDI pitches to use as source material (e.g. "60,62,64,67").
+    chop_mode: How to rearrange segments —
+      "reverse" (play segments backwards),
+      "stutter" (repeat each segment N times — glitch/stutter effect),
+      "shuffle" (random segment order, seeded),
+      "ping-pong" (forward then backward — ABBA pattern),
+      "gate" (silence every other segment — chopped break feel).
+    segment_beats: Duration of each segment in beats (0.25-4, default 0.5 = 8th note).
+    stutter_count: For stutter mode, times to repeat each segment (2-8, default 2).
+    octave_shift: Shift all pitches by N octaves (default 0). -1 = down an octave for bass chops.
+    velocity_variation: Vary velocity between segments (0-0.5, default 0.2). Adds human feel.
+    reverse_pitch_in_segment: If true, reverse pitch order within each segment (inner chop).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the chop begins.
+    velocity: Base velocity (0-1, default 0.9).
+    seed: Random seed for reproducibility.
+
+    Returns notes created, segment count, mode used.
+    """
+    try:
+        pitch_list = [int(p.strip()) for p in pitches.split(",")]
+    except ValueError:
+        return "Error: pitches must be comma-separated integers (e.g. '60,62,64,67')"
+    if len(pitch_list) < 2:
+        return "Error: need at least 2 pitches to chop"
+    if len(pitch_list) > 64:
+        return "Error: maximum 64 pitches"
+    if not all(0 <= p <= 127 for p in pitch_list):
+        return "Error: pitches must be 0-127"
+    if chop_mode not in ("reverse", "stutter", "shuffle", "ping-pong", "gate"):
+        return "Error: chop_mode must be reverse, stutter, shuffle, ping-pong, or gate"
+    if segment_beats < 0.25 or segment_beats > 4:
+        return "Error: segment_beats must be 0.25-4"
+    if stutter_count < 2 or stutter_count > 8:
+        return "Error: stutter_count must be 2-8"
+    if octave_shift < -4 or octave_shift > 4:
+        return "Error: octave_shift must be -4 to 4"
+    if velocity_variation < 0 or velocity_variation > 0.5:
+        return "Error: velocity_variation must be 0-0.5"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    import random as _rng
+    rng = _rng.Random(seed)
+
+    # Apply octave shift
+    shifted = [max(0, min(127, p + octave_shift * 12)) for p in pitch_list]
+
+    # Determine segment size: each segment = one pitch
+    # This is the natural unit for a chop — each pitch becomes a segment
+    segments = list(range(len(shifted)))
+
+    # Apply chop mode
+    if chop_mode == "reverse":
+        seg_order = segments[::-1]
+    elif chop_mode == "stutter":
+        seg_order = []
+        for s in segments:
+            seg_order.extend([s] * stutter_count)
+    elif chop_mode == "shuffle":
+        seg_order = segments[:]
+        rng.shuffle(seg_order)
+    elif chop_mode == "ping-pong":
+        seg_order = segments + segments[::-1]
+    elif chop_mode == "gate":
+        seg_order = [s for i, s in enumerate(segments) if i % 2 == 0]
+    else:
+        seg_order = segments
+
+    # Optionally reverse pitch within each segment
+    if reverse_pitch_in_segment:
+        shifted = shifted[::-1]
+
+    # Build note data
+    note_data = []
+    for idx, seg_i in enumerate(seg_order):
+        pos = start_beat + idx * segment_beats
+        vel = velocity
+        if velocity_variation > 0:
+            vel = max(0.1, min(1.0, vel + rng.uniform(-velocity_variation, velocity_variation)))
+        note_data.append({
+            "pitch": shifted[seg_i],
+            "pos": pos,
+            "dur": segment_beats * 0.9,
+            "vel": round(vel, 3),
+        })
+
+    total_beats = len(seg_order) * segment_beats
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Chop");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            segments: {len(seg_order)},
+            source_pitches: {len(pitch_list)},
+            chop_mode: "{chop_mode}",
+            segment_beats: {segment_beats},
+            octave_shift: {octave_shift},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,

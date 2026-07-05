@@ -95,6 +95,7 @@ python examples/genre_house.py
 | `create_riser.py` | Build-up risers: exp/linear/log pitch sweeps for transitions |
 | `create_stab.py` | Rhythmic chord stabs: house off-beat, funky ghost notes, disco 16ths |
 | `create_break.py` | Classic drum breaks: Amen, Think, Funky Drummer, with variation + swing |
+| `create_chop.py` | Pitch chopping: reverse (Dilla), stutter (glitch), shuffle (Madlib), ping-pong, gate, bass chop |
 
 ## Running examples
 

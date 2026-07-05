@@ -8,7 +8,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## Tools Added (v1.10.0, 255 total → v1.32.0, 284 total)
 
-30 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+31 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
 ### Full orchestration tool list (v1.32.0)
 1. `create_notes_batch` — batch note creation from JSON
@@ -41,6 +41,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 28. `create_stab` — rhythmic chord stabs for house/disco/funk (grid pattern with ghost notes, chord cycling)
 29. `create_break` — classic drum breaks (Amen/Think/Ashanti/Funky Drummer/When the Levee/Synthetic) with variation modes and swing
 30. `create_bass_drop` — descending pitch sweep into sustained sub bass (dubstep/EDM/trap, 3 curves, sweep+hold phases)
+31. `create_chop` — slice source pitches into segments and rearrange (reverse/stutter/shuffle/ping-pong/gate, Dilla/Madlib/glitch-hop)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
