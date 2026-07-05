@@ -439,6 +439,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_stereowidth.js` — Stereo width M/S processor (width, lowTrim, lowFreq, mix, output)
 - `werkstatt_multiband_imager.js` — Multiband stereo imager (3-band LR4 crossover, per-band M/S width control, mono bass default, bypass_low, link mode, iZotope Ozone Imager style)
 - `werkstatt_convolution_reverb.js` — Convolution reverb (generated stereo IR, early reflections + decaying noise tail, room_size, decay, damping, predelay, early/late balance, width, mix, output)
+- `werkstatt_gated_reverb.js` — Gated reverb (80s drum sound: Schroeder plate + envelope-followed gate on dry input, threshold/hold/release cut reverb tail, Phil Collins / In the Air Tonight style)
 - `werkstatt_dynamic_eq.js` — Dynamic EQ (3 bands, peaking biquad + envelope follower, per-band threshold/range, attack/release, mix, output)
 
 ### Apparat (Instruments) — 8 scripts

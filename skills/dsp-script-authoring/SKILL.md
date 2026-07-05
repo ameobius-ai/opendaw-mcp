@@ -527,6 +527,7 @@ process(io, block) {
 | `werkstatt_fuzz.js` | Fuzz (Big Muff) | hard clip + foldback squash + full-wave rect octave-up + Muff tone stack + noise gate |
 | `werkstatt_tape_stop.js` | Tape stop | exponential speed decay to zero + pitch drop + state machine + fractional buffer read |
 | `werkstatt_multiband_imager.js` | Multiband imager | LR4 crossover → 3-band M/S width control, mono bass default, link mode |
+| `werkstatt_gated_reverb.js` | Gated reverb | Schroeder plate + envelope-followed gate on dry input → hard tail cutoff, 80s drum sound |
 | `werkstatt_chorus.js` | Modulated delay | LFO + fractional read |
 | `werkstatt_phaser.js` | Allpass cascade | 6-stage allpass + quadrature LFO |
 | `werkstatt_lookahead.js` | Compressor | envelope follower + lookahead buffer |

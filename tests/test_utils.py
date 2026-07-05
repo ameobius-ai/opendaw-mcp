@@ -3793,3 +3793,92 @@ class TestMultibandImagerDSP:
     def test_process_method(self):
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
+
+
+class TestGatedReverbDSP:
+    """Unit tests for werkstatt_gated_reverb.js — 80s gated reverb"""
+
+    SCRIPT = "werkstatt_gated_reverb.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt gated_reverb" in code, "Missing @werkstatt gated_reverb header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_reverb_params(self):
+        params = self._parse_params(self._read_script())
+        decay = [p for p in params if p["name"] == "decay"][0]
+        assert decay["default"] == 0.5 and decay["type"] == "linear"
+
+    def test_gate_params(self):
+        params = self._parse_params(self._read_script())
+        threshold = [p for p in params if p["name"] == "threshold"][0]
+        hold = [p for p in params if p["name"] == "hold"][0]
+        release = [p for p in params if p["name"] == "release"][0]
+        assert threshold["default"] == 0.02, "threshold default should be 0.02"
+        assert hold["type"] == "linear" and hold["default"] == 0.08
+        assert release["type"] == "linear"
+
+    def test_schroeder_reverb(self):
+        code = self._read_script()
+        assert "_mkComb" in code, "Missing comb filter construction"
+        assert "_mkAp" in code, "Missing allpass filter construction"
+        assert "_combProcess" in code, "Missing comb processing"
+        assert "_apProcess" in code, "Missing allpass processing"
+
+    def test_gate_state_machine(self):
+        code = self._read_script()
+        assert "gateOpen" in code, "Missing gate open state"
+        assert "holdCounter" in code, "Missing hold counter"
+        assert "threshold" in code, "Missing threshold detection"
+
+    def test_envelope_follower(self):
+        code = self._read_script()
+        assert "this.env" in code, "Missing envelope follower state"
+        assert "monoAbs" in code, "Missing mono amplitude detection"
+
+    def test_gate_gain(self):
+        code = self._read_script()
+        assert "gateGain" in code, "Missing gate gain state"
+        assert "releaseCoef" in code, "Missing release coefficient"
+
+    def test_predelay(self):
+        code = self._read_script()
+        assert "pdBuf" in code, "Missing predelay buffer"
+        assert "predelay" in code, "Missing predelay parameter"
+
+    def test_ms_width(self):
+        code = self._read_script()
+        assert "mid = (wetL + wetR)" in code or "mid" in code, "Missing M/S mid"
+        assert "side" in code, "Missing M/S side"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "(gatedL - dryL) * mix" in code or "gated" in code, "Missing gated wet blend"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"

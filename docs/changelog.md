@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.93.0 (2026-07-05)
+
+- **`werkstatt_gated_reverb.js` DSP script** — 80s gated reverb: Schroeder plate reverb + envelope-followed gate on dry input. Gate detects amplitude on dry signal (not reverb output), opens above threshold, holds, then exponentially closes — cutting the reverb tail for that signature Phil Collins / 80s snare sound. 9 params (decay/predelay/damping/width/threshold/hold/release/mix/output). 75 DSP scripts
+- **862 unit tests** (+13), E2E 8/8
+
 ## v1.92.0 (2026-07-05)
 
 - **`werkstatt_multiband_imager.js` DSP script** — 3-band stereo imager: LR4 Linkwitz-Riley crossover splits signal into low/mid/high, each band gets independent M/S width control. Low band defaults to mono (standard mastering practice), high band defaults wide. Bypass_low for dry low band, link mode couples low+mid width. 9 params (crossover1/crossover2/low_width/mid_width/high_width/bypass_low/link/mix/output). iZotope Ozone Imager / Waves S1 style. 74 DSP scripts
