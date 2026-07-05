@@ -1211,3 +1211,90 @@ class TestChopPatternGeneration:
         assert notes[1]["pitch"] == 62
         assert notes[2]["pitch"] == 64
         assert notes[3]["pitch"] == 67
+
+
+class TestTrillPatternGeneration:
+    """Test the Python-side pattern generation logic of create_trill."""
+
+    def _generate_trill(self, lower_pitch=60, upper_pitch=62, rate="16th",
+                        duration_beats=4, accent_upper=True, start_with_upper=False,
+                        velocity=0.85, start_beat=0):
+        """Replicate the pattern generation logic from create_trill."""
+        rate_map = {
+            "32nd": 0.125,
+            "16th": 0.25,
+            "8th": 0.5,
+            "32t": 1/12,
+            "16t": 1/6,
+        }
+        note_dur = rate_map[rate]
+        total_notes = int(duration_beats / note_dur)
+
+        note_data = []
+        for i in range(total_notes):
+            use_upper = (i % 2 == 1) if not start_with_upper else (i % 2 == 0)
+            pitch = upper_pitch if use_upper else lower_pitch
+            vel = velocity
+            if accent_upper and use_upper:
+                vel = min(1.0, velocity * 1.12)
+            pos = start_beat + i * note_dur
+            note_data.append({
+                "pitch": pitch,
+                "pos": pos,
+                "dur": note_dur * 0.9,
+                "vel": round(vel, 3),
+            })
+        return note_data
+
+    def test_default_note_count(self):
+        notes = self._generate_trill(duration_beats=4, rate="16th")
+        assert len(notes) == 16, f"Expected 16, got {len(notes)}"
+
+    def test_32nd_rate(self):
+        notes = self._generate_trill(rate="32nd", duration_beats=8)
+        assert len(notes) == 64, f"Expected 64, got {len(notes)}"
+
+    def test_8th_rate(self):
+        notes = self._generate_trill(rate="8th", duration_beats=2)
+        assert len(notes) == 4, f"Expected 4, got {len(notes)}"
+
+    def test_triplet_16th(self):
+        notes = self._generate_trill(rate="16t", duration_beats=4)
+        assert len(notes) == 24, f"Expected 24, got {len(notes)}"
+
+    def test_alternation_pattern(self):
+        notes = self._generate_trill(lower_pitch=60, upper_pitch=62, rate="8th", duration_beats=4)
+        # Should alternate: 60, 62, 60, 62, 60, 62, 60, 62
+        for i in range(len(notes)):
+            expected = 62 if i % 2 == 1 else 60
+            assert notes[i]["pitch"] == expected, f"Note {i}: expected {expected}, got {notes[i]['pitch']}"
+
+    def test_start_with_upper(self):
+        notes = self._generate_trill(rate="8th", duration_beats=4, start_with_upper=True)
+        assert notes[0]["pitch"] == 62, f"First note should be upper (62), got {notes[0]['pitch']}"
+        assert notes[1]["pitch"] == 60
+
+    def test_accent_upper_velocity(self):
+        notes = self._generate_trill(rate="8th", duration_beats=2, accent_upper=True, velocity=0.85)
+        lower_vels = [n["vel"] for n in notes if n["pitch"] == 60]
+        upper_vels = [n["vel"] for n in notes if n["pitch"] == 62]
+        assert upper_vels[0] > lower_vels[0], "Upper notes should be louder with accent_upper"
+
+    def test_no_accent_equal_velocity(self):
+        notes = self._generate_trill(rate="8th", duration_beats=2, accent_upper=False, velocity=0.85)
+        vels = [n["vel"] for n in notes]
+        assert all(v == 0.85 for v in vels), "Without accent, all velocities should be equal"
+
+    def test_position_spacing(self):
+        notes = self._generate_trill(rate="16th", duration_beats=4)
+        for i in range(1, len(notes)):
+            gap = notes[i]["pos"] - notes[i - 1]["pos"]
+            assert abs(gap - 0.25) < 0.01, f"Gap should be 0.25 beats, got {gap}"
+
+    def test_note_duration(self):
+        notes = self._generate_trill(rate="16th")
+        assert abs(notes[0]["dur"] - 0.225) < 0.01, f"Duration should be 0.25*0.9=0.225, got {notes[0]['dur']}"
+
+    def test_start_beat_offset(self):
+        notes = self._generate_trill(rate="8th", duration_beats=2, start_beat=8)
+        assert abs(notes[0]["pos"] - 8) < 0.01

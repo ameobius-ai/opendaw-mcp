@@ -21,6 +21,7 @@ What do you want to create?
 ├── Drum break (classic) → create_break (Amen/Think/Funky Drummer/etc, variation + swing)
 ├── Bass drop (dubstep/EDM) → create_bass_drop (descending sweep + sustained sub bass)
 ├── Chop (sample flip) → create_chop (reverse/stutter/shuffle/ping-pong/gate, Dilla/Madlib/glitch)
+├── Trill (ornament) → create_trill (two-note alternation, 32nd/16th/8th/triplet rates, baroque accent)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │

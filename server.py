@@ -15815,6 +15815,160 @@ async def mcp_opendaw_create_chop(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_trill(
+    lower_pitch: int = 60,
+    upper_pitch: int = 62,
+    rate: str = "16th",
+    duration_beats: float = 4,
+    accent_upper: bool = True,
+    start_with_upper: bool = False,
+    velocity: float = 0.85,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a trill — rapid alternation between two notes.
+
+    A fundamental ornament used across classical (baroque trills, mordents),
+    jazz (shake), metal (tremolo picking), and electronic (LFO-like patterns).
+    Two notes alternate at the specified rate for the given duration. Upper note
+    can be accented (baroque style) or both equally loud.
+
+    lower_pitch: Lower MIDI note of the trill (default 60 = C4).
+    upper_pitch: Upper MIDI note, typically 1-2 semitones above (default 62 = D4).
+    rate: Trill speed — "32nd", "16th", "8th", "32t" (triplet 32nd), "16t" (triplet 16th).
+    duration_beats: Total length of the trill in beats (0.5-32, default 4 = 1 bar at 4/4).
+    accent_upper: If true, upper note is louder (baroque style). If false, equal velocity.
+    start_with_upper: If true, trill starts on upper note (some baroque conventions).
+    velocity: Base velocity 0-1 (default 0.85).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the trill begins.
+
+    Returns notes created, rate, note count.
+    """
+    if lower_pitch < 0 or lower_pitch > 127:
+        return "Error: lower_pitch must be 0-127"
+    if upper_pitch < 0 or upper_pitch > 127:
+        return "Error: upper_pitch must be 0-127"
+    if lower_pitch >= upper_pitch:
+        return "Error: upper_pitch must be greater than lower_pitch"
+    if rate not in ("32nd", "16th", "8th", "32t", "16t"):
+        return "Error: rate must be 32nd, 16th, 8th, 32t, or 16t"
+    if duration_beats < 0.5 or duration_beats > 32:
+        return "Error: duration_beats must be 0.5-32"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    # Rate → note duration in beats
+    rate_map = {
+        "32nd": 0.125,   # 1/8 of a beat (8 notes per beat)
+        "16th": 0.25,    # 1/4 of a beat (4 notes per beat)
+        "8th": 0.5,      # 1/2 of a beat (2 notes per beat)
+        "32t": 1/12,     # triplet 32nd (12 per beat)
+        "16t": 1/6,      # triplet 16th (6 per beat)
+    }
+    note_dur = rate_map[rate]
+    total_notes = int(duration_beats / note_dur)
+
+    note_data = []
+    for i in range(total_notes):
+        # Alternate between lower and upper
+        use_upper = (i % 2 == 1) if not start_with_upper else (i % 2 == 0)
+        pitch = upper_pitch if use_upper else lower_pitch
+        vel = velocity
+        if accent_upper and use_upper:
+            vel = min(1.0, velocity * 1.12)
+        pos = start_beat + i * note_dur
+        note_data.append({
+            "pitch": pitch,
+            "pos": pos,
+            "dur": note_dur * 0.9,
+            "vel": round(vel, 3),
+        })
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {duration_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Trill");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            lower_pitch: {lower_pitch},
+            upper_pitch: {upper_pitch},
+            interval: {upper_pitch} - {lower_pitch},
+            rate: "{rate}",
+            note_duration_beats: {note_dur},
+            duration_beats: {duration_beats},
+            accent_upper: {str(accent_upper).lower()},
+            start_with_upper: {str(start_with_upper).lower()},
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,

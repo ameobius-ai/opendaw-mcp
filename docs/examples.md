@@ -96,6 +96,7 @@ python examples/genre_house.py
 | `create_stab.py` | Rhythmic chord stabs: house off-beat, funky ghost notes, disco 16ths |
 | `create_break.py` | Classic drum breaks: Amen, Think, Funky Drummer, with variation + swing |
 | `create_chop.py` | Pitch chopping: reverse (Dilla), stutter (glitch), shuffle (Madlib), ping-pong, gate, bass chop |
+| `create_trill.py` | Two-note trills: baroque 16th, fast 32nd, slow 8th, jazz triplet, minor 3rd |
 
 ## Running examples
 
