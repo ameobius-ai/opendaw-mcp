@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.253.0 (2026-07-06)
+
+### Added
+- `humanize_pitch` — Micro-detune (cents) intonation humanization. Adds per-note cent offsets to simulate natural pitch drift. cents_depth 0-50, bias -20 to +20, seeded PRNG. Complements humanize_notes (which handles velocity/timing/duration).
+
 ## v1.252.0 (2026-07-06)
 
 ### Added

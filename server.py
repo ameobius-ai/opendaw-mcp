@@ -14683,6 +14683,135 @@ async def mcp_opendaw_humanize_notes(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_humanize_pitch(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    cents_depth: float = 5.0,
+    bias: float = 0.0,
+    seed: int = 42,
+) -> str:
+    """Add micro-detune (cents) to notes — intonation humanization.
+
+    Real instruments and vocals never play perfectly in tune — there's always
+    slight pitch drift. humanize_notes handles velocity/timing/duration, but
+    pitch stays quantized. This tool adds per-note cent offsets to simulate
+    natural intonation imperfections.
+
+    Useful for:
+    - String sections that sound too perfect
+    - Vocal MIDI parts that need warmth
+    - Brass arrangements needing intonation character
+    - Any programmed MIDI that feels sterile
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    region_index: Region index (-1 = all regions on the track).
+    cents_depth: Maximum deviation in cents (0-50, default 5 = +/-5 cents).
+      3 = subtle warmth, 5 = natural, 10 = loose, 20 = detuned, 50 = chaotic.
+    bias: Directional bias in cents (-20 to +20, default 0 = centered).
+      Positive = sharp tendency, negative = flat tendency. Useful for
+      simulating ensembles that drift sharp.
+    seed: Random seed for reproducibility (same seed = same detune pattern).
+
+    Returns per-track note counts, total notes detuned, cent range.
+
+    Example:
+      # Subtle string warmth
+      humanize_pitch(unit_index=0, track_index=2, cents_depth=4, seed=7)
+      # Detuned brass
+      humanize_pitch(unit_index=0, track_index=3, cents_depth=12, bias=-3)
+    """
+    if not (0.0 <= cents_depth <= 50.0):
+        return f"Error: cents_depth must be 0-50, got {cents_depth}"
+    if not (-20.0 <= bias <= 20.0):
+        return f"Error: bias must be -20 to +20, got {bias}"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const depth = {cents_depth};
+        const biasVal = {bias};
+        const seed = {seed};
+
+        // Seeded PRNG (mulberry32)
+        let s = seed >>> 0;
+        function rand() {{
+            s = (s + 0x6D2B79F5) >>> 0;
+            let t = s;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }}
+
+        let totalCount = 0;
+        const trackStats = [];
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const targetUnits = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+
+        h.modify(() => {{
+            for (let ui = 0; ui < targetUnits.length; ui++) {{
+                const au = targetUnits[ui];
+                const noteTracks = h.trackBoxes(au)
+                    .filter(box => box.type?.getValue?.() === 1);
+                if (trackIdx >= noteTracks.length) return;
+                const targetTracks = trackIdx < 0 ? noteTracks : [noteTracks[trackIdx]];
+
+                for (let ti = 0; ti < targetTracks.length; ti++) {{
+                    const track = targetTracks[ti];
+                    let trackCount = 0;
+                    const regions = h.regionBoxes(track);
+                    if (regions.length === 0) continue;
+                    const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                    for (const region of regionsToProcess) {{
+                        try {{
+                            const vertex = region.events.targetVertex.unwrap();
+                            const collectionBox = vertex.box || vertex;
+                            const noteEvents = [...collectionBox.events.pointerHub.incoming()];
+                            if (noteEvents.length === 0) continue;
+
+                            let minCent = Infinity;
+                            let maxCent = -Infinity;
+
+                            for (const n of noteEvents) {{
+                                const r = rand() * 2 - 1; // -1..1
+                                const cent = r * depth + biasVal;
+                                const clamped = Math.max(-50, Math.min(50, cent));
+                                n.box.cent.setValue(clamped);
+                                minCent = Math.min(minCent, clamped);
+                                maxCent = Math.max(maxCent, clamped);
+                                trackCount++;
+                                totalCount++;
+                            }}
+                            trackStats.push({{
+                                unit: ui,
+                                track: ti,
+                                notes_detuned: trackCount,
+                                min_cents: minCent === Infinity ? 0 : Math.round(minCent * 10) / 10,
+                                max_cents: maxCent === -Infinity ? 0 : Math.round(maxCent * 10) / 10,
+                            }});
+                        }} catch (e) {{ /* skip non-note regions */ }}
+                    }}
+                }}
+            }}
+        }});
+
+        return {{
+            notes_detuned: totalCount,
+            cents_depth: depth,
+            bias: biasVal,
+            seed: seed,
+            tracks: trackStats,
+            next_step: "use humanize_notes for velocity/timing/duration variation",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_create_harmony(
     unit_index: int,
     track_index: int = 0,

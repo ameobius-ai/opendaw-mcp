@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-415 MCP tools for headless openDAW control via Playwright bridge.
+427 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -498,7 +498,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 
-**Total: 399 tools**
+- `humanize_pitch` — Add micro-detune (cents) to notes for intonation humanization. Real instruments drift, this simulates that. cents_depth 0-50, bias -20 to +20, seeded PRNG. Complements humanize_notes (velocity/timing/duration).
+
+**Total: 427 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 

@@ -14078,6 +14078,126 @@ class TestConstrainNoteRange:
         assert pitch % 12 == 90 % 12, "Pitch class should be preserved"
 
 
+class TestHumanizePitch:
+    """Tests for humanize_pitch — micro-detune intonation humanization"""
+
+    def test_tool_signature_exists(self):
+        """humanize_pitch is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_humanize_pitch" in tool_names
+
+    def test_has_cents_depth_param(self):
+        """Has cents_depth param with range validation"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                arg_names = [a.arg for a in node.args.args]
+                assert "cents_depth" in arg_names
+                assert "bias" in arg_names
+                assert "seed" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_cents_depth_validation(self):
+        """cents_depth must be 0-50"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                source = ast.unparse(node)
+                assert "0.0 <= cents_depth <= 50.0" in source
+                return
+        assert False, "function not found"
+
+    def test_bias_validation(self):
+        """bias must be -20 to +20"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                source = ast.unparse(node)
+                assert "bias" in source
+                assert "-20.0 <= bias <= 20.0" in source
+                return
+        assert False, "function not found"
+
+    def test_has_seeded_prng(self):
+        """Uses seeded PRNG (mulberry32) for reproducibility"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                source = ast.unparse(node)
+                assert "0x6D2B79F5" in source
+                assert "seed" in source
+                return
+        assert False, "function not found"
+
+    def test_sets_cent_field(self):
+        """Sets n.box.cent on each note"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                source = ast.unparse(node)
+                assert "cent.setValue" in source
+                return
+        assert False, "function not found"
+
+    def test_clamps_to_50_cents(self):
+        """Clamps cent values to -50/+50 range"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                source = ast.unparse(node)
+                assert "Math.max(-50" in source or "Math.max(-50, Math.min(50" in source
+                return
+        assert False, "function not found"
+
+    def test_complements_humanize_notes(self):
+        """humanize_pitch complements humanize_notes (which does velocity/timing)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_humanize_notes" in tool_names
+        assert "mcp_opendaw_humanize_pitch" in tool_names
+
+    def test_default_cents_depth_is_5(self):
+        """Default cents_depth is 5.0 (natural intonation)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                for default in node.args.defaults:
+                    if isinstance(default, ast.Constant) and isinstance(default.value, float):
+                        if abs(default.value - 5.0) < 0.01:
+                            return
+                # also check kw_defaults
+                for default in node.args.kw_defaults:
+                    if default and isinstance(default, ast.Constant) and isinstance(default.value, float):
+                        if abs(default.value - 5.0) < 0.01:
+                            return
+                assert False, "default 5.0 not found"
+
+    def test_param_count(self):
+        """Has exactly 6 parameters"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_humanize_pitch":
+                assert len(node.args.args) == 6
+                return
+        assert False, "function not found"
+
+
 class TestSetArticulation:
     """Tests for set_articulation — legato/staccato/tenuto note length control"""
 
