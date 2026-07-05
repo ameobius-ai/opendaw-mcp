@@ -22821,3 +22821,240 @@ async def mcp_opendaw_create_dubstep_arrangement(
         "bass_pattern": "wobble_bass",
         "lead_type": "minor_arpeggio",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_afrobeat_arrangement(
+    bpm: float = 120,
+    bars: int = 8,
+    root: str = "F",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    horn_track: int = 2,
+    guitar_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+) -> str:
+    """Create a full afrobeat arrangement — polyrhythmic drums + bass + horns + guitar across 4 tracks.
+
+    Fela Kuti-style afrobeat with all elements locked in polyrhythmic interlock:
+    - Track 0: Drums — layered polyrhythm: kick pattern, shaker pattern, clave-like
+                     accents. The foundation is 12/8 feel in 4/4 time — triplets
+                     over straight beats, the African polyrhythmic heartbeat.
+    - Track 1: Bass — repetitive ostinato bassline, rooted in the key, driving
+                     and hypnotic. Afrobeat bass doesn't rest — it's the engine
+                     alongside the drums, locking with the kick.
+    - Track 2: Horns — brass section stabs and sustained chords. Call-and-response
+                     between horn hits and space. Minor key, soulful.
+    - Track 3: Guitar — rhythmic chord stabs on the off-beats, the "chanka" pattern
+                     that defines the groove. Two-note voicings, percussive and tight.
+
+    At 120 BPM (default), this creates the classic afrobeat feel — not too fast,
+    not too slow, with room for polyrhythmic layering. The 4-track arrangement
+    (first non-electronic genre) is the key difference: horns and guitar add
+    organic texture that electronic arrangements don't have.
+
+    bpm: Tempo (100-130, default 120 = classic afrobeat).
+    bars: Arrangement length (8-32, default 8). Afrobeat needs long forms.
+    root: Root note (F is the classic afrobeat key — Fela's preference).
+    octave: MIDI octave for bass (2 = C2=36, audible low end).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / horn_track / guitar_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_afrobeat_arrangement(bpm=120, root="F", bars=8)
+      create_afrobeat_arrangement(bpm=110, root="Ab", bars=16)
+    """
+    if not (95 <= bpm <= 135):
+        return "Error: bpm must be 95-135"
+    if bars < 8 or bars > 32:
+        return "Error: bars must be 8-32 (afrobeat needs longer forms)"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    horn_base = (octave + 3) * 12 + root_pc  # horns 2 octaves above bass
+    guitar_base = (octave + 2) * 12 + root_pc  # guitar between bass and horns
+
+    # --- DRUMS: layered polyrhythm (2-bar cycle) ---
+    # 12/8 feel in 4/4: triplet accents over straight kick
+    # Layer 1: kick pattern (root/fifth emphasis)
+    # Layer 2: shaker (continuous 16ths)
+    # Layer 3: clave-like accents (3-2 son clave adapted to 12/8)
+    drum_pattern = [
+        # Kick pattern — syncopated, locking with bass
+        (0.0, "kick"), (0.75, "kick"), (1.5, "kick"), (2.0, "kick"),
+        (2.75, "kick"), (4.0, "kick"), (4.75, "kick"), (5.5, "kick"),
+        (6.0, "kick"), (6.75, "kick"),
+        # Shaker — continuous off-beats
+        (0.5, "shaker"), (1.0, "shaker"), (1.5, "shaker"), (2.5, "shaker"),
+        (3.0, "shaker"), (3.5, "shaker"), (4.5, "shaker"), (5.0, "shaker"),
+        (5.5, "shaker"), (6.5, "shaker"), (7.0, "shaker"), (7.5, "shaker"),
+        # Clave accents
+        (0.0, "clave"), (1.0, "clave"), (2.5, "clave"), (4.0, "clave"),
+        (5.0, "clave"), (6.5, "clave"),
+        # Triplet accents (12/8 feel)
+        (0.33, "perc"), (1.66, "perc"), (3.33, "perc"), (5.33, "perc"), (6.66, "perc"),
+    ]
+    kick_p, shaker_p, clave_p, perc_p = 36, 70, 75, 76
+    drum_pitch_map = {"kick": kick_p, "shaker": shaker_p, "clave": clave_p, "perc": perc_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.08),
+        "shaker": max(0.0, velocity - 0.2),
+        "clave": max(0.0, velocity - 0.05),
+        "perc": max(0.0, velocity - 0.15),
+    }
+    drum_dur_map = {"kick": 0.2, "shaker": 0.08, "clave": 0.06, "perc": 0.05}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: repetitive ostinato (2-bar cycle) ---
+    # Afrobeat bass: driving, repetitive, locks with kick
+    # Pattern: root-octave-root-fifth, 16th-note ostinato
+    bass_pattern = [
+        (0.0, 0, 0.5, 1.0), (0.5, 12, 0.25, 0.9), (0.75, 0, 0.25, 1.0),
+        (1.0, 0, 0.5, 1.0), (1.5, 7, 0.25, 0.9), (1.75, 0, 0.25, 1.0),
+        (2.0, 0, 0.5, 1.0), (2.5, 12, 0.25, 0.9), (2.75, 0, 0.25, 1.0),
+        (3.0, 0, 0.5, 1.0), (3.5, 7, 0.25, 0.9), (3.75, 5, 0.25, 0.85),
+        (4.0, 0, 0.5, 1.0), (4.5, 12, 0.25, 0.9), (4.75, 0, 0.25, 1.0),
+        (5.0, 0, 0.5, 1.0), (5.5, 7, 0.25, 0.9), (5.75, 0, 0.25, 1.0),
+        (6.0, 0, 0.5, 1.0), (6.5, 12, 0.25, 0.9), (6.75, 0, 0.25, 1.0),
+        (7.0, 0, 0.5, 1.0), (7.5, 7, 0.25, 0.9), (7.75, 0, 0.25, 1.0),
+    ]
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for beat, po, dur, vm in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- HORNS: call-and-response stabs (2-bar cycle) ---
+    # Brass section: sustained minor chord hits + syncopated stabs
+    # Chord voicings: root+minor3+fifth (minor triad), root+fifth+octave (power)
+    # Call = sustained chord, Response = short stabs
+    horn_pattern = [
+        # Call: sustained minor triad (2 beats)
+        (0.0, [0, 3, 7], 1.5, 0.9),
+        # Space
+        # Response: stabs
+        (2.0, [7, 10, 12], 0.5, 0.85),  # fifth-min7-octave
+        (2.5, [0, 3, 7], 0.25, 0.8),    # root triad stab
+        (3.0, [3, 7, 10], 0.25, 0.75),  # min3-fifth-min7
+        # Call 2: sustained
+        (4.0, [0, 7, 12], 2.0, 0.9),    # root-fifth-octave (open voicing)
+        # Response 2
+        (6.0, [5, 7, 10], 0.5, 0.85),   # fourth-fifth-min7 (tension)
+        (6.5, [0, 3, 7], 0.25, 0.8),
+        (7.0, [3, 7, 12], 0.25, 0.75),
+    ]
+    horn_notes = []
+    horn_cycle = 8.0
+    horn_cycles = bars // 2
+    for c in range(horn_cycles):
+        off = c * horn_cycle
+        for beat, chord, dur, vm in horn_pattern:
+            for interval in chord:
+                horn_notes.append({
+                    "pitch": horn_base + interval,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm * 0.7, 3),  # horns moderate volume
+                })
+
+    # --- GUITAR: off-beat chord stabs, "chanka" pattern (2-bar cycle) ---
+    # Afrobeat guitar: two-note voicings on the "and" of beats
+    # Tight, percussive, repetitive — the rhythmic glue
+    guitar_pattern = [
+        (0.5, [0, 7], 0.15, 0.8),   # root+fifth
+        (1.5, [0, 7], 0.15, 0.8),
+        (2.5, [3, 7], 0.15, 0.75),  # min3+fifth
+        (3.5, [0, 7], 0.15, 0.8),
+        (4.5, [0, 7], 0.15, 0.8),
+        (5.5, [3, 7], 0.15, 0.75),
+        (6.5, [0, 7], 0.15, 0.8),
+        (7.5, [5, 7], 0.15, 0.75),  # fourth+fifth (variation)
+    ]
+    guitar_notes = []
+    guitar_cycle = 8.0
+    guitar_cycles = bars // 2
+    for c in range(guitar_cycles):
+        off = c * guitar_cycle
+        for beat, chord, dur, vm in guitar_pattern:
+            for interval in chord:
+                guitar_notes.append({
+                    "pitch": guitar_base + interval,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm * 0.5, 3),  # guitar is percussive, moderate
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    horn_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(horn_notes), unit_index, horn_track)
+    guitar_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(guitar_notes), unit_index, guitar_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        horn_data = json.loads(horn_result)
+    except Exception:
+        horn_data = {"raw": horn_result}
+    try:
+        guitar_data = json.loads(guitar_result)
+    except Exception:
+        guitar_data = {"raw": guitar_result}
+
+    return json.dumps({
+        "afrobeat_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "horns": {"track": horn_track, "notes": len(horn_notes), "result": horn_data.get("notes_created", len(horn_notes))},
+            "guitar": {"track": guitar_track, "notes": len(guitar_notes), "result": guitar_data.get("notes_created", len(guitar_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(horn_notes) + len(guitar_notes),
+        "drum_pattern": "polyrhythmic_12_8",
+        "bass_pattern": "ostinato",
+        "horn_type": "call_and_response",
+        "guitar_type": "chanka_off_beat",
+    }, indent=2)

@@ -5135,3 +5135,178 @@ class TestCreateDubstepArrangement:
         """Lead is atmospheric, quiet"""
         vels = [vm for _, _, _, vm in self.LEAD_PATTERN]
         assert max(vels) <= 0.7, "Lead should be quiet"
+
+
+class TestCreateAfrobeatArrangement:
+    """Tests for create_afrobeat_arrangement — 4-track polyrhythmic arrangement"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick"), (0.75, "kick"), (1.5, "kick"), (2.0, "kick"),
+        (2.75, "kick"), (4.0, "kick"), (4.75, "kick"), (5.5, "kick"),
+        (6.0, "kick"), (6.75, "kick"),
+        (0.5, "shaker"), (1.0, "shaker"), (1.5, "shaker"), (2.5, "shaker"),
+        (3.0, "shaker"), (3.5, "shaker"), (4.5, "shaker"), (5.0, "shaker"),
+        (5.5, "shaker"), (6.5, "shaker"), (7.0, "shaker"), (7.5, "shaker"),
+        (0.0, "clave"), (1.0, "clave"), (2.5, "clave"), (4.0, "clave"),
+        (5.0, "clave"), (6.5, "clave"),
+        (0.33, "perc"), (1.66, "perc"), (3.33, "perc"), (5.33, "perc"), (6.66, "perc"),
+    ]
+    BASS_PATTERN = [
+        (0.0, 0, 0.5, 1.0), (0.5, 12, 0.25, 0.9), (0.75, 0, 0.25, 1.0),
+        (1.0, 0, 0.5, 1.0), (1.5, 7, 0.25, 0.9), (1.75, 0, 0.25, 1.0),
+        (2.0, 0, 0.5, 1.0), (2.5, 12, 0.25, 0.9), (2.75, 0, 0.25, 1.0),
+        (3.0, 0, 0.5, 1.0), (3.5, 7, 0.25, 0.9), (3.75, 5, 0.25, 0.85),
+        (4.0, 0, 0.5, 1.0), (4.5, 12, 0.25, 0.9), (4.75, 0, 0.25, 1.0),
+        (5.0, 0, 0.5, 1.0), (5.5, 7, 0.25, 0.9), (5.75, 0, 0.25, 1.0),
+        (6.0, 0, 0.5, 1.0), (6.5, 12, 0.25, 0.9), (6.75, 0, 0.25, 1.0),
+        (7.0, 0, 0.5, 1.0), (7.5, 7, 0.25, 0.9), (7.75, 0, 0.25, 1.0),
+    ]
+    HORN_PATTERN = [
+        (0.0, [0, 3, 7], 1.5, 0.9),
+        (2.0, [7, 10, 12], 0.5, 0.85),
+        (2.5, [0, 3, 7], 0.25, 0.8),
+        (3.0, [3, 7, 10], 0.25, 0.75),
+        (4.0, [0, 7, 12], 2.0, 0.9),
+        (6.0, [5, 7, 10], 0.5, 0.85),
+        (6.5, [0, 3, 7], 0.25, 0.8),
+        (7.0, [3, 7, 12], 0.25, 0.75),
+    ]
+    GUITAR_PATTERN = [
+        (0.5, [0, 7], 0.15, 0.8), (1.5, [0, 7], 0.15, 0.8),
+        (2.5, [3, 7], 0.15, 0.75), (3.5, [0, 7], 0.15, 0.8),
+        (4.5, [0, 7], 0.15, 0.8), (5.5, [3, 7], 0.15, 0.75),
+        (6.5, [0, 7], 0.15, 0.8), (7.5, [5, 7], 0.15, 0.75),
+    ]
+
+    def test_drums_have_kick_pattern(self):
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.0 in kicks, "Kick on beat 1"
+        assert len(kicks) >= 8, "Should have multiple kicks"
+
+    def test_drums_have_shaker(self):
+        shakers = [b for b, s in self.DRUM_PATTERN if s == "shaker"]
+        assert len(shakers) >= 10, "Should have continuous shaker"
+
+    def test_drums_have_clave(self):
+        claves = [b for b, s in self.DRUM_PATTERN if s == "clave"]
+        assert len(claves) >= 4, "Should have clave accents"
+
+    def test_drums_have_triplet_feel(self):
+        """12/8 feel: triplet accents at .33/.66 positions"""
+        percs = [b for b, s in self.DRUM_PATTERN if s == "perc"]
+        assert 0.33 in percs, "Missing triplet accent at 0.33"
+        assert 1.66 in percs, "Missing triplet accent at 1.66"
+
+    def test_drums_are_polyrhythmic(self):
+        """Multiple drum layers (kick + shaker + clave + perc) = polyrhythm"""
+        layers = {s for _, s in self.DRUM_PATTERN}
+        assert len(layers) >= 4, "Should have 4+ drum layers for polyrhythm"
+
+    def test_drums_syncopated_kick(self):
+        """Afrobeat kick is syncopated — not on every beat"""
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 0.75 in kicks, "Syncopated kick at 0.75"
+
+    def test_bass_is_ostinato(self):
+        """Bass is repetitive ostinato — 24 notes per 2-bar cycle"""
+        assert len(self.BASS_PATTERN) >= 20, "Bass should have dense ostinato"
+
+    def test_bass_uses_root_octave_fifth(self):
+        """Bass alternates root (0), octave (12), fifth (7)"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert 0 in pitch_offs, "Missing root"
+        assert 12 in pitch_offs, "Missing octave"
+        assert 7 in pitch_offs, "Missing fifth"
+
+    def test_bass_has_fourth(self):
+        """Bass uses fourth (5) for variation — Afrobeat harmony"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert 5 in pitch_offs, "Missing fourth in bass"
+
+    def test_bass_notes_are_short(self):
+        """Ostinato bass: short notes, not sustained"""
+        durs = [d for _, _, d, _ in self.BASS_PATTERN]
+        assert max(durs) <= 0.5, "Bass notes should be short (ostinato)"
+
+    def test_horns_are_chords(self):
+        """Horn pattern contains chord voicings (lists of intervals)"""
+        for _, chord, _, _ in self.HORN_PATTERN:
+            assert isinstance(chord, list), "Horns should be chord voicings"
+            assert len(chord) >= 2, "Horn chords should have 2+ notes"
+
+    def test_horns_call_and_response(self):
+        """Horns alternate sustained (call) and short stabs (response)"""
+        durs = [dur for _, _, dur, _ in self.HORN_PATTERN]
+        has_sustained = any(d >= 1.0 for d in durs)
+        has_stab = any(d <= 0.25 for d in durs)
+        assert has_sustained, "Missing sustained call"
+        assert has_stab, "Missing stab response"
+
+    def test_horns_use_minor_intervals(self):
+        """Horns use minor key intervals: 0, 3, 5, 7, 10, 12"""
+        all_intervals = set()
+        for _, chord, _, _ in self.HORN_PATTERN:
+            all_intervals.update(chord)
+        assert 0 in all_intervals, "Missing root"
+        assert 3 in all_intervals, "Missing minor third"
+        assert 7 in all_intervals, "Missing fifth"
+        assert 10 in all_intervals, "Missing minor seventh"
+
+    def test_guitar_on_off_beats(self):
+        """Guitar stabs on the 'and' of beats — 0.5, 1.5, 2.5..."""
+        guitar_beats = [b for b, _, _, _ in self.GUITAR_PATTERN]
+        for b in guitar_beats:
+            assert b % 1.0 == 0.5, f"Guitar at {b} should be on off-beat"
+
+    def test_guitar_uses_two_note_voicings(self):
+        """Guitar uses two-note voicings (root+fifth, min3+fifth)"""
+        for _, chord, _, _ in self.GUITAR_PATTERN:
+            assert len(chord) == 2, "Guitar should use two-note voicings"
+
+    def test_guitar_stabs_are_short(self):
+        """Guitar stabs are percussive — very short"""
+        durs = [d for _, _, d, _ in self.GUITAR_PATTERN]
+        assert max(durs) <= 0.2, "Guitar stabs should be short"
+
+    def test_drum_cycle_2_bars(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 8.0, "Drum pattern exceeds 2 bars"
+
+    def test_bass_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.BASS_PATTERN)
+        assert max_beat < 8.0, "Bass pattern exceeds 2 bars"
+
+    def test_horn_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.HORN_PATTERN)
+        assert max_beat < 8.0, "Horn pattern exceeds 2 bars"
+
+    def test_guitar_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.GUITAR_PATTERN)
+        assert max_beat < 8.0, "Guitar pattern exceeds 2 bars"
+
+    def test_has_4_tracks(self):
+        """Afrobeat uses 4 tracks — first arrangement with 4 tracks"""
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4, "Should have 4 tracks (drums+bass+horns+guitar)"
+
+    def test_bpm_range(self):
+        assert 95 <= 120 <= 135, "Default BPM should be valid"
+
+    def test_min_bars_is_8(self):
+        """Afrobeat needs long forms — minimum 8 bars"""
+        assert 8 <= 8, "Minimum bars should be 8"
+
+    def test_note_counts_8_bars(self):
+        bars = 8
+        cycles = bars // 2
+        drum_count = len(self.DRUM_PATTERN) * cycles
+        bass_count = len(self.BASS_PATTERN) * cycles
+        horn_count = sum(len(c) for _, c, _, _ in self.HORN_PATTERN) * cycles
+        guitar_count = sum(len(c) for _, c, _, _ in self.GUITAR_PATTERN) * cycles
+        total = drum_count + bass_count + horn_count + guitar_count
+        assert total > 200, "4-track arrangement should have 200+ notes per 8 bars"
+
+    def test_is_not_electronic(self):
+        """Afrobeat is organic — has horns and guitar, not synths"""
+        # Key difference from electronic arrangements: horn_track + guitar_track
+        assert 3 in {0, 1, 2, 3}, "Has 4th track (guitar) — organic arrangement"

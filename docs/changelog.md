@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.134.0 (2026-07-05)
+
+- **`create_afrobeat_arrangement` orchestration tool (327 MCP tools)** — sixth multi-track genre arrangement. First non-electronic genre. Fela Kuti-style afrobeat across 4 tracks: drums (layered polyrhythm — syncopated kick + continuous shaker + clave accents + triplet perc, 12/8 feel in 4/4 time), bass (repetitive ostinato — root/octave/fifth/fourth 16th-note pattern, driving and hypnotic, locks with kick), horns (brass section call-and-response — sustained minor triads as calls, syncopated stabs as responses, minor key intervals root/min3/fourth/fifth/min7/octave), guitar (off-beat "chanka" stabs — two-note voicings root+fifth and min3+fifth, percussive and tight). First arrangement with 4 tracks. F minor default (Fela's key). 95-135 BPM, default 120. 8-32 bars. 70 orchestration tools. 327 MCP tools
+- **1640 unit tests** (+25)
+
 ## v1.133.0 (2026-07-05)
 
 - **`create_dubstep_arrangement` orchestration tool (326 MCP tools)** — fifth multi-track genre arrangement. Dubstep across 3 tracks: drums (half-time at 140 BPM — kick on 1, snare on 3, feels like 70 BPM, with perc fills and ghost notes), bass (wobble bass — sustained root with rapid octave/fifth stabs simulating LFO-driven cutoff modulation, the "wub-wub"), lead (minor arpeggio — root/min3/fifth/min7/octave, dark and atmospheric, continuous 16th notes). Half-time is the fundamental difference from all other arrangements: house/techno/trap are straight time, dubstep swings at half speed. G minor default. 130-155 BPM, default 140. 4-16 bars. 69 orchestration tools. 326 MCP tools

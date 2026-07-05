@@ -82,6 +82,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 69. `create_trap_arrangement` — Third multi-track arrangement: trap section (drums+bass+melody). Trap rolls, 808 sub-bass slides (negative offsets), minor bell plucks with echo. F# minor default. 120-170 BPM
 70. `create_techno_arrangement` — Fourth multi-track arrangement: Berlin/Detroit techno (drums+bass+stabs). Relentless four-on-floor, sustained sub-bass drone (not rhythmic), Detroit percussive atonal stabs. C minor default. 120-150 BPM. Min 8 bars
 71. `create_dubstep_arrangement` — Fifth multi-track arrangement: dubstep (drums+bass+lead). Half-time at 140 BPM (kick on 1, snare on 3), wobble bass (sustained root + octave/fifth stabs), minor arpeggio lead. G minor default. 130-155 BPM
+72. `create_afrobeat_arrangement` — Sixth multi-track arrangement: afrobeat (drums+bass+horns+guitar). First non-electronic, first 4-track. Polyrhythmic drums (12/8 feel), ostinato bass, call-and-response horns, off-beat chanka guitar. F minor default. 95-135 BPM. Min 8 bars
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
