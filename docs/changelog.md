@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.240.0 (2026-07-06)
+
+### Added
+- `extract_rhythm` — Rhythmic pattern extraction from notes. Returns onset grid (binary array), rhythm string (x=onset, .=rest), syncopation score (0-1, based on weak beat hits), swing factor (odd-position ratio), inter-onset intervals (IOI mean/min/max), density (onsets/total positions), strong/weak beat hit counts. 4 grid resolutions: 16th, 8th, 32nd, quarter. 13 unit tests including onset grid, syncopation, swing, IOI stats. Updated composition-patterns skill with all 7 new tools (accent_beats, filter_notes, split_note_region, merge_note_regions, note_stats, analyze_melody, extract_rhythm). **415 MCP tools**, 3050 unit tests
+
 ## v1.239.0 (2026-07-06)
 
 ### Added

@@ -29,7 +29,7 @@ set_bpm(120) → set_time_signature(4,4)
 | Tool | Samples | max_sample | Size | Audio? |
 |------|---------|------------|------|--------|
 | render_full | 1,824,000 | 0.5387 | 13.92 MB | ✅ |
-| export_stems | 1,824,000 | 0.8414 | — | ✅ |
+| export_stems | 1,824,000 | 0.8415 | — | ✅ |
 | render_range (0-4) | 1,536,000 | 0.4216 | — | ✅ |
 
 3 AUs: Output (0 FX), Drums/Playfield (0 FX), Synth/Vaporisateur (1 FX = Reverb).

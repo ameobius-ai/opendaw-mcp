@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-414 MCP tools for headless openDAW control via Playwright bridge.
+415 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -454,6 +454,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `diatonic_transpose_notes` — Transpose notes by scale steps instead of semitones. C major C→D = +1 step (2 semitones), E→F = +1 step (1 semitone) — preserves the scale. 13 scales. Skips out-of-scale notes. Octave wrapping. For creating variations, sequences, modal interchange, counterpoint.
 - `extract_motifs` — Extract repeating melodic motifs from MIDI regions. Identifies short melodic phrases (3-8 notes) by their interval contour — the pattern of pitch changes. Same motif transposed still matches. Contour classification (ascending/descending/arch/V-shape/wave/static/mixed), rhythm pattern matching, significance scoring, deduplication. Returns occurrences with positions and pitches. Use to understand melodic structure, find repetitive patterns, build call-and-response."
 - `analyze_melody` — Full melodic contour analysis: contour profile (up/down/static per interval), interval histogram, step vs leap ratio, direction changes, climax (highest pitch + position 0-1), nadir (lowest), contour shape (ascending/descending/arch/v_shape/wave), phrase grouping by rests, melodic range, average interval. Use before variation, for climax placement, melody comparison.
+- `extract_rhythm` — Rhythmic pattern extraction: onset grid (binary), rhythm string (x=onset .=rest), syncopation score (0-1), swing factor, inter-onset intervals (IOI mean/min/max), density, strong/weak beat hits. 4 grid resolutions (16th/8th/32nd/quarter). Use for groove analysis, rhythm comparison, feeding groove_transfer.
 - `analyze_song_structure` — Structural analysis of MIDI content. Scans all note tracks bar-by-bar, computes per-bar features (density, pitch range, velocity, active tracks, energy). Groups consecutive bars into segments and classifies as intro/verse/chorus/bridge/outro/breakdown. Returns form string (e.g. 'intro → verse → chorus → outro'). Use to understand existing arrangements, verify song form, plan variations."
 - `classify_drum_pattern` — Rhythmic pattern classification from MIDI drum notes. Uses GM drum map (36=kick, 38=snare, 42=hat, 46=open hat, 49=crash, 51=ride). Classifies into 8 patterns: four-on-the-floor, boom-bap, trap, breakbeat, shuffle, half-time, amen, march. Confidence scoring, per-bar breakdown, syncopation/triplet/velocity analysis. Use to understand existing drum patterns, match genre expectations."
 - `create_motif_variations` — Classical motif transformation from existing MIDI. Extracts a motif (start_note + note_count) and creates a variation: sequence (shifted repeats), inversion (mirrored intervals), retrograde (backwards), augmentation (stretched), diminution (compressed), fragmentation (first N notes repeated). Closes analysis→creation loop. Auto-creates target track/region."

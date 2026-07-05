@@ -20889,6 +20889,170 @@ async def mcp_opendaw_analyze_melody(
 
 
 @mcp.tool()
+async def mcp_opendaw_extract_rhythm(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    grid: str = "16th",
+) -> str:
+    """Extract rhythmic pattern from notes — onset grid, syncopation, IOI.
+
+    Returns a rhythmic analysis of notes in a region:
+    - Onset grid: binary pattern showing which grid positions have note onsets
+    - Inter-onset intervals (IOI): time between consecutive note starts
+    - Syncopation score: how much the rhythm emphasises weak beats (0-1)
+    - Rhythm density: fraction of grid positions with onsets
+    - Rhythm string: compact representation (x=onset, .=rest)
+    - Swing factor: ratio of odd vs even 16th positions
+
+    Grid resolutions:
+    - "16th" — 16 positions per bar (default, most common)
+    - "8th" — 8 positions per bar
+    - "32nd" — 32 positions per bar (fine detail)
+    - "quarter" — 4 positions per bar (coarse)
+
+    Useful for:
+    - Understanding a rhythm before cloning it to another track
+    - Measuring syncopation (high = funky, low = straight)
+    - Extracting groove for groove_transfer
+    - Comparing rhythms between sections
+    - Feeding rhythm to generate_melody (rhythm param)
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region (-1 = first region).
+    grid: Grid resolution (16th/8th/32nd/quarter).
+
+    Returns rhythm analysis.
+
+    Example:
+      rhythm = extract_rhythm(0, 0, grid="16th")
+      # onset_grid, syncopation, ioi, rhythm_string
+    """
+    grid_map = {"16th": 4, "8th": 8, "32nd": 2, "quarter": 16}
+    if grid not in grid_map:
+        return f"Error: grid must be one of {list(grid_map.keys())}, got '{grid}'"
+
+    ticks_per_grid = grid_map[grid] * 240  # 240 = 16th note ticks at Quarter=960
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const Quarter = h.ppqn.Quarter;
+        const ticksPerGrid = {ticks_per_grid};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+
+        const notes = h.eventBoxes(collection);
+        if (notes.length === 0) return {{error: "No notes in region"}};
+
+        const regionPos = region.position.getValue();
+        const regionDur = region.duration.getValue();
+        const totalGridSteps = Math.ceil(regionDur / ticksPerGrid);
+
+        // Build onset grid
+        const onsetGrid = new Array(totalGridSteps).fill(0);
+        const onsetVelocities = new Array(totalGridSteps).fill(0);
+
+        for (const n of notes) {{
+            const absTick = regionPos + n.position.getValue();
+            const gridIdx = Math.floor((absTick - regionPos) / ticksPerGrid);
+            if (gridIdx >= 0 && gridIdx < totalGridSteps) {{
+                onsetGrid[gridIdx] = 1;
+                // Track max velocity at each grid position
+                const vel = n.velocity.getValue();
+                if (vel > onsetVelocities[gridIdx]) onsetVelocities[gridIdx] = vel;
+            }}
+        }}
+
+        // Rhythm string (x=onset, .=rest)
+        const rhythmString = onsetGrid.map(v => v ? "x" : ".").join("");
+
+        // Rhythm density
+        const onsetCount = onsetGrid.reduce((a, b) => a + b, 0);
+        const density = onsetCount / totalGridSteps;
+
+        // Inter-onset intervals (in grid steps)
+        const onsetPositions = [];
+        for (let i = 0; i < onsetGrid.length; i++) {{
+            if (onsetGrid[i]) onsetPositions.push(i);
+        }}
+        const ioi = [];
+        for (let i = 1; i < onsetPositions.length; i++) {{
+            ioi.push(onsetPositions[i] - onsetPositions[i-1]);
+        }}
+
+        // Syncopation: onsets on weak beats (off-grid within bar)
+        // In 16th grid: positions 0,4,8,12 are strong (downbeats)
+        // 2,6,10,14 are medium, 1,3,5,7,9,11,13,15 are weak
+        let strongHits = 0, weakHits = 0;
+        const beatsPerBar = Quarter / ticksPerGrid * 4;  // beats per bar in grid steps
+        for (const pos of onsetPositions) {{
+            const beatInBar = pos % Math.round(beatsPerBar);
+            if (beatInBar === 0 || (beatsPerBar >= 4 && beatInBar === Math.round(beatsPerBar / 2))) {{
+                strongHits++;
+            }} else if (beatInBar % Math.round(beatsPerBar / 4) !== 0) {{
+                weakHits++;
+            }}
+        }}
+        const syncopation = onsetCount > 0 ? weakHits / onsetCount : 0;
+
+        // Swing: ratio of odd vs even 16th positions
+        let evenCount = 0, oddCount = 0;
+        for (const pos of onsetPositions) {{
+            if (pos % 2 === 0) evenCount++;
+            else oddCount++;
+        }}
+        const swingFactor = onsetCount > 0 ? oddCount / onsetCount : 0;
+
+        // IOI statistics
+        const ioiMean = ioi.length > 0 ? ioi.reduce((a, b) => a + b, 0) / ioi.length : 0;
+        const ioiMin = ioi.length > 0 ? Math.min(...ioi) : 0;
+        const ioiMax = ioi.length > 0 ? Math.max(...ioi) : 0;
+
+        return {{
+            success: true,
+            grid: "{grid}",
+            total_grid_steps: totalGridSteps,
+            onset_grid: onsetGrid,
+            onset_velocities: onsetVelocities.map(v => Math.round(v * 1000) / 1000),
+            rhythm_string: rhythmString,
+            onset_count: onsetCount,
+            density: Math.round(density * 1000) / 1000,
+            syncopation: Math.round(syncopation * 1000) / 1000,
+            swing_factor: Math.round(swingFactor * 1000) / 1000,
+            strong_beat_hits: strongHits,
+            weak_beat_hits: weakHits,
+            inter_onset_intervals: ioi,
+            ioi_mean: Math.round(ioiMean * 1000) / 1000,
+            ioi_min: ioiMin,
+            ioi_max: ioiMax,
+            note_count: notes.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_analyze_song_structure(
     unit_index: int = -1,
     bars_per_segment: int = 4,

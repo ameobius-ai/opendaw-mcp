@@ -84,6 +84,13 @@ What do you want to create?
 ├── Invert → invert_notes (mirror pitches around axis)
 ├── Transpose → transpose_notes (shift all pitches by N semitones)
 ├── Quantize → quantize_notes (snap to grid, adjustable strength)
+├── Velocity accent → accent_beats (beat-aware: 4/4, backbeat, 3/4, 6/8, off_beat, four_on_floor)
+├── Note filter → filter_notes (pitch/velocity/time range, list/delete/keep)
+├── Region split → split_note_region (divide at beat point)
+├── Region merge → merge_note_regions (join two into one)
+├── Note stats → note_stats (pitch/velocity/duration/density/histogram)
+├── Melody analysis → analyze_melody (contour, intervals, climax, step/leap)
+├── Rhythm analysis → extract_rhythm (onset grid, syncopation, swing, IOI)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
@@ -109,12 +116,24 @@ What do you want to create?
 ## Full production pipeline
 
 ```
+0. ANALYSIS (optional, understand existing MIDI)
+   ├── Note stats?         → note_stats (pitch/velocity/density/histogram)
+   ├── Melody contour?     → analyze_melody (shape, climax, step/leap)
+   ├── Rhythm pattern?     → extract_rhythm (onset grid, syncopation, swing)
+   └── Chord identification? → identify_chords (reverse-engineer harmony)
+
 1. CREATE
    ├── Loop-based?          → create_XXX_arrangement (14 genres)
    ├── Song structure?      → create_genre_sections (8 electronic)
    ├── Varied sections?     → create_arrangement_variation (14 genres)
    ├── Full song w/ vars?   → create_song_with_variations (12 presets, one call)
    └── One-call?            → create_full_genre_pipeline (all steps)
+
+1b. EDIT (refine created content)
+   ├── Split regions?      → split_note_region (divide at bar boundaries)
+   ├── Merge regions?      → merge_note_regions (consolidate sections)
+   ├── Filter notes?       → filter_notes (cleanup pitch/velocity/time)
+   └── Accent dynamics?    → accent_beats (beat-aware velocity)
 
 2. HARMONY (optional, adds chord movement)
    ├── Sustained pads?      → create_chord_pads ("Am-F-C-G", bars_per_chord=4)
