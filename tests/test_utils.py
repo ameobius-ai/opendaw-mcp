@@ -3017,3 +3017,91 @@ class TestDynamicEqDSP:
         out_p = [p for p in params if p["name"] == "output"][0]
         assert mix["min"] == 0 and mix["max"] == 1
         assert out_p["min"] == -12 and out_p["max"] == 12
+
+
+class TestSpielwerkHarmonizerDSP:
+    """Unit tests for spielwerk_harmonizer.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "spielwerk_harmonizer.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@spielwerk harmonizer" in code, "Missing @spielwerk harmonizer header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 9, f"Expected 9 params, got {len(params)}"
+
+    def test_interval_params(self):
+        params = self._parse_params(self._read_script())
+        i1 = [p for p in params if p["name"] == "interval1"][0]
+        i2 = [p for p in params if p["name"] == "interval2"][0]
+        i3 = [p for p in params if p["name"] == "interval3"][0]
+        assert i1["min"] == -24 and i1["max"] == 24
+        assert i2["min"] == -24 and i2["max"] == 24
+        assert i3["min"] == -24 and i3["max"] == 24
+
+    def test_velocity_params(self):
+        params = self._parse_params(self._read_script())
+        v1 = [p for p in params if p["name"] == "vel1"][0]
+        v2 = [p for p in params if p["name"] == "vel2"][0]
+        v3 = [p for p in params if p["name"] == "vel3"][0]
+        assert v1["min"] == 0 and v1["max"] == 1
+        assert v2["min"] == 0 and v2["max"] == 1
+        assert v3["min"] == 0 and v3["max"] == 1
+
+    def test_mode_param(self):
+        params = self._parse_params(self._read_script())
+        m = [p for p in params if p["name"] == "mode"][0]
+        assert m["min"] == 0 and m["max"] == 1, "mode should be 0 or 1"
+
+    def test_key_and_scale_params(self):
+        params = self._parse_params(self._read_script())
+        kr = [p for p in params if p["name"] == "key_root"][0]
+        sc = [p for p in params if p["name"] == "scale"][0]
+        assert kr["min"] == 0 and kr["max"] == 11
+        assert sc["min"] == 0 and sc["max"] == 13
+
+    def test_diatonic_shift(self):
+        code = self._read_script()
+        assert "_diatonicShift" in code, "Missing diatonic shift method"
+        assert "degreeShift" in code, "Missing scale degree shift logic"
+
+    def test_three_voices(self):
+        code = self._read_script()
+        assert "voice 1" in code or "_h1" in code, "Missing voice 1"
+        assert "voice 2" in code or "_h2" in code, "Missing voice 2"
+        assert "voice 3" in code or "_h3" in code, "Missing voice 3"
+
+    def test_pitch_clamp(self):
+        code = self._read_script()
+        assert "_clamp" in code, "Missing pitch clamp method"
+        assert "Math.max(0" in code and "Math.min(127" in code, "Missing 0-127 range clamp"
+
+    def test_process_generator(self):
+        code = self._read_script()
+        assert "*process" in code, "Missing process generator"
+        assert "yield" in code, "Missing yield in process"
+        assert "yield ev" in code, "Missing original event passthrough"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"

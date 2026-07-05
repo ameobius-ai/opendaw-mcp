@@ -70,7 +70,7 @@
 | `apparat_wavetable.js` | Wavetable synth (8 tables, scan, unison) | pos, pos_lfo_rate, pos_lfo_depth, detune, unison, attack, decay, sustain, release, volume |
 | `apparat_supersaw.js` | Supersaw synth (7 detuned saws, stereo pan, resonant LP) | detune, spread, cutoff, resonance, attack, decay, sustain, release, volume |
 
-## Spielwerk (MIDI Effects) — 7 scripts
+## Spielwerk (MIDI Effects) — 8 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -81,6 +81,7 @@
 | `spielwerk_strum.js` | Strum simulator | speed, direction |
 | `spielwerk_velocity.js` | Velocity processor | curve, min, max |
 | `spielwerk_scale_quantizer.js` | Scale quantizer (14 scales, 12 roots) | scale, root, direction |
+| `spielwerk_harmonizer.js` | MIDI harmonizer (3 voices, diatonic/fixed, 14 scales) | interval1-3, vel1-3, mode, key_root, scale |
 
 ## Using DSP scripts
 

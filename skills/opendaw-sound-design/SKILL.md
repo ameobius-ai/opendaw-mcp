@@ -307,7 +307,7 @@ class Processor {
 | `apparat_wavetable.js` | Wavetable synth (8 tables, scan, unison) | pos, pos_lfo_rate, pos_lfo_depth, detune, unison, ADSR, volume | |
 | `apparat_supersaw.js` | Supersaw synth (7 detuned saws, stereo pan, resonant LP) | detune, spread, cutoff, resonance, ADSR, volume | |
 
-### Spielwerk (7 MIDI effects)
+### Spielwerk (8 MIDI effects)
 
 | Script | Effect | Key params |
 |--------|--------|------------|
@@ -317,6 +317,7 @@ class Processor {
 | `spielwerk_strum.js` | Strummer | speed, direction, spread, velocity |
 | `spielwerk_velocity.js` | Velocity scaler | scale, offset, curve, min_vel, max_vel |
 | `spielwerk_scale_quantizer.js` | Scale quantizer (14 scales, 12 roots) | scale, root, direction |
+| `spielwerk_harmonizer.js` | MIDI harmonizer (3 voices, diatonic/fixed) | interval1-3, vel1-3, mode, key_root, scale |
 | `spielwerk_mididelay.js` | MIDI delay + feedback | time, feedback, repeats, transpose, decay |
 
 ### Choosing a script

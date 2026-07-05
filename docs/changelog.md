@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.82.0 (2026-07-05)
+
+- **`spielwerk_harmonizer.js` DSP script** — MIDI harmonizer: 3 voices at fixed intervals or diatonic, per-voice velocity, 14 scales. Forces notes into scale. 66 DSP scripts
+- **782 unit tests** (+11), E2E 8/8
+
 ## v1.81.0 (2026-07-05)
 
 - **`werkstatt_dynamic_eq.js` DSP script** — dynamic EQ: 3 bands, peaking biquad + envelope follower, per-band threshold/range. 65 DSP scripts

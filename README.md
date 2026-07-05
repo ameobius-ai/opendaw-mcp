@@ -7,9 +7,9 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-308-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-65-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-771%20unit%20%2B%20E2E-brightgreen)](tests/)
-[![Examples](https://img.shields.io/badge/Examples-100-blue)](examples/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-66-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-782%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Examples](https://img.shields.io/badge/Examples-104-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -509,11 +509,16 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
-## v1.81.0 (2026-07-05)
+## v1.82.0 (2026-07-05)
+
+- **`spielwerk_harmonizer.js` DSP script** — MIDI harmonizer: 3 voices at fixed intervals or diatonic, per-voice velocity, 14 scales. 66 DSP scripts
+- **782 unit tests** (+11), E2E 8/8
+
+### v1.81.0 (2026-07-05)
 
 - **`werkstatt_dynamic_eq.js` DSP script** — dynamic EQ with 3 bands. Each band: peaking biquad filter + envelope follower that tracks signal level at that frequency. When level exceeds threshold, gain is dynamically reduced by up to `range` dB. Detection uses a separate unity-gain peaking filter to isolate band energy, processing filter applies the dynamic gain. 19 params: 3 bands × (freq, gain, Q, threshold, range) + attack, release, mix, output. Unlike parametric EQ (static gain) or multiband compressor (crossover split, phase issues), dynamic EQ applies dynamic gain only at the target frequency — surgical de-essing, resonance control, plosive removal without affecting the rest of the spectrum. Pro-tier mixing tool (FabFilter Pro-Q3, T-Racks, Soothe2)
-- **65 DSP scripts** (50 Werkstatt + 8 Apparat + 7 Spielwerk)
-- **771 unit tests** (+9), E2E 8/8
+- **66 DSP scripts** (50 Werkstatt + 8 Apparat + 8 Spielwerk)
+- **782 unit tests** (+11), E2E 8/8
 - ruff clean, CI green
 
 ## v1.80.0 (2026-07-05)
