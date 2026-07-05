@@ -145,6 +145,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 132. `classify_drum_pattern` — rhythmic analysis: classify drum pattern as four-on-the-floor/boom-bap/trap/breakbeat/shuffle/half-time/amen/march using GM drum map, syncopation, triplet feel, hat density
 133. `create_motif_variations` — motif development: extract motif from existing MIDI, create classical variation (sequence/inversion/retrograde/augmentation/diminution/fragmentation) in target region. Closes analysis→creation loop
 134. `create_country_arrangement` — country/Americana: straight 8th drums + root-five bass + boom-chick guitar + major pentatonic fiddle lead, I-IV-V 8-bar form, 120 BPM default
+135. `create_metal_arrangement` — heavy metal: double kick drums + palm-muted power chord riffs (phrygian dominant) + root-following bass + shred lead, riff-based 4-bar, 160 BPM default
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

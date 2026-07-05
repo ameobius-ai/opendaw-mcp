@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.223.0 (2026-07-05)
+
+### Added
+- `create_metal_arrangement` — Twenty-first multi-track arrangement. Heavy metal — riff-based, not chord-progression-based. Double kick drums (16th kick notes, snare 2+4, crash on bar starts, ride on off-beats), root-following bass (8th notes following riff roots), rhythm guitar (power chords [root+fifth] + palm-muted chugging on low E pedal tone, phrygian dominant scale for exotic metal sound), shred lead (minor pentatonic ascending runs, natural minor descending runs, long sustained bends, phrygian dominant licks). 4-bar riff pattern: pedal chugging + power chord stabs. E root (lowest guitar string), 160 BPM (thrash metal). Distortion effect in genre_mix. Velocity 0.85 (louder than other genres). Registered in all 4 genre registries + genre_mix (distortion + aggressive comp) + genre_humanization (timing 0.02, velocity 0.04 — tightest of all genres). 12 unit tests. **398 MCP tools**, 2827 unit tests, **21 multi-track arrangements**
+
 ## v1.222.0 (2026-07-05)
 
 ### Added

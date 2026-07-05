@@ -30222,6 +30222,233 @@ async def mcp_opendaw_create_country_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_metal_arrangement(
+    bpm: float = 160,
+    bars: int = 8,
+    root: str = "E",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    chord_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full metal arrangement — double kick drums + palm-muted riffs + power chords + shred lead.
+
+    Heavy metal — riff-based, not chord-progression-based:
+    - Track 0: Drums — double kick (16th notes on kick), snare on 2+4, crash on
+                     bar starts, ride during verses. Blast beat feel at high BPM.
+                     The double kick is the heartbeat of metal — relentless.
+    - Track 1: Bass — root-following bass, palm-muted style. Follows the riff
+                     root notes in steady 8ths. Thick, driving, sits under the
+                     guitars like a foundation.
+    - Track 2: Rhythm guitar — power chords (root+fifth) with palm-muted 8th
+                     note chugging. The classic metal riff approach: low E string
+                     pedal tone + power chord stabs. E minor phrygian dominant
+                     for that Middle Eastern/exotic metal feel.
+    - Track 3: Lead guitar — minor pentatonic + natural minor scale shredding.
+                     Fast alternate-picking runs, sweep arpeggios, tapped harmonics
+                     simulated via high-register notes. The "shred" quality.
+
+    At 160 BPM (default), this is thrash/speed metal territory. At 120 BPM,
+    it's traditional heavy metal (Iron Maiden). At 200+, it's extreme/black metal.
+
+    The riff: low E pedal tone + power chord on the off-beat. Phrygian dominant
+    (E-F#-G-A-B-C-D) gives the exotic metal sound (think Metallica, Slayer,
+    Meshuggah). Not I-IV-V — metal is riff-driven, not chord-driven.
+
+    bpm: Tempo (100-220, default 160 = thrash metal).
+    bars: Arrangement length (must be multiple of 4, default 8).
+    root: Root note (E is the most common metal key — lowest guitar string).
+    octave: MIDI octave for bass (2 = E2=40, standard metal bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / chord_track / lead_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_metal_arrangement(bpm=160, root="E", bars=8)
+      create_metal_arrangement(bpm=120, root="D", bars=16)  # traditional metal
+    """
+    if not (100 <= bpm <= 220):
+        return "Error: bpm must be 100-220"
+    if bars < 4 or bars > 48:
+        return "Error: bars must be 4-48 (multiple of 4)"
+    if bars % 4 != 0:
+        return "Error: bars must be multiple of 4"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    chord_base = (octave + 3) * 12 + root_pc
+    lead_base = (octave + 4) * 12 + root_pc
+
+    # Phrygian dominant scale (exotic metal sound): 1, b2, 3, 4, 5, b6, b7
+    _PHRYGIAN_DOM = [0, 1, 4, 5, 7, 8, 10]
+    # Power chord = root + fifth
+    _POWER = [0, 7]
+    # Natural minor for lead
+    _MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10]
+    # Minor pentatonic for shredding
+    _MIN_PENT = [0, 3, 5, 7, 10]
+
+    # Riff pattern: pedal tone (root) on 8ths with power chord stabs
+    # 2-bar riff: bar 1 = pedal chugging, bar 2 = chord stabs
+    _RIFF_ROOTS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 3]
+
+    verses = bars // 4
+
+    # --- DRUMS: double kick + blast feel ---
+    kick_p, snare_p, crash_p, ride_p = 36, 38, 49, 51
+    drum_notes = []
+    for b in range(bars):
+        off = b * 4.0
+        # Crash on bar start
+        drum_notes.append({"pitch": crash_p, "start": round(start_beat + off + 0.0, 4),
+                          "duration": 0.5, "velocity": round(velocity * 0.9, 3)})
+        # Double kick: 16th notes
+        for beat in range(16):
+            vm = 0.95 if beat % 4 == 0 else 0.75
+            drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + beat * 0.25, 4),
+                              "duration": 0.08, "velocity": round(velocity * vm, 3)})
+        # Snare on 2 and 4 (beats 1 and 3 in 16th = positions 4 and 12)
+        drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + 1.0, 4),
+                          "duration": 0.1, "velocity": round(velocity * 0.95, 3)})
+        drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + 3.0, 4),
+                          "duration": 0.1, "velocity": round(velocity * 0.95, 3)})
+        # Ride or hat on off-beats
+        for beat in range(8):
+            drum_notes.append({"pitch": ride_p, "start": round(start_beat + off + beat * 0.5 + 0.25, 4),
+                              "duration": 0.06, "velocity": round(velocity * 0.5, 3)})
+
+    # --- BASS: root-following 8th notes ---
+    bass_notes = []
+    for verse in range(verses):
+        for bar_idx in range(4):
+            bar_start = (verse * 4 + bar_idx) * 4.0
+            riff_idx = (verse * 4 + bar_idx) % len(_RIFF_ROOTS)
+            deg = _RIFF_ROOTS[riff_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            chord_root = bass_base + chord_root_pc
+            for beat in range(8):
+                vm = 0.9 if beat % 2 == 0 else 0.75
+                bass_notes.append({"pitch": chord_root, "start": round(start_beat + bar_start + beat * 0.5, 4),
+                                  "duration": 0.45, "velocity": round(velocity * vm, 3)})
+
+    # --- RHYTHM GUITAR: power chords + palm-muted chugging ---
+    chord_notes = []
+    for verse in range(verses):
+        for bar_idx in range(4):
+            bar_start = (verse * 4 + bar_idx) * 4.0
+            riff_idx = (verse * 4 + bar_idx) % len(_RIFF_ROOTS)
+            deg = _RIFF_ROOTS[riff_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            if deg == 0:
+                # Palm-muted pedal tone: low root on 8ths
+                for beat in range(8):
+                    chord_notes.append({
+                        "pitch": chord_base + chord_root_pc,
+                        "start": round(start_beat + bar_start + beat * 0.5, 4),
+                        "duration": 0.4,
+                        "velocity": round(velocity * 0.7, 3),
+                    })
+            else:
+                # Power chord stab: root + fifth, 2 per bar
+                for stab in range(2):
+                    stab_start = stab * 2.0
+                    for interval in _POWER:
+                        chord_notes.append({
+                            "pitch": chord_base + chord_root_pc + interval,
+                            "start": round(start_beat + bar_start + stab_start, 4),
+                            "duration": 1.5,
+                            "velocity": round(velocity * 0.85, 3),
+                        })
+
+    # --- LEAD: shred guitar ---
+    lead_notes = []
+    for verse in range(verses):
+        for bar_idx in range(4):
+            bar_start = (verse * 4 + bar_idx) * 4.0
+            riff_idx = (verse * 4 + bar_idx) % len(_RIFF_ROOTS)
+            deg = _RIFF_ROOTS[riff_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            if bar_idx % 4 == 0:
+                # Fast ascending minor pentatonic run
+                for si in range(8):
+                    sidx = si % len(_MIN_PENT)
+                    oct_shift = (si // len(_MIN_PENT)) * 12
+                    p = lead_base + chord_root_pc + _MIN_PENT[sidx] + oct_shift
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.2, 4),
+                                      "duration": 0.15, "velocity": round(velocity * (0.7 + si * 0.03), 3)})
+            elif bar_idx % 4 == 1:
+                # Descending natural minor run
+                for si in range(7):
+                    sidx = (6 - si) % len(_MINOR_SCALE)
+                    p = lead_base + chord_root_pc + _MINOR_SCALE[sidx]
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.25, 4),
+                                      "duration": 0.2, "velocity": round(velocity * (0.65 + (si % 2) * 0.05), 3)})
+            elif bar_idx % 4 == 2:
+                # Long sustained root + bend
+                p1 = lead_base + chord_root_pc + _MIN_PENT[0]
+                lead_notes.append({"pitch": p1, "start": round(start_beat + bar_start + 0.5, 4),
+                                  "duration": 3.0, "velocity": round(velocity * 0.9, 3)})
+                pb = lead_base + chord_root_pc + _MIN_PENT[2]
+                lead_notes.append({"pitch": pb, "start": round(start_beat + bar_start + 3.5, 4),
+                                  "duration": 0.4, "velocity": round(velocity * 0.65, 3)})
+            else:
+                # Fast phrygian dominant lick (exotic metal)
+                lick = [_PHRYGIAN_DOM[0], _PHRYGIAN_DOM[1], _PHRYGIAN_DOM[2],
+                        _PHRYGIAN_DOM[4], _PHRYGIAN_DOM[0] + 12, _PHRYGIAN_DOM[2] + 12]
+                for si, note_off in enumerate(lick):
+                    p = lead_base + chord_root_pc + note_off
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.25, 4),
+                                      "duration": 0.2, "velocity": round(velocity * (0.6 + (si % 2) * 0.08), 3)})
+
+    drum_json = json.dumps(drum_notes)
+    bass_json = json.dumps(bass_notes)
+    chord_json = json.dumps(chord_notes)
+    lead_json = json.dumps(lead_notes)
+
+    drum_result = await mcp_opendaw_create_notes_batch(drum_json, unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, bass_track)
+    chord_result = await mcp_opendaw_create_notes_batch(chord_json, unit_index, chord_track)
+    lead_result = await mcp_opendaw_create_notes_batch(lead_json, unit_index, lead_track)
+
+    drum_data = json.loads(drum_result) if isinstance(drum_result, str) else drum_result
+    bass_data = json.loads(bass_result) if isinstance(bass_result, str) else bass_result
+    chord_data = json.loads(chord_result) if isinstance(chord_result, str) else chord_result
+    lead_data = json.loads(lead_result) if isinstance(lead_result, str) else lead_result
+
+    return json.dumps({
+        "success": True,
+        "genre": "metal",
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "rhythm_guitar": {"track": chord_track, "notes": len(chord_notes), "result": chord_data.get("notes_created", len(chord_notes))},
+            "lead_guitar": {"track": lead_track, "notes": len(lead_notes), "result": lead_data.get("notes_created", len(lead_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(chord_notes) + len(lead_notes),
+        "drum_pattern": "double_kick_blast",
+        "bass_pattern": "root_following_8ths",
+        "chord_type": "power_chords_palm_muted",
+        "lead_type": "minor_pentatonic_shred",
+        "harmony": "phrygian_dominant_riff",
+        "form": "riff_based_4_bar",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_reggae_arrangement(
     bpm: float = 80,
     bars: int = 8,
@@ -31216,7 +31443,7 @@ async def mcp_opendaw_apply_genre_mix(
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco",
-                    "lofi", "soul", "rnb", "blues", "country"]
+                    "lofi", "soul", "rnb", "blues", "country", "metal"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
     if not (2 <= num_tracks <= 4):
@@ -31455,6 +31682,16 @@ async def mcp_opendaw_apply_genre_mix(
             "sidechain": False,
             "sc_params": {},
         },
+        "metal": {
+            "effects": [
+                (0, "Compressor", {"threshold": -10, "ratio": 4, "attack": 3, "release": 50}),  # drums: aggressive
+                (1, "Revamp", {"low": 4, "high": 2}),       # bass: thick low end + bite
+                (2, "Distortion", {"drive": 0.7}),          # rhythm guitar: high gain
+                (3, "Delay", {"time": 0.375, "feedback": 0.3}),  # lead: solo delay
+            ],
+            "sidechain": False,
+            "sc_params": {},
+        },
     }
 
     recipe = recipes[genre]
@@ -31566,7 +31803,7 @@ async def mcp_opendaw_apply_genre_humanization(
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave",
-                    "trance", "disco", "lofi", "soul", "rnb", "blues", "country"]
+                    "trance", "disco", "lofi", "soul", "rnb", "blues", "country", "metal"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
 
@@ -31586,6 +31823,7 @@ async def mcp_opendaw_apply_genre_humanization(
         "rnb":       {"timing": 0.08, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.02},
         "blues":     {"timing": 0.12, "velocity": 0.15, "duration": 0.08, "swing": 0.58, "bias": 0.02},
         "country":   {"timing": 0.06, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.01},
+        "metal":     {"timing": 0.02, "velocity": 0.04, "duration": 0.02, "swing": 0.0,  "bias": 0.0},
         # Electronic — tight and consistent
         "dnb":       {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
         "liquid_dnb":{"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0,  "bias": 0.01},
@@ -31754,6 +31992,7 @@ async def mcp_opendaw_create_genre_sections(
         "disco":     mcp_opendaw_create_disco_arrangement,
         "blues":     mcp_opendaw_create_blues_arrangement,
         "country":   mcp_opendaw_create_country_arrangement,
+        "metal":     mcp_opendaw_create_metal_arrangement,
     }
     arr_fn = arrangement_fns[genre]
 
@@ -31938,6 +32177,7 @@ async def mcp_opendaw_create_arrangement_variation(
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
         "blues":     {"bpm": 120, "root": "A",  "tracks": 4},
         "country":   {"bpm": 120, "root": "G",  "tracks": 4},
+        "metal":     {"bpm": 160, "root": "E",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
@@ -31964,6 +32204,7 @@ async def mcp_opendaw_create_arrangement_variation(
         "rnb":       mcp_opendaw_create_rnb_arrangement,
         "blues":     mcp_opendaw_create_blues_arrangement,
         "country":   mcp_opendaw_create_country_arrangement,
+        "metal":     mcp_opendaw_create_metal_arrangement,
     }
     arr_fn = arrangement_fns[genre]
 
@@ -32319,6 +32560,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4, "master_style": "warm"},
         "blues":     {"bpm": 120, "root": "A",  "tracks": 4, "master_style": "warm"},
         "country":   {"bpm": 120, "root": "G",  "tracks": 4, "master_style": "warm"},
+        "metal":     {"bpm": 160, "root": "E",  "tracks": 4, "master_style": "loud"},
     }
 
     if genre not in defaults:
@@ -32390,6 +32632,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "rnb":       mcp_opendaw_create_rnb_arrangement,
         "blues":     mcp_opendaw_create_blues_arrangement,
         "country":   mcp_opendaw_create_country_arrangement,
+        "metal":     mcp_opendaw_create_metal_arrangement,
     }
 
     try:
@@ -32713,6 +32956,7 @@ async def mcp_opendaw_create_song_with_variations(
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
         "blues":     {"bpm": 120, "root": "A",  "tracks": 4},
         "country":   {"bpm": 120, "root": "G",  "tracks": 4},
+        "metal":     {"bpm": 160, "root": "E",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
@@ -34082,6 +34326,7 @@ async def mcp_opendaw_create_modulated_song(
             "rnb": mcp_opendaw_create_rnb_arrangement,
             "blues": mcp_opendaw_create_blues_arrangement,
             "country": mcp_opendaw_create_country_arrangement,
+            "metal": mcp_opendaw_create_metal_arrangement,
         }
         if drum_genre not in arrangement_fns:
             return f"Error: unknown drum_genre '{drum_genre}'. Valid: {list(arrangement_fns.keys())}"

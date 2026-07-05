@@ -12370,3 +12370,150 @@ class TestCountryArrangement:
         source = open("server.py").read()
         assert '"country"' in source
 
+
+class TestMetalArrangement:
+    """Tests for create_metal_arrangement — heavy metal multi-track arrangement"""
+
+    def test_tool_signature_exists(self):
+        """create_metal_arrangement is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_metal_arrangement" in tool_names
+
+    def test_has_4_tracks(self):
+        """Has drum_track, bass_track, chord_track, lead_track params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                arg_names = [a.arg for a in node.args.args]
+                assert "drum_track" in arg_names
+                assert "bass_track" in arg_names
+                assert "chord_track" in arg_names
+                assert "lead_track" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_bpm_is_160(self):
+        """Default bpm is 160 (thrash metal)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bpm" and isinstance(d, ast.Constant):
+                        assert d.value == 160
+                        return
+        assert False, "default not found"
+
+    def test_default_root_is_E(self):
+        """Default root is E (lowest guitar string, most common metal key)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "root" and isinstance(d, ast.Constant):
+                        assert d.value == "E"
+                        return
+        assert False, "default not found"
+
+    def test_default_velocity_is_085(self):
+        """Default velocity is 0.85 (louder than other genres — metal is aggressive)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "velocity" and isinstance(d, ast.Constant):
+                        assert d.value == 0.85
+                        return
+        assert False, "default not found"
+
+    def test_validates_bars_multiple_of_4(self):
+        """Validates bars must be multiple of 4"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                source = ast.unparse(node)
+                assert "multiple of 4" in source
+                return
+        assert False, "function not found"
+
+    def test_has_power_chords(self):
+        """Uses power chords (root + fifth, not triads or 7ths)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                source = ast.unparse(node)
+                assert "_POWER" in source or "0, 7" in source
+                return
+        assert False, "function not found"
+
+    def test_has_phrygian_dominant(self):
+        """Uses phrygian dominant scale (exotic metal sound)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                source = ast.unparse(node)
+                assert "PHRYGIAN" in source or "phrygian" in source
+                return
+        assert False, "function not found"
+
+    def test_has_double_kick_drums(self):
+        """Has double kick drum pattern (16th notes on kick)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                source = ast.unparse(node)
+                assert "double_kick" in source or "double kick" in source
+                return
+        assert False, "function not found"
+
+    def test_has_palm_muted_chugging(self):
+        """Has palm-muted chugging pattern"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                source = ast.unparse(node)
+                assert "palm_muted" in source or "palm-muted" in source
+                return
+        assert False, "function not found"
+
+    def test_has_shred_lead(self):
+        """Has shred lead guitar (minor pentatonic + natural minor)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_metal_arrangement":
+                source = ast.unparse(node)
+                assert "shred" in source
+                assert "_MIN_PENT" in source or "_MINOR_SCALE" in source
+                return
+        assert False, "function not found"
+
+    def test_registered_in_genre_mix(self):
+        """Metal is registered in apply_genre_mix valid_genres"""
+        source = open("server.py").read()
+        assert '"metal"' in source
+
