@@ -314,3 +314,169 @@ def _detect_bpm(channels: list, sample_rate: int) -> dict:
         "onset_count": len(onsets),
         "duration_seconds": round(duration, 2),
     }
+
+
+# Krumhansl-Schmuckler key profiles (major / minor)
+_KS_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
+_KS_MINOR = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
+
+
+def _fft_radix2(re: list, im: list) -> None:
+    """In-place radix-2 Cooley-Tukey FFT. len(re) must be power of 2."""
+    import math as _m
+
+    n = len(re)
+    if n <= 1:
+        return
+    # Bit reversal
+    j = 0
+    for i in range(1, n):
+        bit = n >> 1
+        while j & bit:
+            j ^= bit
+            bit >>= 1
+        j |= bit
+        if i < j:
+            re[i], re[j] = re[j], re[i]
+            im[i], im[j] = im[j], im[i]
+    # Cooley-Tukey
+    length = 2
+    while length <= n:
+        ang = -2.0 * _m.pi / length
+        wlen_re = _m.cos(ang)
+        wlen_im = _m.sin(ang)
+        half = length // 2
+        for i in range(0, n, length):
+            w_re, w_im = 1.0, 0.0
+            for k in range(half):
+                u_re = re[i + k]
+                u_im = im[i + k]
+                v_re = re[i + k + half] * w_re - im[i + k + half] * w_im
+                v_im = re[i + k + half] * w_im + im[i + k + half] * w_re
+                re[i + k] = u_re + v_re
+                im[i + k] = u_im + v_im
+                re[i + k + half] = u_re - v_re
+                im[i + k + half] = u_im - v_im
+                nw_re = w_re * wlen_re - w_im * wlen_im
+                w_im = w_re * wlen_im + w_im * wlen_re
+                w_re = nw_re
+        length <<= 1
+
+
+_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+
+def _detect_key(channels: list, sample_rate: int) -> dict:
+    """Detect musical key of audio using chroma features + Krumhansl-Schmuckler profiles.
+
+    Pure Python (no numpy):
+    1. Mix to mono
+    2. Short-time FFT (4096-point, Hann window, 75% overlap)
+    3. Map spectral bins to 12 pitch classes (chroma vector)
+    4. Correlate chroma with major/minor key profiles for all 12 roots
+    5. Best correlation → key + mode
+
+    Returns dict with: key (e.g. "A"), mode ("major"/"minor"), confidence (0-1),
+    alternatives (top 3), chroma (12-element list).
+    """
+    import math as _m
+
+    if not channels or not channels[0]:
+        return {"key": "C", "mode": "major", "confidence": 0.0,
+                "alternatives": [], "chroma": [0.0] * 12}
+
+    n_frames = len(channels[0])
+    n_ch = len(channels)
+
+    # 1. Mix to mono
+    mono = [sum(channels[c][i] for c in range(n_ch)) / n_ch for i in range(n_frames)]
+
+    # 2. STFT parameters
+    fft_size = 4096
+    hop_size = fft_size // 4  # 75% overlap
+    if n_frames < fft_size:
+        # Too short for FFT — fallback to zero-padded single frame
+        fft_size = 1
+        while fft_size < n_frames:
+            fft_size <<= 1
+        fft_size = max(256, fft_size)
+        hop_size = fft_size
+
+    # Hann window
+    hann = [0.5 - 0.5 * _m.cos(2.0 * _m.pi * i / (fft_size - 1)) for i in range(fft_size)]
+
+    # 3. Accumulate chroma across all frames
+    chroma = [0.0] * 12
+    n_frames_processed = 0
+    pos = 0
+    while pos + fft_size <= n_frames:
+        # Window the frame
+        frame = [mono[pos + i] * hann[i] for i in range(fft_size)]
+        re = list(frame)
+        im = [0.0] * fft_size
+        _fft_radix2(re, im)
+
+        # Magnitude spectrum (first half only — real signal symmetry)
+        half = fft_size // 2
+        for k in range(1, half):
+            mag = _m.sqrt(re[k] * re[k] + im[k] * im[k])
+            # Map bin k to pitch class
+            freq = k * sample_rate / fft_size
+            if freq < 55.0 or freq > 2000.0:
+                continue  # Skip sub-bass noise and harsh highs
+            midi = 69 + 12 * _m.log2(freq / 440.0)
+            pc = int(round(midi)) % 12
+            chroma[pc] += mag
+
+        n_frames_processed += 1
+        pos += hop_size
+
+    if n_frames_processed == 0 or sum(chroma) == 0:
+        return {"key": "C", "mode": "major", "confidence": 0.0,
+                "alternatives": [], "chroma": [0.0] * 12}
+
+    # Normalize chroma
+    total = sum(chroma)
+    chroma_norm = [c / total for c in chroma]
+
+    # 4. Correlate with Krumhansl-Schmuckler profiles for all 24 keys
+    def _correlate(a, b):
+        n = len(a)
+        ma = sum(a) / n
+        mb = sum(b) / n
+        num = sum((a[i] - ma) * (b[i] - mb) for i in range(n))
+        da = _m.sqrt(sum((a[i] - ma) ** 2 for i in range(n)))
+        db = _m.sqrt(sum((b[i] - mb) ** 2 for i in range(n)))
+        if da == 0 or db == 0:
+            return 0.0
+        return num / (da * db)
+
+    results = []
+    for root in range(12):
+        rotated = [chroma_norm[(root + i) % 12] for i in range(12)]
+        corr_major = _correlate(rotated, _KS_MAJOR)
+        corr_minor = _correlate(rotated, _KS_MINOR)
+        results.append((_NOTE_NAMES[root], "major", corr_major))
+        results.append((_NOTE_NAMES[root], "minor", corr_minor))
+
+    # Sort by correlation descending
+    results.sort(key=lambda x: x[2], reverse=True)
+
+    best = results[0]
+    # Confidence: ratio of best to second best
+    second = results[1][2] if len(results) > 1 else 0.0
+    confidence = min(1.0, max(0.0, (best[2] - second) / max(0.01, best[2])) if best[2] > 0 else 0.0)
+
+    alternatives = [
+        {"key": r[0], "mode": r[1], "correlation": round(r[2], 4)}
+        for r in results[1:4]
+    ]
+
+    return {
+        "key": best[0],
+        "mode": best[1],
+        "confidence": round(confidence, 3),
+        "correlation": round(best[2], 4),
+        "alternatives": alternatives,
+        "chroma": [round(c, 6) for c in chroma_norm],
+    }

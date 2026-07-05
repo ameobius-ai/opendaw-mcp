@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.195.0 (2026-07-05)
+
+### Added
+- `detect_key` — musical key detection using chroma features + Krumhansl-Schmuckler key profiles. Pure Python radix-2 Cooley-Tukey FFT (no numpy/librosa). STFT (4096-point, Hann window, 75% overlap) → 12 pitch class chroma vector → correlation with 24 key profiles (12 roots × major/minor). Returns key, mode, confidence, alternatives (top 3), chroma vector. C major triad → C major ✅, A minor triad → A minor ✅, A4 sine → A ✅. Completes Suno remix pipeline: download → detect_bpm → detect_key → import → generate matching harmony → mix → render. **374 MCP tools**, 1355 unit tests, 16 new (4 FFT + 12 key detection)
+
+## v1.194.0 (2026-07-05)
+
+### Added
+- `detect_bpm` — BPM detection using onset detection + autocorrelation. Pure Python (no numpy). Energy envelope (1024-sample windows) → onset peaks → autocorrelation across 60-200 BPM with half/double-time check. 373 MCP tools, 1339 unit tests
+
 ## v1.193.0 (2026-07-05)
 
 ### Added

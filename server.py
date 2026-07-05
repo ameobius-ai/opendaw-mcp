@@ -40,6 +40,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _safe_path,
     _clamp_script_param,
     _detect_bpm,
+    _detect_key,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -6154,6 +6155,60 @@ async def mcp_opendaw_detect_bpm(filename: str) -> str:
         })
     except Exception as e:
         return _err(f"BPM detection error: {e}")
+
+@mcp.tool()
+async def mcp_opendaw_detect_key(filename: str) -> str:
+    """Detect musical key and mode of a WAV file using chroma features + Krumhansl-Schmuckler key profiles.
+
+    Pure Python implementation (no external dependencies):
+    1. Parse WAV → mono mixdown
+    2. Short-time FFT (4096-point, Hann window, 75% overlap) — pure Python radix-2 Cooley-Tukey
+    3. Map spectral bins to 12 pitch classes → chroma vector
+    4. Correlate chroma with major/minor key profiles for all 24 keys (12 roots × 2 modes)
+    5. Best correlation → key + mode
+
+    Essential for Suno integration: detect key → build matching chord progression
+    → create_harmonic_arrangement that fits the imported audio. Enables automatic
+    remix pipeline: download → detect_bpm → detect_key → import → generate matching
+    harmony → mix → render.
+
+    filename: Name of the WAV file in the exports directory (without path),
+              or absolute path to any WAV file.
+
+    Returns: key (e.g. "A"), mode ("major"/"minor"), confidence (0-1),
+             correlation, alternatives (top 3), chroma (12-element list).
+
+    Examples:
+      # After importing a Suno track
+      result = detect_key("suno_track.wav")
+      # → {key: "A", mode: "minor", confidence: 0.72, ...}
+      # Then build matching progression
+      create_chord_progression([["Am","G","F","E7"]])
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        key_data = _detect_key(wav["channels"], wav["sample_rate"])
+        return json.dumps({
+            "success": True,
+            **key_data,
+            "sample_rate": wav["sample_rate"],
+            "channels": wav["n_channels"],
+            "file": filepath,
+        })
+    except Exception as e:
+        return _err(f"Key detection error: {e}")
 
 @mcp.tool()
 async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: int = 3) -> str:

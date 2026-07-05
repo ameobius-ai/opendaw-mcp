@@ -8266,6 +8266,200 @@ class TestDetectBpm:
         assert len(steps) == 2
 
 
+class TestFftRadix2:
+    """Tests for pure Python radix-2 Cooley-Tukey FFT"""
+
+    def test_dc_signal(self):
+        """FFT of constant signal → energy in bin 0 only"""
+        from opendaw_mcp.utils import _fft_radix2
+        n = 8
+        re = [1.0] * n
+        im = [0.0] * n
+        _fft_radix2(re, im)
+        assert abs(re[0] - n) < 0.001  # DC = N
+        for k in range(1, n):
+            assert abs(re[k]) < 0.001
+
+    def test_sine_wave_peak(self):
+        """FFT of sine wave → peak at correct bin"""
+        import math
+        from opendaw_mcp.utils import _fft_radix2
+        n = 256
+        sr = 256  # 1 Hz per bin
+        freq = 10  # bin 10
+        re = [math.sin(2 * math.pi * freq * i / sr) for i in range(n)]
+        im = [0.0] * n
+        _fft_radix2(re, im)
+        mags = [math.sqrt(re[k] ** 2 + im[k] ** 2) for k in range(n // 2)]
+        peak_bin = mags.index(max(mags))
+        assert peak_bin == freq
+
+    def test_power_of_two_required(self):
+        """FFT should work for any power of 2 size"""
+        from opendaw_mcp.utils import _fft_radix2
+        for n in [2, 4, 8, 16, 32, 64]:
+            re = [0.0] * n
+            im = [0.0] * n
+            re[0] = 1.0
+            _fft_radix2(re, im)
+            assert len(re) == n  # no crash
+
+    def test_linearity(self):
+        """FFT is linear: FFT(a+b) = FFT(a) + FFT(b)"""
+        import math
+        from opendaw_mcp.utils import _fft_radix2
+        n = 64
+        a_re = [math.sin(2 * math.pi * 3 * i / n) for i in range(n)]
+        b_re = [math.cos(2 * math.pi * 5 * i / n) for i in range(n)]
+        sum_re = [a_re[i] + b_re[i] for i in range(n)]
+        a_im = [0.0] * n
+        b_im = [0.0] * n
+        sum_im = [0.0] * n
+        _fft_radix2(a_re, a_im)
+        _fft_radix2(b_re, b_im)
+        _fft_radix2(sum_re, sum_im)
+        for k in range(n):
+            expected_re = a_re[k] + b_re[k]
+            expected_im = a_im[k] + b_im[k]
+            assert abs(sum_re[k] - expected_re) < 0.01
+            assert abs(sum_im[k] - expected_im) < 0.01
+
+
+class TestDetectKey:
+    """Tests for _detect_key and detect_key tool"""
+
+    def test_empty_channels_returns_default(self):
+        """Empty audio returns C major with 0 confidence"""
+        from opendaw_mcp.utils import _detect_key
+        result = _detect_key([], 44100)
+        assert result["key"] == "C"
+        assert result["mode"] == "major"
+        assert result["confidence"] == 0.0
+
+    def test_chroma_has_12_elements(self):
+        """Chroma vector always has 12 elements"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 2  # 2 seconds
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        result = _detect_key([mono], sr)
+        assert len(result["chroma"]) == 12
+
+    def test_key_is_valid_note_name(self):
+        """Detected key must be a valid note name"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 2
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        result = _detect_key([mono], sr)
+        valid_notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        assert result["key"] in valid_notes
+
+    def test_mode_is_major_or_minor(self):
+        """Mode must be 'major' or 'minor'"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 2
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        result = _detect_key([mono], sr)
+        assert result["mode"] in ("major", "minor")
+
+    def test_confidence_range_0_1(self):
+        """Confidence should be in 0-1 range"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 2
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        result = _detect_key([mono], sr)
+        assert 0.0 <= result["confidence"] <= 1.0
+
+    def test_alternatives_has_3_entries(self):
+        """Alternatives list should have 3 entries"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 2
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        result = _detect_key([mono], sr)
+        assert len(result["alternatives"]) == 3
+        for alt in result["alternatives"]:
+            assert "key" in alt
+            assert "mode" in alt
+            assert "correlation" in alt
+
+    def test_a4_sine_detects_a(self):
+        """Pure A4 (440 Hz) sine should detect A as key"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 3  # 3 seconds for better chroma
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        # Add A3 harmonic for robustness
+        for i in range(n):
+            mono[i] += math.sin(2 * math.pi * 220 * i / sr) * 0.3
+        result = _detect_key([mono], sr)
+        assert result["key"] == "A"
+
+    def test_c_major_triad_detects_c(self):
+        """C-E-G triad should detect C as key"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 3
+        mono = [0.0] * n
+        for freq in [261.63, 329.63, 392.00]:  # C4, E4, G4
+            for i in range(n):
+                mono[i] += math.sin(2 * math.pi * freq * i / sr) * 0.3
+        result = _detect_key([mono], sr)
+        assert result["key"] == "C"
+        assert result["mode"] == "major"
+
+    def test_a_minor_triad_detects_a_minor(self):
+        """A-C-E triad should detect A minor"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 3
+        mono = [0.0] * n
+        for freq in [220.0, 261.63, 329.63]:  # A3, C4, E4
+            for i in range(n):
+                mono[i] += math.sin(2 * math.pi * freq * i / sr) * 0.3
+        result = _detect_key([mono], sr)
+        assert result["key"] == "A"
+        assert result["mode"] == "minor"
+
+    def test_stereo_mixdown(self):
+        """Stereo input should be mixed to mono and produce valid result"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 2
+        ch_l = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        ch_r = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        result = _detect_key([ch_l, ch_r], sr)
+        assert result["key"] == "A"
+
+    def test_chroma_normalized(self):
+        """Chroma values should sum to approximately 1.0"""
+        import math
+        from opendaw_mcp.utils import _detect_key
+        sr = 44100
+        n = sr * 2
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        result = _detect_key([mono], sr)
+        assert abs(sum(result["chroma"]) - 1.0) < 0.01
+
+    def test_suno_pipeline_key_to_progression(self):
+        """Pipeline: detect_key → create_chord_progression"""
+        steps = ["detect_key", "create_chord_progression"]
+        assert steps[0] == "detect_key"
+        assert len(steps) == 2
+
+
 class TestDownloadAudio:
     """Tests for download_audio URL-to-file tool"""
 

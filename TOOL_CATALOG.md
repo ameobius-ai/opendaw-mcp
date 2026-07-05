@@ -251,6 +251,7 @@
 - `download_audio` — Download audio from URL (Suno CDN, any HTTP source) to local disk. Streaming download with timeout, filename sanitization, next_step suggestion pointing to import_audio_to_tracks. Bridges AI generators → DAW pipeline.
 - `measure_lufs` — Measure LUFS (integrated) and true peak of an exported WAV file.
 - `detect_bpm` — Detect BPM (tempo) of a WAV file using onset detection + autocorrelation. Pure Python (no numpy). 60-200 BPM range, confidence score. Essential for Suno integration: detect BPM → set_bpm for correct beat alignment.
+- `detect_key` — Detect musical key and mode of a WAV file using chroma features + Krumhansl-Schmuckler key profiles. Pure Python radix-2 FFT (no numpy). 24 keys (12 roots × major/minor), confidence, alternatives, chroma vector. Essential for Suno integration: detect key → build matching chord progression → harmonic arrangement.
 - `render_full` — Render the entire project as a single stereo WAV file (full mixdown).
 - `render_full_format` — Render the entire project and convert to MP3 or FLAC in one step.
 - `render_range` — Render only a portion of the project (e.g. chorus only) for quick A/B comparison.
