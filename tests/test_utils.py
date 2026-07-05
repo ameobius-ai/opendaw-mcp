@@ -10777,3 +10777,122 @@ class TestCopyNotesToTrack:
                 return
         assert False, "function not found"
 
+
+class TestScaleDurations:
+    """Tests for scale_durations — MIDI note duration scaling tool"""
+
+    def test_tool_signature_exists(self):
+        """scale_durations is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_scale_durations" in tool_names
+
+    def test_has_5_modes(self):
+        """Supports multiply, add, set, quantize, legato modes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                source = ast.unparse(node)
+                assert "multiply" in source
+                assert "add" in source
+                assert "set" in source
+                assert "quantize" in source
+                assert "legato" in source
+                return
+        assert False, "function not found"
+
+    def test_default_mode_multiply(self):
+        """Default mode is multiply"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "mode" and isinstance(d, ast.Constant):
+                        assert d.value == "multiply"
+                    if arg_name == "value" and isinstance(d, ast.Constant):
+                        assert d.value == 1.0
+                return
+        assert False, "function not found"
+
+    def test_has_clamp_params(self):
+        """Has min_duration and max_duration clamp params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                source = ast.unparse(node)
+                assert "min_duration" in source
+                assert "max_duration" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_Quarter_ppqn(self):
+        """Uses Quarter = 960 for PPQN conversion"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                source = ast.unparse(node)
+                assert "Quarter" in source
+                assert "960" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_modify(self):
+        """Uses h.modify() for box mutations"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                source = ast.unparse(node)
+                assert "h.modify" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_duration_stats(self):
+        """Returns original and new duration min/max/avg"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                source = ast.unparse(node)
+                assert "original" in source
+                assert "new" in source
+                return
+        assert False, "function not found"
+
+    def test_legato_sorts_by_position(self):
+        """Legato mode sorts notes by position"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                source = ast.unparse(node)
+                assert "sort" in source
+                assert "position" in source
+                return
+        assert False, "function not found"
+
+    def test_quantize_has_grid_map(self):
+        """Quantize mode has grid map (16th/8th/quarter/half)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_scale_durations":
+                source = ast.unparse(node)
+                assert "16th" in source
+                assert "8th" in source
+                assert "quarter" in source
+                assert "half" in source
+                return
+        assert False, "function not found"
+

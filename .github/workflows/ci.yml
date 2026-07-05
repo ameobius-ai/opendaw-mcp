@@ -51,7 +51,7 @@ jobs:
           import asyncio
           tools = asyncio.run(mcp.list_tools())
           print(f'Registered MCP tools: {len(tools)}')
-          assert len(tools) >= 385, f'Expected >=385 registered tools, got {len(tools)}'
+          assert len(tools) >= 386, f'Expected >=385 registered tools, got {len(tools)}'
           tool_names = {t.name for t in tools}
           for required in ['mcp_opendaw_get_project_info', 'mcp_opendaw_create_synth_track', 'mcp_opendaw_add_effect', 'mcp_opendaw_export_mix', 'mcp_opendaw_transport']:
               assert required in tool_names, f'Missing required tool: {required}'

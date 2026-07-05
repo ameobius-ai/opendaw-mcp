@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.210.0 (2026-07-05)
+
+### Added
+- `scale_durations` — MIDI note duration scaling tool. 5 modes: multiply (scale all durations by factor), add (offset durations), set (uniform duration), quantize (snap to 16th/8th/quarter/half grid), legato (extend each note to just before next note with configurable gap). Returns original + new duration min/max/avg. Clamp via min_duration/max_duration. Companion to scale_velocity — same concept for note lengths. 9 unit tests. **386 MCP tools**, 2696 unit tests
+
 ## v1.209.0 (2026-07-05)
 
 ### Added

@@ -17651,6 +17651,172 @@ async def mcp_opendaw_scale_velocity(
 
 
 @mcp.tool()
+async def mcp_opendaw_scale_durations(
+    unit_index: int,
+    track_index: int,
+    mode: str = "multiply",
+    value: float = 1.0,
+    region_index: int = -1,
+    min_duration: float = 0.0,
+    max_duration: float = 16.0,
+    quantize: str = "none",
+) -> str:
+    """Scale the duration of all notes in a region — MIDI note length control.
+
+    Like scale_velocity but for note durations. Multiply, set, add, quantize,
+    or snap to grid. Useful for changing articulation globally — make all notes
+    shorter (staccato feel), longer (legato feel), or snap to a grid.
+
+    mode: How to scale durations:
+      - "multiply" — multiply each note's duration by value (0.5 = half length,
+        2.0 = double). Clamped to min/max.
+      - "add" — add value (in beats) to each duration. Clamped.
+      - "set" — set all durations to value (in beats).
+      - "quantize" — snap each duration to the nearest grid division.
+        value = grid in beats (0.25 = 16th, 0.5 = 8th, 1.0 = quarter).
+      - "legato" — extend each note to just before the next note's start.
+        value = gap fraction (0.0 = touch next note, 0.1 = 10% gap before next).
+
+    value: The scaling parameter (meaning depends on mode).
+    region_index: Region index (-1 = first region).
+    min_duration / max_duration: Clamp range in beats.
+    quantize: Grid for quantize mode ("16th", "8th", "quarter", "half") —
+      overrides value if mode="quantize".
+
+    Returns count of notes modified, original and new duration stats.
+
+    Example:
+      # Make everything half length (staccato feel)
+      scale_durations(0, 0, mode="multiply", value=0.5)
+      # All notes to quarter note length
+      scale_durations(0, 3, mode="set", value=1.0)
+      # Snap durations to 16th grid
+      scale_durations(0, 0, mode="quantize", quantize="16th")
+      # Legato — extend to next note with small gap
+      scale_durations(0, 1, mode="legato", value=0.1)
+    """
+    if mode not in ("multiply", "add", "set", "quantize", "legato"):
+        return f"Error: mode must be multiply/add/set/quantize/legato, got '{mode}'"
+    if not (0.0 <= min_duration <= max_duration):
+        return "Error: min_duration must be >= 0 and <= max_duration"
+    if max_duration <= 0:
+        return "Error: max_duration must be > 0"
+
+    grid_map = {"16th": 0.25, "8th": 0.5, "quarter": 1.0, "half": 2.0}
+    grid_val = grid_map.get(quantize, 0.0) if mode == "quantize" else 0.0
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const mode = "{mode}";
+        const val = {value};
+        const minDur = {min_duration};
+        const maxDur = {max_duration};
+        const gridVal = {grid_val};
+        const Quarter = 960;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const tracks = h.trackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+        const track = tracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regionIdx2 = regionIdx < 0 ? 0 : regionIdx;
+        if (regionIdx2 >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regionIdx2];
+
+        const eventsField = region.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const noteEvents = [...collBox.events.pointerHub.incoming()];
+        if (noteEvents.length === 0) return {{error: "No notes in region"}};
+
+        // Sort by position for legato mode
+        noteEvents.sort((a, b) => a.box.position.getValue() - b.box.position.getValue());
+
+        // Collect original durations (in beats)
+        const origDurs = noteEvents.map(n => n.box.duration.getValue() / Quarter);
+        const origMin = Math.min(...origDurs);
+        const origMax = Math.max(...origDurs);
+        const origAvg = origDurs.reduce((a, b) => a + b, 0) / origDurs.length;
+
+        let modified = 0;
+        h.modify(() => {{
+            if (mode === "set") {{
+                for (const n of noteEvents) {{
+                    let d = val;
+                    d = Math.max(minDur, Math.min(maxDur, d));
+                    n.box.duration.setValue(Math.round(d * Quarter));
+                    modified++;
+                }}
+            }} else if (mode === "multiply") {{
+                for (const n of noteEvents) {{
+                    let d = (n.box.duration.getValue() / Quarter) * val;
+                    d = Math.max(minDur, Math.min(maxDur, d));
+                    n.box.duration.setValue(Math.round(d * Quarter));
+                    modified++;
+                }}
+            }} else if (mode === "add") {{
+                for (const n of noteEvents) {{
+                    let d = (n.box.duration.getValue() / Quarter) + val;
+                    d = Math.max(minDur, Math.min(maxDur, d));
+                    n.box.duration.setValue(Math.round(d * Quarter));
+                    modified++;
+                }}
+            }} else if (mode === "quantize") {{
+                if (gridVal > 0) {{
+                    for (const n of noteEvents) {{
+                        let d = (n.box.duration.getValue() / Quarter);
+                        d = Math.round(d / gridVal) * gridVal;
+                        d = Math.max(minDur, Math.min(maxDur, d));
+                        n.box.duration.setValue(Math.round(d * Quarter));
+                        modified++;
+                    }}
+                }}
+            }} else if (mode === "legato") {{
+                // Extend to just before next note
+                for (let i = 0; i < noteEvents.length; i++) {{
+                    const curPos = noteEvents[i].box.position.getValue();
+                    const curDur = noteEvents[i].box.duration.getValue() / Quarter;
+                    let targetEnd;
+                    if (i < noteEvents.length - 1) {{
+                        const nextPos = noteEvents[i + 1].box.position.getValue() / Quarter;
+                        const gap = val; // gap fraction in beats
+                        targetEnd = nextPos - gap;
+                    }} else {{
+                        // Last note: extend by current duration or 1 beat, whichever is longer
+                        targetEnd = curPos / Quarter + Math.max(curDur, 1.0);
+                    }}
+                    let d = targetEnd - curPos / Quarter;
+                    d = Math.max(minDur, Math.min(maxDur, d));
+                    noteEvents[i].box.duration.setValue(Math.round(d * Quarter));
+                    modified++;
+                }}
+            }}
+        }});
+
+        // Collect new durations
+        const newDurs = noteEvents.map(n => n.box.duration.getValue() / Quarter);
+        const newMin = Math.min(...newDurs);
+        const newMax = Math.max(...newDurs);
+        const newAvg = newDurs.reduce((a, b) => a + b, 0) / newDurs.length;
+
+        return {{
+            success: true,
+            notes_modified: modified,
+            mode: mode,
+            value: val,
+            original: {{min: Math.round(origMin * 1000) / 1000, max: Math.round(origMax * 1000) / 1000, avg: Math.round(origAvg * 1000) / 1000}},
+            new: {{min: Math.round(newMin * 1000) / 1000, max: Math.round(newMax * 1000) / 1000, avg: Math.round(newAvg * 1000) / 1000}},
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

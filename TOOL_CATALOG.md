@@ -429,6 +429,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_ostinato` — Create a repeating melodic/rhythmic pattern as a foundation layer. Scale-based, 1-16 repeats. Common in minimalism, electronic, and film music.
 - `create_crescendo` — Apply crescendo/decrescendo to existing notes. Linear, exponential, or logarithmic velocity curves. One call modifies all notes in a region.
 - `scale_velocity` — Scale velocity of all notes in a region — MIDI dynamics gain. 5 modes: multiply (×1.2 louder), add (+0.1), set (uniform), normalize (scale to target max), compress (reduce dynamic range around 0.5 midpoint). Returns original + new velocity min/max/avg. Clamp range via min_velocity/max_velocity.
+- `scale_durations` — Scale duration of all notes in a region — MIDI note length control. 5 modes: multiply (×0.5 staccato), add (+0.5 beats), set (uniform), quantize (snap to 16th/8th/quarter/half grid), legato (extend to next note with gap). Returns original + new duration min/max/avg. Clamp via min_duration/max_duration.
 - `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.
 - `create_polyrhythm` — Create polyrhythms — two rhythmic streams with different subdivision counts (3:4, 2:3, 5:7, etc.). Jazz, electronic, progressive, math rock.
 - `create_scale_run` — Create ascending/descending scale runs for fills and transitions. 14 scales, 1-4 octaves, adjustable step duration.
@@ -456,7 +457,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 
-**Total: 385 tools**
+**Total: 386 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 
