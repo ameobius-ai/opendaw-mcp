@@ -19772,5 +19772,270 @@ async def mcp_opendaw_create_variations(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_motif_development(
+    motif: str,
+    scale: str = "minor",
+    root: str = "A",
+    octave: int = 4,
+    steps: str = "statement,sequence_up,sequence_down,fragment,invert,sequence_up,fragment,octave_up,cadence",
+    step_duration: float = 0.25,
+    velocity: float = 0.75,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Develop a motif into a through-composed melodic line that evolves.
+
+    Takes a short motif (2-8 notes) and builds a continuous melodic line
+    that develops through compositional stages: statement, sequential
+    repetition (up/down), fragmentation (shorter segments), inversion,
+    octave displacement, and cadence. This is the Beethoven 5th approach —
+    a 4-note seed grows into an entire melodic arc.
+
+    Unlike create_variations (separate regions, each a full transformation),
+    create_motif_development writes ONE continuous line that flows through
+    stages without stopping. Unlike create_sequence (pure transposition),
+    this tool mixes multiple development techniques in sequence.
+
+    motif: Comma-separated scale degrees (1-7) or MIDI pitches.
+      Scale degrees: 1=root, 2=2nd, 3=3rd, etc. 0=rest.
+      MIDI pitches: 60,62,64,65 etc (when use_midi=true implicit if >7).
+      Example: "1,1,1,2" or "60,60,60,62"
+    scale: Scale type (major, minor, harmonic_minor, dorian, etc.).
+    root: Root note name (C, D#, Bb, etc.).
+    octave: MIDI octave for root (4 = C4=60).
+    steps: Comma-separated development stages:
+      "statement" — play motif as-is
+      "sequence_up" — transpose up by a 4th (5 semitones)
+      "sequence_down" — transpose down by a 4th
+      "fragment" — play first half of motif
+      "fragment_end" — play second half of motif
+      "invert" — invert around root pitch
+      "octave_up" — shift up one octave
+      "octave_down" — shift down one octave
+      "expand" — double note durations
+      "compress" — halve note durations
+      "cadence" — resolve to root (scale degree 1, longer duration)
+    step_duration: Duration of each note in beats (0.25 = 16th).
+    velocity: Base velocity 0-1.
+    unit_index: AU index with a note track.
+    track_index: Note track index within the AU.
+    start_beat: Where the development starts.
+
+    Returns total notes, stage count, pitches used.
+    """
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if scale not in SCALE_INTERVALS:
+        return f"Error: unknown scale '{scale}'. Valid: {list(SCALE_INTERVALS.keys())}"
+    if not 0 < velocity <= 1:
+        return "Error: velocity must be 0-1"
+
+    stage_list = [s.strip() for s in steps.split(",") if s.strip()]
+    if not stage_list:
+        return "Error: steps must be a non-empty comma-separated list"
+    if len(stage_list) > 24:
+        return "Error: maximum 24 stages"
+
+    valid_stages = {"statement", "sequence_up", "sequence_down", "fragment",
+                    "fragment_end", "invert", "octave_up", "octave_down",
+                    "expand", "compress", "cadence"}
+    for s in stage_list:
+        if s not in valid_stages:
+            return f"Error: unknown stage '{s}'. Valid: {', '.join(sorted(valid_stages))}"
+
+    # Parse motif — detect if MIDI pitches (>7) or scale degrees
+    try:
+        motif_nums = [int(x.strip()) for x in motif.split(",")]
+    except ValueError:
+        return "Error: motif must be comma-separated integers"
+    if len(motif_nums) < 2 or len(motif_nums) > 8:
+        return "Error: motif must have 2-8 notes"
+
+    # Convert scale degrees to MIDI pitches
+    root_pc = NOTE_TO_PITCH[root]
+    intervals = SCALE_INTERVALS[scale]
+    base_pitch = (octave + 1) * 12 + root_pc
+
+    # If all numbers <= 7 and >= 0, treat as scale degrees
+    is_scale_degrees = all(0 <= n <= 7 for n in motif_nums)
+    if is_scale_degrees:
+        motif_pitches = []
+        for deg in motif_nums:
+            if deg == 0:
+                motif_pitches.append(0)  # rest
+            else:
+                idx = (deg - 1) % len(intervals)
+                oct_shift = (deg - 1) // len(intervals)
+                motif_pitches.append(base_pitch + intervals[idx] + 12 * oct_shift)
+    else:
+        motif_pitches = [max(0, min(127, p)) for p in motif_nums]
+
+    # Generate notes through stages
+    note_list = []
+    current_pos = start_beat
+    current_dur = step_duration
+    current_pitches = list(motif_pitches)
+
+    for stage in stage_list:
+        stage_notes = []
+
+        if stage == "statement":
+            for p in current_pitches:
+                if p > 0:
+                    stage_notes.append({"pitch": p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "sequence_up":
+            for p in current_pitches:
+                new_p = max(0, min(127, p + 5))
+                if new_p > 0:
+                    stage_notes.append({"pitch": new_p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "sequence_down":
+            for p in current_pitches:
+                new_p = max(0, min(127, p - 5))
+                if new_p > 0:
+                    stage_notes.append({"pitch": new_p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "fragment":
+            half = max(1, len(current_pitches) // 2)
+            for p in current_pitches[:half]:
+                if p > 0:
+                    stage_notes.append({"pitch": p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "fragment_end":
+            half = max(1, len(current_pitches) // 2)
+            for p in current_pitches[half:]:
+                if p > 0:
+                    stage_notes.append({"pitch": p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "invert":
+            ref = current_pitches[0] if current_pitches else base_pitch
+            for p in current_pitches:
+                new_p = max(0, min(127, 2 * ref - p))
+                if new_p > 0:
+                    stage_notes.append({"pitch": new_p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "octave_up":
+            for p in current_pitches:
+                new_p = min(127, p + 12)
+                if new_p > 0:
+                    stage_notes.append({"pitch": new_p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "octave_down":
+            for p in current_pitches:
+                new_p = max(0, p - 12)
+                if new_p > 0:
+                    stage_notes.append({"pitch": new_p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "expand":
+            current_dur = current_dur * 2
+            for p in current_pitches:
+                if p > 0:
+                    stage_notes.append({"pitch": p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "compress":
+            current_dur = max(0.0625, current_dur / 2)
+            for p in current_pitches:
+                if p > 0:
+                    stage_notes.append({"pitch": p, "pos": current_pos, "dur": current_dur, "vel": velocity})
+                current_pos += current_dur
+
+        elif stage == "cadence":
+            # Resolve to root, longer duration
+            cad_dur = current_dur * 4
+            stage_notes.append({"pitch": base_pitch, "pos": current_pos, "dur": cad_dur, "vel": velocity})
+            current_pos += cad_dur
+
+        note_list.extend(stage_notes)
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const notes = {json.dumps(note_list)};
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.noteTrackBoxes(allUnits[unitIdx]);
+        if (noteTracks.length === 0) return {{error: "No note tracks on AU " + unitIdx}};
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const trackBox = noteTracks[trackIdx];
+        let createdCount = 0;
+
+        h.modify(() => {{
+            const existing = h.regionBoxes(trackBox);
+            let regionBox = null;
+            if (existing.length > 0) {{
+                regionBox = existing[0];
+            }} else {{
+                let maxEnd = 0;
+                for (const n of notes) maxEnd = Math.max(maxEnd, Math.round((n.pos + n.dur) * Quarter));
+                const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+                regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(0);
+                    box.label.setValue("Motif Development");
+                    box.mute.setValue(false);
+                    box.duration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.loopDuration.setValue(Math.max(maxEnd, 4 * Quarter));
+                    box.eventOffset.setValue(0);
+                    box.events.refer(collection.owners);
+                    box.regions.refer(trackBox.regions);
+                }});
+            }}
+
+            const regionStart = regionBox.position.getValue();
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const n of notes) {{
+                const pos = Math.max(0, Math.round(n.pos * Quarter) - regionStart);
+                const dur = Math.round(n.dur * Quarter);
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(pos);
+                    box.duration.setValue(dur);
+                    box.velocity.setValue(n.vel);
+                    box.pitch.setValue(n.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                createdCount++;
+            }}
+            const maxEnd = Math.max(...notes.map(n => Math.round((n.pos + n.dur) * Quarter)));
+            if (maxEnd > regionBox.duration.getValue()) {{
+                regionBox.duration.setValue(maxEnd);
+                regionBox.loopDuration.setValue(maxEnd);
+            }}
+        }});
+
+        return {{
+        success: true,
+        notes_created: createdCount,
+        stages: {len(stage_list)},
+        total_beats: {current_pos - start_beat},
+        unit_index: unitIdx,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()

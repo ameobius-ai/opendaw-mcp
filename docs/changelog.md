@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.77.0 (2026-07-05)
+
+- **`create_motif_development` orchestration tool** — through-composed melodic development: 2-8 note motif → continuous evolving line. 11 stages: statement/sequence/fragment/invert/octave/expand/compress/cadence. Beethoven 5th approach. 51 orchestration tools
+- **308 MCP tools** (51 orchestration)
+- **732 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.76.0 (2026-07-05)
 
 - **`werkstatt_rotary_speaker.js` DSP script** — Leslie rotary: dual horn+rotor, Doppler pitch mod, amplitude mod, crossover, acceleration. Hammond organ, guitar, soul vocals

@@ -2686,3 +2686,74 @@ class TestCreateVariations:
             source_unit=0, source_track=0, variations=many
         ))
         assert "maximum 16" in result
+
+
+class TestCreateMotifDevelopment:
+    """Unit tests for create_motif_development orchestration tool."""
+
+    def test_signature(self):
+        from server import mcp_opendaw_create_motif_development
+        sig = inspect.signature(mcp_opendaw_create_motif_development)
+        assert "motif" in sig.parameters
+        assert "steps" in sig.parameters
+        assert "scale" in sig.parameters
+        assert sig.parameters["scale"].default == "minor"
+
+    def test_default_steps(self):
+        from server import mcp_opendaw_create_motif_development
+        sig = inspect.signature(mcp_opendaw_create_motif_development)
+        default = sig.parameters["steps"].default
+        assert "statement" in default
+        assert "sequence_up" in default
+        assert "fragment" in default
+        assert "invert" in default
+        assert "cadence" in default
+
+    def test_invalid_root(self):
+        import asyncio
+        from server import mcp_opendaw_create_motif_development
+        result = asyncio.run(mcp_opendaw_create_motif_development(motif="1,2,3", root="X"))
+        assert "Error" in result
+
+    def test_invalid_scale(self):
+        import asyncio
+        from server import mcp_opendaw_create_motif_development
+        result = asyncio.run(mcp_opendaw_create_motif_development(motif="1,2,3", scale="bogus"))
+        assert "Error" in result
+
+    def test_invalid_motif_too_short(self):
+        import asyncio
+        from server import mcp_opendaw_create_motif_development
+        result = asyncio.run(mcp_opendaw_create_motif_development(motif="1"))
+        assert "Error" in result
+
+    def test_invalid_motif_too_long(self):
+        import asyncio
+        from server import mcp_opendaw_create_motif_development
+        result = asyncio.run(mcp_opendaw_create_motif_development(motif="1,2,3,4,5,6,7,8,9"))
+        assert "Error" in result
+
+    def test_invalid_stage(self):
+        import asyncio
+        from server import mcp_opendaw_create_motif_development
+        result = asyncio.run(mcp_opendaw_create_motif_development(motif="1,2,3", steps="statement,bogus"))
+        assert "Error" in result
+
+    def test_too_many_stages(self):
+        import asyncio
+        from server import mcp_opendaw_create_motif_development
+        many = ",".join(["statement"] * 25)
+        result = asyncio.run(mcp_opendaw_create_motif_development(motif="1,2,3", steps=many))
+        assert "Error" in result
+
+    def test_doc_mentions_beethoven(self):
+        from server import mcp_opendaw_create_motif_development
+        doc = mcp_opendaw_create_motif_development.__doc__
+        assert "Beethoven" in doc
+
+    def test_stage_types_documented(self):
+        from server import mcp_opendaw_create_motif_development
+        doc = mcp_opendaw_create_motif_development.__doc__
+        for stage in ["statement", "sequence_up", "sequence_down", "fragment",
+                       "invert", "octave_up", "octave_down", "expand", "compress", "cadence"]:
+            assert stage in doc, f"Stage '{stage}' not in docstring"

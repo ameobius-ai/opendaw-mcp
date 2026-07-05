@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **307** MCP tools | **93** Python examples (8 genre templates) |
+| **308** MCP tools | **94** Python examples (8 genre templates) |
 | **61** DSP scripts | **11** agent skills |
-| **3** framework wrappers | **722** unit + E2E tests |
+| **3** framework wrappers | **732** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -507,6 +507,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.77.0 (2026-07-05)
+
+- **`create_motif_development` orchestration tool** — through-composed melodic development. Takes a 2-8 note motif and builds ONE continuous melodic line that evolves through 11 stage types: statement, sequence_up/down, fragment/fragment_end, invert, octave_up/down, expand, compress, cadence. Beethoven 5th approach — a 4-note seed grows into a full melodic arc. Unlike create_variations (separate regions, each a full transform), this writes a single flowing line. Unlike create_sequence (pure transposition), this mixes multiple development techniques in sequence. Accepts scale degrees (1-7) or MIDI pitches. 51 orchestration tools → 51
+- **308 MCP tools** (51 orchestration)
+- **732 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ## v1.76.0 (2026-07-05)
 
