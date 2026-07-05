@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.279.0 (2026-07-06)
+
+### Added
+- `shift_mode` — modal transformation: shift notes from one scale/mode to another, preserving tonic. Finds differing scale degrees and shifts only those notes. minor→dorian (+1 on degree 6), minor→phrygian (-1 on degree 2), major→mixolydian (-1 on degree 7). 14 scales. Unlike force_scale_notes (snaps nearest), preserves contour.
+
 ## v1.278.0 (2026-07-06)
 
 ### Added

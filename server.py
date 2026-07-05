@@ -34923,6 +34923,218 @@ async def mcp_opendaw_create_additive_rhythm(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_shift_mode(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    root_note: str = "C",
+    from_scale: str = "minor",
+    to_scale: str = "dorian",
+    preserve_root: bool = True,
+) -> str:
+    """Transform notes from one scale/mode to another, keeping the tonic.
+
+    Finds which scale degrees differ between from_scale and to_scale, then
+    shifts ONLY the notes on those degrees by the interval difference. The
+    tonic (degree 1) and unchanged degrees stay put — the transformation is
+    surgical, not a blanket snap.
+
+    Examples:
+      shift_mode(root_note="A", from_scale="minor", to_scale="dorian")
+        → minor 6th (Ab) becomes major 6th (F#). A minor → A dorian.
+          Only notes on degree 6 shift (+1 semitone). Everything else stays.
+      shift_mode(root_note="E", from_scale="minor", to_scale="phrygian")
+        → degree 2 (F#) becomes F natural (-1 semitone). E minor → E phrygian.
+      shift_mode(root_note="D", from_scale="major", to_scale="mixolydian")
+        → degree 7 (C#) becomes C natural (-1 semitone). D major → D mixolydian.
+      shift_mode(root_note="C", from_scale="minor", to_scale="harmonic_minor")
+        → degree 7 (Bb) becomes B natural (+1 semitone). C minor → C harmonic minor.
+
+    Unlike force_scale_notes (snaps to nearest scale tone — can change
+    the melodic shape), shift_mode preserves the contour: notes that are
+    already in the target scale don't move. Only the specific degrees that
+    differ between the two scales are shifted.
+
+    Unlike reharmonize_progression (works on chord symbols), shift_mode
+    works on individual notes in a region.
+
+    Args:
+        unit_index: AU index (-1 = all AUs).
+        track_index: Note track index (-1 = all note tracks).
+        region_index: Region index (-1 = all regions on track).
+        root_note: Tonic note (C, C#, D, ...). Stays the same for both scales.
+        from_scale: Source scale name.
+        to_scale: Target scale name.
+        preserve_root: If True (default), never shift the tonic pitch class.
+            If False, allow tonic to shift (rare, only for non-modal transformations).
+
+    Returns per-note shift details: which pitch classes moved, by how much,
+    and total notes affected.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    note_to_num = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                   "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = note_to_num.get(root_note)
+    if root_num is None:
+        return f"Error: invalid root_note '{root_note}'"
+    from_intervals = SCALE_INTERVALS.get(from_scale)
+    if from_intervals is None:
+        return f"Error: unknown from_scale '{from_scale}'. Available: {list(SCALE_INTERVALS.keys())}"
+    to_intervals = SCALE_INTERVALS.get(to_scale)
+    if to_intervals is None:
+        return f"Error: unknown to_scale '{to_scale}'. Available: {list(SCALE_INTERVALS.keys())}"
+
+    if from_scale == to_scale:
+        return f"Error: from_scale and to_scale are the same ('{from_scale}') — nothing to shift"
+
+    # Build pitch class → scale degree mapping for both scales
+    # For each pitch class 0-11, determine which degree it is in each scale
+    # Then find which degrees differ and compute the shift
+    from_pc_to_degree = {}
+    for iv in from_intervals:
+        pc = (root_num + iv) % 12
+        from_pc_to_degree[pc] = from_pc_to_degree.get(pc, len(from_intervals))
+
+    to_pc_to_degree = {}
+    for iv in to_intervals:
+        pc = (root_num + iv) % 12
+        to_pc_to_degree[pc] = to_pc_to_degree.get(pc, len(to_intervals))
+
+    # Build the shift map: for each pitch class, what's the shift amount?
+    # A note at pitch class P belongs to from_scale degree D_from.
+    # In to_scale, degree D_from maps to a different interval.
+    # We need to find: for each from_scale degree, what's the to_scale
+    # interval at the same degree position?
+
+    # Build sorted interval arrays aligned by degree index
+    from_sorted = sorted(from_intervals)
+    to_sorted = sorted(to_intervals)
+
+    # Map: pitch class -> shift amount (semitones)
+    shift_map = {}  # pc -> semitone shift
+
+    max_degrees = max(len(from_sorted), len(to_sorted))
+    for i in range(max_degrees):
+        if i >= len(from_sorted) or i >= len(to_sorted):
+            continue
+        from_iv = from_sorted[i]
+        to_iv = to_sorted[i]
+        if from_iv != to_iv:
+            from_pc = (root_num + from_iv) % 12
+            shift = to_iv - from_iv
+            if preserve_root and from_pc == root_num:
+                continue
+            shift_map[from_pc] = shift
+
+    # Handle scales with different lengths (e.g. pentatonic vs heptatonic)
+    # If to_scale has MORE degrees than from_scale, notes that don't exist
+    # in from_scale but do in to_scale should be left alone (they're already
+    # in the target). If to_scale has FEWER degrees, notes on extra degrees
+    # in from_scale need to be shifted to the nearest target degree.
+    if len(from_sorted) > len(to_sorted):
+        # from_scale has more notes — extra degrees need to snap
+        for i in range(len(to_sorted), len(from_sorted)):
+            from_iv = from_sorted[i]
+            from_pc = (root_num + from_iv) % 12
+            # Find nearest to_scale pitch class
+            best_pc = None
+            best_dist = 999
+            for to_iv in to_sorted:
+                to_pc = (root_num + to_iv) % 12
+                dist = min(abs(from_pc - to_pc), 12 - abs(from_pc - to_pc))
+                if dist < best_dist:
+                    best_dist = dist
+                    best_pc = to_pc
+            if best_pc is not None and best_pc != from_pc:
+                shift = (best_pc - from_pc + 6) % 12 - 6  # shortest path
+                if shift != 0:
+                    shift_map[from_pc] = shift
+
+    shift_map_json = json.dumps({str(k): v for k, v in shift_map.items()})
+    _ = (shift_map_json, root_num)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const shiftMap = {shift_map_json};
+        const rootPc = {root_num};
+
+        const allUnits = h.allAUBoxes();
+        const unitIndices = {unit_index} < 0
+            ? allUnits.map((_, i) => i)
+            : [{unit_index}];
+
+        let totalShifted = 0;
+        const shiftDetails = [];
+        const pcCounts = {{}};
+
+        for (const unitIdx of unitIndices) {{
+            if (unitIdx < 0 || unitIdx >= allUnits.length) continue;
+            const au = allUnits[unitIdx];
+            const noteTracks = h.noteTrackBoxes(au);
+            const trackIndices = {track_index} < 0
+                ? noteTracks.map((_, i) => i)
+                : [{track_index}];
+
+            for (const trackIdx of trackIndices) {{
+                if (trackIdx < 0 || trackIdx >= noteTracks.length) continue;
+                const trackBox = noteTracks[trackIdx];
+                const regions = h.regionBoxes(trackBox);
+                const regionIndices = {region_index} < 0
+                    ? regions.map((_, i) => i)
+                    : [{region_index}];
+
+                for (const regIdx of regionIndices) {{
+                    if (regIdx < 0 || regIdx >= regions.length) continue;
+                    const region = regions[regIdx];
+                    let collection = null;
+                    try {{
+                        const vertex = region.events.targetVertex.unwrap();
+                        collection = vertex.box || vertex;
+                    }} catch(e) {{ continue; }}
+                    if (!collection || !collection.events) continue;
+
+                    const notes = h.eventBoxes(collection);
+
+                    h.modify(() => {{
+                        for (const n of notes) {{
+                            const pitch = n.pitch.getValue();
+                            const pc = ((pitch % 12) + 12) % 12;
+                            const pcKey = String(pc);
+                            if (pcKey in shiftMap) {{
+                                const shift = shiftMap[pcKey];
+                                const newPitch = pitch + shift;
+                                n.pitch.setValue(newPitch);
+                                totalShifted++;
+                                pcCounts[pcKey] = (pcCounts[pcKey] || 0) + 1;
+                            }}
+                        }}
+                    }});
+                }}
+            }}
+        }}
+
+        const shiftSummary = Object.entries(shiftMap).map(([pc, shift]) => ({{
+            pitch_class: parseInt(pc),
+            shift_semitones: shift,
+            notes_affected: pcCounts[pc] || 0,
+        }}));
+
+        return {{
+            success: true,
+            root_note: "{root_note}",
+            from_scale: "{from_scale}",
+            to_scale: "{to_scale}",
+            preserve_root: {str(preserve_root).lower()},
+            total_notes_shifted: totalShifted,
+            degrees_changed: Object.keys(shiftMap).length,
+            shift_map: shiftSummary,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
 
