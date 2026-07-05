@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-371 MCP tools for headless openDAW control via Playwright bridge.
+372 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -248,6 +248,7 @@
 - `export_stems_format` — Export stems as separate files and convert each to MP3 or FLAC.
 - `import_midi` — Import a MIDI file and create note events on a note track.
 - `load_audio` — Load an audio file (WAV/MP3/FLAC/OGG) into the DAW project.
+- `download_audio` — Download audio from URL (Suno CDN, any HTTP source) to local disk. Streaming download with timeout, filename sanitization, next_step suggestion pointing to import_audio_to_tracks. Bridges AI generators → DAW pipeline.
 - `measure_lufs` — Measure LUFS (integrated) and true peak of an exported WAV file.
 - `render_full` — Render the entire project as a single stereo WAV file (full mixdown).
 - `render_full_format` — Render the entire project and convert to MP3 or FLAC in one step.

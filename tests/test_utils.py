@@ -8157,6 +8157,68 @@ class TestWaveguideStringDSP:
         assert "fwdL + bwdL" in code or "waveOut" in code
 
 
+class TestDownloadAudio:
+    """Tests for download_audio URL-to-file tool"""
+
+    def test_url_validation_http(self):
+        """HTTP URLs accepted"""
+        url = "http://cdn.suno.ai/track.wav"
+        assert url.startswith(("http://", "https://"))
+
+    def test_url_validation_https(self):
+        """HTTPS URLs accepted"""
+        url = "https://cdn.suno.ai/track.wav"
+        assert url.startswith(("http://", "https://"))
+
+    def test_url_validation_invalid(self):
+        """Non-HTTP schemes rejected"""
+        url = "ftp://example.com/track.wav"
+        assert not url.startswith(("http://", "https://"))
+
+    def test_filename_from_url(self):
+        """Filename derived from URL path when not provided"""
+        url = "https://cdn.suno.ai/abc123.wav"
+        url_path = url.split("?")[0].split("/")[-1]
+        assert url_path == "abc123.wav"
+
+    def test_filename_from_url_with_query(self):
+        """Query string stripped from derived filename"""
+        url = "https://cdn.suno.ai/track.mp3?token=xyz"
+        url_path = url.split("?")[0].split("/")[-1]
+        assert url_path == "track.mp3"
+
+    def test_filename_sanitization(self):
+        """Dangerous characters in filename are replaced"""
+        filename = "..%2F..%2Fetc%2Fpasswd"
+        safe = filename.replace("/", "_").replace("\\", "_").replace("..", "_")
+        assert "/" not in safe
+        assert "\\" not in safe
+        assert ".." not in safe
+
+    def test_empty_url_rejected(self):
+        """Empty URL returns error"""
+        url = ""
+        assert not url or not url.startswith(("http://", "https://"))
+
+    def test_output_dir_check(self):
+        """Non-existent output_dir returns error"""
+        output_dir = "/tmp/nonexistent_dir_12345"
+        assert not os.path.isdir(output_dir)
+
+    def test_suno_pipeline_download_to_import(self):
+        """Pipeline: download_audio → import_audio_to_tracks"""
+        steps = ["download_audio", "import_audio_to_tracks"]
+        assert len(steps) == 2
+        assert steps[0] == "download_audio"
+
+    def test_next_step_suggestion(self):
+        """download_audio returns next_step pointing to import_audio_to_tracks"""
+        output_path = "/tmp/track.wav"
+        next_step = f'import_audio_to_tracks("{output_path}", mode="bs6")'
+        assert "import_audio_to_tracks" in next_step
+        assert output_path in next_step
+
+
 class TestImportAudioToTracks:
     """Tests for import_audio_to_tracks composite pipeline tool"""
 

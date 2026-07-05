@@ -966,6 +966,82 @@ async def mcp_opendaw_set_track_solo(unit_index: int, solo: bool) -> str:
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_download_audio(url: str, filename: str = "", output_dir: str = "/tmp") -> str:
+    """Download an audio file from a URL (e.g. Suno CDN) to local disk.
+
+    Bridges the gap between AI music generators (Suno, Udio) and the DAW:
+    generate a track → get audio URL → download → import_audio_to_tracks.
+    Without this, you need manual curl/wget outside the MCP pipeline.
+
+    Supports any HTTP(S) URL pointing to WAV/MP3/FLAC/OGG. Uses streaming
+    download with timeout. Files saved to /tmp by default (or custom dir).
+
+    url: Direct URL to the audio file (e.g. Suno CDN audio_url from chirp_generate).
+    filename: Output filename (default: derived from URL path).
+    output_dir: Directory to save (default /tmp). Must exist.
+
+    Returns absolute file path, size, and suggested next step (import_audio_to_tracks).
+
+    Examples:
+      # Download a Suno track
+      download_audio("https://cdn.suno.ai/abc123.wav")
+      # Custom name
+      download_audio("https://cdn.suno.ai/abc123.mp3", filename="my_track.mp3")
+      # Then import with stem splitting
+      import_audio_to_tracks("/tmp/my_track.mp3", mode="bs6")
+    """
+    import urllib.request
+    import urllib.error
+
+    if not url or not url.startswith(("http://", "https://")):
+        return json.dumps({"error": "URL must start with http:// or https://"})
+
+    # Derive filename from URL if not provided
+    if not filename:
+        url_path = url.split("?")[0].split("/")[-1]
+        filename = url_path if url_path else "downloaded_audio.wav"
+    # Sanitize filename
+    filename = filename.replace("/", "_").replace("\\", "_").replace("..", "_")
+
+    if not os.path.isdir(output_dir):
+        return json.dumps({"error": f"Output directory does not exist: {output_dir}"})
+
+    output_path = os.path.join(output_dir, filename)
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "opendaw-mcp/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as response:
+            content_type = response.headers.get("Content-Type", "")
+            total = 0
+            with open(output_path, "wb") as f:
+                while True:
+                    chunk = response.read(65536)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    total += len(chunk)
+
+        file_size = os.path.getsize(output_path)
+        return json.dumps({
+            "downloaded": True,
+            "url": url,
+            "file_path": output_path,
+            "filename": filename,
+            "size_bytes": file_size,
+            "size_mb": round(file_size / 1024 / 1024, 2),
+            "content_type": content_type,
+            "next_step": f"import_audio_to_tracks(\"{output_path}\", mode=\"bs6\")",
+        }, indent=2)
+
+    except urllib.error.HTTPError as e:
+        return json.dumps({"error": f"HTTP {e.code}: {e.reason}", "url": url})
+    except urllib.error.URLError as e:
+        return json.dumps({"error": f"URL error: {e.reason}", "url": url})
+    except Exception as e:
+        return json.dumps({"error": str(e), "url": url})
+
+
+@mcp.tool()
 async def mcp_opendaw_load_audio(file_path: str, name: str) -> str:
     """Load an audio file (WAV/MP3/FLAC/OGG) into the DAW project.
 
