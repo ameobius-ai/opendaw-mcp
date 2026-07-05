@@ -14665,6 +14665,136 @@ async def mcp_opendaw_create_filter_sweep(unit_index: int, direction: str = "ope
 
 
 @mcp.tool()
+async def mcp_opendaw_create_volume_fade(unit_index: int, direction: str = "out", start_beat: float = 0, duration_beats: float = 4, start_volume_db: float = 0, end_volume_db: float = -60, curve: str = "exp", steps: int = 24) -> str:
+    """Create a volume fade automation on an audio unit — fade in or fade out.
+
+    The most common mix technique for intros, outros, breakdowns, and section transitions.
+    Creates volume automation events on the AU's volume parameter, ramping from one dB
+    level to another. Uses exponential curve by default (natural for amplitude perception).
+
+    unit_index: AU index.
+    direction: "out" (fade out, volume decreases) or "in" (fade in, volume increases).
+    start_beat: Start position in beats.
+    duration_beats: Fade length in beats (default 4 = 1 bar).
+    start_volume_db: Starting volume in dB (default: 0 for out, -60 for in).
+    end_volume_db: Ending volume in dB (default: -60 for out, 0 for in).
+    curve: "exp" (exponential, default — natural for amplitude), "linear", "log".
+    steps: Number of automation points (default 24 = smooth).
+
+    Returns events created, fade config, and dB range.
+
+    Examples:
+      create_volume_fade(unit_index=0, direction="out", duration_beats=8)
+        → 8-beat fade out from 0 dB to -60 dB, exp curve
+      create_volume_fade(unit_index=2, direction="in", duration_beats=4, end_volume_db=-3)
+        → 4-beat fade in from -60 dB to -3 dB
+    """
+    # Smart defaults based on direction
+    if direction == "in":
+        if start_volume_db == 0 and end_volume_db == -60:
+            start_volume_db, end_volume_db = -60, 0
+    elif direction == "out":
+        pass  # defaults already correct
+
+    end_beat = start_beat + duration_beats
+    safe_curve = curve.replace('"', '').replace("'", "")
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
+        try {{
+            const unitIdx = {unit_index};
+            const startBeat = {start_beat};
+            const endBeat = {end_beat};
+            const startDb = {start_volume_db};
+            const endDb = {end_volume_db};
+            const numSteps = {steps};
+            const curveType = "{safe_curve}";
+
+            const units = h.allAUBoxes();
+            if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
+            const au = units[unitIdx];
+
+            const volField = au["volume"];
+            if (!volField) return {{error: "No volume field on AU"}};
+
+            // Convert dB to normalized volume value using VolumeMapper
+            // openDAW uses powerByCenter(-96, -9, +6) mapping
+            // We approximate: normalized = 10^(dB/20) mapped to 0..1 range
+            // For automation we use the field's constraints if available
+            const constraints = volField.constraints;
+            const minDb = -96, centerDb = -9, maxDb = 6;
+
+            function dbToNorm(db) {{
+                if (db <= minDb) return 0;
+                if (db >= maxDb) return 1;
+                // powerByCenter: exponential mapping through center point
+                if (db < centerDb) {{
+                    const t = (db - minDb) / (centerDb - minDb);
+                    return t * t * 0.5; // lower half: quadratic
+                }} else {{
+                    const t = (db - centerDb) / (maxDb - centerDb);
+                    return 0.5 + t * 0.5; // upper half: linear
+                }}
+            }}
+
+            const beatRange = endBeat - startBeat;
+            const points = [];
+            for (let i = 0; i < numSteps; i++) {{
+                const t = i / (numSteps - 1);
+                let dbVal;
+                if (curveType === "exp") {{
+                    // Exponential dB ramp: slow start, accelerating
+                    dbVal = startDb + (endDb - startDb) * (Math.exp(t * 3) - 1) / (Math.exp(3) - 1);
+                }} else if (curveType === "log") {{
+                    dbVal = startDb + (endDb - startDb) * Math.log(1 + t * (Math.E - 1));
+                }} else {{
+                    dbVal = startDb + (endDb - startDb) * t;
+                }}
+                const beatPos = startBeat + beatRange * t;
+                const normVal = dbToNorm(dbVal);
+                points.push([beatPos, normVal]);
+            }}
+
+            let autoTrack;
+            h.editing.modify(() => {{
+                autoTrack = h.api.createAutomationTrack(au, volField);
+                const volClip = h.api.createValueClip(autoTrack, 0, {{name: "volume"}});
+                const volCol = volClip.events?.targetVertex?.unwrap?.()?.box;
+                if (!volCol) throw new Error("No event collection on volume clip");
+                points.forEach(([beatPos, value], i) => {{
+                    ValueEventBox.create(h.boxGraph, UUID.generate(), (box) => {{
+                        box.events.refer(volCol.events);
+                        box.position.setValue(Math.round(beatPos * Quarter));
+                        box.index.setValue(i);
+                        box.value.setValue(value);
+                        box.interpolation.setValue(1);
+                    }});
+                }});
+            }});
+
+            return {{
+                success: true,
+                direction: "{direction}",
+                events_created: points.length,
+                unit_index: unitIdx,
+                start_beat: startBeat,
+                end_beat: endBeat,
+                db_range: [startDb, endDb],
+                curve: curveType,
+                track_index: autoTrack?.index?.getValue?.() ?? 0,
+                preview: points.slice(0, 6).map(([b, v]) => ({{beat: Math.round(b * 100) / 100, vol_norm: Math.round(v * 1000) / 1000}})),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_mix_preset(preset: str) -> str:
     """Apply a mix preset to all audio units in one call — volume, pan, mute, solo.
 

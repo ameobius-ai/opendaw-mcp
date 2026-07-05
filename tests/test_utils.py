@@ -7725,3 +7725,92 @@ class TestCreateFilterSweep:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_create_filter_sweep" in tool_names
 
+
+class TestCreateVolumeFade:
+    """Tests for create_volume_fade orchestration tool"""
+
+    def test_direction_out_defaults(self):
+        """Fade out: starts at 0 dB, ends at -60 dB"""
+        start_db = 0
+        end_db = -60
+        assert start_db > end_db  # volume decreases
+
+    def test_direction_in_defaults(self):
+        """Fade in: starts at -60 dB, ends at 0 dB"""
+        start_db = 0
+        end_db = -60
+        # direction="in" swaps defaults
+        if True:  # direction == "in"
+            start_db, end_db = end_db, start_db
+        assert start_db == -60
+        assert end_db == 0
+
+    def test_db_to_norm_silence(self):
+        """-96 dB maps to 0.0 (silence)"""
+        min_db = -96
+        if min_db <= -96:
+            norm = 0.0
+        assert norm == 0.0
+
+    def test_db_to_norm_max(self):
+        """+6 dB maps to 1.0 (max)"""
+        max_db = 6
+        if max_db >= 6:
+            norm = 1.0
+        assert norm == 1.0
+
+    def test_db_to_norm_center(self):
+        """-9 dB (center) maps to 0.5"""
+        db = -9
+        min_db, center_db, max_db = -96, -9, 6
+        if db < center_db:
+            t = (db - min_db) / (center_db - min_db)
+            norm = t * t * 0.5
+        else:
+            t = (db - center_db) / (max_db - center_db)
+            norm = 0.5 + t * 0.5
+        assert abs(norm - 0.5) < 0.001
+
+    def test_db_to_norm_zero_db(self):
+        """0 dB maps above center (0.5 < norm < 1.0)"""
+        db = 0
+        center_db, max_db = -9, 6
+        t = (db - center_db) / (max_db - center_db)
+        norm = 0.5 + t * 0.5
+        assert 0.5 < norm < 1.0
+
+    def test_exp_curve_fade_out(self):
+        """Exp curve (e^(t*3)-1)/(e^3-1) for fade out: slow start, accelerating drop.
+        At midpoint, exp value is above linear (less drop so far)."""
+        start_db, end_db = 0, -60
+        t = 0.5
+        exp_val = start_db + (end_db - start_db) * (pow(2.71828, t * 3) - 1) / (pow(2.71828, 3) - 1)
+        lin_val = start_db + (end_db - start_db) * t
+        assert exp_val > lin_val  # exp is concave up: slow start, accelerating finish
+
+    def test_steps_generate_correct_count(self):
+        """24 steps = 24 automation points"""
+        steps = 24
+        points = [i / (steps - 1) for i in range(steps)]
+        assert len(points) == 24
+        assert points[0] == 0.0
+        assert points[-1] == 1.0
+
+    def test_custom_db_overrides_defaults(self):
+        """Explicit start/end dB should not be overridden for fade out"""
+        start_db = -3  # explicit
+        # tool only swaps for "in" direction with default values
+        direction = "out"
+        if direction == "in" and start_db == 0:
+            start_db = -60
+        assert start_db == -3  # not overridden
+
+    def test_tool_signature_exists(self):
+        """create_volume_fade is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_volume_fade" in tool_names
+

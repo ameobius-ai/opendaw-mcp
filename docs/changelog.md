@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.178.0 (2026-07-05)
+
+### Added
+- `create_volume_fade` — smart volume fade automation on AU volume. Direction-aware (in/out), dB-to-normalized conversion via VolumeMapper powerByCenter(-96, -9, +6), exp curve default. For intros, outros, breakdowns, section transitions. 360 MCP tools total
+
 ## v1.177.0 (2026-07-05)
 
 ### Added
