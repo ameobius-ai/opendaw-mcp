@@ -217,6 +217,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 204. `shift_mode` — modal transformation: shift notes from one scale to another preserving tonic, 14 scales, only changed degrees move
 205. `set_note_cents` — deterministic microtonal pitch control: 7 targeting modes (all/pitch/beats/indices/alternating/gradient/scale_degree), -100 to +100 cents
 206. `create_random_walk_melody` — stochastic melody via random walk through scale: stepwise dependency, max_step/direction_bias/boundary behavior, seeded PRNG, Eno/Xenakis generative
+207. `create_markov_melody` — Markov chain melody: interval transition matrix, order 1/2, custom weights, regression to mean, stylistic memory
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

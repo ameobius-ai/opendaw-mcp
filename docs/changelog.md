@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.282.0 (2026-07-06)
+
+### Added
+- `create_markov_melody` — Markov chain melody generation. Next interval depends on previous interval(s) via transition probability matrix. Order 1 or 2. Default matrix favors smooth motion with regression to mean (leaps followed by steps back). Custom weights as JSON. Unlike random_walk (zero-order), captures interval-to-interval tendencies — stylistic memory.
+
 ## v1.281.0 (2026-07-06)
 
 ### Added

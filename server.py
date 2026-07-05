@@ -35667,6 +35667,277 @@ async def mcp_opendaw_create_random_walk_melody(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_markov_melody(
+    root: str = "C",
+    scale: str = "minor",
+    bars: int = 4,
+    octave: int = 4,
+    order: int = 1,
+    interval_weights: str = "",
+    duration: float = 0.5,
+    velocity: float = 0.7,
+    seed: int = 42,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a melody using a Markov chain over scale-degree intervals.
+
+    First-order (or higher) Markov chain: the next interval depends on the
+    current (or previous N) interval(s) via a transition probability matrix.
+    This produces melodies with stylistic memory — the interval patterns
+    characteristic of a genre or composer emerge naturally.
+
+    Unlike random_walk (zero-order: each step independent of history),
+    Markov chains capture interval-to-interval tendencies:
+    - A small ascending interval tends to be followed by another small one
+    - A large leap tends to be followed by a step back (regression to mean)
+    - Specific interval sequences define melodic "style"
+
+    The transition matrix can be:
+    - Default: built-in weights favoring smooth motion (steps > skips > leaps)
+    - Custom: user-provided interval weights as JSON
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, dorian, phrygian, lydian, mixolydian,
+            harmonic_minor, melodic_minor, pentatonic_major, pentatonic_minor, blues).
+        bars: Number of bars (1-32).
+        octave: Starting MIDI octave (1-6).
+        order: Markov chain order (1 or 2). Order 1 = depends on current
+            interval. Order 2 = depends on last 2 intervals.
+        interval_weights: JSON string of custom transition weights.
+            If empty, uses built-in weights. Format for order 1:
+            {"-3": {"-3": 0.1, "-2": 0.2, "-1": 0.3, "0": 0.1, "1": 0.2, "2": 0.1},
+             "-2": {...}, ...}
+            Keys are interval sizes (-7 to +7 scale steps).
+        duration: Note duration in beats (0.0625-4.0).
+        velocity: Base velocity 0-1.
+        seed: PRNG seed for reproducibility.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, transition statistics, and seed.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["minor"])
+
+    if not (1 <= bars <= 32):
+        return f"Error: bars must be 1-32, got {bars}"
+    if not (1 <= order <= 2):
+        return f"Error: order must be 1 or 2, got {order}"
+    if not (0.0625 <= duration <= 4.0):
+        return f"Error: duration must be 0.0625-4.0, got {duration}"
+
+    # Build scale pitch list spanning 3 octaves
+    scale_pitches = []
+    for oct_shift in range(-1, 2):
+        for iv in intervals:
+            pitch = (octave + 1 + oct_shift) * 12 + (root_num + iv) % 12
+            scale_pitches.append(pitch)
+    scale_pitches = sorted(set(scale_pitches))
+
+    # Build default transition matrix (order 1)
+    # Intervals range from -7 to +7 scale steps
+    interval_range = list(range(-7, 8))
+
+    # Default weights: smooth motion preferred, leaps tend to reverse
+    default_matrix = {}
+    for cur in interval_range:
+        weights = {}
+        for next_iv in interval_range:
+            if next_iv == 0:
+                w = 0.05  # repeat is rare
+            elif abs(next_iv) <= 2:
+                w = 0.25 / abs(next_iv) if abs(next_iv) > 0 else 0.05  # steps preferred
+            elif abs(next_iv) <= 5:
+                w = 0.08  # skips less common
+            else:
+                w = 0.02  # leaps rare
+            # Regression to mean: after a leap up, prefer stepping down
+            if cur > 0 and next_iv < 0:
+                w *= 1.5
+            if cur < 0 and next_iv > 0:
+                w *= 1.5
+            # Same direction continuation: small bias
+            if (cur > 0 and next_iv > 0 and abs(next_iv) <= 2):
+                w *= 1.2
+            if (cur < 0 and next_iv < 0 and abs(next_iv) <= 2):
+                w *= 1.2
+            weights[next_iv] = w
+        # Normalize
+        total = sum(weights.values())
+        if total > 0:
+            weights = {k: v / total for k, v in weights.items()}
+        default_matrix[cur] = weights
+
+    # Parse custom weights if provided
+    transition_matrix = default_matrix
+    if interval_weights:
+        try:
+            transition_matrix = {}
+            parsed = json.loads(interval_weights)
+            for key, val in parsed.items():
+                transition_matrix[int(key)] = {int(k): float(v) for k, v in val.items()}
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return "Error: invalid interval_weights JSON. Use format like {\"1\": {\"1\": 0.3, \"-1\": 0.5, ...}}"
+
+    # Seeded PRNG (mulberry32)
+    prng_state = seed & 0xFFFFFFFF
+
+    def next_random():
+        nonlocal prng_state
+        prng_state = (prng_state + 0x6D2B79F5) & 0xFFFFFFFF
+        t = prng_state
+        t = ((t ^ (t >> 15)) * t | 1) & 0xFFFFFFFF
+        t = (t ^ (t >> 14)) & 0xFFFFFFFF
+        return t / 0xFFFFFFFF
+
+    # Generate melody using Markov chain
+    total_notes = int(bars * 4 / duration)
+    start_idx = len(scale_pitches) // 2
+    current_idx = start_idx
+    last_interval = 0
+    second_last_interval = 0
+
+    notes = []
+    interval_sequence = []
+
+    for step in range(total_notes):
+        # Determine transition key
+        if order == 2:
+            # Combine last two intervals into a key
+            trans_key = last_interval * 100 + second_last_interval
+            # Fall back to order 1 if no data
+            row = transition_matrix.get(trans_key, transition_matrix.get(last_interval, default_matrix.get(last_interval, default_matrix[0])))
+        else:
+            row = transition_matrix.get(last_interval, default_matrix.get(0, default_matrix[0]))
+
+        # Sample next interval from the row
+        r = next_random()
+        cumulative = 0.0
+        chosen_interval = 0
+        for iv_val, prob in sorted(row.items()):
+            cumulative += prob
+            if r < cumulative:
+                chosen_interval = iv_val
+                break
+
+        # Apply interval
+        new_idx = current_idx + chosen_interval
+
+        # Boundary handling: reflect
+        if new_idx < 0:
+            new_idx = abs(new_idx)
+        elif new_idx >= len(scale_pitches):
+            new_idx = 2 * len(scale_pitches) - new_idx - 2
+        new_idx = max(0, min(len(scale_pitches) - 1, new_idx))
+
+        # Recalculate actual interval (may differ due to boundary)
+        actual_interval = new_idx - current_idx
+
+        pitch = scale_pitches[new_idx]
+        pos = step * duration
+
+        notes.append({
+            "pitch": pitch,
+            "pos": round(pos, 4),
+            "dur": duration,
+            "vel": velocity,
+        })
+        interval_sequence.append(actual_interval)
+
+        second_last_interval = last_interval
+        last_interval = actual_interval
+        current_idx = new_idx
+
+    # Statistics
+    interval_counts = {}
+    for iv in interval_sequence:
+        interval_counts[iv] = interval_counts.get(iv, 0) + 1
+    avg_interval = sum(abs(iv) for iv in interval_sequence) / len(interval_sequence) if interval_sequence else 0
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            bars: {bars},
+            order: {order},
+            notes_created: created,
+            seed: {seed},
+            markov_stats: {{
+                avg_interval: Math.round({avg_interval} * 100) / 100,
+                interval_distribution: {json.dumps(interval_counts)},
+                total_intervals: len(interval_sequence),
+            }},
+            note_preview: noteEvents.slice(0, 10),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
 
