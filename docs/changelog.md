@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.20.0 (2026-07-05)
+
+- **`create_call_response`** — new orchestration tool: call-and-response patterns (antecedent/consequent phrases). Foundation of blues, jazz, hip-hop, electronic. Alternates call → response with adjustable repeats
+- **`create_walking_bass`** — new orchestration tool: walking bass lines over chord progressions. Beat 1=chord root, beat 2=chord tone, beat 3=passing tone, beat 4=approach note. Jazz/blues/swing
+- **11 unit tests** for call_response (interleave, timing, velocity) and walking_bass (beat positions, approach notes, bass range) — 190→201 total
+- **E2E test** for call_response (blues ×4, 1 repeat, error handling) and walking_bass (ii-V-I, 2 bars/chord, error handling)
+- **51 examples** (added create_call_response.py, create_walking_bass.py)
+- **279 MCP tools**, **22 orchestration tools**, ruff clean, CI green
+
 ## v1.19.1 (2026-07-05)
 
 - **`create_scale_run`** — new orchestration tool: ascending/descending scale sequences for fills and transitions. 14 scales, 1-4 octaves, adjustable step duration

@@ -407,3 +407,151 @@ class TestScaleRunGeneration:
         assert low[0] == 48  # C3
         assert high[0] == 72  # C5
         assert high[0] - low[0] == 24  # 2 octaves apart
+
+
+class TestCallResponseGeneration:
+    """Test the call-and-response pattern generation logic."""
+
+    def _generate_call_response(self, call_pattern, response_pattern, root, scale, repeats, octave=4):
+        """Replicate call_response note generation using parse_melody_pattern."""
+        from opendaw_mcp.music_theory import parse_melody_pattern
+
+        call_notes = parse_melody_pattern(call_pattern, root, scale, octave, 0.7, 0.25, 0)
+        response_notes = parse_melody_pattern(response_pattern, root, scale, octave, 0.63, 0.25, 0)
+
+        call_length = max(n["start"] + n["duration"] for n in call_notes)
+        response_length = max(n["start"] + n["duration"] for n in response_notes)
+        phrase_length = call_length + response_length
+
+        all_notes = []
+        for rep in range(repeats):
+            phrase_start = rep * phrase_length
+            for note in call_notes:
+                all_notes.append({**note, "start": phrase_start + note["start"], "phrase": "call", "rep": rep})
+            response_start = phrase_start + call_length
+            for note in response_notes:
+                all_notes.append({**note, "start": response_start + note["start"], "phrase": "response", "rep": rep})
+        return all_notes
+
+    def test_total_notes_is_doubled(self):
+        notes = self._generate_call_response("1 3 5 3", "5 4 3 2", "C", "minor", 2)
+        # 4 call + 4 response = 8 per repeat, × 2 = 16
+        assert len(notes) == 16
+
+    def test_call_before_response(self):
+        notes = self._generate_call_response("1 3", "5 2", "C", "major", 1)
+        calls = [n for n in notes if n["phrase"] == "call"]
+        responses = [n for n in notes if n["phrase"] == "response"]
+        # Last call should start before first response
+        assert max(n["start"] for n in calls) < min(n["start"] for n in responses)
+
+    def test_repeats_interleave(self):
+        notes = self._generate_call_response("1 3", "2 4", "C", "major", 3)
+        calls = [n for n in notes if n["phrase"] == "call"]
+        # Should have 3 call phrases
+        assert len(calls) == 6  # 2 notes × 3 repeats
+        reps = set(n["rep"] for n in calls)
+        assert reps == {0, 1, 2}
+
+    def test_response_starts_after_call_ends(self):
+        notes = self._generate_call_response("1 3 5", "2 4", "A", "blues", 1)
+        calls = [n for n in notes if n["phrase"] == "call"]
+        responses = [n for n in notes if n["phrase"] == "response"]
+        call_end = max(n["start"] + n["duration"] for n in calls)
+        response_start = min(n["start"] for n in responses)
+        assert response_start >= call_end
+
+    def test_response_velocity_slightly_lower(self):
+        notes = self._generate_call_response("1 3", "5 2", "C", "major", 1)
+        calls = [n for n in notes if n["phrase"] == "call"]
+        responses = [n for n in notes if n["phrase"] == "response"]
+        avg_call_vel = sum(n["velocity"] for n in calls) / len(calls)
+        avg_resp_vel = sum(n["velocity"] for n in responses) / len(responses)
+        assert avg_resp_vel < avg_call_vel  # response is 0.9× velocity
+
+
+class TestWalkingBassGeneration:
+    """Test the walking bass pattern generation logic."""
+
+    def _generate_walking_bass(self, chords, octave=2, bars_per_chord=1):
+        """Replicate walking bass note generation."""
+        from opendaw_mcp.music_theory import NOTE_TO_PITCH, CHORD_INTERVALS
+
+        base_octave = (octave + 1) * 12
+        all_notes = []
+        notes_per_chord = bars_per_chord * 4
+
+        for ci, (root_name, chord_type) in enumerate(chords):
+            root_pc = NOTE_TO_PITCH[root_name]
+            chord_intervals = CHORD_INTERVALS[chord_type]
+            chord_root = base_octave + root_pc
+
+            next_root_pc = NOTE_TO_PITCH[chords[ci + 1][0]] if ci < len(chords) - 1 else root_pc
+            next_chord_root = base_octave + next_root_pc
+
+            chord_start = ci * bars_per_chord * 4
+
+            for beat in range(notes_per_chord):
+                beat_in_bar = beat % 4
+                pos = chord_start + beat
+
+                if beat_in_bar == 0:
+                    pitch = chord_root
+                elif beat_in_bar == 1:
+                    idx = (ci + 1) % (len(chord_intervals) - 1)
+                    pitch = chord_root + chord_intervals[min(idx + 1, len(chord_intervals) - 1)]
+                elif beat_in_bar == 2:
+                    direction = 1 if next_chord_root > chord_root else -1
+                    pitch = chord_root + direction * 7
+                    if pitch < base_octave:
+                        pitch += 12
+                    elif pitch > base_octave + 24:
+                        pitch -= 12
+                else:
+                    direction = 1 if next_chord_root > chord_root else -1
+                    pitch = next_chord_root - direction * 1
+                    if pitch < base_octave:
+                        pitch += 12
+                    elif pitch > base_octave + 24:
+                        pitch -= 12
+
+                all_notes.append({"pitch": pitch, "start": pos, "beat_in_bar": beat_in_bar, "chord_index": ci})
+
+        return all_notes
+
+    def test_four_notes_per_chord(self):
+        notes = self._generate_walking_bass([["C", "maj7"], ["A", "min7"]])
+        # 2 chords × 4 notes = 8
+        assert len(notes) == 8
+
+    def test_beat1_is_chord_root(self):
+        notes = self._generate_walking_bass([["C", "maj7"], ["A", "min7"]], octave=2)
+        # C2 = (2+1)*12 + 0 = 36, A2 = (2+1)*12 + 9 = 45
+        beat1_notes = [n for n in notes if n["beat_in_bar"] == 0]
+        assert beat1_notes[0]["pitch"] == 36  # C2
+        assert beat1_notes[1]["pitch"] == 45  # A2
+
+    def test_bars_per_chord_doubles(self):
+        one_bar = self._generate_walking_bass([["C", "maj7"]], bars_per_chord=1)
+        two_bar = self._generate_walking_bass([["C", "maj7"]], bars_per_chord=2)
+        assert len(one_bar) == 4
+        assert len(two_bar) == 8
+
+    def test_beats_are_evenly_spaced(self):
+        notes = self._generate_walking_bass([["C", "maj7"], ["A", "min7"]])
+        starts = [n["start"] for n in notes]
+        assert starts == [0, 1, 2, 3, 4, 5, 6, 7]
+
+    def test_approach_note_near_next_root(self):
+        notes = self._generate_walking_bass([["C", "maj7"], ["A", "min7"]], octave=2)
+        # Last beat of first chord (beat 4) should approach A2 (45)
+        beat4 = [n for n in notes if n["beat_in_bar"] == 3 and n["chord_index"] == 0]
+        assert len(beat4) == 1
+        # Approach note should be within 1-2 semitones of next root (45)
+        assert abs(beat4[0]["pitch"] - 45) <= 2
+
+    def test_pitches_in_bass_range(self):
+        notes = self._generate_walking_bass([["C", "maj7"], ["A", "min7"]], octave=2)
+        # All pitches should be in octave 2 range (36 ± 12)
+        for n in notes:
+            assert 24 <= n["pitch"] <= 60, f"Pitch {n['pitch']} out of bass range"

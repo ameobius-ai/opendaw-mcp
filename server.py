@@ -14649,6 +14649,235 @@ async def mcp_opendaw_create_scale_run(
         return result_str
 
 
+@mcp.tool()
+async def mcp_opendaw_create_call_response(
+    scale: str,
+    root: str,
+    call_pattern: str,
+    response_pattern: str,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    octave: int = 4,
+    velocity: float = 0.7,
+    step_duration: float = 0.25,
+    repeats: int = 2,
+) -> str:
+    """Create a call-and-response pattern — antecedent/consequent phrase structure.
+
+    The call (antecedent) poses a musical question, the response (consequent) answers it.
+    This is the foundation of blues, jazz, hip-hop, electronic, and folk music. The pattern
+    alternates: call → response → call → response, with the response starting after the call ends.
+
+    scale: Scale type (major, minor, blues, dorian, etc. — 14 types from music_theory).
+    root: Root note name (C, C#, D, ... B).
+    call_pattern: Scale degrees for the call phrase, space-separated (1-7, 0=rest, -=sustain).
+      Example: "1 3 5 3" — rising and falling 4-note motif
+    response_pattern: Scale degrees for the response phrase, space-separated.
+      Example: "5 4 3 2" — descending answer
+    repeats: Number of call+response pairs (1-8). 2 = call-response-call-response.
+    octave: Starting octave (1-7, default 4).
+    velocity: Note velocity 0-1.
+    step_duration: Duration of each step in beats (0.25 = 16th, 0.125 = 8th triplet).
+
+    Returns total notes created and phrase structure.
+
+    Example:
+      create_call_response(scale="blues", root="A", call_pattern="1 3 5 3", response_pattern="5 4 3 2", repeats=4)
+    """
+    from opendaw_mcp.music_theory import parse_melody_pattern
+
+    if repeats < 1 or repeats > 8:
+        return "Error: repeats must be 1-8"
+
+    # Parse both phrases
+    try:
+        call_notes = parse_melody_pattern(call_pattern, root, scale, octave, velocity, step_duration, 0)
+        response_notes = parse_melody_pattern(response_pattern, root, scale, octave, velocity * 0.9, step_duration, 0)
+    except Exception as e:
+        return f"Error parsing pattern: {e}"
+
+    if not call_notes or not response_notes:
+        return "Error: both patterns must produce at least one note"
+
+    # Calculate phrase lengths
+    call_length = max(n["start"] + n["duration"] for n in call_notes)
+    response_length = max(n["start"] + n["duration"] for n in response_notes)
+    phrase_length = call_length + response_length
+
+    # Interleave call and response
+    all_notes = []
+    for rep in range(repeats):
+        phrase_start = start_beat + rep * phrase_length
+
+        # Call phrase
+        for note in call_notes:
+            all_notes.append({
+                "pitch": note["pitch"],
+                "start": phrase_start + note["start"],
+                "duration": note["duration"],
+                "velocity": note["velocity"],
+            })
+
+        # Response phrase (starts after call ends)
+        response_start = phrase_start + call_length
+        for note in response_notes:
+            all_notes.append({
+                "pitch": note["pitch"],
+                "start": response_start + note["start"],
+                "duration": note["duration"],
+                "velocity": note["velocity"],
+            })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["call_response"] = True
+        data["call_pattern"] = call_pattern
+        data["response_pattern"] = response_pattern
+        data["repeats"] = repeats
+        data["scale"] = scale
+        data["root"] = root
+        data["phrase_structure"] = f"call({len(call_notes)}) → response({len(response_notes)}) × {repeats}"
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_walking_bass(
+    chords: str,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    octave: int = 2,
+    velocity: float = 0.7,
+    bars_per_chord: int = 1,
+) -> str:
+    """Create a walking bass line over a chord progression.
+
+    A walking bass plays four quarter notes per bar, connecting chords through
+    chord tones, passing tones, and approach notes. The bass 'walks' from one
+    chord to the next using scale-wise motion and arpeggios. Essential for jazz,
+    blues, and swing.
+
+    chords: JSON array of [root, chord_type] pairs. Example: [["C","maj7"],["A","min7"],["D","min7"],["G","dom7"]]
+    unit_index: AU index.
+    track_index: Note track index.
+    start_beat: Starting beat position.
+    octave: Bass octave (1-3, default 2 = C2=36).
+    velocity: Note velocity 0-1.
+    bars_per_chord: Bars to spend on each chord (1-4). 1 = 4 notes per chord, 2 = 8 notes.
+
+    Returns total notes created and bass walk summary.
+
+    The walking bass algorithm:
+      Beat 1: chord root (strong)
+      Beat 2: chord tone (3rd, 5th, or 7th)
+      Beat 3: passing tone (scale step between current and next chord)
+      Beat 4: approach note (half-step or scale-step into next chord root)
+
+    Example:
+      create_walking_bass(chords='[["C","maj7"],["A","min7"],["D","min7"],["G","dom7"]]', octave=2)
+    """
+    from opendaw_mcp.music_theory import NOTE_TO_PITCH, CHORD_INTERVALS
+
+    if bars_per_chord < 1 or bars_per_chord > 4:
+        return "Error: bars_per_chord must be 1-4"
+
+    try:
+        chord_list = json.loads(chords)
+    except Exception:
+        return "Error: chords must be valid JSON array of [root, type] pairs"
+
+    if not chord_list or len(chord_list) > 32:
+        return "Error: need 1-32 chords"
+
+    # Validate chords
+    for chord in chord_list:
+        if len(chord) != 2:
+            return "Error: each chord must be [root, type]"
+        if chord[0] not in NOTE_TO_PITCH:
+            return f"Error: unknown root '{chord[0]}'"
+        if chord[1] not in CHORD_INTERVALS:
+            return f"Error: unknown chord type '{chord[1]}'"
+
+    base_octave = (octave + 1) * 12
+    all_notes = []
+    notes_per_chord = bars_per_chord * 4  # 4 quarter notes per bar
+    beat_step = 1.0  # quarter note
+
+    for ci, (root_name, chord_type) in enumerate(chord_list):
+        root_pc = NOTE_TO_PITCH[root_name]
+        chord_intervals = CHORD_INTERVALS[chord_type]
+        chord_root = base_octave + root_pc
+
+        # Get next chord root for approach
+        if ci < len(chord_list) - 1:
+            next_root_pc = NOTE_TO_PITCH[chord_list[ci + 1][0]]
+            next_chord_root = base_octave + next_root_pc
+        else:
+            next_chord_root = chord_root  # last chord: approach back to self
+
+        chord_start = start_beat + ci * bars_per_chord * 4 * beat_step
+
+        for beat in range(notes_per_chord):
+            pos = chord_start + beat * beat_step
+            beat_in_bar = beat % 4
+
+            if beat_in_bar == 0:
+                # Beat 1: chord root (strong downbeat)
+                pitch = chord_root
+            elif beat_in_bar == 1:
+                # Beat 2: chord tone (3rd or 5th)
+                idx = (ci + 1) % (len(chord_intervals) - 1)
+                pitch = chord_root + chord_intervals[min(idx + 1, len(chord_intervals) - 1)]
+            elif beat_in_bar == 2:
+                # Beat 3: passing tone — scale step between chord root and next root
+                direction = 1 if next_chord_root > chord_root else -1
+                # Use chromatic passing tone halfway
+                pitch = chord_root + direction * 7  # fifth in the direction of motion
+                # Keep within reasonable range
+                if pitch < base_octave:
+                    pitch += 12
+                elif pitch > base_octave + 24:
+                    pitch -= 12
+            else:
+                # Beat 4: approach note — half-step or scale-step into next chord root
+                direction = 1 if next_chord_root > chord_root else -1
+                pitch = next_chord_root - direction * 1  # approach from below/above
+                if pitch < base_octave:
+                    pitch += 12
+                elif pitch > base_octave + 24:
+                    pitch -= 12
+
+            # Velocity: beat 1 strongest, beat 4 slightly lighter for swing feel
+            vel = velocity if beat_in_bar == 0 else velocity * (0.85 if beat_in_bar == 2 else 0.9)
+
+            all_notes.append({
+                "pitch": pitch,
+                "start": pos,
+                "duration": beat_step * 0.9,  # slight gap for articulation
+                "velocity": round(vel, 3),
+            })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["walking_bass"] = True
+        data["chords"] = chord_list
+        data["bars_per_chord"] = bars_per_chord
+        data["total_bars"] = len(chord_list) * bars_per_chord
+        data["notes_per_chord"] = notes_per_chord
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
 class OpendawServer:
     """Facade class for framework integrations (LangChain, AutoGen, CrewAI).
 
@@ -14681,7 +14910,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.19.1 — 277 MCP tools")
+            print("opendaw-mcp 1.20.0 — 279 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -14691,7 +14920,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 277 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 279 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")

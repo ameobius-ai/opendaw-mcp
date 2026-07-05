@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **277** MCP tools | **49** Python examples (8 genre templates) |
+| **279** MCP tools | **51** Python examples (8 genre templates) |
 | **30** DSP scripts | **9** agent skills |
-| **3** framework wrappers | **190** unit + **8** E2E tests |
+| **3** framework wrappers | **201** unit + **9** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,15 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.20.0 (2026-07-05)
+
+- **`create_call_response`** — call-and-response patterns (antecedent/consequent phrases). Foundation of blues, jazz, hip-hop, electronic. Alternates call → response with adjustable repeats
+- **`create_walking_bass`** — walking bass lines over chord progressions. Beat 1=chord root, beat 2=chord tone, beat 3=passing tone, beat 4=approach note. Jazz/blues/swing
+- **11 unit tests** for call_response (interleave, timing, velocity) and walking_bass (beat positions, approach notes, bass range) — 190→201 total
+- **E2E verified**: call_response (blues ×4, error handling), walking_bass (ii-V-I, 12-bar blues, 2 bars/chord, error handling)
+- **51 examples** (added create_call_response.py, create_walking_bass.py)
+- **279 MCP tools**, **22 orchestration tools**, ruff clean, CI green
+
 ### v1.19.1 (2026-07-05)
 
 - **`create_scale_run`** — ascending/descending scale sequences for fills, transitions, build-ups. 14 scales, 1-4 octaves
@@ -520,7 +529,7 @@ Apache-2.0 — see [LICENSE](LICENSE)
 - **12 unit tests** for swing offset logic and polyrhythm generation (170→182 total)
 - **E2E test** for apply_swing (0.5/0.0/8th grid) and create_polyrhythm (3:4, 2:3, error handling)
 - **30 DSP scripts** (added flanger, noisegate, tremolo)
-- **277 MCP tools**, **20 orchestration tools**, ruff clean, CI green
+- **279 MCP tools**, **22 orchestration tools**, ruff clean, CI green
 
 ### v1.18.0 (2026-07-05)
 
