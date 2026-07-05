@@ -18786,6 +18786,188 @@ async def mcp_opendaw_constrain_note_range(
 
 
 @mcp.tool()
+async def mcp_opendaw_set_articulation(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    articulation: str = "legato",
+    staccato_ratio: float = 0.5,
+    micro_gap: int = 20,
+) -> str:
+    """Set articulation for notes — legato, staccato, or tenuto.
+
+    Articulation defines how notes connect to each other — the space or
+    overlap between consecutive notes. This is what makes strings sound
+    smooth (legato) or plucky (staccato), and it's separate from pitch
+    and velocity.
+
+    Three articulations:
+    - "legato" — each note extends to the start of the next note (minus a
+      micro_gap in PPQN for articulation separation). Notes flow into each
+      other seamlessly. Use for smooth string lines, vocal phrases, wind
+      instruments, lead melodies.
+    - "staccato" — each note is shortened to staccato_ratio of the distance
+      to the next note. 0.5 = half the gap, 0.25 = very short and detached,
+      0.75 = portato (lightly separated). Creates space between notes.
+    - "tenuto" — each note holds to its full available duration (up to the
+      next note's start, no gap). Slightly longer than legato — full value
+      with no separation. Use for sustained passages, horn sustains.
+
+    The last note in each region keeps its original duration (no next note
+    to reference). Notes at the same position (chords) are treated as one
+    unit — they all get the same treatment based on the next distinct
+    position.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    region_index: Region index (-1 = all regions on the track).
+    articulation: "legato", "staccato", or "tenuto".
+    staccato_ratio: For "staccato" — fraction of gap to fill (0.1-0.9,
+      default 0.5 = half the available time).
+    micro_gap: For "legato" — PPQN gap to leave between notes (default 20,
+      ~1/48 of a beat). 0 = notes touch exactly. Higher = more separation.
+
+    Returns per-track notes adjusted, articulation type.
+
+    Example:
+      # Smooth legato strings
+      set_articulation(unit_index=0, track_index=2, articulation="legato")
+
+      # Crisp staccato — 30% of available time
+      set_articulation(unit_index=0, track_index=2, articulation="staccato",
+                       staccato_ratio=0.3)
+
+      # Full tenuto — horns holding full value
+      set_articulation(unit_index=0, track_index=3, articulation="tenuto")
+    """
+    valid_articulations = ("legato", "staccato", "tenuto")
+    if articulation not in valid_articulations:
+        return f"Error: articulation must be one of {list(valid_articulations)}, got '{articulation}'"
+    if not (0.1 <= staccato_ratio <= 0.9):
+        return "Error: staccato_ratio must be 0.1-0.9"
+    if micro_gap < 0 or micro_gap > 480:
+        return "Error: micro_gap must be 0-480 PPQN"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const artic = "{articulation}";
+        const staccRatio = {staccato_ratio};
+        const gap = {micro_gap};
+
+        const allUnits = h.allAUBoxes();
+        const trackResults = [];
+
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+                    if (noteEvents.length === 0) continue;
+
+                    // Sort by position, then by pitch
+                    const sorted = noteEvents.slice().sort((a, b) => {{
+                        const pa = a.box.position.getValue();
+                        const pb = b.box.position.getValue();
+                        if (pa !== pb) return pa - pb;
+                        return a.box.pitch.getValue() - b.box.pitch.getValue();
+                    }});
+
+                    // Group by position to handle chords
+                    const positionGroups = [];
+                    let currentGroup = [sorted[0]];
+                    let currentPos = sorted[0].box.position.getValue();
+
+                    for (let i = 1; i < sorted.length; i++) {{
+                        const pos = sorted[i].box.position.getValue();
+                        if (pos === currentPos) {{
+                            currentGroup.push(sorted[i]);
+                        }} else {{
+                            positionGroups.push(currentGroup);
+                            currentGroup = [sorted[i]];
+                            currentPos = pos;
+                        }}
+                    }}
+                    positionGroups.push(currentGroup);
+
+                    let adjusted = 0;
+
+                    h.modify(() => {{
+                        for (let g = 0; g < positionGroups.length; g++) {{
+                            const group = positionGroups[g];
+                            const groupPos = group[0].box.position.getValue();
+                            const groupDur = group[0].box.duration.getValue();
+
+                            // Find next group position
+                            let nextPos = null;
+                            if (g + 1 < positionGroups.length) {{
+                                nextPos = positionGroups[g + 1][0].box.position.getValue();
+                            }}
+
+                            let newDur;
+                            if (nextPos === null) {{
+                                // Last group — keep original duration
+                                newDur = groupDur;
+                            }} else {{
+                                const available = nextPos - groupPos;
+                                if (artic === "legato") {{
+                                    newDur = Math.max(1, available - gap);
+                                }} else if (artic === "staccato") {{
+                                    newDur = Math.max(1, Math.round(available * staccRatio));
+                                }} else {{
+                                    // tenuto — full available, no gap
+                                    newDur = Math.max(1, available);
+                                }}
+                            }}
+
+                            for (const n of group) {{
+                                n.box.duration.setValue(newDur);
+                                adjusted++;
+                            }}
+                        }}
+                    }});
+
+                    trackResults.push({{
+                        unit: u,
+                        track: t,
+                        notes_adjusted: adjusted,
+                        articulation: artic,
+                        staccato_ratio: staccRatio,
+                        micro_gap: gap,
+                        position_groups: positionGroups.length,
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            articulation: artic,
+            tracks_processed: trackResults.length,
+            per_track: trackResults,
+            total_adjusted: trackResults.reduce((s, r) => s + r.notes_adjusted, 0),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_force_scale_notes(
     unit_index: int = -1,
     track_index: int = -1,

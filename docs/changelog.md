@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.231.0 (2026-07-05)
+
+### Added
+- `set_articulation` — Articulation control: legato, staccato, or tenuto. Legato extends each note to the next (minus micro_gap PPQN for separation). Staccato shortens to staccato_ratio of available time (0.5=half, 0.25=very short, 0.75=portato). Tenuto holds full available duration with no gap. Groups notes by position (chords treated as units). Last note keeps original duration. 13 unit tests. **406 MCP tools**, 2930 unit tests
+
 ## v1.230.0 (2026-07-05)
 
 ### Added

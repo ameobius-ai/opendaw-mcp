@@ -13904,3 +13904,166 @@ class TestConstrainNoteRange:
         assert min_p <= pitch <= max_p, f"Wrapped pitch {pitch} not in range"
         assert pitch % 12 == 90 % 12, "Pitch class should be preserved"
 
+
+class TestSetArticulation:
+    """Tests for set_articulation — legato/staccato/tenuto note length control"""
+
+    def test_tool_signature_exists(self):
+        """set_articulation is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_set_articulation" in tool_names
+
+    def test_has_articulation_param(self):
+        """Has articulation param with 3 options"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                arg_names = [a.arg for a in node.args.args]
+                assert "articulation" in arg_names
+                source = ast.unparse(node)
+                assert "legato" in source
+                assert "staccato" in source
+                assert "tenuto" in source
+                return
+        assert False, "function not found"
+
+    def test_has_staccato_ratio_param(self):
+        """Has staccato_ratio param for staccato control"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                arg_names = [a.arg for a in node.args.args]
+                assert "staccato_ratio" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_micro_gap_param(self):
+        """Has micro_gap param for legato separation"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                arg_names = [a.arg for a in node.args.args]
+                assert "micro_gap" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_validates_articulation(self):
+        """Validates articulation against allowed set"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                source = ast.unparse(node)
+                assert "valid_articulations" in source
+                assert "Error" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_staccato_ratio(self):
+        """Validates staccato_ratio is 0.1-0.9"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                source = ast.unparse(node)
+                assert "0.1" in source
+                assert "0.9" in source
+                return
+        assert False, "function not found"
+
+    def test_default_articulation_is_legato(self):
+        """Default articulation is 'legato' (most common use case)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "articulation" and isinstance(d, ast.Constant):
+                        assert d.value == "legato"
+                        return
+        assert False, "default not found"
+
+    def test_default_staccato_ratio_is_half(self):
+        """Default staccato_ratio is 0.5 (half the available time)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "staccato_ratio" and isinstance(d, ast.Constant):
+                        assert d.value == 0.5
+                        return
+        assert False, "default not found"
+
+    def test_groups_notes_by_position(self):
+        """Groups notes by position to handle chords as units"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                source = ast.unparse(node)
+                assert "positionGroups" in source
+                assert "currentGroup" in source
+                return
+        assert False, "function not found"
+
+    def test_reports_position_groups(self):
+        """Reports position_groups count per track"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                source = ast.unparse(node)
+                assert "position_groups" in source
+                assert "notes_adjusted" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_bridge_evaluate(self):
+        """Uses bridge.evaluate for DAW interaction"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                source = ast.unparse(node)
+                assert "bridge.evaluate" in source
+                return
+        assert False, "function not found"
+
+    def test_legato_extends_to_next_note(self):
+        """Legato logic: newDur = available - gap"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                source = ast.unparse(node)
+                assert "available - gap" in source
+                return
+        assert False, "function not found"
+
+    def test_staccato_shortens_by_ratio(self):
+        """Staccato logic: newDur = available * staccato_ratio"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_set_articulation":
+                source = ast.unparse(node)
+                assert "available * staccRatio" in source
+                return
+        assert False, "function not found"
+
