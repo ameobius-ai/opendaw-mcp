@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.262.0 (2026-07-06)
+
+### Added
+- `randomize_note_durations` — Randomize note durations with 5 distribution modes (uniform, increasing, decreasing, bimodal, jitter). Variation 0-1, min/max duration clamps, preserve_total scales to match original phrase length. Seeded PRNG for reproducibility. Generative duration variation, rhythmic humanization.
+
 ## v1.261.0 (2026-07-06)
 
 ### Added

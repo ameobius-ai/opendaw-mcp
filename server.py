@@ -30187,6 +30187,184 @@ async def mcp_opendaw_rotate_notes(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_randomize_note_durations(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    variation: float = 0.3,
+    distribution: str = "uniform",
+    min_duration_beats: float = 0.0625,
+    max_duration_beats: float = 8.0,
+    preserve_total: bool = False,
+    seed: int = 42,
+) -> str:
+    """Randomize note durations with controllable distribution.
+
+    Adds generative variation to note lengths. Unlike humanize_notes
+    (which adjusts timing+velocity), this focuses purely on duration
+    with 5 distribution modes for different musical characters.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        variation: Amount of variation (0.0=no change, 0.3=moderate,
+                   1.0=extreme). Applied as percentage of original duration.
+        distribution: Distribution mode —
+            "uniform" = equal probability across range,
+            "increasing" = durations tend to get longer over time,
+            "decreasing" = durations tend to get shorter over time,
+            "bimodal" = clusters around short and long extremes,
+            "jitter" = small perturbations around original values.
+        min_duration_beats: Minimum duration in beats (0.0625=1/64th,
+                            0.125=1/32nd, 0.25=1/16th).
+        max_duration_beats: Maximum duration in beats (4=whole note,
+                            8=two whole notes).
+        preserve_total: If True, scale all durations so the total
+                        summed duration equals the original. Useful
+                        for maintaining phrase length.
+        seed: PRNG seed for reproducibility.
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{error: "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const variation = Math.max(0, Math.min(1, {variation}));
+        const distMode = "{distribution}";
+        const minDurTicks = Math.round({min_duration_beats} * Quarter);
+        const maxDurTicks = Math.round({max_duration_beats} * Quarter);
+        const preserveTotal = {preserve_total};
+
+        // Seeded PRNG (mulberry32)
+        let prngSeed = {seed} >>> 0;
+        function rand() {{
+            prngSeed = (prngSeed + 0x6D2B79F5) | 0;
+            let t = prngSeed;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{error: "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{error: "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{error: "No notes in region"}};
+
+        // Read source durations
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }}));
+
+        const n = srcData.length;
+        const origTotalDur = srcData.reduce((s, d) => s + d.dur, 0);
+
+        // Generate new durations
+        const newDurations = [];
+        for (let i = 0; i < n; i++) {{
+            const origDur = srcData[i].dur;
+            let newDur = origDur;
+            const r = rand();
+            const progress = i / Math.max(1, n - 1);  // 0..1 across notes
+
+            if (distMode === "uniform") {{
+                // Uniform within ±variation * origDur
+                const range = variation * origDur;
+                newDur = origDur + (r - 0.5) * 2 * range;
+            }} else if (distMode === "increasing") {{
+                // Tend longer over time
+                const range = variation * origDur;
+                newDur = origDur + r * range * progress * 2;
+            }} else if (distMode === "decreasing") {{
+                // Tend shorter over time
+                const range = variation * origDur;
+                newDur = origDur - r * range * progress * 2;
+            }} else if (distMode === "bimodal") {{
+                // Cluster around short and long
+                const range = variation * origDur;
+                if (r < 0.5) {{
+                    newDur = origDur - range * (0.5 + rand() * 0.5);
+                }} else {{
+                    newDur = origDur + range * (0.5 + rand() * 0.5);
+                }}
+            }} else {{ // jitter
+                const range = variation * origDur * 0.3;
+                newDur = origDur + (r - 0.5) * 2 * range;
+            }}
+
+            // Clamp
+            newDur = Math.max(minDurTicks, Math.min(maxDurTicks, newDur));
+            newDurations.push(Math.round(newDur));
+        }}
+
+        // Preserve total duration if requested
+        if (preserveTotal && newDurations.length > 0) {{
+            const newTotal = newDurations.reduce((s, d) => s + d, 0);
+            if (newTotal > 0) {{
+                const scale = origTotalDur / newTotal;
+                for (let i = 0; i < newDurations.length; i++) {{
+                    newDurations[i] = Math.max(minDurTicks, Math.round(newDurations[i] * scale));
+                }}
+            }}
+        }}
+
+        // Apply new durations
+        const editing = h.editing;
+        let updated = 0;
+        const origDurs = srcData.map(d => d.dur);
+        const durChanges = [];
+
+        await editing.modify(async () => {{
+            for (let i = 0; i < srcNotes.length; i++) {{
+                const oldDur = srcNotes[i].duration.getValue();
+                srcNotes[i].duration.setValue(newDurations[i]);
+                durChanges.push({{
+                    note: i,
+                    old_duration_beats: Math.round(oldDur / Quarter * 1000) / 1000,
+                    new_duration_beats: Math.round(newDurations[i] / Quarter * 1000) / 1000,
+                }});
+                updated++;
+            }}
+        }});
+
+        const newTotalDur = newDurations.reduce((s, d) => s + d, 0);
+        return {{
+            success: true,
+            notes_updated: updated,
+            variation: variation,
+            distribution: distMode,
+            preserve_total: preserveTotal,
+            original_total_beats: Math.round(origTotalDur / Quarter * 1000) / 1000,
+            new_total_beats: Math.round(newTotalDur / Quarter * 1000) / 1000,
+            duration_changes: durChanges.slice(0, 10),
+            total_changes: durChanges.length,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 

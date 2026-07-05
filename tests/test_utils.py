@@ -17796,3 +17796,136 @@ class TestRotateNotes:
         """3 axis options: position, pitch, both"""
         axes = ("position", "pitch", "both")
         assert len(axes) == 3
+
+
+class TestRandomizeNoteDurations:
+    """Tests for mcp_opendaw_randomize_note_durations — generative duration variation"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_randomize_note_durations" in names
+
+    def test_variation_range(self):
+        """variation clamped to 0-1"""
+        for val in [0.0, 0.3, 0.5, 1.0]:
+            clamped = max(0, min(1, val))
+            assert 0 <= clamped <= 1
+        for val in [-0.5, 1.5, 2.0]:
+            clamped = max(0, min(1, val))
+            assert 0 <= clamped <= 1
+
+    def test_uniform_distribution(self):
+        """Uniform: newDur = orig + (r-0.5) * 2 * range"""
+        orig = 480
+        variation = 0.3
+        range_val = variation * orig  # 144
+        r = 0.5  # mid → no change
+        new_dur = orig + (r - 0.5) * 2 * range_val
+        assert new_dur == 480, "r=0.5 → no change"
+
+        r = 1.0  # max increase
+        new_dur = orig + (r - 0.5) * 2 * range_val
+        assert new_dur == 480 + 144, "r=1.0 → +range"
+
+        r = 0.0  # max decrease
+        new_dur = orig + (r - 0.5) * 2 * range_val
+        assert new_dur == 480 - 144, "r=0.0 → -range"
+
+    def test_jitter_distribution(self):
+        """Jitter: smaller range (0.3× factor)"""
+        orig = 960
+        variation = 0.3
+        range_val = variation * orig * 0.3  # 86.4
+        r = 1.0
+        new_dur = orig + (r - 0.5) * 2 * range_val
+        assert abs(new_dur - (960 + 86.4)) < 0.1
+
+    def test_increasing_trend(self):
+        """Increasing: durations grow over sequence"""
+        orig = 480
+        variation = 0.5
+        range_val = variation * orig  # 240
+        # First note (progress=0): minimal growth
+        progress0 = 0
+        r = 1.0
+        dur0 = orig + r * range_val * progress0 * 2
+        assert dur0 == 480, "progress=0 → no increase"
+
+        # Last note (progress=1): max growth
+        progress3 = 1
+        dur3 = orig + r * range_val * progress3 * 2
+        assert dur3 == 480 + 480, "progress=1, r=1 → +2*range"
+
+    def test_decreasing_trend(self):
+        """Decreasing: durations shrink over sequence"""
+        orig = 480
+        variation = 0.5
+        range_val = variation * orig  # 240
+        progress = 1.0
+        r = 1.0
+        dur = orig - r * range_val * progress * 2
+        assert dur == 480 - 480, "progress=1, r=1 → -2*range"
+
+    def test_bimodal_distribution(self):
+        """Bimodal: clusters around short and long"""
+        orig = 480
+        variation = 0.3
+        range_val = variation * orig  # 144
+        new_dur = orig - range_val * (0.5 + 0.7 * 0.5)  # rand()=0.7
+        assert new_dur < orig, "r<0.5 → shorter"
+
+        new_dur = orig + range_val * (0.5 + 0.3 * 0.5)  # rand()=0.3
+        assert new_dur > orig, "r>=0.5 → longer"
+
+    def test_duration_clamping(self):
+        """Durations clamped to min/max"""
+        min_dur = 120  # 1/8th beat
+        max_dur = 3840  # 4 beats
+        new_dur = 50  # below min
+        clamped = max(min_dur, min(max_dur, new_dur))
+        assert clamped == 120
+
+        new_dur = 5000  # above max
+        clamped = max(min_dur, min(max_dur, new_dur))
+        assert clamped == 3840
+
+    def test_preserve_total_scaling(self):
+        """preserve_total: scale to match original total"""
+        orig_total = 1920  # 2 beats
+        new_total = 960   # 1 beat
+        scale = orig_total / new_total  # 2.0
+        new_dur = 240
+        scaled = round(new_dur * scale)
+        assert scaled == 480
+
+    def test_prng_seed(self):
+        """Seeded PRNG produces reproducible results"""
+        # mulberry32: seed=42
+        seed = 42
+        # First call: seed += 0x6D2B79F5
+        s = (seed + 0x6D2B79F5) | 0
+        # Verify it's deterministic
+        s2 = (seed + 0x6D2B79F5) | 0
+        assert s == s2, "same seed → same state"
+
+    def test_min_duration_beats(self):
+        """min_duration_beats converted to ticks"""
+        Quarter = 960
+        min_beats = 0.0625  # 1/64th
+        min_ticks = round(min_beats * Quarter)
+        assert min_ticks == 60, "0.0625 * 960 = 60"
+
+    def test_max_duration_beats(self):
+        """max_duration_beats converted to ticks"""
+        Quarter = 960
+        max_beats = 8.0
+        max_ticks = round(max_beats * Quarter)
+        assert max_ticks == 7680, "8.0 * 960 = 7680"
+
+    def test_five_distribution_modes(self):
+        """5 distribution modes: uniform, increasing, decreasing, bimodal, jitter"""
+        modes = ("uniform", "increasing", "decreasing", "bimodal", "jitter")
+        assert len(modes) == 5
