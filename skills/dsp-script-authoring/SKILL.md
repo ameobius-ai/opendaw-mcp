@@ -532,6 +532,7 @@ process(io, block) {
 | `werkstatt_freq_shifter.js` | Frequency shifter (SSB) | Hilbert transform allpass pair + complex carrier oscillator → shifts all frequencies by fixed Hz, breaks harmonic ratios |
 | `werkstatt_bass_enhancer.js` | Bass enhancer | LPF isolates bass → full-wave rectification → sub-harmonic LPF + HPF DC removal → tanh harmonic saturation → band replacement, psychoacoustic missing fundamental |
 | `werkstatt_tilt_eq.js` | Tilt EQ | low shelf (RBJ) + high shelf (RBJ) with single tilt knob, pivot freq, steepness slope, coefficient caching |
+| `werkstatt_svf.js` | State variable filter | Chamberlin topology: HP=input-LP-q*BP, BP+=f*HP, LP+=f*BP, morph blend LP→BP→HP, notch/allpass modes, tanh soft-clip |
 | `werkstatt_chorus.js` | Modulated delay | LFO + fractional read |
 | `werkstatt_phaser.js` | Allpass cascade | 6-stage allpass + quadrature LFO |
 | `werkstatt_lookahead.js` | Compressor | envelope follower + lookahead buffer |

@@ -28,6 +28,7 @@
 | `werkstatt_freq_shifter.js` | Frequency shifter (SSB, Hilbert transform, inharmonic shift) | shift, direction, feedback, mix, output |
 | `werkstatt_bass_enhancer.js` | Bass enhancer (psychoacoustic, MaxxBass style, sub-harmonic generation) | freq, sub_level, direct_level, harmonics, attack, release, mix, output |
 | `werkstatt_tilt_eq.js` | Tilt EQ (single-knob spectral balance, low+high shelf pair) | tilt, pivot, steepness, mix, output |
+| `werkstatt_svf.js` | State variable filter (Chamberlin, LP/BP/HP morph, notch, allpass) | cutoff, resonance, morph, output_mode, drive, mix, output |
 | `werkstatt_dynamic_eq.js` | Dynamic EQ (3 bands, envelope-followed peaking) | band1-3 freq/gain/Q/threshold/range, attack, release, mix, output |
 | `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix |
 | `werkstatt_reverb.js` | Algorithmic reverb | room, decay, damp, mix |

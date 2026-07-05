@@ -4232,3 +4232,87 @@ class TestTiltEqDSP:
     def test_process_method(self):
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
+
+
+class TestSvfDSP:
+    """Unit tests for werkstatt_svf.js — Chamberlin state variable filter"""
+
+    SCRIPT = "werkstatt_svf.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt svf" in code, "Missing @werkstatt svf header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_cutoff_param(self):
+        params = self._parse_params(self._read_script())
+        c = [p for p in params if p["name"] == "cutoff"][0]
+        assert c["default"] == 1000 and c["type"] == "exp"
+
+    def test_resonance_param(self):
+        params = self._parse_params(self._read_script())
+        r = [p for p in params if p["name"] == "resonance"][0]
+        assert r["default"] == 0.5 and r["min"] == 0 and r["max"] == 1
+
+    def test_morph_param(self):
+        params = self._parse_params(self._read_script())
+        m = [p for p in params if p["name"] == "morph"][0]
+        assert m["default"] == 0 and m["min"] == 0 and m["max"] == 1
+
+    def test_output_mode_param(self):
+        params = self._parse_params(self._read_script())
+        o = [p for p in params if p["name"] == "output_mode"][0]
+        assert o["default"] == 0 and o["min"] == 0 and o["max"] == 2
+
+    def test_chamberlin_topology(self):
+        code = self._read_script()
+        assert "this.lpL" in code and "this.bpL" in code, "Missing LP/BP state"
+        assert "hpL = inL - this.lpL" in code, "Missing HP = input - LP - q*BP"
+        assert "this.bpL += f * hpL" in code, "Missing BP = BP + f*HP"
+        assert "this.lpL += f * this.bpL" in code, "Missing LP = LP + f*BP"
+
+    def test_freq_coefficient(self):
+        code = self._read_script()
+        assert "2 * Math.sin(Math.PI" in code, "Missing Chamberlin frequency coefficient"
+
+    def test_damping_coefficient(self):
+        code = self._read_script()
+        assert "q = 2 - 2 * res" in code, "Missing damping coefficient"
+
+    def test_morph_blend(self):
+        code = self._read_script()
+        assert "wLP" in code and "wBP" in code and "wHP" in code, "Missing morph blend weights"
+        assert "morph <= 0.5" in code, "Missing morph split logic"
+
+    def test_notch_mode(self):
+        code = self._read_script()
+        assert "outMode === 1" in code or "out_mode" in code.lower() or "notch" in code.lower(), "Missing notch mode"
+
+    def test_allpass_mode(self):
+        code = self._read_script()
+        assert "outMode === 2" in code or "allpass" in code.lower(), "Missing allpass mode"
+
+    def test_soft_clip(self):
+        code = self._read_script()
+        assert "tanh" in code, "Missing soft clip for high resonance protection"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"

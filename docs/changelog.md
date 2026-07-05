@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.98.0 (2026-07-05)
+
+- **`werkstatt_svf.js` DSP script** — Chamberlin state variable filter: simultaneous LP/BP/HP outputs with seamless morph parameter (LP→BP→HP continuous blend). Output mode: 0=morph, 1=notch, 2=allpass. Self-oscillation at high resonance (capped at 0.99 to prevent runaway), soft-clip tanh protection. 7 params (cutoff/resonance/morph/output_mode/drive/mix/output). Korg MS-20 / Oberheim SEM style. 80 DSP scripts
+- **931 unit tests** (+14), E2E 8/8
+
 ## v1.97.0 (2026-07-05)
 
 - **`werkstatt_tilt_eq.js` DSP script** — single-knob spectral tilt EQ: low shelf (cut below pivot) + high shelf (boost above pivot) with one tilt parameter. Positive tilt = brighten, negative = darken. Pivot frequency configurable, steepness controls shelf slope. Biquad-based (RBJ cookbook), coefficient caching, 5 params (tilt/pivot/steepness/mix/output). Ozone / FabFilter / Airwindows Tilt style. 79 DSP scripts
