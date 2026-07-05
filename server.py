@@ -34413,6 +34413,250 @@ async def mcp_opendaw_create_tempo_ramp(start_beat: float, end_beat: float, star
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_metric_modulation(
+    position_beats: float,
+    old_note: str = "quarter",
+    new_note: str = "dotted_eighth",
+    old_bpm: float = 0,
+    ratio: str = "",
+    add_time_signature: str = "",
+) -> str:
+    """Create a metric modulation — tempo change that preserves a note-value equivalence.
+
+    The defining technique of Elliott Carter, Aaron Copland, John Adams, and
+    progressive rock (Dream Theater, Tool). Unlike a simple tempo change,
+    metric modulation establishes a precise relationship: a specific note value
+    in the new tempo has the same duration as a different note value in the old
+    tempo. The listener perceives a new pulse while the rhythmic fabric remains
+    continuous.
+
+    Formula: new_bpm = old_bpm × (new_note_value / old_note_value)
+
+    Supported note values:
+    - "whole", "half", "dotted_half", "quarter", "dotted_quarter"
+    - "quarter_triplet", "eighth", "dotted_eighth", "eighth_triplet"
+    - "sixteenth", "dotted_sixteenth", "thirty_second"
+
+    Alternatively, pass a ratio like "3:2" (new tempo = 3/2 of old) or "2:3"
+    (new = 2/3 of old) to express the modulation as a simple proportion.
+
+    Examples:
+      create_metric_modulation(32, "quarter", "dotted_eighth", old_bpm=120)
+        → new_bpm = 120 × (3/16) / (1/4) = 90 BPM. A dotted eighth at 90
+          lasts the same as a quarter at 120.
+      create_metric_modulation(16, ratio="3:2", old_bpm=100)
+        → new_bpm = 150. Three notes in new tempo = two in old.
+      create_metric_modulation(48, "eighth", "quarter", old_bpm=140)
+        → new_bpm = 280. Quarter at new tempo = eighth at old (doubling).
+
+    Args:
+        position_beats: Beat position where modulation occurs.
+        old_note: Note value in the old tempo (default "quarter").
+        new_note: Note value in the new tempo that equals old_note's duration
+            (default "dotted_eighth" — classic Carter modulation).
+        old_bpm: Current BPM. If 0, reads from the project's tempo track.
+        ratio: Direct ratio "N:M" — new_bpm = old_bpm × N/M. Overrides
+            old_note/new_note if provided.
+        add_time_signature: Optional new time signature as "N/D" (e.g. "3/4",
+            "6/8"). If provided, also creates a time signature change event
+            at the same position.
+
+    Returns old_bpm, new_bpm, ratio, equivalence, and events created.
+    """
+    note_values = {
+        "whole": 1.0,
+        "half": 0.5,
+        "dotted_half": 0.75,
+        "quarter": 0.25,
+        "dotted_quarter": 0.375,
+        "quarter_triplet": 1.0 / 6.0,
+        "eighth": 0.125,
+        "dotted_eighth": 3.0 / 16.0,
+        "eighth_triplet": 1.0 / 12.0,
+        "sixteenth": 0.0625,
+        "dotted_sixteenth": 3.0 / 32.0,
+        "thirty_second": 0.03125,
+    }
+
+    # Determine the ratio
+    if ratio:
+        parts = ratio.replace(" ", "").split(":")
+        if len(parts) != 2:
+            return f"Error: ratio must be 'N:M', got '{ratio}'"
+        try:
+            num, den = float(parts[0]), float(parts[1])
+        except ValueError:
+            return f"Error: ratio parts must be numbers, got '{ratio}'"
+        if den == 0:
+            return "Error: ratio denominator cannot be zero"
+        mod_ratio = num / den
+        equiv_desc = f"{parts[0]} notes in new = {parts[1]} in old"
+    else:
+        if old_note not in note_values:
+            return f"Error: old_note '{old_note}' not recognized. Use: {list(note_values.keys())}"
+        if new_note not in note_values:
+            return f"Error: new_note '{new_note}' not recognized. Use: {list(note_values.keys())}"
+        old_v = note_values[old_note]
+        new_v = note_values[new_note]
+        if old_v == 0:
+            return f"Error: old_note '{old_note}' has zero duration"
+        mod_ratio = new_v / old_v
+        equiv_desc = f"new {new_note} = old {old_note} (duration preserved)"
+
+    # Parse optional time signature
+    ts_num, ts_den = 0, 0
+    if add_time_signature:
+        ts_parts = add_time_signature.replace(" ", "").split("/")
+        if len(ts_parts) != 2:
+            return f"Error: add_time_signature must be 'N/D', got '{add_time_signature}'"
+        try:
+            ts_num = int(ts_parts[0])
+            ts_den = int(ts_parts[1])
+        except ValueError:
+            return f"Error: time signature parts must be integers, got '{add_time_signature}'"
+        if ts_num < 1 or ts_num > 32:
+            return f"Error: time signature numerator must be 1-32, got {ts_num}"
+        valid_dens = [1, 2, 4, 8, 16, 32, 64]
+        if ts_den not in valid_dens:
+            return f"Error: time signature denominator must be one of {valid_dens}, got {ts_den}"
+
+    # We'll read old_bpm from the tempo track if not provided
+    read_bpm = old_bpm == 0
+    pos_beats = position_beats
+
+    ts_json = json.dumps({"num": ts_num, "den": ts_den} if add_time_signature else {})
+    _ = (equiv_desc, pos_beats, read_bpm, ts_json)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
+        const ValueEventCollectionBox = window.DAW_ValueEventCollectionBox;
+        try {{
+            if (!ValueEventBox || !ValueEventCollectionBox) return {{error: "Box types not loaded"}};
+            const tl = h.timelineBox;
+            if (!tl || !tl.tempoTrack) return {{error: "No tempoTrack on timeline"}};
+
+            const tempoTrack = tl.tempoTrack;
+            const minBpm = tempoTrack.minBpm.getValue();
+            const maxBpm = tempoTrack.maxBpm.getValue();
+
+            // Read current BPM if needed
+            let oldBpm = {old_bpm};
+            if ({'true' if read_bpm else 'false'}) {{
+                const existingEvents = h.eventBoxes(tempoTrack.events.targetVertex.isEmpty() ? {{}} : tempoTrack.events.targetVertex.unwrap().box);
+                if (existingEvents && existingEvents.length > 0) {{
+                    const posTicks = Math.round({pos_beats} * Quarter);
+                    let bestEvent = null;
+                    for (const e of existingEvents) {{
+                        if (e.position?.getValue?.() <= posTicks) {{
+                            if (!bestEvent || e.position.getValue() > bestEvent.position.getValue()) {{
+                                bestEvent = e;
+                            }}
+                        }}
+                    }}
+                    if (bestEvent) {{
+                        oldBpm = minBpm + (bestEvent.value?.getValue?.() ?? 0) * (maxBpm - minBpm);
+                    }} else {{
+                        // Default BPM: minBpm + value at position 0
+                        oldBpm = (minBpm + maxBpm) / 2;
+                    }}
+                }} else {{
+                    oldBpm = (minBpm + maxBpm) / 2;
+                }}
+            }}
+
+            const newBpm = oldBpm * {mod_ratio};
+            const newBpmClamped = Math.max(minBpm, Math.min(maxBpm, newBpm));
+
+            if (newBpm < minBpm || newBpm > maxBpm) {{
+                return {{
+                    error: "Computed BPM out of range",
+                    old_bpm: Math.round(oldBpm * 100) / 100,
+                    new_bpm_raw: Math.round(newBpm * 100) / 100,
+                    min_bpm: minBpm,
+                    max_bpm: maxBpm,
+                    message: "Set old_bpm explicitly or adjust modulation ratio",
+                }};
+            }}
+
+            const posTicks = Math.round({pos_beats} * Quarter);
+            const normalizedNew = (newBpm - minBpm) / (maxBpm - minBpm);
+
+            const tsInfo = {ts_json};
+
+            h.modify(() => {{
+                tempoTrack.enabled.setValue(true);
+
+                // Tempo event
+                let coll;
+                const existingVertex = tempoTrack.events.targetVertex;
+                if (!existingVertex.isEmpty()) {{
+                    coll = existingVertex.unwrap().box;
+                }} else {{
+                    coll = ValueEventCollectionBox.create(h.boxGraph, h.uuid.generate());
+                    tempoTrack.events.refer(coll.owners);
+                }}
+
+                const existing = h.eventBoxes(coll);
+                let maxIdx = existing.reduce((mx, b) => Math.max(mx, b.index?.getValue?.() ?? 0), -1);
+
+                ValueEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.events.refer(coll.events);
+                    box.position.setValue(posTicks);
+                    box.index.setValue(maxIdx + 1);
+                    box.value.setValue(normalizedNew);
+                    box.interpolation.setValue("hold");
+                }});
+
+                // Optional time signature
+                if (tsInfo.num && tsInfo.den) {{
+                    const sigTrack = tl.signatureTrack;
+                    if (sigTrack) {{
+                        sigTrack.enabled.setValue(true);
+                        let sigColl;
+                        const sigExisting = sigTrack.events.targetVertex;
+                        if (!sigExisting.isEmpty()) {{
+                            sigColl = sigExisting.unwrap().box;
+                        }} else {{
+                            const SigEventCollectionBox = window.DAW_ValueEventCollectionBox;
+                            sigColl = SigEventCollectionBox.create(h.boxGraph, h.uuid.generate());
+                            sigTrack.events.refer(sigColl.owners);
+                        }}
+                        const SigEventBox = window.DAW_ValueEventBox;
+                        const sigEvents = h.eventBoxes(sigColl);
+                        let sigMaxIdx = sigEvents.reduce((mx, b) => Math.max(mx, b.index?.getValue?.() ?? 0), -1);
+                        // Pack numerator/denominator into value (normalized 0-1)
+                        const sigValue = (tsInfo.num * 100 + tsInfo.den) / 10000;
+                        SigEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                            box.events.refer(sigColl.events);
+                            box.position.setValue(posTicks);
+                            box.index.setValue(sigMaxIdx + 1);
+                            box.value.setValue(sigValue);
+                            box.interpolation.setValue("hold");
+                        }});
+                    }}
+                }}
+            }});
+
+            return {{
+                success: true,
+                position_beats: {pos_beats},
+                old_bpm: Math.round(oldBpm * 100) / 100,
+                new_bpm: Math.round(newBpm * 100) / 100,
+                ratio: {mod_ratio},
+                equivalence: "{equiv_desc}",
+                time_signature: tsInfo.num ? tsInfo.num + "/" + tsInfo.den : null,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()
 

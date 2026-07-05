@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.277.0 (2026-07-06)
+
+### Added
+- `create_metric_modulation` — metric modulation with note-value equivalence. Tempo change preserving specific note duration: new_bpm = old_bpm × (new_note_value / old_note_value). 12 note values (whole through thirty_second), direct ratio mode "N:M", optional time signature change. Elliott Carter, Copland, Adams, Dream Theater, Tool. Unlike add_tempo_change (arbitrary BPM), preserves rhythmic continuity.
+
 ## v1.276.0 (2026-07-06)
 
 ### Added
