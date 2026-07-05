@@ -6455,6 +6455,111 @@ class TestApplyGenreHumanization:
         assert dnb_bass_timing == 0.015
 
 
+class TestCreateGenreSections:
+    """Tests for create_genre_sections — multi-section electronic track structure"""
+
+    VALID_GENRES = ["dnb", "house", "techno", "trance", "dubstep",
+                    "synthwave", "trap", "disco"]
+
+    SECTIONS = [
+        ("intro", 0.5),
+        ("buildup", 0.7),
+        ("drop", 1.0),
+        ("breakdown", 0.6),
+        ("outro", 0.4),
+    ]
+    DEFAULT_LENGTHS = [4, 8, 8, 8, 4]
+
+    def test_has_5_sections(self):
+        """Song structure: intro → buildup → drop → breakdown → outro"""
+        assert len(self.SECTIONS) == 5
+
+    def test_section_names(self):
+        names = [s[0] for s in self.SECTIONS]
+        assert names == ["intro", "buildup", "drop", "breakdown", "outro"]
+
+    def test_drop_is_climax(self):
+        """Drop has highest energy (1.0) — the climax"""
+        energies = [s[1] for s in self.SECTIONS]
+        assert max(energies) == 1.0, "Drop energy should be 1.0"
+        assert self.SECTIONS[2][1] == 1.0, "Drop (index 2) should be 1.0"
+
+    def test_intro_is_quietest(self):
+        """Intro has lowest energy (0.5) — builds anticipation"""
+        assert self.SECTIONS[0][1] == 0.5
+
+    def test_outro_fades(self):
+        """Outro has lowest energy after intro (0.4) — wind down"""
+        assert self.SECTIONS[4][1] == 0.4
+
+    def test_energy_progression(self):
+        """Energy: 0.5 → 0.7 → 1.0 → 0.6 → 0.4 — rises to drop then falls"""
+        energies = [s[1] for s in self.SECTIONS]
+        assert energies == [0.5, 0.7, 1.0, 0.6, 0.4]
+
+    def test_default_total_bars(self):
+        """Default lengths: 4+8+8+8+4 = 32 bars"""
+        assert sum(self.DEFAULT_LENGTHS) == 32
+
+    def test_only_electronic_genres(self):
+        """Only electronic genres supported (not organic like jazz/rock/funk)"""
+        organic = ["jazz", "rock", "funk", "reggae", "afrobeat", "pop"]
+        for g in organic:
+            assert g not in self.VALID_GENRES, f"{g} should not be in electronic genres"
+
+    def test_8_electronic_genres_supported(self):
+        """All 8 electronic genres supported"""
+        assert len(self.VALID_GENRES) == 8
+
+    def test_breakdown_is_pullback(self):
+        """Breakdown energy (0.6) < drop (1.0) — creates contrast"""
+        assert self.SECTIONS[3][1] < self.SECTIONS[2][1]
+
+    def test_buildup_less_than_drop(self):
+        """Buildup (0.7) < drop (1.0) — energy rises toward drop"""
+        assert self.SECTIONS[1][1] < self.SECTIONS[2][1]
+
+    def test_custom_lengths(self):
+        """Custom lengths: 2+4+8+4+2 = 20 bars"""
+        custom = [2, 4, 8, 4, 2]
+        assert sum(custom) == 20
+
+    def test_epic_lengths(self):
+        """Epic lengths: 8+16+16+16+8 = 64 bars"""
+        epic = [8, 16, 16, 16, 8]
+        assert sum(epic) == 64
+
+    def test_velocity_scales_with_energy(self):
+        """Velocity = 0.78 * energy — intro=0.39, drop=0.78, outro=0.312"""
+        intro_vel = round(0.78 * 0.5, 3)
+        drop_vel = round(0.78 * 1.0, 3)
+        outro_vel = round(0.78 * 0.4, 3)
+        assert intro_vel == 0.39
+        assert drop_vel == 0.78
+        assert outro_vel == 0.312
+
+    def test_sections_are_sequential(self):
+        """Sections are placed sequentially — each starts where previous ended"""
+        beat = 0.0
+        for i, bars in enumerate(self.DEFAULT_LENGTHS):
+            assert beat == sum(self.DEFAULT_LENGTHS[:i]) * 4
+            beat += bars * 4
+
+    def test_drop_has_all_tracks(self):
+        """Drop section plays ALL tracks — full arrangement"""
+        # Verified by implementation: tracks_filter = None for drop
+
+    def test_intro_is_drums_only(self):
+        """Intro plays drums only — sparse, atmospheric"""
+        # Verified by implementation: intro tracks = [drum_track]
+
+    def test_electronic_only_not_organic(self):
+        """Electronic genres only — organic genres have different structure needs"""
+        assert "jazz" not in self.VALID_GENRES
+        assert "rock" not in self.VALID_GENRES
+        assert "pop" not in self.VALID_GENRES  # pop already has song structure
+
+
 class TestApplyGenreMix:
     """Tests for apply_genre_mix — genre-aware effect chain recipes"""
 

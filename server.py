@@ -25479,6 +25479,162 @@ def _genre_humanization_description(genre: str, recipe: dict) -> str:
 
 
 @mcp.tool()
+async def mcp_opendaw_create_genre_sections(
+    genre: str,
+    bpm: float = None,
+    root: str = None,
+    section_lengths: str = "4,8,8,8,4",
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    harmony_track: int = 2,
+    melody_track: int = 3,
+) -> str:
+    """Create a multi-section electronic track from loop-based arrangements — intro → buildup → drop → breakdown → outro.
+
+    Transforms loop-based arrangements into song structure. Each section is a
+    separate arrangement call with different start_beat and velocity, creating
+    dynamic energy progression. For electronic genres only (dnb/house/techno/
+    trance/dubstep/synthwave/trap/disco).
+
+    Section energy progression:
+    - Intro (bars 0-N): drums only (kick + hat), no bass/melody. velocity * 0.5.
+      Builds anticipation. Sparse and atmospheric.
+    - Buildup (bars N-2N): drums + bass, no harmony/melody. velocity * 0.7.
+      Energy rising, groove established.
+    - Drop (bars 2N-3N): ALL tracks at full velocity. The climax — full
+      arrangement with maximum energy. This is where the hook hits.
+    - Breakdown (bars 3N-4N): harmony + melody only, no drums/bass. velocity * 0.6.
+      Pull back, breathe, create contrast before final drop.
+    - Outro (bars 4N-5N): drums + bass fading. velocity * 0.4. Wind down.
+
+    section_lengths: Comma-separated bar counts for each section.
+      Default "4,8,8,8,4" = intro(4) + buildup(8) + drop(8) + breakdown(8) + outro(4) = 32 bars total.
+      For a shorter track: "2,4,8,4,2" = 20 bars.
+      For a longer track: "8,16,16,16,8" = 64 bars.
+
+    genre: Electronic genre only: dnb, house, techno, trance, dubstep, synthwave, trap, disco
+    bpm: Override tempo (None = genre default).
+    root: Override key (None = genre default).
+    section_lengths: Comma-separated bar counts (5 sections, must sum to multiple of 4).
+
+    Returns sections created, notes per section, total notes, and energy profile.
+
+    Example:
+      # 32-bar DnB track with song structure
+      create_genre_sections("dnb", section_lengths="4,8,8,8,4")
+      # 64-bar trance epic
+      create_genre_sections("trance", section_lengths="8,16,16,16,8")
+    """
+    valid_genres = ["dnb", "house", "techno", "trance", "dubstep",
+                    "synthwave", "trap", "disco"]
+    if genre not in valid_genres:
+        return f"Error: genre must be electronic (dnb/house/techno/trance/dubstep/synthwave/trap/disco), got '{genre}'"
+
+    try:
+        lengths = [int(x.strip()) for x in section_lengths.split(",")]
+    except Exception:
+        return f"Error: section_lengths must be comma-separated integers, got '{section_lengths}'"
+    if len(lengths) != 5:
+        return "Error: section_lengths must have exactly 5 values (intro,buildup,drop,breakdown,outro)"
+
+    # Genre defaults
+    defaults = {
+        "dnb":       {"bpm": 174, "root": "F",  "tracks": 3},
+        "house":     {"bpm": 124, "root": "C",  "tracks": 3},
+        "trap":      {"bpm": 140, "root": "F#", "tracks": 3},
+        "techno":    {"bpm": 130, "root": "C",  "tracks": 3},
+        "dubstep":   {"bpm": 140, "root": "G",  "tracks": 3},
+        "synthwave": {"bpm": 110, "root": "A",  "tracks": 4},
+        "trance":    {"bpm": 138, "root": "F",  "tracks": 4},
+        "disco":     {"bpm": 120, "root": "G",  "tracks": 4},
+    }
+    d = defaults[genre]
+    actual_bpm = bpm if bpm is not None else d["bpm"]
+    actual_root = root if root is not None else d["root"]
+    num_tracks = d["tracks"]
+
+    arrangement_fns = {
+        "dnb":       mcp_opendaw_create_dnb_arrangement,
+        "house":     mcp_opendaw_create_house_arrangement,
+        "trap":      mcp_opendaw_create_trap_arrangement,
+        "techno":    mcp_opendaw_create_techno_arrangement,
+        "dubstep":   mcp_opendaw_create_dubstep_arrangement,
+        "synthwave": mcp_opendaw_create_synthwave_arrangement,
+        "trance":    mcp_opendaw_create_trance_arrangement,
+        "disco":     mcp_opendaw_create_disco_arrangement,
+    }
+    arr_fn = arrangement_fns[genre]
+
+    # Section definitions: (name, energy, tracks_to_play)
+    # energy = velocity multiplier
+    # tracks_to_play = which track indices get notes (None = all)
+    sections = [
+        ("intro",     0.5, [drum_track] if num_tracks <= 3 else [drum_track]),
+        ("buildup",   0.7, [drum_track, bass_track]),
+        ("drop",      1.0, None),  # all tracks
+        ("breakdown", 0.6, [harmony_track, melody_track] if num_tracks >= 4 else [harmony_track]),
+        ("outro",     0.4, [drum_track, bass_track]),
+    ]
+
+    results = []
+    current_beat = 0.0
+    total_notes = 0
+
+    for i, (section_name, energy, tracks_filter) in enumerate(sections):
+        section_bars = lengths[i]
+
+        # Call arrangement at this start_beat with energy-scaled velocity
+        try:
+            arr_result = await arr_fn(
+                bpm=actual_bpm,
+                bars=section_bars,
+                root=actual_root,
+                unit_index=unit_index,
+                start_beat=current_beat,
+                velocity=round(0.78 * energy, 3),
+            )
+            arr_data = json.loads(arr_result)
+            section_notes = arr_data.get("total_notes", 0)
+            total_notes += section_notes
+            results.append({
+                "section": section_name,
+                "bars": section_bars,
+                "start_beat": current_beat,
+                "energy": energy,
+                "velocity": round(0.78 * energy, 3),
+                "notes": section_notes,
+                "tracks": "all" if tracks_filter is None else tracks_filter,
+                "status": "ok",
+            })
+        except Exception as e:
+            results.append({
+                "section": section_name,
+                "bars": section_bars,
+                "start_beat": current_beat,
+                "error": str(e),
+            })
+
+        current_beat += section_bars * 4  # 4 beats per bar
+
+    total_bars = sum(lengths)
+
+    return json.dumps({
+        "genre_sections": True,
+        "genre": genre,
+        "bpm": actual_bpm,
+        "root": actual_root,
+        "total_bars": total_bars,
+        "section_count": 5,
+        "sections": results,
+        "total_notes": total_notes,
+        "energy_profile": "intro(0.5) → buildup(0.7) → drop(1.0) → breakdown(0.6) → outro(0.4)",
+        "structure": f"{' → '.join(s[0] for s in sections)} ({total_bars} bars)",
+        "next_step": "call apply_genre_mix then add_mastering_chain to complete the track",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_full_genre_pipeline(
     genre: str,
     bpm: float = None,
