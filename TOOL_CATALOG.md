@@ -433,6 +433,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `groove_transfer` — Transfer groove (timing + velocity feel) from a source region to a destination region. Extracts groove template (per-grid-slot timing offsets + velocity ratios) from source notes, then applies to destination notes. Groove cycles every groove_length beats (4=1 bar, 3=waltz). timing_strength + velocity_strength control blend. 16th/8th grid. NOT copying notes — transfers the feel.
 - `time_warp_notes` — Warp note positions AND durations by a factor — true half-time (0.5×) or double-time (2.0×) feel without changing BPM. Unlike scale_durations (only duration), this moves notes in time. 1-bar pattern → 2 bars (half-time) or 1 bar (from 2-bar, double-time). origin: "start" (region start) or "zero" (absolute). Range 0.1-8.0.
 - `force_scale_notes` — Force all notes into a specific scale — harmonic snap. Finds out-of-scale notes and moves them to nearest in-scale pitch. 13 scales (major/minor/dorian/phrygian/lydian/mixolydian/pentatonic/blues/harmonic_minor/melodic_minor). direction: nearest/up/down. preserve_octave: stay in octave or allow octave jumps. Harmonic equivalent of quantize_notes.
+- `identify_chords` — Identify chords from existing notes in a region — harmonic analysis / reverse engineering. Groups notes by temporal overlap, matches pitch-class sets against 10 chord types (maj/min/dom7/maj7/min7/sus2/sus4/add9/dim/aug). Returns chord name, root, type, time position, alternate names, and note names. Subset matching for chords with extensions. Use after import/transcription to understand harmony.
 - `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.
 - `create_polyrhythm` — Create polyrhythms — two rhythmic streams with different subdivision counts (3:4, 2:3, 5:7, etc.). Jazz, electronic, progressive, math rock.
 - `create_scale_run` — Create ascending/descending scale runs for fills and transitions. 14 scales, 1-4 octaves, adjustable step duration.
@@ -460,7 +461,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 
-**Total: 389 tools**
+**Total: 390 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 

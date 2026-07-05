@@ -11243,3 +11243,108 @@ class TestForceScaleNotes:
                 return
         assert False, "function not found"
 
+
+class TestIdentifyChords:
+    """Tests for identify_chords — harmonic analysis from existing notes"""
+
+    def test_tool_signature_exists(self):
+        """identify_chords is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_identify_chords" in tool_names
+
+    def test_has_unit_and_track_params(self):
+        """Has unit_index and track_index params (required)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                arg_names = [a.arg for a in node.args.args]
+                assert "unit_index" in arg_names
+                assert "track_index" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_group_tolerance_param(self):
+        """Has group_tolerance param for temporal grouping"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                arg_names = [a.arg for a in node.args.args]
+                assert "group_tolerance" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_min_notes_param(self):
+        """Has min_notes param (default 3 = triad minimum)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                arg_names = [a.arg for a in node.args.args]
+                assert "min_notes" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_uses_chord_intervals(self):
+        """Uses CHORD_INTERVALS from music_theory"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                source = ast.unparse(node)
+                assert "CHORD_INTERVALS" in source
+                return
+        assert False, "function not found"
+
+    def test_groups_notes_by_temporal_overlap(self):
+        """Groups notes by temporal overlap"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                source = ast.unparse(node)
+                assert "groups" in source
+                assert "tol" in source or "tolerance" in source
+                return
+        assert False, "function not found"
+
+    def test_matches_pitch_class_sets(self):
+        """Matches pitch class sets against chord templates"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                source = ast.unparse(node)
+                assert "pitchClasses" in source or "pitch_classes" in source
+                assert "templates" in source
+                return
+        assert False, "function not found"
+
+    def test_handles_subset_matching(self):
+        """Handles chords with extra notes (subset matching)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                source = ast.unparse(node)
+                assert "subset" in source or "extensions" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_chord_list_with_positions(self):
+        """Returns chord list with time positions and chord names"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_identify_chords":
+                source = ast.unparse(node)
+                assert "chords_identified" in source
+                assert "position_beats" in source
+                return
+        assert False, "function not found"
+

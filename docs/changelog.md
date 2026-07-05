@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.214.0 (2026-07-05)
+
+### Added
+- `identify_chords` — Harmonic analysis from existing MIDI notes. Reads notes from a region, groups by temporal overlap (group_tolerance beats), and matches pitch-class sets against 10 chord types (maj/min/dom7/maj7/min7/sus2/sus4/add9/dim/aug). Returns chord name, root, type, time position, alternate names, and note names. Subset matching for chords with extra notes (extensions). Useful for: understanding imported MIDI, analyzing AI-generated progressions, reverse-engineering harmony, verifying generated chords. 9 unit tests. **390 MCP tools**, 2733 unit tests
+
 ## v1.213.0 (2026-07-05)
 
 ### Added

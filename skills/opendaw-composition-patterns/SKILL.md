@@ -45,6 +45,7 @@ What do you want to create?
 ├── Groove transfer (feel cloning) → groove_transfer (source drum groove → destination programmed track, timing + velocity feel)
 ├── Time warp (half-time/double-time) → time_warp_notes (0.5× spread = half-time, 2.0× compress = double-time, moves both position + duration)
 ├── Force scale (harmonic snap) → force_scale_notes (out-of-scale notes → nearest in-scale pitch, 13 scales, nearest/up/down)
+├── Identify chords (analysis) → identify_chords (read notes, group by overlap, match pitch-class sets → chord names with positions)
 │
 ├── Melody → create_melody (scale-based, pattern notation 1-7)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)

@@ -18266,6 +18266,173 @@ async def mcp_opendaw_force_scale_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_identify_chords(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    group_tolerance: float = 0.25,
+    min_notes: int = 3,
+) -> str:
+    """Identify chords from existing notes in a region — harmonic analysis / reverse engineering.
+
+    Reads all notes from a region, groups them by temporal overlap (notes sounding
+    together within group_tolerance beats), and for each group identifies the chord
+    by matching the pitch-class set against known chord types (maj, min, 7, maj7,
+    min7, sus2, sus4, add9, dim, aug).
+
+    Useful for: understanding imported MIDI, analyzing AI-generated progressions,
+    reverse-engineering a track's harmony, or verifying that generated chords match
+    the intended progression.
+
+    unit_index: AU index to analyze.
+    track_index: Note track index to analyze.
+    region_index: Region index (-1 = first region).
+    group_tolerance: Beats of tolerance for grouping notes as simultaneous (default 0.25
+      = notes within a 16th note of each other are grouped together).
+    min_notes: Minimum notes to attempt chord identification (default 3 = triad minimum).
+
+    Returns list of detected chords with time position, root, type, and confidence.
+    """
+    from opendaw_mcp.music_theory import CHORD_INTERVALS
+
+    # Build chord templates in Python: map frozenset of pitch classes -> (root_name, chord_type)
+    note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    chord_templates = {}
+    for root_pc in range(12):
+        for chord_type, intervals in CHORD_INTERVALS.items():
+            pc_set = frozenset((root_pc + iv) % 12 for iv in intervals)
+            root_name = note_names[root_pc]
+            chord_templates.setdefault(pc_set, []).append((root_name, chord_type))
+
+    chord_templates_json = json.dumps(
+        {str(list(k)): v for k, v in chord_templates.items()}
+    )
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const tol = {group_tolerance};
+        const minNotes = {min_notes};
+        const Quarter = 960;
+        const templates = {chord_templates_json};
+        const noteNames = {json.dumps(note_names)};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const tracks = h.trackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+        const track = tracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{error: "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{error: "region_index out of range"}};
+        const region = regions[regIdx];
+
+        const eventsField = region.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const noteEvents = [...collBox.events.pointerHub.incoming()];
+        if (noteEvents.length === 0) return {{error: "No notes in region"}};
+
+        // Convert notes to objects with pos, dur, pitch
+        const notes = noteEvents.map(n => ({{
+            pos: n.box.position.getValue() / Quarter,
+            dur: n.box.duration.getValue() / Quarter,
+            pitch: n.box.pitch.getValue(),
+        }}));
+
+        // Sort by position
+        notes.sort((a, b) => a.pos - b.pos);
+
+        // Group notes by temporal overlap
+        const groups = [];
+        let currentGroup = [notes[0]];
+        for (let i = 1; i < notes.length; i++) {{
+            const lastInGroup = currentGroup[currentGroup.length - 1];
+            // If this note starts within tolerance of the last note's position, group it
+            if (Math.abs(notes[i].pos - lastInGroup.pos) <= tol) {{
+                currentGroup.push(notes[i]);
+            }} else {{
+                groups.push(currentGroup);
+                currentGroup = [notes[i]];
+            }}
+        }}
+        groups.push(currentGroup);
+
+        const chords = [];
+        for (const group of groups) {{
+            if (group.length < minNotes) {{
+                chords.push({{
+                    position_beats: Math.round(group[0].pos * 1000) / 1000,
+                    note_count: group.length,
+                    chord: "single_note_or_interval",
+                    notes: group.map(n => noteNames[n.pitch % 12] + (Math.floor(n.pitch / 12) - 1)),
+                }});
+                continue;
+            }}
+            // Extract pitch classes
+            const pitchClasses = [...new Set(group.map(n => n.pitch % 12))];
+            const pcKey = JSON.stringify(pitchClasses.sort((a, b) => a - b));
+            const matches = templates[pcKey] || [];
+
+            if (matches.length > 0) {{
+                // Use first match (highest priority)
+                const [root, type] = matches[0];
+                chords.push({{
+                    position_beats: Math.round(group[0].pos * 1000) / 1000,
+                    note_count: group.length,
+                    chord: root + " " + type,
+                    root: root,
+                    type: type,
+                    alternate_names: matches.slice(1).map(m => m[0] + " " + m[1]),
+                    notes: group.map(n => noteNames[n.pitch % 12] + (Math.floor(n.pitch / 12) - 1)),
+                }});
+            }} else {{
+                // Try subsets — maybe it's a chord with extra notes
+                let found = false;
+                for (const [pcSetStr, matchList] of Object.entries(templates)) {{
+                    const templatePcs = JSON.parse(pcSetStr);
+                    // Check if template is a subset of our pitch classes
+                    if (templatePcs.every(pc => pitchClasses.includes(pc))) {{
+                        const [root, type] = matchList[0];
+                        chords.push({{
+                            position_beats: Math.round(group[0].pos * 1000) / 1000,
+                            note_count: group.length,
+                            chord: root + " " + type + " (with extensions)",
+                            root: root,
+                            type: type,
+                            notes: group.map(n => noteNames[n.pitch % 12] + (Math.floor(n.pitch / 12) - 1)),
+                        }});
+                        found = true;
+                        break;
+                    }}
+                }}
+                if (!found) {{
+                    chords.push({{
+                        position_beats: Math.round(group[0].pos * 1000) / 1000,
+                        note_count: group.length,
+                        chord: "unknown",
+                        pitch_classes: pitchClasses.map(pc => noteNames[pc]),
+                        notes: group.map(n => noteNames[n.pitch % 12] + (Math.floor(n.pitch / 12) - 1)),
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            total_notes: notes.length,
+            groups_detected: groups.length,
+            chords_identified: chords.filter(c => c.chord !== "unknown" && c.chord !== "single_note_or_interval").length,
+            chords: chords,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,
