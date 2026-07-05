@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.34.0 (2026-07-05)
+
+- **`create_break` orchestration tool (286 MCP tools)** — classic drum break patterns for jungle/DnB/hip-hop/breakbeat. 6 presets: Amen Break, Think Break, Ashanti, Funky Drummer, When the Levee, Synthetic. 1-8 bars with variation modes (none/fill/humanize/drop) and swing. One call replaces 15-120 manual note creations. Essential for: breakbeat-based genres, sampling workflows, drum programming
+- **E2E verified**: Amen (14 notes), Think 2-bar fill (26 notes), Funky Drummer humanized (22 notes), Amen 2-bar drop (25 notes), Synthetic with swing (14 notes), error handling
+- **286 MCP tools** (254 low-level + 29 orchestration + 3 melodic)
+- ruff clean, CI green
+
 ## v1.33.0 (2026-07-05)
 
 - **`create_stab` orchestration tool (285 MCP tools)** — rhythmic chord stabs for house/disco/funk. Grid pattern with 'x' (stab), '-' (rest), '.' (ghost). Cycles through chord progressions. Adjustable octave, velocity, stab duration, pattern length. Ghost stabs use 45% velocity and shorter duration. One call replaces 20-60 manual note creations. Essential for: house off-beat stabs, funk syncopated punches, garage/shuffle patterns

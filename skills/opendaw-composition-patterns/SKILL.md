@@ -18,6 +18,7 @@ What do you want to create?
 ├── Drum fill/transition → create_drum_fill (build/break/roll/crash/tom)
 ├── Riser (build-up sweep) → create_riser (ascending pitch, exp/linear/log curves)
 ├── Stabs (house/disco/funk) → create_stab (rhythmic chord jabs, x-./. grid, ghost notes)
+├── Drum break (classic) → create_break (Amen/Think/Funky Drummer/etc, variation + swing)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │

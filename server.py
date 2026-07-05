@@ -15280,6 +15280,206 @@ async def mcp_opendaw_apply_sidechain(
     return _wrap_eval(result)
 
 
+# Classic drum break patterns — each is 1 bar (16 steps)
+# x = hit (0.9), o = soft (0.5), X = accent (1.0), . = rest
+_BREAK_PRESETS = {
+    "amen": {
+        "kick":  "x...x...x...x...",
+        "snare": "....x.......x...",
+        "hihat": "x.x.x.x.x.x.x.x.",
+    },
+    "think": {
+        "kick":  "x.....x...x.....",
+        "snare": "....x.......x...",
+        "hihat": "x.x.x.x.x.x.x.x.",
+    },
+    "ashanti": {
+        "kick":  "x...x.....x.x...",
+        "snare": "....x.......x...",
+        "hihat": "x.x.x.x.x.x.x.x.",
+    },
+    "funky_drummer": {
+        "kick":  "x...x...x...x...",
+        "snare": "....x.......x...",
+        "hihat": "xxxxxxxxxxxxxxxx",
+    },
+    "when_the_levee": {
+        "kick":  "x...x...x...x...",
+        "snare": "....x.......x...",
+        "hihat": "x...x...x...x...",
+    },
+    "synthetic": {
+        "kick":  "x...x...x...x...",
+        "snare": "....x.......x...",
+        "hihat": ".x.x.x.x.x.x.x.x",
+    },
+}
+
+
+@mcp.tool()
+async def mcp_opendaw_create_break(break_type: str = "amen", bars: int = 1, variation: str = "none", unit_index: int = -1, track_index: int = 0, start_beat: float = 0, swing: float = 0.0) -> str:
+    """Create a classic drum break — the foundation of jungle, DnB, hip-hop, breakbeat.
+
+    Generates iconic drum break patterns from presets, with optional variation and swing.
+    Each preset is a 1-bar pattern that can be repeated for multiple bars.
+
+    break_type: Classic break pattern preset.
+      - "amen" — Amen Break (The Winstons, 1969). The most sampled break in history. Kick on 1 and 3, snare on 2 and 4, with syncopated ghost.
+      - "think" — Think Break (Lyn Collins, 1972). Kick on 1, 1.75, 3.25 — distinctive off-beat kick pattern.
+      - "ashanti" — Ashanti Roosevelt break. Kick on 1, 2, 3.25 — funky displaced kicks.
+      - "funky_drummer" — Clyde Stubblefield break (James Brown). Straight kicks, dense 16th hi-hats.
+      - "when_the_levee" — When the Levee Breaks (Led Zeppelin). Heavy kick/snare, sparse hi-hat. The boom-bap template.
+      - "synthetic" — Electronic breakbeat. Off-beat hi-hats, four-on-the-floor kick.
+    bars: Number of bars to generate (1-8, default 1). Each bar is a repeat with optional variation.
+    variation: Per-bar variation mode.
+      - "none" — exact repeat
+      - "fill" — last bar gets a fill (denser snare/hihat)
+      - "humanize" — subtle timing/velocity variation per bar
+      - "drop" — last bar drops the kick (tension before drop)
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the break starts.
+    swing: Swing amount (0.0-0.65, 0 = straight, 0.58 = classic hip-hop swing).
+
+    Returns notes created, break type, and bars.
+    """
+    if break_type not in _BREAK_PRESETS:
+        return f"Error: unknown break_type '{break_type}'. Valid: {list(_BREAK_PRESETS.keys())}"
+    if bars < 1 or bars > 8:
+        return "Error: bars must be 1-8"
+    if variation not in ("none", "fill", "humanize", "drop"):
+        return f"Error: variation must be none, fill, humanize, or drop. Got: {variation}"
+    if swing < 0 or swing > 0.65:
+        return "Error: swing must be 0-0.65"
+    if start_beat < 0 or start_beat > 256:
+        return "Error: start_beat must be >= 0"
+
+    base_pattern = _BREAK_PRESETS[break_type]
+
+    # Build note data for all bars
+    note_data = []
+    lane_pitches = {"kick": 36, "snare": 38, "hihat": 42, "clap": 39, "perc": 47}
+    vel_map = {"x": 0.9, "o": 0.5, "X": 1.0}
+    bar_steps = 16
+    bar_beats = 4
+
+    for bar in range(bars):
+        bar_start = start_beat + bar * bar_beats
+        is_last = (bar == bars - 1)
+
+        for lane, pattern in base_pattern.items():
+            pitch = lane_pitches.get(lane, 36)
+            for i, ch in enumerate(pattern):
+                if ch == "." or ch == " ":
+                    continue
+
+                step_beat = i * (bar_beats / bar_steps)
+                # Apply swing: shift odd 16th steps
+                if swing > 0 and i % 2 == 1:
+                    step_beat += swing * (bar_beats / bar_steps) * 0.5
+
+                pos = bar_start + step_beat
+                vel = vel_map.get(ch, 0.8)
+                dur = bar_beats / bar_steps * 0.8
+
+                # Variation effects
+                if variation == "fill" and is_last and lane in ("snare", "hihat"):
+                    # Fill: add extra hits on last bar
+                    if i >= 8:
+                        vel = min(1.0, vel * 1.15)
+                elif variation == "drop" and is_last and lane == "kick":
+                    # Drop: skip kick on last bar after first 4 steps
+                    if i >= 4:
+                        continue
+                elif variation == "humanize":
+                    import random as _rng
+                    rng = _rng.Random(hash(f"{break_type}{bar}{i}{lane}") & 0xFFFFFFFF)
+                    vel = max(0.3, min(1.0, vel + rng.uniform(-0.08, 0.08)))
+                    pos += rng.uniform(-0.01, 0.01)
+
+                note_data.append({"pitch": pitch, "pos": pos, "dur": dur, "vel": vel})
+
+    if not note_data:
+        return "Error: no notes generated"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {bars} * 4;
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("{break_type} break");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            break_type: "{break_type}",
+            bars: {bars},
+            variation: "{variation}",
+            swing: {swing},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 @mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
