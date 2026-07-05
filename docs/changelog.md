@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.63.0 (2026-07-05)
+
+- **`werkstatt_multiband_comp.js` DSP script** — 3-band multiband compressor with Linkwitz-Riley 4th order crossovers (24dB/oct). Independent threshold/ratio/attack/release/makeup gain per band (low/mid/high). Crossover frequencies 50-8000 Hz (exponential). Envelope followers per band with peak detection. Classic mastering tool — controls dynamics separately in low/mid/high frequency ranges. 18 params: 2 crossovers + 5 per band × 3 + mix
+- **53 DSP scripts** (40 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **555 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.62.0 (2026-07-05)
 
 - **`werkstatt_harmonizer.js` DSP script** — dual-voice harmonizer with independent pitch shift (±12 semitones + ±50 cents), per-voice gain, detune LFO for chorus-like wobble, and delay-based pitch shifting. Creates choir/harmony effects from any input — two shifted voices with micro-detune. Distinct from pitch_shift (single voice) — harmonizer creates multiple harmonized copies. Classic for vocal harmonies, guitar harmonizers, synth thickening. 9 params: 2× shift_semi/cent/gain, detune, delay, mix

@@ -276,6 +276,7 @@ class Processor {
 | `werkstatt_comb_filter.js` | Comb filter (delay-line feedback, polarity, damping) | freq, feedback, damping, mix, polarity | |
 | `werkstatt_formant_filter.js` | Formant filter (3-band vocal tract, vowel presets) | formant_a/b/c, bandwidth_a/b/c, vowel, resonance, mix | |
 | `werkstatt_harmonizer.js` | Dual-voice harmonizer (pitch shift + detune) | shift1/2_semi, shift1/2_cent, shift1/2_gain, detune, delay, mix | |
+| `werkstatt_multiband_comp.js` | 3-band multiband compressor (LR4, per-band dynamics) | crossover1/2, low/mid/high × thr/ratio/atk/rel/gain, mix | |
 | `werkstatt_pitch_shift.js` | Real-time pitch shift | semitones, cents, latency, mix | #188 |
 | `werkstatt_dcremover.js` | DC remover + stereo width | dc_freq, width, balance, mix | #91 |
 | `werkstatt_allpass.js` | Allpass filter + cascade | freq, stages, invert, feedback, mix | #133 |
@@ -327,6 +328,7 @@ class Processor {
 | Comb filter | `werkstatt_comb_filter.js` | Werkstatt |
 | Formant filter (vocal) | `werkstatt_formant_filter.js` | Werkstatt |
 | Harmonizer (dual-voice) | `werkstatt_harmonizer.js` | Werkstatt |
+| Multiband compressor | `werkstatt_multiband_comp.js` | Werkstatt |
 | Compressor (peak, soft-knee) | `werkstatt_compressor.js` | Werkstatt |
 | Compressor (lookahead) | `werkstatt_lookahead.js` | Werkstatt |
 | Limiter (brickwall) | `werkstatt_limiter.js` | Werkstatt |

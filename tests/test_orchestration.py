@@ -1829,3 +1829,80 @@ class TestHarmonizerDSP:
         assert "_pitchShift" in code, "Missing pitch shift function"
         assert "frac" in code, "Missing fractional interpolation"
         assert "idx0" in code or "idx1" in code, "Missing buffer index interpolation"
+
+
+class TestMultibandCompDSP:
+    """Unit tests for werkstatt_multiband_comp.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_multiband_comp.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt multiband_comp" in code, "Missing @werkstatt multiband_comp header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 18, f"Expected 18 params, got {len(params)}"
+
+    def test_crossover_params(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        x1 = [p for p in params if p["name"] == "crossover1"][0]
+        x2 = [p for p in params if p["name"] == "crossover2"][0]
+        assert x1["scale"] == "exp", "crossover1 should be exponential"
+        assert x2["scale"] == "exp", "crossover2 should be exponential"
+        assert x1["min"] < x2["min"], "crossover1 min should be < crossover2 min"
+
+    def test_three_bands_present(self):
+        code = self._read_script()
+        for prefix in ["low_", "mid_", "high_"]:
+            for suffix in ["threshold", "ratio", "attack", "release", "gain"]:
+                assert f"{prefix}{suffix}" in code, f"Missing {prefix}{suffix} parameter"
+
+    def test_linkwitz_riley_crossover(self):
+        code = self._read_script()
+        assert "_butterworthLP" in code, "Missing Butterworth LP filter"
+        assert "_butterworthHP" in code, "Missing Butterworth HP filter"
+        assert "_lr4" in code, "Missing Linkwitz-Riley 4th order cascade"
+
+    def test_envelope_followers(self):
+        code = self._read_script()
+        assert "envLow" in code and "envMid" in code and "envHigh" in code, "Missing per-band envelope followers"
+        assert "atkCoeff" in code and "relCoeff" in code, "Missing attack/release coefficients"
+
+    def test_compression_logic(self):
+        code = self._read_script()
+        assert "threshold" in code, "Missing threshold comparison"
+        assert "ratio" in code, "Missing ratio calculation"
+        assert "reduction" in code, "Missing gain reduction"
+
+    def test_band_recombination(self):
+        code = self._read_script()
+        assert "gainLin" in code, "Missing makeup gain linear conversion"
+        assert "out[0]" in code, "Missing output"
+        assert "/" in code, "Missing band sum normalization"
+
+    def test_mix_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        mix = [p for p in params if p["name"] == "mix"][0]
+        assert mix["min"] == 0
+        assert mix["max"] == 1
