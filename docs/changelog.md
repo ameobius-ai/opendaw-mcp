@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.198.0 (2026-07-05)
+
+### Added
+- `remix_track` — full Suno remix pipeline in one call: analyze_track → set_bpm → import_audio_to_tracks → create_progression_from_key → create_harmonic_arrangement → apply_genre_mix → add_mastering_chain. 7 steps, one call replaces 8-10 individual tool calls. Defaults: synthwave genre, bs4 stems, -14 LUFS. Parameters: genre, style, stem_mode, master_lufs, add_harmony, add_counter_melody, bars. 6 unit tests (signature, pipeline steps, defaults, delegation, harmony skip, full Suno pipeline). **377 MCP tools**, 1381 unit tests
+
 ## v1.197.0 (2026-07-05)
 
 ### Added

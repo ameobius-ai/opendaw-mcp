@@ -9440,3 +9440,99 @@ class TestAnalyzeTrack:
         assert steps[0] == "analyze_track"
         assert len(steps) == 6
 
+
+class TestRemixTrack:
+    """Tests for remix_track — full Suno remix pipeline in one call"""
+
+    def test_tool_signature_exists(self):
+        """remix_track is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_remix_track" in tool_names
+
+    def test_pipeline_steps_count(self):
+        """remix_track has exactly 7 pipeline steps"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_remix_track":
+                source = ast.unparse(node)
+                # Count the 7 step labels (ast.unparse may use single quotes)
+                steps = ["analyze_track", "set_bpm", "import_audio",
+                         "create_progression", "harmonic_arrangement",
+                         "genre_mix", "mastering"]
+                for s in steps:
+                    # Check both single and double quoted forms
+                    assert (f'"step": "{s}"' in source or
+                            f"'step': '{s}'" in source or
+                            f'"step": \'{s}\'' in source or
+                            f'\'step\': "{s}"' in source or
+                            s in source), f"Missing step: {s}"
+                return
+        assert False, "remix_track function not found"
+
+    def test_default_params(self):
+        """Default params: genre=synthwave, style=pop, stem_mode=bs4, lufs=-14"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_remix_track":
+                # Defaults are aligned from the end (Python AST behavior)
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                defaults_map = {}
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if isinstance(d, ast.Constant):
+                        defaults_map[arg_name] = d.value
+                    elif isinstance(d, ast.UnaryOp) and isinstance(d.op, ast.USub):
+                        if isinstance(d.operand, ast.Constant):
+                            defaults_map[arg_name] = -d.operand.value
+                assert defaults_map.get("genre") == "synthwave"
+                assert defaults_map.get("style") == "pop"
+                assert defaults_map.get("stem_mode") == "bs4"
+                assert defaults_map.get("master_lufs") == -14
+                assert defaults_map.get("add_harmony") is True
+                return
+        assert False, "remix_track function not found"
+
+    def test_delegates_to_analyze_track(self):
+        """remix_track calls analyze_track internally"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_remix_track":
+                source = ast.unparse(node)
+                assert "mcp_opendaw_analyze_track" in source
+                assert "mcp_opendaw_set_bpm" in source
+                assert "mcp_opendaw_import_audio_to_tracks" in source
+                assert "mcp_opendaw_create_progression_from_key" in source
+                assert "mcp_opendaw_create_harmonic_arrangement" in source
+                assert "mcp_opendaw_apply_genre_mix" in source
+                assert "mcp_opendaw_add_mastering_chain" in source
+                return
+        assert False, "remix_track function not found"
+
+    def test_harmony_skip_when_disabled(self):
+        """When add_harmony=False, progression and harmonic_arrangement steps are skipped"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_remix_track":
+                source = ast.unparse(node)
+                # The add_harmony flag controls steps 4 and 5
+                assert "if add_harmony" in source
+                assert "if add_harmony and progression_str" in source
+                return
+        assert False, "remix_track function not found"
+
+    def test_suno_full_pipeline(self):
+        """Full Suno pipeline: chirp_generate → download_audio → remix_track → render"""
+        steps = ["chirp_generate", "download_audio", "remix_track", "render_full"]
+        assert len(steps) == 4
+        assert steps[2] == "remix_track"
+

@@ -31469,5 +31469,190 @@ async def mcp_opendaw_clear_region_notes(unit_index: int, track_index: int, regi
             regions_affected: regionInfo.length,
             region_details: regionInfo,
         }};
-    }}""")
+    }}""""")
     return _wrap_eval(result)
+
+@mcp.tool()
+async def mcp_opendaw_remix_track(
+    filename: str,
+    genre: str = "synthwave",
+    style: str = "pop",
+    stem_mode: str = "bs4",
+    master_lufs: float = -14,
+    add_harmony: bool = True,
+    add_counter_melody: bool = False,
+    bars: int = 8,
+) -> str:
+    """Full Suno remix pipeline in one call — analyze → import → harmony → mix → master.
+
+    Takes any audio file (from download_audio or local) and creates a complete
+    remix: detect BPM + key → set project tempo → import stems → auto-generate
+    matching chord progression → harmonic arrangement → genre mix → mastering.
+    One call replaces 8-10 individual tool calls.
+
+    Steps performed:
+    1. analyze_track (BPM + key + mode + LUFS)
+    2. set_bpm to detected tempo
+    3. import_audio_to_tracks (with stem separation if stem_mode set)
+    4. create_progression_from_key (diatonic, style-appropriate)
+    5. create_harmonic_arrangement (arp + melody on top of stems)
+    6. apply_genre_mix (genre-specific processing)
+    7. add_mastering_chain (LUFS target)
+
+    After this call, the project is remix-ready — call render_full to export.
+
+    filename: Path to audio file (from download_audio or local path).
+    genre: Genre for mix processing (synthwave, house, techno, dnb, trap, etc).
+    style: Progression style (pop, jazz, rock, synthwave, folk, lofi).
+    stem_mode: Stem separation mode ("bs2", "bs4", "bs6") or "" for simple import.
+    master_lufs: Mastering target (-14 Spotify, -10 loud, -16 Apple).
+    add_harmony: If True, generates harmonic layers (arp + melody). Default True.
+    add_counter_melody: If True, adds counter-melody layer. Default False.
+    bars: Arrangement length in bars. Default 8.
+
+    Returns: analysis results, tracks created, harmony layers, effects, mastering.
+
+    Example:
+      # Full pipeline: Suno → download → remix
+      chirp_generate → audio_url
+      download_audio(audio_url) → /tmp/track.wav
+      remix_track("/tmp/track.wav", genre="synthwave", style="synthwave",
+                   stem_mode="bs6", add_counter_melody=True)
+      render_full() → export
+    """
+    pipeline_steps = []
+
+    # Step 1: Analyze track
+    try:
+        analysis_result = await mcp_opendaw_analyze_track(filename)
+        analysis = json.loads(analysis_result)
+        if "error" in analysis:
+            return json.dumps({"error": f"Analysis failed: {analysis['error']}"}, indent=2)
+        detected_bpm = analysis.get("bpm", 120.0)
+        detected_key = analysis.get("key", "C")
+        detected_mode = analysis.get("mode", "major")
+        detected_lufs = analysis.get("lufs_integrated", -20.0)
+        pipeline_steps.append({
+            "step": "analyze_track",
+            "bpm": detected_bpm,
+            "key": detected_key,
+            "mode": detected_mode,
+            "lufs": detected_lufs,
+            "duration": analysis.get("duration_seconds", 0),
+            "status": "ok",
+        })
+    except Exception as e:
+        return json.dumps({"error": f"Analysis failed: {e}"}, indent=2)
+
+    # Step 2: Set BPM
+    try:
+        await mcp_opendaw_set_bpm(detected_bpm)
+        pipeline_steps.append({"step": "set_bpm", "bpm": detected_bpm, "status": "ok"})
+    except Exception as e:
+        pipeline_steps.append({"step": "set_bpm", "error": str(e)})
+
+    # Step 3: Import audio (with stems if requested)
+    try:
+        import_result = await mcp_opendaw_import_audio_to_tracks(filename, mode=stem_mode)
+        import_data = json.loads(import_result)
+        tracks_imported = import_data.get("tracks_created", 1)
+        unit_index = import_data.get("unit_index", 0)
+        pipeline_steps.append({
+            "step": "import_audio",
+            "stem_mode": stem_mode,
+            "tracks_imported": tracks_imported,
+            "unit_index": unit_index,
+            "status": "ok",
+        })
+    except Exception as e:
+        pipeline_steps.append({"step": "import_audio", "error": str(e)})
+        unit_index = 0
+
+    # Step 4: Create matching progression
+    progression_str = ""
+    if add_harmony:
+        try:
+            prog_result = await mcp_opendaw_create_progression_from_key(
+                detected_key, detected_mode, style, unit_index=unit_index)
+            prog_data = json.loads(prog_result)
+            progression_str = "-".join(prog_data.get("progression", []))
+            pipeline_steps.append({
+                "step": "create_progression",
+                "key": detected_key,
+                "mode": detected_mode,
+                "style": style,
+                "progression": prog_data.get("progression", []),
+                "status": "ok",
+            })
+        except Exception as e:
+            pipeline_steps.append({"step": "create_progression", "error": str(e)})
+
+    # Step 5: Harmonic arrangement (arp + melody on top of imported stems)
+    if add_harmony and progression_str:
+        try:
+            cm_pattern = "contrary" if add_counter_melody else ""
+            harm_result = await mcp_opendaw_create_harmonic_arrangement(
+                progression_str,
+                pad_octave=-1,        # skip — stems provide harmonic content
+                bass_pattern="",      # skip — stems or genre provide bass
+                arp_pattern="up",
+                melody_pattern="chord_tones",
+                counter_melody_pattern=cm_pattern,
+                bars_per_chord=max(1, bars // 4),
+                velocity=0.7,
+                unit_index=unit_index,
+            )
+            harm_data = json.loads(harm_result)
+            pipeline_steps.append({
+                "step": "harmonic_arrangement",
+                "progression": progression_str,
+                "layers": harm_data.get("layers", []),
+                "notes_added": harm_data.get("total_notes", 0),
+                "counter_melody": add_counter_melody,
+                "status": "ok",
+            })
+        except Exception as e:
+            pipeline_steps.append({"step": "harmonic_arrangement", "error": str(e)})
+
+    # Step 6: Genre mix
+    try:
+        mix_result = await mcp_opendaw_apply_genre_mix(
+            genre, unit_index=unit_index,
+            sidechain=genre in ("house", "techno", "dubstep", "dnb", "trance", "synthwave"))
+        mix_data = json.loads(mix_result)
+        pipeline_steps.append({
+            "step": "genre_mix",
+            "genre": genre,
+            "effects_added": mix_data.get("effect_count", 0),
+            "status": "ok",
+        })
+    except Exception as e:
+        pipeline_steps.append({"step": "genre_mix", "error": str(e)})
+
+    # Step 7: Mastering chain
+    try:
+        await mcp_opendaw_add_mastering_chain(target_lufs=master_lufs)
+        pipeline_steps.append({
+            "step": "mastering",
+            "target_lufs": master_lufs,
+            "status": "ok",
+        })
+    except Exception as e:
+        pipeline_steps.append({"step": "mastering", "error": str(e)})
+
+    # Summary
+    return json.dumps({
+        "remix_complete": True,
+        "source_file": filename,
+        "detected_bpm": detected_bpm,
+        "detected_key": detected_key,
+        "detected_mode": detected_mode,
+        "genre": genre,
+        "style": style,
+        "stem_mode": stem_mode,
+        "progression": progression_str or None,
+        "unit_index": unit_index,
+        "pipeline_steps": pipeline_steps,
+        "ready_for_export": all(s.get("status") == "ok" for s in pipeline_steps),
+        "next_step": "call render_full or render_full_format to export the remix",
+    }, indent=2)
