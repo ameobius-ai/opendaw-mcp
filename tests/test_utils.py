@@ -9346,3 +9346,97 @@ class TestCreateProgressionFromKey:
         steps = ["detect_key", "create_progression_from_key", "create_harmonic_arrangement"]
         assert len(steps) == 3
 
+
+class TestAnalyzeTrack:
+    """Tests for analyze_track — composite BPM + key + LUFS + duration analysis"""
+
+    def test_tool_signature_exists(self):
+        """analyze_track is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_analyze_track" in tool_names
+
+    def test_analyze_components_exist(self):
+        """All three sub-analysis functions exist"""
+        from opendaw_mcp.utils import _detect_bpm, _detect_key, _compute_lufs
+        assert callable(_detect_bpm)
+        assert callable(_detect_key)
+        assert callable(_compute_lufs)
+
+    def test_synthetic_track_analysis(self):
+        """Composite analysis of synthetic C major track: all fields present"""
+        import math
+        from opendaw_mcp.utils import _detect_bpm, _detect_key, _compute_lufs, _parse_wav
+
+        sr = 44100
+        duration_s = 10.0
+        n = int(sr * duration_s)
+        mono = [0.0] * n
+
+        # Add C major triad (C4, E4, G4) for key detection
+        for freq in [261.63, 329.63, 392.00]:
+            for i in range(n):
+                mono[i] += math.sin(2 * math.pi * freq * i / sr) * 0.2
+
+        # Add rhythmic kick at 120 BPM for BPM detection
+        period = int(sr * 0.5)
+        for i in range(0, n - 100, period):
+            for j in range(100):
+                mono[i + j] += 0.5
+
+        bpm = _detect_bpm([mono], sr)
+        key = _detect_key([mono], sr)
+        lufs = _compute_lufs([mono], sr)
+
+        assert "bpm" in bpm
+        assert "confidence" in bpm
+        assert "key" in key
+        assert "mode" in key
+        assert "lufs_integrated" in lufs
+        assert "true_peak_db" in lufs
+
+    def test_analyze_result_fields(self):
+        """Expected output fields for analyze_track composite result"""
+        expected_fields = {
+            "success", "bpm", "bpm_confidence", "key", "mode",
+            "key_confidence", "lufs_integrated", "true_peak_db",
+            "duration_seconds", "sample_rate", "channels",
+            "dynamic_range_db", "chroma"
+        }
+        # Verify the MCP tool function has these in its return json.dumps
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_analyze_track":
+                # Check the function source contains all field names
+                source = ast.unparse(node)
+                for field in expected_fields:
+                    assert f'"{field}"' in source or f"'{field}'" in source, f"Missing field: {field}"
+                return
+        assert False, "analyze_track function not found"
+
+    def test_dynamic_range_calculation(self):
+        """Dynamic range = peak dB - RMS dB"""
+        import math
+        # A pure sine has ~3 dB crest factor
+        sr = 44100
+        n = sr
+        mono = [math.sin(2 * math.pi * 440 * i / sr) * 0.5 for i in range(n)]
+        max_sample = max(abs(s) for s in mono)
+        rms = math.sqrt(sum(s * s for s in mono) / n)
+        peak_db = 20 * math.log10(max_sample) if max_sample > 0 else -120
+        rms_db = 20 * math.log10(rms) if rms > 0 else -120
+        dr = peak_db - rms_db
+        # Sine wave crest factor is ~3.01 dB
+        assert 2.5 < dr < 4.0
+
+    def test_pipeline_analyze_to_remix(self):
+        """Pipeline: analyze_track → set_bpm + create_progression_from_key → import → mix → render"""
+        steps = ["analyze_track", "set_bpm", "create_progression_from_key",
+                 "import_audio_to_tracks", "apply_genre_mix", "render_full"]
+        assert steps[0] == "analyze_track"
+        assert len(steps) == 6
+

@@ -253,6 +253,7 @@
 - `detect_bpm` — Detect BPM (tempo) of a WAV file using onset detection + autocorrelation. Pure Python (no numpy). 60-200 BPM range, confidence score. Essential for Suno integration: detect BPM → set_bpm for correct beat alignment.
 - `detect_key` — Detect musical key and mode of a WAV file using chroma features + Krumhansl-Schmuckler key profiles. Pure Python radix-2 FFT (no numpy). 24 keys (12 roots × major/minor), confidence, alternatives, chroma vector. Essential for Suno integration: detect key → build matching chord progression → harmonic arrangement.
 - `create_progression_from_key` — Auto-generate diatonic chord progression from detected key + mode. 6 styles (pop/jazz/rock/synthwave/folk/lofi), 12 templates (major + minor). Delegates to create_chord_progression. Eliminates manual chord typing — just pass key="A", mode="minor".
+- `analyze_track` — Full audio analysis in one call: BPM + key + mode + LUFS + true peak + duration + dynamic range + chroma. Composite of detect_bpm + detect_key + measure_lufs. One call instead of three.
 - `render_full` — Render the entire project as a single stereo WAV file (full mixdown).
 - `render_full_format` — Render the entire project and convert to MP3 or FLAC in one step.
 - `render_range` — Render only a portion of the project (e.g. chorus only) for quick A/B comparison.

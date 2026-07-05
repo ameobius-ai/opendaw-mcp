@@ -6211,6 +6211,82 @@ async def mcp_opendaw_detect_key(filename: str) -> str:
         return _err(f"Key detection error: {e}")
 
 @mcp.tool()
+async def mcp_opendaw_analyze_track(filename: str) -> str:
+    """Full audio analysis in one call — BPM + key + LUFS + duration + dynamic range.
+
+    Composite tool that runs detect_bpm + detect_key + measure_lufs in a single
+    call. Eliminates 3 separate calls for track analysis. Essential for Suno
+    remix pipeline: download_audio → analyze_track → set_bpm + matching progression
+    → import → mix → render.
+
+    filename: Name of the WAV file in the exports directory (without path),
+              or absolute path to any WAV file.
+
+    Returns: bpm, bpm_confidence, key, mode, key_confidence, lufs_integrated,
+             true_peak_db, duration_seconds, sample_rate, channels, dynamic_range,
+             alternatives (key alternatives), chroma.
+
+    Examples:
+      result = analyze_track("suno_track.wav")
+      # → {bpm: 128.0, bpm_confidence: 0.85, key: "A", mode: "minor",
+      #    lufs_integrated: -14.2, duration_seconds: 30.0, ...}
+      # Then use results for remix:
+      set_bpm(result.bpm)
+      create_progression_from_key(result.key, result.mode, "synthwave")
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        channels = wav["channels"]
+        sr = wav["sample_rate"]
+
+        # Run all three analyses
+        bpm_data = _detect_bpm(channels, sr)
+        key_data = _detect_key(channels, sr)
+        lufs_data = _compute_lufs(channels, sr)
+
+        duration = wav["n_frames"] / sr
+
+        # Dynamic range: difference between peak and RMS (rough indicator)
+        max_sample = max(max(abs(s) for s in ch) for ch in channels)
+        import math as _math
+        rms = _math.sqrt(sum(s * s for ch in channels for s in ch[:min(len(ch), sr)]) / max(1, sr * len(channels)))
+        dynamic_range_db = (20 * _math.log10(max_sample) if max_sample > 0 else -120) - (20 * _math.log10(rms) if rms > 0 else -120)
+
+        return json.dumps({
+            "success": True,
+            "bpm": bpm_data["bpm"],
+            "bpm_confidence": bpm_data["confidence"],
+            "bpm_onset_count": bpm_data["onset_count"],
+            "key": key_data["key"],
+            "mode": key_data["mode"],
+            "key_confidence": key_data["confidence"],
+            "key_correlation": key_data.get("correlation", 0.0),
+            "key_alternatives": key_data.get("alternatives", []),
+            "lufs_integrated": lufs_data["lufs_integrated"],
+            "true_peak_db": lufs_data["true_peak_db"],
+            "duration_seconds": round(duration, 2),
+            "sample_rate": sr,
+            "channels": wav["n_channels"],
+            "dynamic_range_db": round(dynamic_range_db, 1),
+            "chroma": key_data.get("chroma", []),
+            "file": filepath,
+        })
+    except Exception as e:
+        return _err(f"Track analysis error: {e}")
+
+@mcp.tool()
 async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: int = 3) -> str:
     """Auto-adjust output volume to hit a target LUFS.
 

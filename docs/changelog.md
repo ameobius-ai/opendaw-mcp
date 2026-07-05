@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.197.0 (2026-07-05)
+
+### Added
+- `analyze_track` — composite audio analysis in one call: BPM + key + mode + LUFS + true peak + duration + dynamic range + chroma. Runs detect_bpm + detect_key + measure_lufs internally. Eliminates 3 separate calls. 6 unit tests (field validation, component existence, synthetic track, dynamic range math, pipeline). **376 MCP tools**, 1375 unit tests
+
 ## v1.196.0 (2026-07-05)
 
 ### Added

@@ -5,10 +5,10 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-375-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-376-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-12-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-108-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-1369%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1375%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Examples](https://img.shields.io/badge/Examples-122-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -27,9 +27,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **375** MCP tools | **122** Python examples (8 genre templates) |
+| **376** MCP tools | **122** Python examples (8 genre templates) |
 | **108** DSP scripts | **12** agent skills |
-| **3** framework wrappers | **1369** unit + E2E tests |
+| **3** framework wrappers | **1375** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
