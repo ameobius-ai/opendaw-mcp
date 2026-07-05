@@ -27,9 +27,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **378** MCP tools | **123** Python examples (8 genre templates) |
-| **109** DSP scripts | **12** agent skills |
-| **3** framework wrappers | **1403** unit + E2E tests |
+| **382** MCP tools | **123** Python examples (8 genre templates) |
+| **110** DSP scripts | **12** agent skills |
+| **3** framework wrappers | **2654** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
