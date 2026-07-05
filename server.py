@@ -27620,6 +27620,242 @@ async def mcp_opendaw_create_harmonic_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_counter_melody_from_progression(
+    progression: str = "Am-F-C-G",
+    pattern: str = "contrary",
+    bars_per_chord: int = 4,
+    octave: int = 4,
+    velocity: float = 0.6,
+    unit_index: int = 0,
+    track_index: int = 4,
+    start_beat: float = 0,
+) -> str:
+    """Create a counter-melody (second melodic line) from a chord progression.
+
+    A counter-melody is a secondary melodic line that plays alongside the
+    primary melody. It provides harmonic depth and contrapuntal interest
+    without competing for the listener's attention.
+
+    This completes the harmonic quintet: chord_pads + arpeggiated_progression +
+    bass_from_progression + melody_from_progression + THIS (counter-melody).
+    Place on track 4 (default) to avoid clashing with melody (track 3).
+
+    pattern: Contrapuntal pattern:
+      "contrary" — moves opposite to chord root motion (if root goes up,
+        counter goes down). Classic species-1 counterpoint feel.
+      "oblique" — one note sustained across the chord, changes only when
+        the harmony forces it. Minimalist, drone-like.
+      "parallel_third" — parallels the chord tones a third above. Sweet,
+        consonant, pop/folk counter-melody.
+      "parallel_sixth" — parallels the chord tones a sixth above. Open,
+        spacious, cinematic. More independent than parallel third.
+      "call_response" — answers after the melody would play: rests on
+        beats 1-2, plays on beats 3-4. Antiphonal, gospel/soul feel.
+
+    bars_per_chord: Bars per chord (default 4).
+    octave: MIDI octave (default 4 = below typical melody at 5).
+    velocity: Lower than melody (0-1, default 0.6 = supportive, not competing).
+    track_index: Track for counter-melody (default 4, above melody track 3).
+
+    Example:
+      # Counter-melody below the lead
+      create_counter_melody_from_progression("Am-F-C-G", pattern="contrary",
+          octave=4, velocity=0.6)
+
+      # Cinematic parallel sixths
+      create_counter_melody_from_progression("Dm-G-C-Am", pattern="parallel_sixth",
+          octave=4, velocity=0.55)
+
+      # Gospel call-and-response
+      create_counter_melody_from_progression("C-Am-Dm-G", pattern="call_response",
+          octave=5, velocity=0.65)
+    """
+    type_map = {
+        "m": "min", "7": "dom7", "maj7": "maj7", "m7": "min7",
+        "sus2": "sus2", "sus4": "sus4", "add9": "add9",
+        "dim": "dim", "aug": "aug", "maj": "maj",
+    }
+    chord_specs = []
+    for chord_str in progression.split("-"):
+        chord_str = chord_str.strip()
+        if not chord_str:
+            continue
+        if len(chord_str) >= 2 and chord_str[1] in "#b":
+            root = chord_str[:2]
+            remainder = chord_str[2:]
+        else:
+            root = chord_str[0]
+            remainder = chord_str[1:]
+
+        chord_type = "maj"
+        if remainder:
+            if remainder not in type_map:
+                return f"Error: unknown chord type '{remainder}' in chord '{chord_str}'. Valid: {list(type_map.keys())}"
+            chord_type = type_map[remainder]
+
+        if root not in NOTE_TO_PITCH:
+            return f"Error: unknown root note '{root}' in chord '{chord_str}'"
+        chord_specs.append((root, chord_type, chord_str))
+
+    if not chord_specs:
+        return "Error: progression must be a non-empty hyphen-separated chord list"
+    if len(chord_specs) > 16:
+        return "Error: maximum 16 chords per progression"
+    if bars_per_chord < 1 or bars_per_chord > 16:
+        return "Error: bars_per_chord must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 7):
+        return "Error: octave must be 0-7"
+    valid_patterns = ("contrary", "oblique", "parallel_third", "parallel_sixth", "call_response")
+    if pattern not in valid_patterns:
+        return f"Error: pattern must be one of {valid_patterns}, got '{pattern}'"
+
+    all_notes = []
+    chord_info = []
+    current_beat = start_beat
+    prev_root_dir = 0  # track root motion direction
+
+    for ci, (root, chord_type, label) in enumerate(chord_specs):
+        intervals = CHORD_INTERVALS[chord_type]
+        root_pc = NOTE_TO_PITCH[root]
+        base = (octave + 1) * 12 + root_pc
+        tones = [base + iv for iv in intervals]
+
+        # Determine root motion direction
+        if ci + 1 < len(chord_specs):
+            next_root_pc = NOTE_TO_PITCH[chord_specs[ci + 1][0]]
+            root_dir = 1 if next_root_pc > root_pc else (-1 if next_root_pc < root_pc else 0)
+        else:
+            root_dir = 0
+
+        chord_beats = bars_per_chord * 4
+        notes_for_chord = []
+
+        if pattern == "contrary":
+            # Move opposite to root motion: if root goes up, counter goes down
+            counter_dir = -root_dir if root_dir != 0 else 1
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                # Start on a chord tone, move in counter direction
+                tone_idx = bar % len(tones)
+                for beat in range(4):
+                    pitch = tones[tone_idx] + counter_dir * beat
+                    # Snap to nearest chord tone at beat 1 and 3
+                    if beat in (0, 2):
+                        nearest = min(tones, key=lambda t: abs(t - pitch))
+                        pitch = nearest
+                    if 0 <= pitch <= 127:
+                        notes_for_chord.append((pitch, bar_start + beat * 1.0, 0.9))
+
+        elif pattern == "oblique":
+            # Sustain one tone across the chord, only change when harmony forces it
+            # Pick a tone that's common or closest to previous sustained tone
+            if ci == 0:
+                sustained_tone = tones[1]  # third
+            else:
+                # Find closest tone to previous sustained tone
+                sustained_tone = min(tones, key=lambda t: abs(t - sustained_tone))
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                notes_for_chord.append((sustained_tone, bar_start, 3.8))
+
+        elif pattern == "parallel_third":
+            # Parallel chord tones a third above the melody line
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                for beat in range(4):
+                    # Melody would be tones[bar % len], counter is a third above
+                    mel_tone = tones[(bar * 4 + beat) % len(tones)]
+                    # Third above: +3 or +4 semitones (minor/major third)
+                    interval = 4 if chord_type in ("maj", "maj7", "aug", "sus4", "add9") else 3
+                    pitch = mel_tone + interval
+                    if 0 <= pitch <= 127:
+                        notes_for_chord.append((pitch, bar_start + beat * 1.0, 0.8))
+
+        elif pattern == "parallel_sixth":
+            # Parallel chord tones a sixth above
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                for beat in range(4):
+                    mel_tone = tones[(bar * 4 + beat) % len(tones)]
+                    # Sixth above: +9 or +10 semitones (minor/major sixth)
+                    interval = 9 if chord_type in ("maj", "maj7", "aug", "sus4", "add9") else 8
+                    pitch = mel_tone + interval
+                    if 0 <= pitch <= 127:
+                        notes_for_chord.append((pitch, bar_start + beat * 1.0, 0.8))
+
+        elif pattern == "call_response":
+            # Rest on beats 1-2, play on beats 3-4 (antiphonal)
+            for bar in range(bars_per_chord):
+                bar_start = current_beat + bar * 4
+                # Beat 3: chord tone (third or fifth)
+                tone3 = tones[1] if len(tones) > 1 else tones[0]
+                notes_for_chord.append((tone3, bar_start + 2.0, 0.9))
+                # Beat 4: approach next chord root or neighbor
+                if bar == bars_per_chord - 1 and ci + 1 < len(chord_specs):
+                    next_root_pitch = (octave + 1) * 12 + NOTE_TO_PITCH[chord_specs[ci + 1][0]]
+                    if next_root_pitch > tone3:
+                        tone4 = next_root_pitch - 1  # half-step below (leading tone)
+                    else:
+                        tone4 = next_root_pitch + 1  # half-step above
+                else:
+                    tone4 = tones[2] if len(tones) > 2 else tones[0] + 12
+                if 0 <= tone4 <= 127:
+                    notes_for_chord.append((tone4, bar_start + 3.0, 0.7))
+
+        for pitch, nstart, ndur in notes_for_chord:
+            if 0 <= pitch <= 127:
+                all_notes.append({
+                    "pitch": pitch,
+                    "start": round(nstart, 4),
+                    "duration": round(ndur, 4),
+                    "velocity": round(velocity, 3),
+                })
+
+        chord_info.append({
+            "chord": label,
+            "root": root,
+            "type": chord_type,
+            "pattern": pattern,
+            "start_beat": current_beat,
+            "bars": bars_per_chord,
+            "notes": len(notes_for_chord),
+        })
+        current_beat += chord_beats
+        prev_root_dir = root_dir
+
+    notes_json = json.dumps(all_notes)
+    result = await mcp_opendaw_create_notes_batch(
+        notes_json, unit_index, track_index)
+
+    try:
+        batch_data = json.loads(result)
+        notes_created = batch_data.get("notes_created", len(all_notes))
+    except Exception:
+        notes_created = len(all_notes)
+
+    total_bars = len(chord_specs) * bars_per_chord
+    _ = prev_root_dir
+
+    return json.dumps({
+        "counter_melody_from_progression": True,
+        "progression": progression,
+        "pattern": pattern,
+        "chords": chord_info,
+        "chord_count": len(chord_specs),
+        "bars_per_chord": bars_per_chord,
+        "total_bars": total_bars,
+        "octave": octave,
+        "notes_created": notes_created,
+        "total_notes": len(all_notes),
+        "track": track_index,
+        "start_beat": start_beat,
+        "next_step": "combine with create_harmonic_arrangement for full 5-layer harmony, then apply_genre_mix and render_full_song",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_liquid_dnb_arrangement(
     bpm: float = 174,
     bars: int = 8,

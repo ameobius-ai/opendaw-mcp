@@ -93,6 +93,7 @@ What do you want to create?
 ├── Bass from progression → create_bass_from_progression ("Am-F-C-G", 6 bass patterns)
 ├── Melody from progression → create_melody_from_progression ("Am-F-C-G", 5 melody patterns)
 ├── Harmonic arrangement → create_harmonic_arrangement ("Am-F-C-G", all 4 layers in one call)
+├── Counter-melody → create_counter_melody_from_progression ("Am-F-C-G", 5 contrapuntal patterns)
 ├── Full pipeline → create_full_genre_pipeline (14 genres: zero-to-render in one call)
 └── Render entire song → render_full_song (auto-detect length, export WAV)
 ```

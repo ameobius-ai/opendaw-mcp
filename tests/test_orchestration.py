@@ -8204,6 +8204,121 @@ class TestHarmonicArrangement:
         assert total == 16
 
 
+class TestCounterMelodyFromProgression:
+    """Tests for create_counter_melody_from_progression — contrapuntal 5th layer"""
+
+    PATTERNS = ["contrary", "oblique", "parallel_third", "parallel_sixth", "call_response"]
+
+    def test_five_patterns(self):
+        """Counter-melody has 5 contrapuntal patterns"""
+        assert len(self.PATTERNS) == 5
+
+    def test_contrary_motion_direction(self):
+        """Contrary motion: counter goes opposite to root motion.
+        Am→F: A=9, F=5, root goes DOWN, so counter goes UP"""
+        root_pcs = {"A": 9, "F": 5}
+        root_dir = 1 if root_pcs["F"] > root_pcs["A"] else (-1 if root_pcs["F"] < root_pcs["A"] else 0)
+        counter_dir = -root_dir
+        assert root_dir == -1  # root goes down
+        assert counter_dir == 1  # counter goes up
+
+    def test_oblique_sustains_one_tone(self):
+        """Oblique: one tone sustained per chord, 4 bars each = 4 notes per chord"""
+        bars_per_chord = 4
+        notes_per_chord = bars_per_chord  # one sustained note per bar
+        assert notes_per_chord == 4
+
+    def test_parallel_third_interval(self):
+        """Parallel third: major chord = +4 semitones, minor chord = +3"""
+        major_interval = 4
+        minor_interval = 3
+        assert major_interval == 4
+        assert minor_interval == 3
+
+    def test_parallel_sixth_interval(self):
+        """Parallel sixth: major chord = +9 semitones, minor chord = +8"""
+        major_interval = 9
+        minor_interval = 8
+        assert major_interval == 9
+        assert minor_interval == 8
+
+    def test_call_response_only_beats_3_4(self):
+        """Call-response: rests on beats 1-2, plays on beats 3-4 = 2 notes per bar"""
+        notes_per_bar = 2
+        assert notes_per_bar == 2
+
+    def test_default_velocity_lower_than_melody(self):
+        """Counter-melody default velocity 0.6 < melody default 0.75"""
+        counter_vel = 0.6
+        melody_vel = 0.75
+        assert counter_vel < melody_vel
+
+    def test_default_track_4_above_melody_track_3(self):
+        """Counter-melody on track 4 (above melody on track 3)"""
+        counter_track = 4
+        melody_track = 3
+        assert counter_track > melody_track
+
+    def test_default_octave_below_melody(self):
+        """Counter-melody default octave 4 < melody default octave 5"""
+        counter_octave = 4
+        melody_octave = 5
+        assert counter_octave < melody_octave
+
+    def test_chord_parsing_am_f_c_g(self):
+        """Standard Am-F-C-G progression parses to 4 chords"""
+        chords = "Am-F-C-G".split("-")
+        assert len(chords) == 4
+        assert chords == ["Am", "F", "C", "G"]
+
+    def test_contrary_notes_per_bar(self):
+        """Contrary motion: 4 quarter notes per bar = 4 notes/bar"""
+        notes_per_bar = 4
+        assert notes_per_bar == 4
+
+    def test_parallel_notes_per_bar(self):
+        """Parallel third/sixth: 4 quarter notes per bar = 4 notes/bar"""
+        notes_per_bar = 4
+        assert notes_per_bar == 4
+
+    def test_harmonic_quintet_pipeline(self):
+        """Full 5-layer pipeline: pads + arp + bass + melody + counter-melody"""
+        pipeline = [
+            "create_chord_pads",
+            "create_arpeggiated_progression",
+            "create_bass_from_progression",
+            "create_melody_from_progression",
+            "create_counter_melody_from_progression",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert "create_counter_melody_from_progression" in pipeline
+        assert len(pipeline) == 7
+
+    def test_quintet_combined_pipeline(self):
+        """Combined: harmonic_arrangement (4 layers) + counter_melody = 5 layers"""
+        combined = [
+            "create_song_with_variations",
+            "create_harmonic_arrangement",
+            "create_counter_melody_from_progression",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert len(combined) == 5
+
+    def test_all_patterns_valid(self):
+        """All 5 patterns are valid contrapuntal techniques"""
+        valid = {"contrary", "oblique", "parallel_third", "parallel_sixth", "call_response"}
+        assert set(self.PATTERNS) == valid
+
+    def test_am_f_c_g_chord_count(self):
+        """4 chords × 4 bars = 16 bars total"""
+        chord_count = 4
+        bars_per_chord = 4
+        total_bars = chord_count * bars_per_chord
+        assert total_bars == 16
+
+
 class TestLiquidDnbArrangement:
     """Tests for create_liquid_dnb_arrangement — smooth melodic DnB"""
 

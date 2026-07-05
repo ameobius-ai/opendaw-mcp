@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.159.0 (2026-07-05)
+
+- **create_counter_melody_from_progression** — new harmonic quintet layer. Second melodic line (counterpoint) from chord progression string. 5 contrapuntal patterns: contrary (opposite root motion), oblique (sustained tone), parallel_third (sweet consonance), parallel_sixth (open cinematic), call_response (gospel/soul antiphonal). Default velocity 0.6 (supportive), track 4 (above melody), octave 4 (below melody). 349 MCP tools, 2118 tests.
+
 ## v1.158.0 (2026-07-05)
 
 - **create_harmonic_arrangement: all 4 layers now skippable** — bass_pattern="" skips bass (useful when genre arrangement already has bass), pad_octave=-1 skips pads. Previously pads and bass were always created, causing conflicts when combining with genre arrangements. New example: `liquid_dnb_harmonic.py` shows combined pipeline (genre arrangement + harmonic layers with skipped pads/bass). 119 examples.
