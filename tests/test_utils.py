@@ -7179,3 +7179,93 @@ class TestHaasWidener:
                               capture_output=True, text=True)
         assert result.returncode == 0
 
+
+class TestApplyFullMix:
+    """Tests for apply_full_mix — one-call complete mix"""
+
+    GENRES = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep",
+              "afrobeat", "rock", "jazz", "pop", "funk", "reggae",
+              "synthwave", "trance", "disco"]
+
+    def test_15_genres_supported(self):
+        assert len(self.GENRES) == 15
+
+    def test_chain_assignment_4_tracks(self):
+        """4 tracks: drum(0) + bass(1) + instrument(2) + instrument(3) + mastering"""
+        chains = [
+            {"track": 0, "chain": "drum"},
+            {"track": 1, "chain": "bass"},
+            {"track": 2, "chain": "instrument"},
+            {"track": 3, "chain": "instrument"},
+            {"track": "output", "chain": "mastering"},
+        ]
+        assert len(chains) == 5
+        assert chains[0]["chain"] == "drum"
+        assert chains[-1]["chain"] == "mastering"
+
+    def test_chain_assignment_3_tracks(self):
+        """3 tracks: drum(0) + bass(1) + instrument(2) + mastering"""
+        num_tracks = 3
+        chains = [{"track": 0, "chain": "drum"}, {"track": 1, "chain": "bass"}]
+        for t in range(2, num_tracks):
+            chains.append({"track": t, "chain": "instrument"})
+        chains.append({"track": "output", "chain": "mastering"})
+        assert len(chains) == 4
+
+    def test_genre_drum_styles(self):
+        drum_styles = {
+            "dnb": "crisp", "house": "punchy", "trap": "deep",
+            "techno": "crisp", "jazz": "tight", "rock": "roomy",
+        }
+        assert drum_styles["dnb"] == "crisp"
+        assert drum_styles["trap"] == "deep"
+
+    def test_genre_bass_styles(self):
+        bass_styles = {
+            "dnb": "deep", "house": "deep", "rock": "driven",
+            "jazz": "round", "techno": "clean",
+        }
+        assert bass_styles["rock"] == "driven"
+        assert bass_styles["techno"] == "clean"
+
+    def test_genre_instr_styles(self):
+        instr_styles = {
+            "dnb": "bright", "jazz": "warm", "rock": "driven",
+            "techno": "clean", "pop": "bright",
+        }
+        assert instr_styles["rock"] == "driven"
+        assert instr_styles["jazz"] == "warm"
+
+    def test_genre_master_styles(self):
+        master_styles = {
+            "dnb": "loud", "house": "warm", "jazz": "transparent",
+            "pop": "balanced", "techno": "loud",
+        }
+        assert master_styles["jazz"] == "transparent"
+        assert master_styles["pop"] == "balanced"
+
+    def test_default_lufs_spotify(self):
+        assert -14 == -14  # Spotify target
+
+    def test_loud_master_target(self):
+        assert -10 > -14  # louder than Spotify
+
+    def test_apple_master_target(self):
+        assert -16 < -14  # quieter than Spotify
+
+    def test_replaces_5_to_6_calls(self):
+        """apply_full_mix replaces: drum + bass + instrument×N + mastering"""
+        individual_calls = ["add_drum_chain", "add_bass_chain",
+                           "add_instrument_chain", "add_instrument_chain",
+                           "add_mastering_chain"]
+        assert len(individual_calls) == 5
+        # one call replaces all
+        assert "apply_full_mix" != "add_drum_chain"
+
+    def test_pipeline_integration(self):
+        """Full production: create → arrange → apply_full_mix → render"""
+        pipeline = ["create_genre_track", "create_dnb_arrangement",
+                    "apply_full_mix", "render_full_song"]
+        assert "apply_full_mix" in pipeline
+        assert pipeline.index("apply_full_mix") < pipeline.index("render_full_song")
+

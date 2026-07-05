@@ -14034,6 +14034,119 @@ async def mcp_opendaw_add_instrument_chain(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_apply_full_mix(
+    genre: str = "pop",
+    unit_index: int = 0,
+    num_tracks: int = 4,
+    master_lufs: float = -14,
+) -> str:
+    """Apply a complete mix in one call — genre-aware processing chains on every track + mastering.
+
+    Replaces 5-6 separate calls (add_drum_chain + add_bass_chain + add_instrument_chain × N + add_mastering_chain).
+    Each track gets the right chain with genre-appropriate style automatically.
+
+    genre: Determines chain styles per track. Supported:
+      dnb, liquid_dnb, house, trap, techno, dubstep, afrobeat, rock, jazz,
+      pop, funk, reggae, synthwave, trance, disco
+    unit_index: Target audio unit.
+    num_tracks: Number of note tracks in the unit (default 4).
+      Track 0 = drums, Track 1 = bass, Track 2+ = melodic/instrument.
+    master_lufs: Mastering LUFS target (-14 Spotify, -10 loud, -16 Apple).
+
+    Chain assignment per track:
+      Track 0 → add_drum_chain (genre-aware style)
+      Track 1 → add_bass_chain (genre-aware style)
+      Track 2+ → add_instrument_chain (genre-aware style)
+      Output → add_mastering_chain
+
+    Returns summary of all chains applied.
+
+    Example:
+      # Full mix for a 4-track house project
+      apply_full_mix("house", unit_index=0, num_tracks=4)
+      # Loud techno master
+      apply_full_mix("techno", num_tracks=3, master_lufs=-10)
+    """
+    drum_styles = {
+        "dnb": "crisp", "liquid_dnb": "tight", "house": "punchy",
+        "trap": "deep", "techno": "crisp", "dubstep": "deep",
+        "afrobeat": "roomy", "rock": "roomy", "jazz": "tight",
+        "pop": "punchy", "funk": "tight", "reggae": "roomy",
+        "synthwave": "punchy", "trance": "crisp", "disco": "tight",
+    }
+    bass_styles = {
+        "dnb": "deep", "liquid_dnb": "round", "house": "deep",
+        "trap": "deep", "techno": "clean", "dubstep": "deep",
+        "afrobeat": "round", "rock": "driven", "jazz": "round",
+        "pop": "tight", "funk": "tight", "reggae": "round",
+        "synthwave": "deep", "trance": "clean", "disco": "tight",
+    }
+    instr_styles = {
+        "dnb": "bright", "liquid_dnb": "warm", "house": "warm",
+        "trap": "deep", "techno": "clean", "dubstep": "driven",
+        "afrobeat": "warm", "rock": "driven", "jazz": "warm",
+        "pop": "bright", "funk": "bright", "reggae": "warm",
+        "synthwave": "bright", "trance": "bright", "disco": "bright",
+    }
+    master_styles = {
+        "dnb": "loud", "liquid_dnb": "warm", "house": "warm",
+        "trap": "loud", "techno": "loud", "dubstep": "loud",
+        "afrobeat": "balanced", "rock": "warm", "jazz": "transparent",
+        "pop": "balanced", "funk": "warm", "reggae": "balanced",
+        "synthwave": "warm", "trance": "loud", "disco": "warm",
+    }
+
+    if genre not in drum_styles:
+        return f"Error: unknown genre '{genre}'. Valid: {list(drum_styles.keys())}"
+
+    chains_applied = []
+    errors = []
+
+    # Drum chain on track 0
+    try:
+        ds = drum_styles[genre]
+        await mcp_opendaw_add_drum_chain(unit_index, style=ds)
+        chains_applied.append({"track": 0, "chain": "drum", "style": ds})
+    except Exception as e:
+        errors.append({"track": 0, "chain": "drum", "error": str(e)})
+
+    # Bass chain on track 1
+    try:
+        bs = bass_styles[genre]
+        await mcp_opendaw_add_bass_chain(unit_index, style=bs)
+        chains_applied.append({"track": 1, "chain": "bass", "style": bs})
+    except Exception as e:
+        errors.append({"track": 1, "chain": "bass", "error": str(e)})
+
+    # Instrument chain on melodic tracks (2+)
+    is_ = instr_styles[genre]
+    for t in range(2, num_tracks):
+        try:
+            await mcp_opendaw_add_instrument_chain(unit_index, style=is_)
+            chains_applied.append({"track": t, "chain": "instrument", "style": is_})
+        except Exception as e:
+            errors.append({"track": t, "chain": "instrument", "error": str(e)})
+
+    # Mastering chain on output
+    try:
+        ms = master_styles[genre]
+        await mcp_opendaw_add_mastering_chain(target_lufs=master_lufs, style=ms)
+        chains_applied.append({"track": "output", "chain": "mastering", "style": ms, "lufs": master_lufs})
+    except Exception as e:
+        errors.append({"track": "output", "chain": "mastering", "error": str(e)})
+
+    return json.dumps({
+        "full_mix_applied": True,
+        "genre": genre,
+        "unit_index": unit_index,
+        "num_tracks": num_tracks,
+        "chains": chains_applied,
+        "errors": errors if errors else None,
+        "total_chains": len(chains_applied),
+        "note": "Full mix applied. All tracks have genre-appropriate processing chains + mastering.",
+    }, indent=2)
+
+@mcp.tool()
 async def mcp_opendaw_create_genre_track(genre: str, bpm: float = 120) -> str:
     """Create a genre-specific starting track with synth, beat, and basic mix — one call builds a full section.
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.171.0 (2026-07-05)
+
+### Added
+- `apply_full_mix` — one-call complete mix: genre-aware drum/bass/instrument chains on all tracks + mastering. Replaces 5-6 individual chain calls. 15 genres supported
+
 ## v1.170.0 (2026-07-05)
 
 ### Added
