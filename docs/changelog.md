@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.217.0 (2026-07-05)
+
+### Added
+- `create_blues_arrangement` — Nineteenth multi-track arrangement. Classic 12-bar blues across 4 tracks: shuffle drums (kick 1+3, snare 2+4, triplet hi-hats), walking bass (quarter notes, root→fifth→octave→chromatic approach), dominant 7th chord stabs (I7/IV7/V7 — no triads in blues), blues scale lead (root/b3/4/b5/5/b7 with blue notes and turnarounds). 12-bar form: I-I-I-I-IV-IV-I-I-V-IV-I-V. 120 BPM default (Chicago blues), A root. Registered in all 4 genre registries (pipeline, variation, song, render) + genre_mix recipe + genre_humanization (timing 0.12, velocity 0.15, swing 0.58). 12 unit tests. **392 MCP tools**, 2755 unit tests, **19 multi-track arrangements**
+
 ## v1.216.0 (2026-07-05)
 
 ### Added

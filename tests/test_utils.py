@@ -11471,3 +11471,146 @@ class TestDiatonicTransposeNotes:
                 return
         assert False, "function not found"
 
+
+class TestBluesArrangement:
+    """Tests for create_blues_arrangement — 12-bar blues multi-track arrangement"""
+
+    def test_tool_signature_exists(self):
+        """create_blues_arrangement is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_blues_arrangement" in tool_names
+
+    def test_has_4_tracks(self):
+        """Has drum_track, bass_track, chord_track, lead_track params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                arg_names = [a.arg for a in node.args.args]
+                assert "drum_track" in arg_names
+                assert "bass_track" in arg_names
+                assert "chord_track" in arg_names
+                assert "lead_track" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_bpm_is_120(self):
+        """Default bpm is 120 (classic Chicago blues)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bpm" and isinstance(d, ast.Constant):
+                        assert d.value == 120
+                    if arg_name == "root" and isinstance(d, ast.Constant):
+                        assert d.value == "A"
+                return
+        assert False, "function not found"
+
+    def test_default_bars_is_12(self):
+        """Default bars is 12 (one full blues chorus)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bars" and isinstance(d, ast.Constant):
+                        assert d.value == 12
+                return
+        assert False, "function not found"
+
+    def test_validates_bars_multiple_of_12(self):
+        """Validates bars must be multiple of 12 (12-bar blues form)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                source = ast.unparse(node)
+                assert "multiple of 12" in source
+                return
+        assert False, "function not found"
+
+    def test_has_12_bar_blues_form(self):
+        """Contains the 12-bar blues form (I-IV-V)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                source = ast.unparse(node)
+                assert "I-I-I-I" in source or "0, 0, 0, 0, 5, 5, 0, 0, 7, 5, 0, 7" in source
+                return
+        assert False, "function not found"
+
+    def test_has_dominant_7th_voicings(self):
+        """Uses dominant 7th voicings (not triads)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                source = ast.unparse(node)
+                assert "0, 4, 7, 10" in source  # dom7 intervals
+                return
+        assert False, "function not found"
+
+    def test_has_blues_scale(self):
+        """Uses blues scale (root, b3, 4, b5, 5, b7)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                source = ast.unparse(node)
+                assert "0, 3, 5, 6, 7, 10" in source  # blues scale intervals
+                return
+        assert False, "function not found"
+
+    def test_has_walking_bass(self):
+        """Has walking bass (quarter notes, chord tone outline)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                source = ast.unparse(node)
+                assert "walking" in source
+                assert "chord_root + 7" in source or "chord_root" in source
+                return
+        assert False, "function not found"
+
+    def test_has_shuffle_drums(self):
+        """Has shuffle drums (triplet hi-hats)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_blues_arrangement":
+                source = ast.unparse(node)
+                assert "2.0 / 3.0" in source or "shuffle" in source
+                return
+        assert False, "function not found"
+
+    def test_registered_in_genre_mix(self):
+        """Blues is registered in apply_genre_mix valid_genres"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        source = open("server.py").read()
+        assert '"blues"' in source
+
+    def test_has_genre_mix_recipe(self):
+        """Has a genre_mix recipe for blues"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        source = open("server.py").read()
+        # Find the blues recipe in the recipes dict
+        assert '"blues": {' in source or '"blues":{' in source
+

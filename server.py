@@ -28762,6 +28762,220 @@ async def mcp_opendaw_create_rnb_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_blues_arrangement(
+    bpm: float = 120,
+    bars: int = 12,
+    root: str = "A",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    chord_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.78,
+) -> str:
+    """Create a full blues arrangement — shuffle drums + walking bass + dominant 7th chords + blues scale lead.
+
+    Classic 12-bar blues — the foundation of American popular music:
+    - Track 0: Drums — shuffle/blues groove: kick on 1 and 3, snare on 2 and 4,
+                     shuffled hi-hats (triplet feel). The blues shuffle is the
+                     heartbeat — not straight 8ths, not full triplets, but the
+                     in-between "swing" that makes blues feel like blues.
+    - Track 1: Bass — walking bass: quarter notes outlining the chord changes.
+                     I-I-I-I | IV-IV-I-I | V-IV-I-V. Each beat walks to the next
+                     chord tone — the jazz/blues lineage.
+    - Track 2: Chords — dominant 7th voicings (I7, IV7, V7). The blues doesn't
+                     use triads — every chord is a 7th. Stab pattern on beats 1
+                     and 3, with shuffle feel.
+    - Track 3: Lead — blues scale (root, b3, 4, b5, 5, b7) with blue notes.
+                     Bends, slides, long held notes. The "crying guitar" quality
+                     — pentatonic minor with the flat 5 blue note for tension.
+
+    At 120 BPM (default), this is the classic Chicago blues tempo. At 90 BPM,
+    it's a slow blues (B.B. King). At 140, it's a fast shuffle (Stevie Ray Vaughan).
+
+    The 12-bar form: I-I-I-I-IV-IV-I-I-V-IV-I-V. This is the most important
+    chord progression in popular music — the DNA of rock, jazz, soul, and R&B.
+
+    bpm: Tempo (70-160, default 120 = classic Chicago blues).
+    bars: Arrangement length (must be multiple of 12 for full blues form.
+      12 = one chorus, 24 = two choruses, default 12).
+    root: Root note (A is the most common blues key — guitar-friendly).
+    octave: MIDI octave for bass (2 = A2=45, standard blues bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / chord_track / lead_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_blues_arrangement(bpm=120, root="A", bars=12)
+      create_blues_arrangement(bpm=90, root="E", bars=24)  # slow blues, 2 choruses
+    """
+    if not (70 <= bpm <= 160):
+        return "Error: bpm must be 70-160"
+    if bars < 12 or bars > 48:
+        return "Error: bars must be 12-48 (multiple of 12 for full blues form)"
+    if bars % 12 != 0:
+        return "Error: bars must be multiple of 12 (12-bar blues form)"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    chord_base = (octave + 3) * 12 + root_pc
+    lead_base = (octave + 4) * 12 + root_pc
+
+    # 12-bar blues: I-I-I-I-IV-IV-I-I-V-IV-I-V
+    _BLUES_FORM = [0, 0, 0, 0, 5, 5, 0, 0, 7, 5, 0, 7]
+    _DOM7 = [0, 4, 7, 10]
+    _BLUES_SCALE = [0, 3, 5, 6, 7, 10]
+
+    choruses = bars // 12
+
+    # --- DRUMS: blues shuffle ---
+    kick_p, snare_p, hat_p = 36, 38, 42
+    drum_notes = []
+    for c in range(bars):
+        off = c * 4.0
+        drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + 0.0, 4),
+                          "duration": 0.3, "velocity": round(velocity * 1.0, 3)})
+        drum_notes.append({"pitch": kick_p, "start": round(start_beat + off + 2.0, 4),
+                          "duration": 0.25, "velocity": round(velocity * 0.85, 3)})
+        drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + 1.0, 4),
+                          "duration": 0.1, "velocity": round(velocity * 0.9, 3)})
+        drum_notes.append({"pitch": snare_p, "start": round(start_beat + off + 3.0, 4),
+                          "duration": 0.1, "velocity": round(velocity * 0.9, 3)})
+        for beat in range(4):
+            hat_off1 = beat
+            hat_off2 = beat + 2.0 / 3.0
+            vm1 = 0.4 if beat % 2 == 0 else 0.3
+            drum_notes.append({"pitch": hat_p, "start": round(start_beat + off + hat_off1, 4),
+                              "duration": 0.06, "velocity": round(velocity * vm1, 3)})
+            drum_notes.append({"pitch": hat_p, "start": round(start_beat + off + hat_off2, 4),
+                              "duration": 0.06, "velocity": round(velocity * 0.25, 3)})
+
+    # --- BASS: walking bass (quarter notes) ---
+    bass_notes = []
+    for chorus in range(choruses):
+        for bar_idx in range(12):
+            bar_start = (chorus * 12 + bar_idx) * 4.0
+            deg = _BLUES_FORM[bar_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            chord_root = bass_base + chord_root_pc
+            bass_notes.append({"pitch": chord_root, "start": round(start_beat + bar_start + 0.0, 4),
+                              "duration": 0.9, "velocity": round(velocity * 0.95, 3)})
+            bass_notes.append({"pitch": chord_root + 7, "start": round(start_beat + bar_start + 1.0, 4),
+                              "duration": 0.9, "velocity": round(velocity * 0.75, 3)})
+            bass_notes.append({"pitch": chord_root + 12, "start": round(start_beat + bar_start + 2.0, 4),
+                              "duration": 0.9, "velocity": round(velocity * 0.7, 3)})
+            next_bar = bar_idx + 1
+            if next_bar >= 12:
+                next_bar = 0 if chorus < choruses - 1 else 11
+            next_deg = _BLUES_FORM[next_bar]
+            next_root_pc = (root_pc + next_deg) % 12
+            next_root = bass_base + next_root_pc
+            approach = next_root - 1
+            bass_notes.append({"pitch": approach, "start": round(start_beat + bar_start + 3.0, 4),
+                              "duration": 0.9, "velocity": round(velocity * 0.8, 3)})
+
+    # --- CHORDS: dominant 7th stabs ---
+    chord_notes = []
+    for chorus in range(choruses):
+        for bar_idx in range(12):
+            bar_start = (chorus * 12 + bar_idx) * 4.0
+            deg = _BLUES_FORM[bar_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            for interval in _DOM7:
+                chord_notes.append({
+                    "pitch": chord_base + chord_root_pc + interval,
+                    "start": round(start_beat + bar_start + 0.0, 4),
+                    "duration": 1.5,
+                    "velocity": round(velocity * 0.6, 3),
+                })
+            for interval in _DOM7:
+                chord_notes.append({
+                    "pitch": chord_base + chord_root_pc + interval,
+                    "start": round(start_beat + bar_start + 2.0, 4),
+                    "duration": 1.5,
+                    "velocity": round(velocity * 0.5, 3),
+                })
+
+    # --- LEAD: blues scale with blue notes ---
+    lead_notes = []
+    for chorus in range(choruses):
+        for bar_idx in range(12):
+            bar_start = (chorus * 12 + bar_idx) * 4.0
+            deg = _BLUES_FORM[bar_idx]
+            chord_root_pc = (root_pc + deg) % 12
+            if bar_idx % 4 == 0:
+                p1 = lead_base + chord_root_pc + _BLUES_SCALE[0]
+                lead_notes.append({"pitch": p1, "start": round(start_beat + bar_start + 0.5, 4),
+                                  "duration": 2.5, "velocity": round(velocity * 0.85, 3)})
+                pb = lead_base + chord_root_pc + _BLUES_SCALE[3]
+                lead_notes.append({"pitch": pb, "start": round(start_beat + bar_start + 3.0, 4),
+                                  "duration": 0.5, "velocity": round(velocity * 0.6, 3)})
+            elif bar_idx % 4 == 1:
+                for si in range(4):
+                    sidx = si % len(_BLUES_SCALE)
+                    p = lead_base + chord_root_pc + _BLUES_SCALE[sidx]
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.5, 4),
+                                      "duration": 0.4, "velocity": round(velocity * (0.6 + si * 0.05), 3)})
+            elif bar_idx % 4 == 2:
+                for si in range(4):
+                    sidx = (3 - si) % len(_BLUES_SCALE)
+                    p = lead_base + chord_root_pc + _BLUES_SCALE[sidx]
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.5, 4),
+                                      "duration": 0.4, "velocity": round(velocity * (0.65 - si * 0.03), 3)})
+            else:
+                for si in range(6):
+                    sidx = si % len(_BLUES_SCALE)
+                    p = lead_base + chord_root_pc + _BLUES_SCALE[sidx]
+                    lead_notes.append({"pitch": p, "start": round(start_beat + bar_start + 0.5 + si * 0.3, 4),
+                                      "duration": 0.25, "velocity": round(velocity * (0.5 + (si % 2) * 0.1), 3)})
+
+    drum_json = json.dumps(drum_notes)
+    bass_json = json.dumps(bass_notes)
+    chord_json = json.dumps(chord_notes)
+    lead_json = json.dumps(lead_notes)
+
+    drum_result = await mcp_opendaw_create_notes_batch(drum_json, unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, bass_track)
+    chord_result = await mcp_opendaw_create_notes_batch(chord_json, unit_index, chord_track)
+    lead_result = await mcp_opendaw_create_notes_batch(lead_json, unit_index, lead_track)
+
+    drum_data = json.loads(drum_result) if isinstance(drum_result, str) else drum_result
+    bass_data = json.loads(bass_result) if isinstance(bass_result, str) else bass_result
+    chord_data = json.loads(chord_result) if isinstance(chord_result, str) else chord_result
+    lead_data = json.loads(lead_result) if isinstance(lead_result, str) else lead_result
+
+    return json.dumps({
+        "success": True,
+        "genre": "blues",
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "chords": {"track": chord_track, "notes": len(chord_notes), "result": chord_data.get("notes_created", len(chord_notes))},
+            "lead": {"track": lead_track, "notes": len(lead_notes), "result": lead_data.get("notes_created", len(lead_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(chord_notes) + len(lead_notes),
+        "drum_pattern": "shuffle_backbeat",
+        "bass_pattern": "walking_quarter_notes",
+        "chord_type": "dominant_7th_stabs",
+        "lead_type": "blues_scale_blue_notes",
+        "harmony": "12_bar_blues_I_IV_V",
+        "form": "I-I-I-I-IV-IV-I-I-V-IV-I-V",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_reggae_arrangement(
     bpm: float = 80,
     bars: int = 8,
@@ -29756,7 +29970,7 @@ async def mcp_opendaw_apply_genre_mix(
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco",
-                    "lofi", "soul", "rnb"]
+                    "lofi", "soul", "rnb", "blues"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
     if not (2 <= num_tracks <= 4):
@@ -29975,6 +30189,16 @@ async def mcp_opendaw_apply_genre_mix(
             "sidechain": True,   # R&B uses subtle sidechain
             "sc_params": {"threshold": -18, "ratio": 2},
         },
+        "blues": {
+            "effects": [
+                (0, "Compressor", {"threshold": -12, "ratio": 3, "attack": 5, "release": 80}),
+                (1, "Revamp", {"low": 2, "high": 1}),     # bass: warm and present
+                (2, "Reverb", {"decay": 0.4}),            # chords: short room reverb
+                (3, "Delay", {"time": 0.375, "feedback": 0.2}),  # lead: slap-back delay (triplet)
+            ],
+            "sidechain": False,
+            "sc_params": {},
+        },
     }
 
     recipe = recipes[genre]
@@ -30086,7 +30310,7 @@ async def mcp_opendaw_apply_genre_humanization(
     """
     valid_genres = ["dnb", "liquid_dnb", "house", "trap", "techno", "dubstep", "afrobeat",
                     "rock", "jazz", "pop", "funk", "reggae", "synthwave",
-                    "trance", "disco", "lofi", "soul", "rnb"]
+                    "trance", "disco", "lofi", "soul", "rnb", "blues"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
 
@@ -30104,6 +30328,7 @@ async def mcp_opendaw_apply_genre_humanization(
         "lofi":      {"timing": 0.15, "velocity": 0.18, "duration": 0.10, "swing": 0.58, "bias": 0.03},
         "soul":      {"timing": 0.10, "velocity": 0.12, "duration": 0.06, "swing": 0.0,  "bias": 0.02},
         "rnb":       {"timing": 0.08, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.02},
+        "blues":     {"timing": 0.12, "velocity": 0.15, "duration": 0.08, "swing": 0.58, "bias": 0.02},
         # Electronic — tight and consistent
         "dnb":       {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
         "liquid_dnb":{"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0,  "bias": 0.01},
@@ -30270,6 +30495,7 @@ async def mcp_opendaw_create_genre_sections(
         "synthwave": mcp_opendaw_create_synthwave_arrangement,
         "trance":    mcp_opendaw_create_trance_arrangement,
         "disco":     mcp_opendaw_create_disco_arrangement,
+        "blues":     mcp_opendaw_create_blues_arrangement,
     }
     arr_fn = arrangement_fns[genre]
 
@@ -30452,6 +30678,7 @@ async def mcp_opendaw_create_arrangement_variation(
         "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4},
         "soul":      {"bpm": 72,  "root": "C",  "tracks": 4},
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
+        "blues":     {"bpm": 120, "root": "A",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
@@ -30476,6 +30703,7 @@ async def mcp_opendaw_create_arrangement_variation(
         "lofi":      mcp_opendaw_create_lofi_arrangement,
         "soul":      mcp_opendaw_create_soul_arrangement,
         "rnb":       mcp_opendaw_create_rnb_arrangement,
+        "blues":     mcp_opendaw_create_blues_arrangement,
     }
     arr_fn = arrangement_fns[genre]
 
@@ -30829,6 +31057,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4, "master_style": "warm"},
         "soul":      {"bpm": 72,  "root": "C",  "tracks": 4, "master_style": "warm"},
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4, "master_style": "warm"},
+        "blues":     {"bpm": 120, "root": "A",  "tracks": 4, "master_style": "warm"},
     }
 
     if genre not in defaults:
@@ -30898,6 +31127,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "lofi":      mcp_opendaw_create_lofi_arrangement,
         "soul":      mcp_opendaw_create_soul_arrangement,
         "rnb":       mcp_opendaw_create_rnb_arrangement,
+        "blues":     mcp_opendaw_create_blues_arrangement,
     }
 
     try:
@@ -31219,6 +31449,7 @@ async def mcp_opendaw_create_song_with_variations(
         "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4},
         "soul":      {"bpm": 72,  "root": "C",  "tracks": 4},
         "rnb":       {"bpm": 68,  "root": "C",  "tracks": 4},
+        "blues":     {"bpm": 120, "root": "A",  "tracks": 4},
     }
     d = defaults[genre]
     actual_bpm = bpm if bpm is not None else d["bpm"]
@@ -32583,6 +32814,10 @@ async def mcp_opendaw_create_modulated_song(
             "synthwave": mcp_opendaw_create_synthwave_arrangement,
             "trance": mcp_opendaw_create_trance_arrangement,
             "disco": mcp_opendaw_create_disco_arrangement,
+            "lofi": mcp_opendaw_create_lofi_arrangement,
+            "soul": mcp_opendaw_create_soul_arrangement,
+            "rnb": mcp_opendaw_create_rnb_arrangement,
+            "blues": mcp_opendaw_create_blues_arrangement,
         }
         if drum_genre not in arrangement_fns:
             return f"Error: unknown drum_genre '{drum_genre}'. Valid: {list(arrangement_fns.keys())}"
