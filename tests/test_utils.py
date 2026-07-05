@@ -10291,3 +10291,82 @@ class TestFormantShifterDSP:
         assert "Math.min(8" in code or "min(8" in code
         assert "Math.max(3" in code or "max(3" in code
 
+
+class TestTranscribeAudio:
+    """Tests for transcribe_audio — composite drum + melody transcription"""
+
+    def test_tool_signature_exists(self):
+        """transcribe_audio is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_transcribe_audio" in tool_names
+
+    def test_delegates_to_both_transcribers(self):
+        """transcribe_audio calls both _transcribe_drums and _transcribe_melody"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_audio":
+                source = ast.unparse(node)
+                assert "_transcribe_drums" in source
+                assert "_transcribe_melody" in source
+                return
+        assert False, "function not found"
+
+    def test_auto_bpm_detection(self):
+        """When bpm=0, auto-detects BPM via _detect_bpm"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_audio":
+                source = ast.unparse(node)
+                assert "_detect_bpm" in source
+                return
+        assert False, "function not found"
+
+    def test_creates_notes_on_two_tracks(self):
+        """Creates notes on drum_track and melody_track separately"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_audio":
+                source = ast.unparse(node)
+                assert "drum_track" in source
+                assert "melody_track" in source
+                assert "mcp_opendaw_create_notes_batch" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_total_notes(self):
+        """Returns total_notes = drum + melody"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_audio":
+                source = ast.unparse(node)
+                assert "total_notes" in source
+                return
+        assert False, "function not found"
+
+    def test_default_track_indices(self):
+        """Default drum_track=0, melody_track=1"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_transcribe_audio":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                param_defaults = {}
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if isinstance(d, ast.Constant):
+                        param_defaults[arg_name] = d.value
+                assert param_defaults.get("drum_track") == 0
+                assert param_defaults.get("melody_track") == 1
+                return
+        assert False, "function not found"
+

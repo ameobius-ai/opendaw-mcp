@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.206.0 (2026-07-05)
+
+### Added
+- `transcribe_audio` — composite audio transcription tool. Runs transcribe_drums + transcribe_melody on the same WAV in one call, placing drum notes (kick=36/snare=38/hat=42) on drum_track and pitched melody notes on melody_track. Auto-detects BPM. Completes audio-to-MIDI family: transcribe_drums (216), transcribe_melody (217), transcribe_audio (219 — this). Suno pipeline: download_audio → transcribe_audio → full MIDI on 2 tracks → remix. 6 unit tests. **382 MCP tools**, 2654 unit tests
+
 ## v1.205.0 (2026-07-05)
 
 ### Added
