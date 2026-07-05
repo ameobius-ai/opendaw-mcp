@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.18.1 (2026-07-05)
+
+- **3 new Werkstatt DSP scripts**: `werkstatt_flanger.js` (stereo flanger with LFO delay + feedback), `werkstatt_noisegate.js` (noise gate with threshold/hold/release/range), `werkstatt_tremolo.js` (tremolo with sine→square shape)
+- E2E verified: all 3 compile, params created, set_param works
+- **30 DSP scripts** total (19 Werkstatt + 5 Apparat + 6 Spielwerk)
+
 ## v1.18.0 (2026-07-05)
 
 - **`create_drum_fill`** — new orchestration tool: drum fills/transitions with 5 types (build, break, roll, crash, tom). Adjustable density and bar length. One call replaces 10-30 note creations.

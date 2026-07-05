@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **274** MCP tools | **46** Python examples (8 genre templates) |
-| **27** DSP scripts | **9** agent skills |
+| **30** DSP scripts | **9** agent skills |
 | **3** framework wrappers | **170** unit + **6** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -303,7 +303,7 @@ All string parameters that are interpolated into JavaScript template literals ar
 
 ## DSP Scripts
 
-The `scripts/` directory contains 27 example DSP scripts (16 Werkstatt + 5 Apparat + 6 Spielwerk):
+The `scripts/` directory contains 30 example DSP scripts (19 Werkstatt + 5 Apparat + 6 Spielwerk):
 
 | Script | Device | Description |
 |--------|--------|-------------|
@@ -319,6 +319,9 @@ The `scripts/` directory contains 27 example DSP scripts (16 Werkstatt + 5 Appar
 | `werkstatt_subcrusher.js` | Werkstatt | Sub-bass enhancement with glide and distortion |
 | `werkstatt_lookahead.js` | Werkstatt | Lookahead limiter with gain reduction metering |
 | `werkstatt_adsr_trim.js` | Werkstatt | ADSR envelope trim for sustained samples (#241) |
+| `werkstatt_flanger.js` | Werkstatt | Stereo flanger with LFO-modulated delay line and feedback |
+| `werkstatt_noisegate.js` | Werkstatt | Noise gate with threshold, attack/hold/release, range control |
+| `werkstatt_tremolo.js` | Werkstatt | Tremolo with sine→square shape interpolation and phase offset |
 | `werkstatt_granular_stretch.js` | Werkstatt | Granular time-stretch with Hann window + pitch shift (#201) |
 | `werkstatt_pitch_shift.js` | Werkstatt | Real-time pitch shifter via delay-line sweep with crossfade (#188) |
 | `werkstatt_dcremover.js` | Werkstatt | DC offset remover + M/S stereo width tool (#91) |
