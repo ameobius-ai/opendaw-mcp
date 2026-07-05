@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.273.0 (2026-07-06)
+
+### Added
+- `repeat_phrase` — repeat a melodic phrase N times with transposition. Copies all notes from source region, transposed by fixed interval (diatonic or chromatic). 5 velocity patterns (constant/crescendo/decrescendo/fade_out/build). Optional time_stretch per repetition. Optional cross_track. Bach fugues, jazz ii-V-I chains, pop chorus lifts, film score ostinato builds.
+
 ## v1.272.0 (2026-07-06)
 
 ### Added

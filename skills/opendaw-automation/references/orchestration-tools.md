@@ -208,6 +208,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 195. `add_suspension` — suspension-resolution: preparation→suspension→resolution on strong beats, 10 scales, 3 modes
 196. `add_neighbor_tones` — upper/lower neighbor embellishment: 12 scales, 3 directions, neighbor_fraction/offset, cross_track
 197. `add_anticipation` — anticipation before strong beats: 12 scales, 4 directions (auto/upper/lower/approach), offset/fraction, cross_track
+198. `repeat_phrase` — repeat melodic phrase N times with transposition: diatonic/chromatic, 5 velocity patterns, time_stretch, cross_track
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

@@ -32871,6 +32871,302 @@ async def mcp_opendaw_add_anticipation(
         }};
     }}""")
     return _wrap_eval(result)
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_repeat_phrase(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    repetitions: int = 4,
+    transpose_semitones: int = 2,
+    transpose_mode: str = "diatonic",
+    scale: str = "major",
+    root: str = "C",
+    velocity_pattern: str = "constant",
+    velocity_start: float = 0.8,
+    velocity_end: float = 0.8,
+    time_stretch: float = 1.0,
+    cross_track: int = -1,
+) -> str:
+    """Repeat a melodic phrase N times with transposition — melodic sequence.
+
+    A sequence is one of the most powerful development techniques in
+    Western music: repeat a melodic idea at different pitch levels.
+    Each repetition is transposed by a fixed interval, creating a chain
+    of related but evolving phrases.
+
+    Unlike repeat_notes (which repeats individual notes), create_sequence
+    copies an entire phrase — all notes in the source region — and places
+    each copy after the previous one, transposed and optionally with
+    velocity and timing transformations.
+
+    Diatonic transposition moves through the scale (preserving scale
+    membership), while chromatic transposition shifts by exact semitones.
+    Sequences can ascend or descend, accelerating or decelerating.
+
+    Bach fugues, jazz ii-V-I chains, pop chorus lifts, film score
+    ostinato builds, and minimalistic pattern music all use sequences.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index with source phrase
+        region_index: Region index (-1 = first region)
+        repetitions: Number of sequence copies (2-16, default 4).
+            Each copy is placed after the previous one in time.
+        transpose_semitones: Transposition interval per repetition
+            (1-12, default 2 = step). Positive = ascending, negative
+            = descending. Used as scale steps in diatonic mode, exact
+            semitones in chromatic mode.
+        transpose_mode: Transposition method —
+            "diatonic": move through scale (preserves scale membership)
+            "chromatic": shift by exact semitones (may leave scale)
+        scale: Scale for diatonic transposition ("major", "minor",
+               "dorian", "phrygian", "lydian", "mixolydian",
+               "locrian", "harmonic_minor", "melodic_minor",
+               "pentatonic", "blues", "chromatic")
+        root: Root note for scale
+        velocity_pattern: Velocity transformation across repetitions —
+            "constant": same velocity as source
+            "crescendo": linear ramp from velocity_start to velocity_end
+            "decrescendo": linear ramp from velocity_end to velocity_start
+            "fade_out": each repetition softer than previous
+            "build": exponential increase, climax at last repetition
+        velocity_start: Starting velocity (0-1, default 0.8)
+        velocity_end: Ending velocity (0-1, default 0.8)
+        time_stretch: Duration multiplier per repetition (0.5-2.0,
+            default 1.0 = same duration). 0.5 = accelerating, 2.0 =
+            slowing down. Creates rhythmic sequences.
+        cross_track: If >= 0, place sequences on this track index
+            instead of source track (preserves original phrase).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const numReps = Math.max(2, Math.min(16, {repetitions}));
+        const transSemis = {transpose_semitones};
+        const transMode = "{transpose_mode}";
+        const scaleName = "{scale}";
+        const rootNote = "{root}";
+        const velPattern = "{velocity_pattern}";
+        const velStart = Math.max(0.01, Math.min(1, {velocity_start}));
+        const velEnd = Math.max(0.01, Math.min(1, {velocity_end}));
+        const timeStretch = Math.max(0.5, Math.min(2, {time_stretch}));
+        const crossTrack = {cross_track};
+
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "pentatonic": [0, 2, 4, 7, 9],
+            "blues": [0, 3, 5, 6, 7, 10],
+            "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{"error": "Invalid root: " + rootNote}};
+        if (!scaleMap[scaleName]) return {{"error": "Invalid scale: " + scaleName}};
+
+        function isInScale(pitch) {{
+            const intervals = scaleMap[scaleName];
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            return intervals.includes(rel);
+        }}
+
+        function diatonicTranspose(pitch, steps) {{
+            // Move N scale steps up or down
+            const direction = steps > 0 ? 1 : -1;
+            let count = Math.abs(steps);
+            let p = pitch;
+            while (count > 0) {{
+                p += direction;
+                if (p < 0 || p > 127) return pitch;
+                if (isInScale(p)) count--;
+            }}
+            return p;
+        }}
+
+        function chromaticTranspose(pitch, semis) {{
+            return Math.max(0, Math.min(127, pitch + semis));
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{"error": "No notes in source region"}};
+
+        // Read source phrase
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        // Calculate phrase length (from first note to last note end)
+        const phraseStart = srcData[0].pos;
+        const phraseEnd = Math.max(...srcData.map(n => n.pos + n.dur));
+        const phraseLen = phraseEnd - phraseStart;
+
+        // Determine destination
+        let destCollection = collection;
+        if (crossTrack >= 0 && crossTrack < noteTracks.length) {{
+            const destTrack = noteTracks[crossTrack];
+            const destRegions = h.regionBoxes(destTrack);
+            if (destRegions.length > 0) {{
+                try {{
+                    const v = destRegions[0].events.targetVertex.unwrap();
+                    destCollection = v.box || v;
+                }} catch(e) {{}}
+            }}
+        }}
+
+        // Build sequence copies
+        const seqNotes = [];
+        let currentOffset = 0; // time offset from phrase end
+        let currentDurMult = 1.0;
+
+        for (let rep = 0; rep < numReps; rep++) {{
+            // Calculate velocity for this repetition
+            let velMult = 1.0;
+            if (velPattern === "crescendo") {{
+                velMult = velStart + (velEnd - velStart) * (rep / (numReps - 1));
+            }} else if (velPattern === "decrescendo") {{
+                velMult = velEnd + (velStart - velEnd) * (rep / (numReps - 1));
+            }} else if (velPattern === "fade_out") {{
+                velMult = velStart * (1 - 0.15 * rep);
+            }} else if (velPattern === "build") {{
+                velMult = velStart * Math.pow(velEnd / velStart, rep / (numReps - 1));
+            }}
+            velMult = Math.max(0.01, Math.min(1, velMult));
+
+            // Calculate transposition for this repetition
+            const transSteps = transSemis * (rep + 1);
+
+            // Calculate time stretch for this repetition
+            const durMult = Math.pow(timeStretch, rep);
+
+            // Position offset: after previous phrase
+            const posOffset = currentOffset;
+
+            for (const note of srcData) {{
+                let newPitch;
+                if (transMode === "diatonic") {{
+                    newPitch = diatonicTranspose(note.pitch, transSteps);
+                }} else {{
+                    newPitch = chromaticTranspose(note.pitch, transSteps);
+                }}
+                if (newPitch < 0 || newPitch > 127) continue;
+
+                const newPos = note.pos - phraseStart + phraseEnd + posOffset;
+                const newDur = Math.max(1, Math.round(note.dur * durMult));
+
+                seqNotes.push({{
+                    pos: Math.round(newPos),
+                    dur: newDur,
+                    pitch: newPitch,
+                    vel: Math.max(0.01, Math.min(1, note.vel * velMult)),
+                }});
+            }}
+
+            // Update offset for next repetition
+            currentOffset += Math.round(phraseLen * durMult);
+        }}
+
+        if (seqNotes.length === 0) {{
+            return {{
+                success: true,
+                sequence_notes_created: 0,
+                message: "No valid notes after transposition",
+            }};
+        }}
+
+        // Create sequence notes
+        const editing = h.editing;
+        let created = 0;
+        const createdDetails = [];
+
+        await editing.modify(async () => {{
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            for (const sn of seqNotes) {{
+                try {{
+                    if (!NoteEventBox || !bg || !uuidGen) continue;
+                    await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                        box.position.setValue(sn.pos);
+                        box.duration.setValue(sn.dur);
+                        box.pitch.setValue(sn.pitch);
+                        box.velocity.setValue(sn.vel);
+                        if (destCollection && destCollection.events) {{
+                            box.events.refer(destCollection.events);
+                        }}
+                    }});
+                    created++;
+                }} catch(e) {{}}
+            }}
+        }});
+
+        // Summary details
+        for (let r = 0; r < Math.min(numReps, 5); r++) {{
+            const transSteps = transSemis * (r + 1);
+            const velMult = velPattern === "constant" ? 1.0 :
+                velPattern === "crescendo" ? velStart + (velEnd - velStart) * (r / (numReps - 1)) :
+                velPattern === "build" ? velStart * Math.pow(velEnd / velStart, r / (numReps - 1)) :
+                velStart * (1 - 0.15 * r);
+            createdDetails.push({{
+                repetition: r + 1,
+                transpose: transMode === "diatonic" ? transSteps + " scale steps" : transSteps + " semitones",
+                velocity_mult: Math.round(velMult * 100) / 100,
+                duration_mult: Math.round(Math.pow(timeStretch, r) * 100) / 100,
+            }});
+        }}
+
+        return {{
+            success: true,
+            repetitions: numReps,
+            transpose_mode: transMode,
+            transpose_interval: transSemis,
+            scale: scaleName,
+            root: rootNote,
+            velocity_pattern: velPattern,
+            time_stretch: timeStretch,
+            source_notes: srcData.length,
+            sequence_notes_created: created,
+            cross_track: crossTrack >= 0,
+            details: createdDetails,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 
 
 
