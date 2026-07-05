@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-274 MCP tools for headless openDAW control via Playwright bridge.
+276 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -342,13 +342,15 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_drum_fill` — Generate drum fills/transitions with 5 types (build, break, roll, crash, tom). Adjustable density and bar length. One call replaces 10-30 note creations.
 - `create_ostinato` — Create a repeating melodic/rhythmic pattern as a foundation layer. Scale-based, 1-16 repeats. Common in minimalism, electronic, and film music.
 - `create_crescendo` — Apply crescendo/decrescendo to existing notes. Linear, exponential, or logarithmic velocity curves. One call modifies all notes in a region.
+- `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.
+- `create_polyrhythm` — Create polyrhythms — two rhythmic streams with different subdivision counts (3:4, 2:3, 5:7, etc.). Jazz, electronic, progressive, math rock.
 - `add_mastering_chain` — Add EQ + Compressor + Maximizer to the output bus with genre-style presets (balanced/warm/loud/transparent).
 - `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient/coldwave/hiphop) — synth, drums, bass, chords, BPM in one call.
 - `create_song_structure` — Create arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list. Enables agents to reason about song form.
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 274 tools**
+**Total: 276 tools**
 
 ## DSP Scripts (scripts/) — 30 scripts
 

@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **274** MCP tools | **46** Python examples (8 genre templates) |
+| **276** MCP tools | **48** Python examples (8 genre templates) |
 | **30** DSP scripts | **9** agent skills |
-| **3** framework wrappers | **170** unit + **6** E2E tests |
+| **3** framework wrappers | **182** unit + **7** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,13 +506,22 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
+### v1.19.0 (2026-07-05)
+
+- **`apply_swing`** — pure swing feel for existing notes, deterministic, no randomness. 16th/8th grid, 0-1 depth. 0.58 = classic hip-hop/lofi swing
+- **`create_polyrhythm`** — polyrhythms: two streams with different subdivision counts (3:4, 2:3, 5:7, 7:8). Jazz, electronic, progressive, math rock
+- **12 unit tests** for swing offset logic and polyrhythm generation (170→182 total)
+- **E2E test** for apply_swing (0.5/0.0/8th grid) and create_polyrhythm (3:4, 2:3, error handling)
+- **30 DSP scripts** (added flanger, noisegate, tremolo)
+- **276 MCP tools**, **19 orchestration tools**, ruff clean, CI green
+
 ### v1.18.0 (2026-07-05)
 
 - **`create_drum_fill`** — drum fills/transitions: 5 types (build, break, roll, crash, tom), adjustable density and bar length
 - **`create_ostinato`** — repeating melodic/rhythmic pattern as foundation layer, scale-based, 1-16 repeats
 - **`create_crescendo`** — crescendo/decrescendo on existing notes, 3 curves (linear, exp, log)
 - E2E verified: drum_fill (build+roll), ostinato (C minor ×4), crescendo (exp 0.2→0.9)
-- **274 MCP tools**, **17 orchestration tools**, ruff clean, CI green
+- **276 MCP tools**, **19 orchestration tools**, ruff clean, CI green
 
 ### v1.17.0 (2026-07-05)
 

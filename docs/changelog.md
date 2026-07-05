@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.19.0 (2026-07-05)
+
+- **`apply_swing`** — new orchestration tool: pure swing feel for existing notes, deterministic, no randomness. 16th/8th grid, 0-1 depth. 0.58 = classic hip-hop/lofi swing
+- **`create_polyrhythm`** — new orchestration tool: polyrhythms with two streams of different subdivision counts (3:4, 2:3, 5:7, 7:8). Jazz, electronic, progressive, math rock
+- **12 unit tests** for swing offset logic and polyrhythm generation (170→182 total)
+- **E2E test** for apply_swing (0.5/0.0/8th grid) and create_polyrhythm (3:4, 2:3, error handling)
+- Bugfix: swing=0.0 no longer increments shift counter
+- **276 MCP tools**, **19 orchestration tools**, ruff clean, CI green
+
 ## v1.18.1 (2026-07-05)
 
 - **3 new Werkstatt DSP scripts**: `werkstatt_flanger.js` (stereo flanger with LFO delay + feedback), `werkstatt_noisegate.js` (noise gate with threshold/hold/release/range), `werkstatt_tremolo.js` (tremolo with sine→square shape)

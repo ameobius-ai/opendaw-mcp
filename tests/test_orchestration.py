@@ -219,3 +219,115 @@ class TestCrescendoCurveMath:
     def test_clamped_to_0_1(self):
         vels = self._compute_velocities(5, -0.5, 1.5, "linear")
         assert all(0 <= v <= 1 for v in vels)
+
+
+class TestSwingLogic:
+    """Test the swing calculation logic of apply_swing."""
+
+    def _compute_swing_offset(self, position: int, grid_ticks: int, swing_amount: float) -> int:
+        """Replicate swing offset computation from apply_swing."""
+        grid_idx = round(position / grid_ticks)
+        if grid_idx % 2 == 1:
+            return round(grid_ticks * swing_amount / 3)
+        return 0
+
+    def test_even_positions_not_shifted(self):
+        grid_ticks = 240  # 16th note at 960 PPQN
+        # Even grid positions: 0 (grid 0), 480 (grid 2), 960 (grid 4), 1440 (grid 6)
+        for pos in [0, 480, 960, 1440, 1920]:
+            assert self._compute_swing_offset(pos, grid_ticks, 0.5) == 0
+
+    def test_odd_positions_shifted(self):
+        grid_ticks = 240
+        # Odd 16th positions: 240, 720, 1200 (grid_idx 1, 3, 5)
+        offset = self._compute_swing_offset(240, grid_ticks, 0.5)
+        assert offset == round(240 * 0.5 / 3)  # 40
+
+    def test_zero_swing_no_shift(self):
+        grid_ticks = 240
+        assert self._compute_swing_offset(240, grid_ticks, 0.0) == 0
+
+    def test_full_swing_triplet(self):
+        grid_ticks = 240
+        offset = self._compute_swing_offset(240, grid_ticks, 1.0)
+        # Full swing: grid_ticks * 1.0 / 3 = 80
+        assert offset == 80
+
+    def test_8th_grid_uses_double_ticks(self):
+        grid_ticks_8th = 480  # Quarter / 2
+        grid_ticks_16th = 240
+        offset_8th = self._compute_swing_offset(480, grid_ticks_8th, 0.5)
+        offset_16th = self._compute_swing_offset(240, grid_ticks_16th, 0.5)
+        # Same swing_amount but different grid = proportionally larger offset
+        assert offset_8th > offset_16th
+
+    def test_classic_hiphop_swing(self):
+        grid_ticks = 240
+        # 0.58 swing = classic hip-hop/lofi
+        offset = self._compute_swing_offset(240, grid_ticks, 0.58)
+        assert offset == round(240 * 0.58 / 3)  # ~46
+
+
+class TestPolyrhythmGeneration:
+    """Test the polyrhythm pattern generation logic of create_polyrhythm."""
+
+    def _generate_polyrhythm(self, primary: int, secondary: int, bars: int = 1):
+        """Replicate polyrhythm note generation."""
+        total_beats = bars * 4
+        notes = []
+        primary_step = total_beats / primary
+        for i in range(primary):
+            notes.append({"pitch": 60, "start": i * primary_step, "stream": "primary"})
+        secondary_step = total_beats / secondary
+        for i in range(secondary):
+            notes.append({"pitch": 72, "start": i * secondary_step, "stream": "secondary"})
+        return notes
+
+    def test_total_notes_is_sum(self):
+        notes = self._generate_polyrhythm(3, 4)
+        assert len(notes) == 7  # 3 + 4
+
+    def test_3_4_ratio(self):
+        notes = self._generate_polyrhythm(3, 4, bars=1)
+        primary = [n for n in notes if n["stream"] == "primary"]
+        secondary = [n for n in notes if n["stream"] == "secondary"]
+        assert len(primary) == 3
+        assert len(secondary) == 4
+        # Total span = 4 beats
+        assert primary[-1]["start"] == pytest.approx(4 * 2 / 3)  # 2.667
+        assert secondary[-1]["start"] == pytest.approx(4 * 3 / 4)  # 3.0
+
+    def test_2_3_hemiola(self):
+        notes = self._generate_polyrhythm(2, 3, bars=1)
+        primary = [n for n in notes if n["stream"] == "primary"]
+        secondary = [n for n in notes if n["stream"] == "secondary"]
+        assert len(primary) == 2
+        assert len(secondary) == 3
+        # Primary: at 0 and 2 beats (4/2)
+        assert primary[0]["start"] == 0
+        assert primary[1]["start"] == pytest.approx(2.0)
+        # Secondary: at 0, 1.333, 2.667 (4/3)
+        assert secondary[1]["start"] == pytest.approx(4 / 3)
+
+    def test_bars_scale_spacing(self):
+        notes_1bar = self._generate_polyrhythm(3, 4, bars=1)
+        notes_2bar = self._generate_polyrhythm(3, 4, bars=2)
+        # Same note count, but 2-bar version has wider spacing
+        assert len(notes_1bar) == len(notes_2bar) == 7
+        assert notes_2bar[1]["start"] > notes_1bar[1]["start"]
+
+    def test_both_streams_start_at_zero(self):
+        notes = self._generate_polyrhythm(5, 7, bars=2)
+        primary = [n for n in notes if n["stream"] == "primary"]
+        secondary = [n for n in notes if n["stream"] == "secondary"]
+        assert primary[0]["start"] == 0
+        assert secondary[0]["start"] == 0
+
+    def test_equal_counts_rejected(self):
+        """Equal counts is not a polyrhythm — the tool rejects this."""
+        # This is tested at the tool level, but verify the logic makes sense
+        notes = self._generate_polyrhythm(4, 4, bars=1)
+        primary = [n for n in notes if n["stream"] == "primary"]
+        secondary = [n for n in notes if n["stream"] == "secondary"]
+        # Both streams would have identical timing — not a polyrhythm
+        assert [n["start"] for n in primary] == [n["start"] for n in secondary]

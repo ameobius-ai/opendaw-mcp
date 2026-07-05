@@ -14375,6 +14375,194 @@ async def mcp_opendaw_create_crescendo(unit_index: int, track_index: int, region
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_apply_swing(
+    unit_index: int = -1,
+    track_index: int = -1,
+    swing_amount: float = 0.5,
+    grid: str = "16th",
+) -> str:
+    """Apply swing feel to existing notes without changing velocity or duration.
+
+    Swing shifts every other grid position later, creating a triplet/shuffle feel.
+    Unlike humanize_notes (which couples swing with random velocity/timing changes),
+    this tool applies pure swing — deterministic, no randomness, reversible.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    swing_amount: Swing depth 0-1 (0 = straight, 0.5 = light swing, 1.0 = full triplet).
+      0.55-0.66 = classic hip-hop/lofi swing.
+    grid: Grid to swing against — "16th" (default, shifts odd 16ths) or "8th" (shifts odd 8ths).
+
+    Returns per-track note counts shifted.
+
+    Example:
+      apply_swing(unit_index=0, track_index=0, swing_amount=0.58, grid="16th")
+    """
+    if not (0.0 <= swing_amount <= 1.0):
+        return f"Error: swing_amount must be 0-1, got {swing_amount}"
+    if grid not in ("16th", "8th"):
+        return f'Error: grid must be "16th" or "8th", got "{grid}"'
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const swingAmt = {swing_amount};
+        const gridStr = "{grid}";
+        const Quarter = h.ppqn.Quarter;
+        const gridTicks = gridStr === "8th" ? Math.floor(Quarter / 2) : Math.floor(Quarter / 4);
+
+        let totalShifted = 0;
+        const trackStats = [];
+        const allUnits = h.allAUBoxes();
+        const targetUnits = unitIdx < 0 ? allUnits : (unitIdx < allUnits.length ? [allUnits[unitIdx]] : []);
+
+        h.modify(() => {{
+            for (let ui = 0; ui < targetUnits.length; ui++) {{
+                const au = targetUnits[ui];
+                const noteTracks = h.trackBoxes(au)
+                    .filter(box => box.type?.getValue?.() === 1);
+                const targetTracks = trackIdx < 0 ? noteTracks : (trackIdx < noteTracks.length ? [noteTracks[trackIdx]] : []);
+
+                for (let ti = 0; ti < targetTracks.length; ti++) {{
+                    const track = targetTracks[ti];
+                    let trackCount = 0;
+
+                    for (const region of h.regionBoxes(track)) {{
+                        try {{
+                            const vertex = region.events.targetVertex.unwrap();
+                            const collectionBox = vertex.box || vertex;
+                            if (!collectionBox || !collectionBox.events) continue;
+
+                            const noteEvents = h.eventBoxes(collectionBox);
+                            for (const evt of noteEvents) {{
+                                const pos = evt.position.getValue();
+                                const gridIdx = Math.round(pos / gridTicks);
+                                // Only shift notes on odd grid positions (off-beats)
+                                if (gridIdx % 2 === 1) {{
+                                    const swingOffset = Math.round(gridTicks * swingAmt / 3);
+                                    if (swingOffset > 0) {{
+                                        evt.position.setValue(pos + swingOffset);
+                                        trackCount++;
+                                        totalShifted++;
+                                    }}
+                                }}
+                            }}
+                        }} catch(e) {{}}
+                    }}
+                    trackStats.push({{unit_index: ui, track_index: ti, notes_shifted: trackCount}});
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            swing_amount: swingAmt,
+            grid: gridStr,
+            total_notes_shifted: totalShifted,
+            tracks: trackStats,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_polyrhythm(
+    primary_count: int,
+    secondary_count: int,
+    bars: int = 1,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    primary_pitch: int = 60,
+    secondary_pitch: int = 72,
+    primary_velocity: float = 0.75,
+    secondary_velocity: float = 0.55,
+    duration: float = 0.25,
+) -> str:
+    """Create a polyrhythm — two rhythmic streams with different subdivision counts playing simultaneously.
+
+    A polyrhythm divides the same time span into two different numbers of equal parts.
+    The classic 3:4 means 3 notes in the time of 4 — creating cross-rhythms used in
+    jazz, electronic, African, and progressive music.
+
+    Creates notes on a single track: primary stream uses primary_pitch, secondary uses secondary_pitch.
+    Both streams span the same total duration (bars × 4 beats).
+
+    primary_count: Number of primary subdivisions (2-16). E.g., 3 in a 3:4 polyrhythm.
+    secondary_count: Number of secondary subdivisions (2-16). E.g., 4 in a 3:4 polyrhythm.
+    bars: Total length in bars (1-8).
+    unit_index: AU index.
+    track_index: Note track index.
+    start_beat: Starting beat position.
+    primary_pitch: MIDI pitch for primary stream (default 60 = C4).
+    secondary_pitch: MIDI pitch for secondary stream (default 72 = C5, one octave up).
+    primary_velocity: Velocity for primary notes 0-1.
+    secondary_velocity: Velocity for secondary notes 0-1.
+    duration: Note duration in beats.
+
+    Returns total notes created and polyrhythm ratio.
+
+    Common polyrhythms:
+      3:4  — classic cross-rhythm (jazz, electronic)
+      2:3  — hemiola (African, Latin)
+      3:5  — complex polyrhythm (progressive)
+      4:5  — dense polyrhythm (modern jazz)
+      7:8  — extreme polyrhythm (math rock)
+
+    Example:
+      create_polyrhythm(primary_count=3, secondary_count=4, bars=2, primary_pitch=60, secondary_pitch=67)
+    """
+    if primary_count < 2 or primary_count > 16:
+        return "Error: primary_count must be 2-16"
+    if secondary_count < 2 or secondary_count > 16:
+        return "Error: secondary_count must be 2-16"
+    if bars < 1 or bars > 8:
+        return "Error: bars must be 1-8"
+    if primary_count == secondary_count:
+        return "Error: primary_count and secondary_count must differ (that's not a polyrhythm)"
+    if not (0.0 <= primary_velocity <= 1.0) or not (0.0 <= secondary_velocity <= 1.0):
+        return "Error: velocities must be 0-1"
+
+    total_beats = bars * 4
+    all_notes = []
+
+    # Primary stream: primary_count notes evenly spaced across total_beats
+    primary_step = total_beats / primary_count
+    for i in range(primary_count):
+        all_notes.append({
+            "pitch": primary_pitch,
+            "start": start_beat + i * primary_step,
+            "duration": duration,
+            "velocity": primary_velocity,
+        })
+
+    # Secondary stream: secondary_count notes evenly spaced across total_beats
+    secondary_step = total_beats / secondary_count
+    for i in range(secondary_count):
+        all_notes.append({
+            "pitch": secondary_pitch,
+            "start": start_beat + i * secondary_step,
+            "duration": duration,
+            "velocity": secondary_velocity,
+        })
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["polyrhythm"] = True
+        data["ratio"] = f"{primary_count}:{secondary_count}"
+        data["primary_count"] = primary_count
+        data["secondary_count"] = secondary_count
+        data["bars"] = bars
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
 class OpendawServer:
     """Facade class for framework integrations (LangChain, AutoGen, CrewAI).
 
@@ -14407,7 +14595,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.18.1 — 274 MCP tools")
+            print("opendaw-mcp 1.19.0 — 276 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -14417,7 +14605,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 274 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 276 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
