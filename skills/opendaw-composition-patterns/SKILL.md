@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 24 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 26 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
 ---
 
 # openDAW Composition Patterns
@@ -35,6 +35,13 @@ What do you want to create?
 ├── Call-and-response → create_call_response (antecedent/consequent, repeats)
 ├── Polyrhythm → create_polyrhythm (3:4, 2:3, 5:7 cross-rhythms)
 ├── Crescendo/decrescendo → create_crescendo (velocity ramp, linear/exp/log)
+├── Velocity curve (envelope) → apply_velocity_curve (ramp_up/ramp_down/arc/trough/power)
+│
+├── Articulation → apply_articulation (staccato/legato/tenuto/accent)
+│   ├── Staccato (crisp, detached) → amount=0.3
+│   ├── Legato (smooth, connected) → amount=0.95
+│   ├── Tenuto (full slot, no gap) → (amount unused)
+│   └── Accent (downbeat boost) → amount=0.8
 │
 ├── Sidechain (pump) → apply_sidechain (house/techno/EDM ducking)
 ├── Automation sweep → automation_sweep (filter/volume/parameter ramp)
@@ -108,6 +115,19 @@ What do you want to create?
 - exp = slow start, fast end (tension release)
 - log = fast start, slow end (impact fade)
 
+### Velocity curve types (apply_velocity_curve)
+- ramp_up = linear increase (build-up, snare roll)
+- ramp_down = linear decrease (fade-out, decrescendo)
+- arc = peak in middle (expressive phrase, rises then falls)
+- trough = dip in middle (quiet middle, loud edges)
+- power = exponential curve via `power` param (2.0 = sharp attack, 0.5 = slow swell)
+
+### Articulation amounts (apply_articulation)
+- staccato: 0.3 = very short (pizzicato), 0.5 = moderate, 0.7 = light detachment
+- legato: 0.5 = half-fill, 0.9 = near-full, 0.95 = smooth connected
+- accent: 0.3 = subtle, 0.5 = moderate, 0.8 = strong, 1.0 = maximum boost
+- tenuto: amount unused — always fills to nearest 16th grid slot
+
 ### Scale run step durations
 - 0.0625 = 32nd notes (fast run, fill)
 - 0.125 = 16th triplet (smooth run)
@@ -124,6 +144,9 @@ What do you want to create?
 6. **Swing before quantize**: If you quantize after swing, you undo the swing. Apply swing last.
 7. **Scale degrees 1-7**: `parse_melody_pattern` uses scale degrees, not MIDI notes. "1" = root, "5" = fifth.
 8. **Chord progression needs valid chords**: Use chord types from CHORD_INTERVALS: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug.
+9. **Velocity curve vs humanize**: `apply_velocity_curve` is deterministic (mathematical curve), `humanize_notes` is random. Use curve for build-ups, humanize for natural feel. They can be combined: curve first, then light humanize.
+10. **Articulation modifies existing notes**: `apply_articulation` doesn't create notes — it reshapes durations/velocities of notes already in the region. Create your pattern first, then articulate.
+11. **Velocity curve normalizes by position**: The curve maps 0..1 across the note range in the region. If notes are unevenly spaced, the curve still maps linearly by position, not by time.
 
 ## Tool chain examples
 
@@ -158,4 +181,37 @@ await mcp_opendaw_create_ostinato("minor", "F", "1 5 3 5", repeats=16, octave=4)
 
 # 4. Mastering
 await mcp_opendaw_add_mastering_chain("loud")
+```
+
+### Expressive MIDI lead (build-up + articulation)
+```python
+# 1. Create synth track with notes
+await mcp_opendaw_create_synth_track(name="Lead", synth_type="vaporisateur")
+notes = [{"pitch": 60 + (i % 4) * 12, "start": i * 0.25, "duration": 0.25, "velocity": 0.5} for i in range(16)]
+await mcp_opendaw_create_notes_batch(notes_json=notes, unit_index=0, track_index=0)
+
+# 2. Apply velocity ramp-up (build-up from quiet to loud)
+await mcp_opendaw_apply_velocity_curve(curve_type="ramp_up", start_velocity=0.2, end_velocity=1.0)
+
+# 3. Apply staccato (crisp, detached feel)
+await mcp_opendaw_apply_articulation(articulation="staccato", amount=0.4)
+
+# 4. Light humanize for natural timing
+await mcp_opendaw_humanize_notes(velocity_amount=0.05, timing_amount=0.08, swing=0.0)
+```
+
+### Funk groove (articulation + ghost notes + accent)
+```python
+# 1. Base drum pattern
+await mcp_opendaw_create_drum_pattern("x..x..x.", unit_index=0)  # kick
+await mcp_opendaw_create_drum_pattern("..x...x", unit_index=0)   # snare
+
+# 2. Ghost notes for funk feel
+await mcp_opendaw_create_ghost_notes(density=0.3, velocity=0.25, seed=42)
+
+# 3. Accent the downbeats
+await mcp_opendaw_apply_articulation(articulation="accent", amount=0.7)
+
+# 4. Swing for groove
+await mcp_opendaw_apply_swing(swing_amount=0.58, grid="16th")
 ```
