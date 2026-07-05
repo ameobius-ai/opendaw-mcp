@@ -855,3 +855,138 @@ class TestRiserPatternGeneration:
     def test_clamped_pitch_range(self):
         notes = self._generate_riser(start_pitch=0, end_pitch=127, steps=8)
         assert all(0 <= n["pitch"] <= 127 for n in notes), "Pitches should be 0-127"
+
+
+class TestBreakPatternGeneration:
+    """Test the Python-side pattern generation logic of create_break."""
+
+    _BREAK_PRESETS = {
+        "amen": {
+            "kick":  "x...x...x...x...",
+            "snare": "....x.......x...",
+            "hihat": "x.x.x.x.x.x.x.x.",
+        },
+        "think": {
+            "kick":  "x.....x...x.....",
+            "snare": "....x.......x...",
+            "hihat": "x.x.x.x.x.x.x.x.",
+        },
+        "funky_drummer": {
+            "kick":  "x...x...x...x...",
+            "snare": "....x.......x...",
+            "hihat": "xxxxxxxxxxxxxxxx",
+        },
+        "synthetic": {
+            "kick":  "x...x...x...x...",
+            "snare": "....x.......x...",
+            "hihat": ".x.x.x.x.x.x.x.x",
+        },
+    }
+
+    def _generate_break(self, break_type="amen", bars=1, variation="none",
+                        start_beat=0, swing=0.0):
+        """Replicate the pattern generation logic from create_break."""
+        base_pattern = self._BREAK_PRESETS[break_type]
+        lane_pitches = {"kick": 36, "snare": 38, "hihat": 42, "clap": 39, "perc": 47}
+        vel_map = {"x": 0.9, "o": 0.5, "X": 1.0}
+        bar_steps = 16
+        bar_beats = 4
+        note_data = []
+
+        for bar in range(bars):
+            bar_start = start_beat + bar * bar_beats
+            is_last = (bar == bars - 1)
+
+            for lane, pattern in base_pattern.items():
+                pitch = lane_pitches.get(lane, 36)
+                for i, ch in enumerate(pattern):
+                    if ch == "." or ch == " ":
+                        continue
+                    step_beat = i * (bar_beats / bar_steps)
+                    if swing > 0 and i % 2 == 1:
+                        step_beat += swing * (bar_beats / bar_steps) * 0.5
+                    pos = bar_start + step_beat
+                    vel = vel_map.get(ch, 0.8)
+                    dur = bar_beats / bar_steps * 0.8
+
+                    if variation == "fill" and is_last and lane in ("snare", "hihat"):
+                        if i >= 8:
+                            vel = min(1.0, vel * 1.15)
+                    elif variation == "drop" and is_last and lane == "kick":
+                        if i >= 4:
+                            continue
+                    elif variation == "humanize":
+                        import random as _rng
+                        rng = _rng.Random(hash(f"{break_type}{bar}{i}{lane}") & 0xFFFFFFFF)
+                        vel = max(0.3, min(1.0, vel + rng.uniform(-0.08, 0.08)))
+                        pos += rng.uniform(-0.01, 0.01)
+
+                    note_data.append({"pitch": pitch, "pos": pos, "dur": dur, "vel": vel})
+        return note_data
+
+    def test_amen_note_count(self):
+        notes = self._generate_break("amen", bars=1)
+        # kick=4, snare=2, hihat=8 = 14
+        assert len(notes) == 14, f"Expected 14 notes, got {len(notes)}"
+
+    def test_think_note_count(self):
+        notes = self._generate_break("think", bars=1)
+        # kick=3, snare=2, hihat=8 = 13
+        assert len(notes) == 13, f"Expected 13 notes, got {len(notes)}"
+
+    def test_funky_drummer_note_count(self):
+        notes = self._generate_break("funky_drummer", bars=1)
+        # kick=4, snare=2, hihat=16 = 22
+        assert len(notes) == 22, f"Expected 22 notes, got {len(notes)}"
+
+    def test_multi_bar_scaling(self):
+        notes1 = self._generate_break("amen", bars=1)
+        notes2 = self._generate_break("amen", bars=2)
+        assert len(notes2) == len(notes1) * 2, "2 bars should be 2× notes"
+
+    def test_drop_variation_reduces_kick(self):
+        notes_none = self._generate_break("amen", bars=2, variation="none")
+        notes_drop = self._generate_break("amen", bars=2, variation="drop")
+        # Drop removes kick hits after step 4 on last bar (3 kicks removed)
+        assert len(notes_drop) < len(notes_none), "Drop should reduce notes"
+        diff = len(notes_none) - len(notes_drop)
+        assert diff == 3, f"Expected 3 fewer notes (kicks), got {diff}"
+
+    def test_fill_variation_same_note_count(self):
+        notes_none = self._generate_break("think", bars=2, variation="none")
+        notes_fill = self._generate_break("think", bars=2, variation="fill")
+        # Fill only changes velocity, doesn't add/remove notes
+        assert len(notes_fill) == len(notes_none), "Fill should keep same note count"
+
+    def test_humanize_changes_velocity(self):
+        notes_plain = self._generate_break("amen", bars=1, variation="none")
+        notes_human = self._generate_break("amen", bars=1, variation="humanize")
+        plain_vels = [n["vel"] for n in notes_plain]
+        human_vels = [n["vel"] for n in notes_human]
+        assert human_vels != plain_vels, "Humanize should alter velocities"
+
+    def test_swing_shifts_odd_steps(self):
+        notes_plain = self._generate_break("synthetic", bars=1, swing=0.0)
+        notes_swing = self._generate_break("synthetic", bars=1, swing=0.58)
+        # Swing shifts odd 16th positions — at least some positions differ
+        plain_pos = [n["pos"] for n in notes_plain]
+        swing_pos = [n["pos"] for n in notes_swing]
+        assert plain_pos != swing_pos, "Swing should shift positions"
+
+    def test_start_beat_offset(self):
+        notes = self._generate_break("amen", bars=1, start_beat=16)
+        assert abs(notes[0]["pos"] - 16) < 0.01, f"First note at beat 16, got {notes[0]['pos']}"
+
+    def test_lane_pitches_correct(self):
+        notes = self._generate_break("amen", bars=1)
+        kick_notes = [n for n in notes if n["pitch"] == 36]
+        snare_notes = [n for n in notes if n["pitch"] == 38]
+        hihat_notes = [n for n in notes if n["pitch"] == 42]
+        assert len(kick_notes) == 4, f"Expected 4 kick notes, got {len(kick_notes)}"
+        assert len(snare_notes) == 2, f"Expected 2 snare notes, got {len(snare_notes)}"
+        assert len(hihat_notes) == 8, f"Expected 8 hihat notes, got {len(hihat_notes)}"
+
+    def test_velocity_map(self):
+        notes = self._generate_break("amen", bars=1, variation="none")
+        # All 'x' hits should have velocity 0.9
+        assert all(abs(n["vel"] - 0.9) < 0.01 for n in notes), "All hits should be 0.9 velocity"

@@ -1,6 +1,6 @@
 # Examples
 
-57 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge.
+58 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge.
 
 ## Genre Templates (8)
 
@@ -94,6 +94,7 @@ python examples/genre_house.py
 | `apply_articulation.py` | Articulation: staccato/legato/tenuto/accent for phrasing character |
 | `create_riser.py` | Build-up risers: exp/linear/log pitch sweeps for transitions |
 | `create_stab.py` | Rhythmic chord stabs: house off-beat, funky ghost notes, disco 16ths |
+| `create_break.py` | Classic drum breaks: Amen, Think, Funky Drummer, with variation + swing |
 
 ## Running examples
 
