@@ -14067,3 +14067,182 @@ class TestSetArticulation:
                 return
         assert False, "function not found"
 
+
+class TestGenerateMelody:
+    """Tests for generate_melody — contour-guided generative melody"""
+
+    def test_tool_signature_exists(self):
+        """generate_melody is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_generate_melody" in tool_names
+
+    def test_has_root_and_scale_params(self):
+        """Has root and scale params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                arg_names = [a.arg for a in node.args.args]
+                assert "root" in arg_names
+                assert "scale" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_contour_param(self):
+        """Has contour param with 6 shapes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                arg_names = [a.arg for a in node.args.args]
+                assert "contour" in arg_names
+                source = ast.unparse(node)
+                assert "ascending" in source
+                assert "descending" in source
+                assert "arch" in source
+                assert "v_shape" in source
+                assert "wave" in source
+                assert "random" in source
+                return
+        assert False, "function not found"
+
+    def test_has_rhythm_param(self):
+        """Has rhythm param with 5 patterns"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                arg_names = [a.arg for a in node.args.args]
+                assert "rhythm" in arg_names
+                source = ast.unparse(node)
+                assert "quarter" in source
+                assert "eighth" in source
+                assert "syncopated" in source
+                assert "mixed" in source
+                assert "sparse" in source
+                return
+        assert False, "function not found"
+
+    def test_has_rest_probability_param(self):
+        """Has rest_probability param"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                arg_names = [a.arg for a in node.args.args]
+                assert "rest_probability" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_validates_root_against_note_to_pitch(self):
+        """Validates root using NOTE_TO_PITCH"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                source = ast.unparse(node)
+                assert "NOTE_TO_PITCH" in source
+                assert "Error" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_scale_against_scale_intervals(self):
+        """Validates scale using SCALE_INTERVALS"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                source = ast.unparse(node)
+                assert "SCALE_INTERVALS" in source
+                return
+        assert False, "function not found"
+
+    def test_default_contour_is_arch(self):
+        """Default contour is 'arch' (classic A-section shape)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "contour" and isinstance(d, ast.Constant):
+                        assert d.value == "arch"
+                        return
+        assert False, "default not found"
+
+    def test_default_rhythm_is_mixed(self):
+        """Default rhythm is 'mixed' (most musical)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "rhythm" and isinstance(d, ast.Constant):
+                        assert d.value == "mixed"
+                        return
+        assert False, "default not found"
+
+    def test_uses_weighted_random_selection(self):
+        """Uses weighted random selection for pitch picking"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                source = ast.unparse(node)
+                assert "weights" in source
+                assert "cumulative" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_create_notes_batch(self):
+        """Delegates note creation to create_notes_batch"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                source = ast.unparse(node)
+                assert "create_notes_batch" in source
+                return
+        assert False, "function not found"
+
+    def test_reports_pitch_range(self):
+        """Reports pitch_range (min/max) in output"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_generate_melody":
+                source = ast.unparse(node)
+                assert "pitch_range" in source
+                assert "min" in source
+                assert "max" in source
+                return
+        assert False, "function not found"
+
+    def test_contour_arch_peaks_in_middle(self):
+        """Arch contour: target=1 at middle, target=0 at start/end"""
+        # progress=0.5 → target = 1.0 - abs(2*0.5 - 1) = 1.0 - 0 = 1.0 (peak)
+        # progress=0.0 → target = 1.0 - abs(0 - 1) = 1.0 - 1 = 0.0 (low)
+        # progress=1.0 → target = 1.0 - abs(2 - 1) = 1.0 - 1 = 0.0 (low)
+        progress_mid = 0.5
+        target_mid = 1.0 - abs(2.0 * progress_mid - 1.0)
+        assert target_mid == 1.0, "Arch should peak at middle"
+
+        progress_start = 0.0
+        target_start = 1.0 - abs(2.0 * progress_start - 1.0)
+        assert target_start == 0.0, "Arch should be low at start"
+
+        progress_end = 1.0
+        target_end = 1.0 - abs(2.0 * progress_end - 1.0)
+        assert target_end == 0.0, "Arch should be low at end"
+

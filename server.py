@@ -18968,6 +18968,240 @@ async def mcp_opendaw_set_articulation(
 
 
 @mcp.tool()
+async def mcp_opendaw_generate_melody(
+    root: str = "C",
+    scale: str = "major",
+    bars: int = 4,
+    contour: str = "arch",
+    rhythm: str = "mixed",
+    octave: int = 5,
+    velocity: float = 0.7,
+    rest_probability: float = 0.15,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Generate a melodic line from a scale using contour-guided random selection.
+
+    Creates a melody from scratch — no chord progression needed. The algorithm
+    picks pitches from the specified scale, guided by a contour shape that
+    controls the overall direction of the melodic line.
+
+    contour: Melodic shape:
+    - "ascending" — starts low, rises throughout (build-up, tension)
+    - "descending" — starts high, falls throughout (release, resolution)
+    - "arch" — rises then falls (classic A-section, question-answer)
+    - "v_shape" — falls then rises (dramatic, bridge)
+    - "wave" — oscillates up and down (meandering, B-section)
+    - "random" — no contour constraint, pure weighted random
+
+    rhythm: Rhythm pattern:
+    - "quarter" — all quarter notes (steady, folk)
+    - "eighth" — all eighth notes (driving, pop)
+    - "syncopated" — mix of quarters and off-beat eighths (jazz, funk)
+    - "mixed" — varied durations (16th to half, most musical)
+    - "sparse" — mostly rests with occasional notes (ambient, intro)
+
+    The algorithm:
+    1. Build a scale pitch list spanning 2 octaves centered on `octave`.
+    2. For each beat position, determine the target contour height (0-1
+       mapping across the melody length).
+    3. Map contour height to a pitch range in the scale.
+    4. Weighted random selection: notes near the contour target get higher
+       weight, notes far away get lower weight.
+    5. Apply rhythm pattern to determine note durations and positions.
+    6. Insert rests based on rest_probability.
+
+    root: Root note name (C, D, E, F, G, A, B + accidentals).
+    scale: Scale name (major, minor, dorian, phrygian, lydian, mixolydian,
+      aeolian, harmonic_minor, melodic_minor, pentatonic_major,
+      pentatonic_minor, blues).
+    bars: Number of bars (1-16, default 4).
+    contour: Melodic contour shape (see above).
+    rhythm: Rhythm pattern (see above).
+    octave: Center MIDI octave (3=bass, 4=mid, 5=lead, 6=high, default 5).
+    velocity: Base velocity 0-1 (default 0.7).
+    rest_probability: Chance of a rest instead of a note (0-0.5, default 0.15).
+    unit_index: AU index with note tracks.
+    track_index: Note track index for the melody.
+    start_beat: Position in beats.
+
+    Returns notes created, contour shape, scale used, pitch range.
+
+    Example:
+      # Arch-shaped C major melody, 4 bars, mixed rhythm
+      generate_melody(root="C", scale="major", bars=4, contour="arch")
+
+      # Ascending pentatonic build-up
+      generate_melody(root="A", scale="pentatonic_minor", bars=4,
+                      contour="ascending", rhythm="eighth")
+
+      # Sparse ambient intro
+      generate_melody(root="D", scale="dorian", bars=8, contour="wave",
+                      rhythm="sparse", rest_probability=0.4)
+    """
+    if root not in NOTE_TO_PITCH:
+        return f"Error: root must be a valid note name, got '{root}'"
+    if scale not in SCALE_INTERVALS:
+        return f"Error: scale must be one of {list(SCALE_INTERVALS.keys())}, got '{scale}'"
+    if bars < 1 or bars > 16:
+        return "Error: bars must be 1-16"
+    if contour not in ("ascending", "descending", "arch", "v_shape", "wave", "random"):
+        return f"Error: contour must be 'ascending', 'descending', 'arch', 'v_shape', 'wave', or 'random', got '{contour}'"
+    if rhythm not in ("quarter", "eighth", "syncopated", "mixed", "sparse"):
+        return f"Error: rhythm must be 'quarter', 'eighth', 'syncopated', 'mixed', or 'sparse', got '{rhythm}'"
+    if not (0 <= octave <= 7):
+        return "Error: octave must be 0-7"
+    if not (0 <= velocity <= 1):
+        return "Error: velocity must be 0-1"
+    if not (0 <= rest_probability <= 0.5):
+        return "Error: rest_probability must be 0-0.5"
+
+    root_pc = NOTE_TO_PITCH[root]
+    intervals = SCALE_INTERVALS[scale]
+    center = (octave + 1) * 12 + root_pc
+
+    # Build 2-octave scale
+    scale_pitches = []
+    for oct_shift in range(-1, 2):
+        for iv in intervals:
+            scale_pitches.append(center + oct_shift * 12 + iv)
+    scale_pitches = sorted(set(scale_pitches))
+    # Filter to MIDI range
+    scale_pitches = [p for p in scale_pitches if 0 <= p <= 127]
+    if len(scale_pitches) < 4:
+        return "Error: scale produces too few pitches in this octave range"
+
+    import random as _random
+    rng = _random.Random(hash(root + scale + contour + rhythm + str(bars)) % 2**32)
+
+    # Generate rhythm positions (in beats) for the melody
+    beats_per_bar = 4
+    total_beats = bars * beats_per_bar
+    positions = []  # list of (position_beat, duration_beats)
+
+    if rhythm == "quarter":
+        for b in range(total_beats):
+            positions.append((b, 1.0))
+    elif rhythm == "eighth":
+        for b in range(total_beats * 2):
+            positions.append((b * 0.5, 0.5))
+    elif rhythm == "syncopated":
+        for b in range(total_beats):
+            positions.append((b, 1.0 if b % 2 == 0 else 0.5))
+            if b % 2 == 1:
+                positions.append((b + 0.5, 0.5))
+    elif rhythm == "sparse":
+        for b in range(total_beats):
+            if rng.random() < 0.4:
+                positions.append((b, 1.0 if rng.random() < 0.5 else 2.0))
+    else:  # mixed
+        b = 0
+        while b < total_beats:
+            dur = rng.choice([0.25, 0.5, 0.5, 1.0, 1.0, 1.0, 2.0])
+            if b + dur > total_beats:
+                dur = total_beats - b
+            positions.append((b, dur))
+            b += dur
+
+    # Sort positions
+    positions.sort()
+
+    # Generate pitches with contour guidance
+    notes = []
+    n_positions = len(positions)
+
+    for i, (pos, dur) in enumerate(positions):
+        # Determine contour height (0-1) at this position
+        progress = i / max(1, n_positions - 1)  # 0 to 1 across melody
+
+        if contour == "ascending":
+            target = progress
+        elif contour == "descending":
+            target = 1.0 - progress
+        elif contour == "arch":
+            target = 1.0 - abs(2.0 * progress - 1.0)  # peak in middle
+        elif contour == "v_shape":
+            target = abs(2.0 * progress - 1.0)  # valley in middle
+        elif contour == "wave":
+            target = 0.5 + 0.3 * math.sin(progress * math.pi * bars)
+        else:  # random
+            target = rng.random()
+
+        # Map target to scale pitch index
+        target_idx = int(target * (len(scale_pitches) - 1))
+
+        # Weighted random: notes near target_idx get higher weight
+        weights = []
+        for j in range(len(scale_pitches)):
+            dist = abs(j - target_idx)
+            weight = max(0.01, 1.0 / (1.0 + dist * dist * 0.5))
+            weights.append(weight)
+        total_weight = sum(weights)
+        weights = [w / total_weight for w in weights]
+
+        # Select pitch
+        r = rng.random()
+        cumulative = 0
+        selected_idx = 0
+        for j, w in enumerate(weights):
+            cumulative += w
+            if r <= cumulative:
+                selected_idx = j
+                break
+
+        pitch = scale_pitches[selected_idx]
+
+        # Rest or note?
+        if rng.random() < rest_probability:
+            continue  # skip this position (rest)
+
+        # Velocity variation
+        vel = velocity + (rng.random() - 0.5) * 0.1
+        vel = max(0.1, min(1.0, vel))
+
+        notes.append({
+            "pitch": pitch,
+            "start": round(pos + start_beat, 4),
+            "duration": round(dur, 4),
+            "velocity": round(vel, 3),
+        })
+
+    if not notes:
+        return json.dumps({"success": True, "notes_created": 0, "message": "all positions were rests, try lower rest_probability"})
+
+    # Create notes via batch
+    notes_json = json.dumps(notes)
+    result = await mcp_opendaw_create_notes_batch(
+        notes_json, unit_index, track_index)
+
+    try:
+        batch_data = json.loads(result)
+        notes_created = batch_data.get("notes_created", len(notes))
+    except Exception:
+        notes_created = len(notes)
+
+    pitches_used = [n["pitch"] for n in notes]
+
+    return json.dumps({
+        "generate_melody": True,
+        "root": root,
+        "scale": scale,
+        "bars": bars,
+        "contour": contour,
+        "rhythm": rhythm,
+        "octave": octave,
+        "notes_created": notes_created,
+        "total_notes": len(notes),
+        "pitch_range": {"min": min(pitches_used), "max": max(pitches_used)},
+        "rest_probability": rest_probability,
+        "track": track_index,
+        "start_beat": start_beat,
+        "next_step": "call set_articulation for legato/staccato, or create_harmony_line for parallel harmony",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_force_scale_notes(
     unit_index: int = -1,
     track_index: int = -1,

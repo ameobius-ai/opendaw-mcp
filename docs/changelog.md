@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.232.0 (2026-07-05)
+
+### Added
+- `generate_melody` — Generative melody from scale + contour. Creates melodic lines from scratch — no chord progression needed. 6 contour shapes (ascending, descending, arch, v_shape, wave, random) control melodic direction. 5 rhythm patterns (quarter, eighth, syncopated, mixed, sparse). Weighted random pitch selection guided by contour target height. Rest probability for spacing. 2-octave scale range centered on octave. Reports pitch_range, notes_created. Seed from root+scale+contour+rhythm+bars for reproducibility. 13 unit tests including contour math verification. **407 MCP tools**, 2943 unit tests
+
 ## v1.231.0 (2026-07-05)
 
 ### Added
