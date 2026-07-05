@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.268.0 (2026-07-06)
+
+### Added
+- `explode_chords` — Explode chords into separate voice tracks. Detects chord groups by position tolerance, assigns notes to voices by pitch. 3 directions: down (bass first), up (top first), outward (middle to outer). 4 velocity balance modes: natural, equal, top_heavy, fade. 2-8 voices. Target AU indices or source track. Fundamental orchestration: chord progression into individual instrumental parts.
+
 ## v1.267.0 (2026-07-06)
 
 ### Added

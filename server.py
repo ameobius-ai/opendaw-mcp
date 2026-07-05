@@ -31443,6 +31443,268 @@ async def mcp_opendaw_apply_contour(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_explode_chords(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    num_voices: int = 4,
+    direction: str = "down",
+    target_units: str = "",
+    velocity_balance: str = "natural",
+) -> str:
+    """Explode chords into separate voice tracks.
+
+    Takes a chord track and splits each chord into individual voices,
+    distributing them to separate tracks. The lowest note of each chord
+    goes to voice 1 (bass), the next to voice 2, etc. This is the
+    fundamental orchestration technique — converting a chord
+    progression into individual instrumental parts.
+
+    Typical use: piano chord track → bass + cello + viola + violin.
+    Or: synth chords → sub bass + pad + lead + pluck.
+
+    Args:
+        unit_index: Source AU index with chord track
+        track_index: Source note track index with chords
+        region_index: Source region index (-1 = first region)
+        num_voices: Number of voices to split into (2-8, default 4).
+            Chords with fewer notes than num_voices get rests in
+            higher voices. Chords with more notes than num_voices
+            get extra notes merged into the highest voice.
+        direction: Voice assignment order —
+            "down": lowest note → voice 1 (bass), ascending voices
+            "up": highest note → voice 1 (top), descending voices
+            "outward": middle notes → outer voices, edge notes → inner
+        target_units: Comma-separated AU indices for destination tracks.
+            If empty, creates new AUs automatically. If provided, must
+            have at least num_voices entries (e.g. "0,1,2,3").
+        velocity_balance: How to distribute velocity across voices —
+            "natural": lower voices slightly louder (bass prominence)
+            "equal": all voices same velocity
+            "top_heavy": upper voices louder (melody prominence)
+            "fade": velocity decreases from voice 1 to voice N
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const srcUnitIdx = {unit_index};
+        const srcTrackIdx = {track_index};
+        const regionIdx = {region_index};
+        const numVoices = Math.max(2, Math.min(8, {num_voices}));
+        const dirMode = "{direction}";
+        const targetStr = "{target_units}";
+        const velMode = "{velocity_balance}";
+
+        // Parse target units
+        let targetUnits = [];
+        if (targetStr && targetStr.length > 0) {{
+            targetUnits = targetStr.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+
+        // Get source track
+        const units = h.audioUnitBoxes();
+        if (srcUnitIdx < 0 || srcUnitIdx >= units.length) return {{"error": "Source AU out of range"}};
+        const srcAu = units[srcUnitIdx];
+        const srcTracks = h.noteTrackBoxes(srcAu);
+        if (srcTrackIdx < 0 || srcTrackIdx >= srcTracks.length) return {{"error": "Source track out of range"}};
+        const srcTrack = srcTracks[srcTrackIdx];
+
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (srcRegions.length === 0) return {{"error": "No source regions"}};
+        const srcReg = regionIdx < 0 ? srcRegions[0] : srcRegions[regionIdx];
+        if (!srcReg) return {{"error": "Source region out of range"}};
+
+        let srcColl = null;
+        try {{
+            const v = srcReg.events.targetVertex.unwrap();
+            srcColl = v.box || v;
+        }} catch(e) {{}}
+        if (!srcColl || !srcColl.events) return {{"error": "No note collection in source"}};
+        const srcNotes = h.eventBoxes(srcColl);
+        if (srcNotes.length === 0) return {{"error": "No notes in source region"}};
+
+        // Read source notes
+        const allNotes = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos || a.pitch - b.pitch);
+
+        // Group notes by position (chord detection)
+        const tolerance = Quarter * 0.0625; // 1/64 note tolerance
+        const chordGroups = [];
+        let currentGroup = [allNotes[0]];
+
+        for (let i = 1; i < allNotes.length; i++) {{
+            if (Math.abs(allNotes[i].pos - currentGroup[0].pos) <= tolerance) {{
+                currentGroup.push(allNotes[i]);
+            }} else {{
+                chordGroups.push(currentGroup);
+                currentGroup = [allNotes[i]];
+            }}
+        }}
+        chordGroups.push(currentGroup);
+
+        // Sort each chord by pitch
+        chordGroups.forEach(g => g.sort((a, b) => a.pitch - b.pitch));
+
+        // Assign voices
+        const voices = []; // voices[v] = array of notes
+        for (let v = 0; v < numVoices; v++) voices.push([]);
+
+        for (const chord of chordGroups) {{
+            const n = chord.length;
+            for (let i = 0; i < numVoices; i++) {{
+                let noteIdx;
+                if (dirMode === "down") {{
+                    // lowest → voice 0
+                    noteIdx = i < n ? i : -1;
+                }} else if (dirMode === "up") {{
+                    // highest → voice 0
+                    noteIdx = i < n ? (n - 1 - i) : -1;
+                }} else {{
+                    // outward: middle → outer, edge → inner
+                    // voice 0 = lowest, voice 1 = highest, voice 2 = 2nd lowest, etc
+                    const indices = [];
+                    for (let j = 0; j < n; j++) {{
+                        if (j % 2 === 0) indices.push(Math.floor(j / 2));
+                        else indices.push(n - 1 - Math.floor(j / 2));
+                    }}
+                    noteIdx = i < indices.length ? indices[i] : -1;
+                }}
+
+                if (noteIdx >= 0 && noteIdx < n) {{
+                    const note = chord[noteIdx];
+                    // Velocity balance
+                    let velMult = 1.0;
+                    if (velMode === "natural") {{
+                        velMult = 1.0 - i * 0.05; // lower voices slightly louder
+                    }} else if (velMode === "equal") {{
+                        velMult = 1.0;
+                    }} else if (velMode === "top_heavy") {{
+                        velMult = 1.0 - (numVoices - 1 - i) * 0.05;
+                    }} else if (velMode === "fade") {{
+                        velMult = 1.0 - i * 0.1;
+                    }}
+                    voices[i].push({{
+                        pos: note.pos,
+                        dur: note.dur,
+                        pitch: note.pitch,
+                        vel: Math.max(0.01, Math.min(1, note.vel * velMult)),
+                    }});
+                }}
+            }}
+        }}
+
+        // Create destination tracks (if not provided)
+        const destTrackRefs = [];
+        for (let v = 0; v < numVoices; v++) {{
+            if (v < targetUnits.length) {{
+                const dstUnitIdx = targetUnits[v];
+                if (dstUnitIdx >= 0 && dstUnitIdx < units.length) {{
+                    const dstAu = units[dstUnitIdx];
+                    const dstTracks = h.noteTrackBoxes(dstAu);
+                    if (dstTracks.length > 0) {{
+                        destTrackRefs.push({{unit: dstUnitIdx, track: dstTracks[0], au: dstAu}});
+                    }}
+                }}
+            }}
+            // If no target provided, we skip creating tracks in this tool
+            // — the caller can use create_note_track first
+        }}
+
+        // Create notes in destination tracks
+        const editing = h.editing;
+        let totalCreated = 0;
+        const voiceStats = [];
+
+        await editing.modify(async () => {{
+            for (let v = 0; v < numVoices; v++) {{
+                const voiceNotes = voices[v];
+                if (voiceNotes.length === 0) continue;
+
+                let trackRef = null;
+                if (v < destTrackRefs.length) {{
+                    trackRef = destTrackRefs[v];
+                }} else {{
+                    // Use source track for voice 0 if no targets
+                    if (v === 0) {{
+                        trackRef = {{unit: srcUnitIdx, track: srcTrack, au: srcAu}};
+                    }} else {{
+                        voiceStats.push({{voice: v + 1, note_count: 0, reason: "no target track"}});
+                        continue;
+                    }}
+                }}
+
+                // Create region on dest track if needed
+                const dstRegions = h.regionBoxes(trackRef.track);
+                let dstReg = null;
+                let dstColl = null;
+                if (dstRegions.length > 0) {{
+                    dstReg = dstRegions[0];
+                    try {{
+                        const vv = dstReg.events.targetVertex.unwrap();
+                        dstColl = vv.box || vv;
+                    }} catch(e) {{}}
+                }}
+
+                if (!dstColl) {{
+                    voiceStats.push({{voice: v + 1, note_count: 0, reason: "no region"}});
+                    continue;
+                }}
+
+                const NoteEventBox = h.NoteEventBox;
+                const bg = h.boxGraph;
+                const uuidGen = h.uuid;
+
+                let created = 0;
+                for (const nd of voiceNotes) {{
+                    try {{
+                        if (NoteEventBox && bg && uuidGen) {{
+                            await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                                box.position.setValue(nd.pos);
+                                box.duration.setValue(nd.dur);
+                                box.pitch.setValue(nd.pitch);
+                                box.velocity.setValue(nd.vel);
+                                if (dstColl && dstColl.events) {{
+                                    box.events.refer(dstColl.events);
+                                }}
+                            }});
+                            created++;
+                        }}
+                    }} catch(e) {{}}
+                }}
+                totalCreated += created;
+                voiceStats.push({{voice: v + 1, note_count: created, pitch_range: [
+                    Math.min(...voiceNotes.map(n => n.pitch)),
+                    Math.max(...voiceNotes.map(n => n.pitch)),
+                ]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            chords_detected: chordGroups.length,
+            num_voices: numVoices,
+            direction: dirMode,
+            velocity_balance: velMode,
+            target_units: targetUnits.length > 0 ? targetUnits : "source track only",
+            total_notes_created: totalCreated,
+            voice_details: voiceStats,
+            chord_sizes: chordGroups.map(g => g.length).slice(0, 20),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 
