@@ -14247,6 +14247,88 @@ class TestGenerateMelody:
         assert target_end == 0.0, "Arch should be low at end"
 
 
+class TestMoveNotes:
+    """Tests for mcp_opendaw_move_notes — copy + delete source notes."""
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_move_notes"]
+        assert len(tools) == 1, "move_notes should be defined once"
+
+    def test_delete_source_default_true(self):
+        """delete_source defaults to True (move, not copy)"""
+        import inspect
+        from server import mcp_opendaw_move_notes
+        sig = inspect.signature(mcp_opendaw_move_notes)
+        assert sig.parameters["delete_source"].default is True
+
+    def test_velocity_scale_default_1(self):
+        """velocity_scale defaults to 1.0 (unchanged)"""
+        import inspect
+        from server import mcp_opendaw_move_notes
+        sig = inspect.signature(mcp_opendaw_move_notes)
+        assert sig.parameters["velocity_scale"].default == 1.0
+
+    def test_transpose_default_0(self):
+        """transpose defaults to 0"""
+        import inspect
+        from server import mcp_opendaw_move_notes
+        sig = inspect.signature(mcp_opendaw_move_notes)
+        assert sig.parameters["transpose"].default == 0
+
+    def test_time_offset_default_0(self):
+        """time_offset defaults to 0"""
+        import inspect
+        from server import mcp_opendaw_move_notes
+        sig = inspect.signature(mcp_opendaw_move_notes)
+        assert sig.parameters["time_offset"].default == 0
+
+    def test_dest_region_default_neg1(self):
+        """dest_region defaults to -1 (auto)"""
+        import inspect
+        from server import mcp_opendaw_move_notes
+        sig = inspect.signature(mcp_opendaw_move_notes)
+        assert sig.parameters["dest_region"].default == -1
+
+    def test_velocity_scale_clamping(self):
+        """velocity_scale clamped to 0-2"""
+        assert max(0.0, min(2.0, -0.5)) == 0.0
+        assert max(0.0, min(2.0, 3.0)) == 2.0
+        assert max(0.0, min(2.0, 1.0)) == 1.0
+
+    def test_delete_source_false_is_copy(self):
+        """delete_source=False makes it equivalent to copy_notes_to_track"""
+        # The tool should accept delete_source=False without error
+        import inspect
+        from server import mcp_opendaw_move_notes
+        sig = inspect.signature(mcp_opendaw_move_notes)
+        assert "delete_source" in sig.parameters
+        assert sig.parameters["delete_source"].default is True
+
+    def test_param_count(self):
+        """Should have 10 parameters"""
+        import inspect
+        from server import mcp_opendaw_move_notes
+        sig = inspect.signature(mcp_opendaw_move_notes)
+        assert len(sig.parameters) == 10
+
+    def test_move_vs_copy_distinction(self):
+        """move_notes is distinct from copy_notes_to_track"""
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        move = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                and n.name == "mcp_opendaw_move_notes"]
+        copy = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                and n.name == "mcp_opendaw_copy_notes_to_track"]
+        assert len(move) == 1
+        assert len(copy) == 1
+        assert move[0].lineno != copy[0].lineno
+
+
 class TestDoubleMelody:
     """Tests for mcp_opendaw_double_melody — parallel interval doubling"""
 

@@ -730,6 +730,6 @@ await mcp_opendaw_save_effect_preset(unit_index, effect_index, "My Preset", "Des
 ## Related Skills
 
 - `opendaw-sound-design` — using existing instruments + DSP scripts (this skill is about WRITING new ones)
-- `opendaw-automation` — 422 MCP tools, ScriptCompiler internals, bridge API
+- `opendaw-automation` — 423 MCP tools, ScriptCompiler internals, bridge API
 - `adaptive-mix-mastering` — where custom DSP fits in the mix pipeline
 - `suno-to-opendaw` — full Suno→openDAW workflow

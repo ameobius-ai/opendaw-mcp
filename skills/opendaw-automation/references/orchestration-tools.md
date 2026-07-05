@@ -133,43 +133,44 @@ Orchestration tools solve this by combining multiple low-level operations into a
 120. `create_rnb_arrangement` — contemporary R&B: half-time drums + sub bass + dark min9 chords + vocal-style lead (68 BPM, C minor)
 121. `scale_velocity` — MIDI dynamics scaling: multiply/add/set/normalize/compress velocity of all notes in region
 122. `copy_notes_to_track` — MIDI layering/doubling: copy notes between tracks with optional transpose + time_offset + velocity_scale
-123. `scale_durations` — MIDI note duration scaling: multiply/add/set/quantize/legato durations of all notes in region
-124. `groove_transfer` — groove feel transfer: extract timing + velocity groove template from source region, apply to destination region(s). Cycles every groove_length beats
-125. `time_warp_notes` — half-time / double-time: warp note positions AND durations by factor (0.5=half-time, 2.0=double-time). Moves notes in time, not just durations
-126. `force_scale_notes` — harmonic snap: force all notes into a scale (13 scales), nearest/up/down direction, preserve_octave option
-127. `identify_chords` — harmonic analysis: group notes by temporal overlap, match pitch-class sets against 10 chord types, return chord names with time positions
-128. `diatonic_transpose_notes` — scale-step transpose: move notes up/down by N steps within a scale (not semitones), preserves scale, skips out-of-scale notes
-129. `create_blues_arrangement` — 12-bar blues: shuffle drums + walking bass + dom7 stabs + blues scale lead, I-IV-V form, 120 BPM default
-130. `extract_motifs` — melodic analysis: extract repeating motifs (3-8 notes) by interval contour, classify contour type (ascending/descending/arch/V-shape/wave), significance scoring, deduplication
-131. `analyze_song_structure` — structural analysis: segment MIDI into intro/verse/chorus/bridge/outro/breakdown based on per-bar density/energy, return form string
-132. `classify_drum_pattern` — rhythmic analysis: classify drum pattern as four-on-the-floor/boom-bap/trap/breakbeat/shuffle/half-time/amen/march using GM drum map, syncopation, triplet feel, hat density
-133. `create_motif_variations` — motif development: extract motif from existing MIDI, create classical variation (sequence/inversion/retrograde/augmentation/diminution/fragmentation) in target region. Closes analysis→creation loop
-134. `create_country_arrangement` — country/Americana: straight 8th drums + root-five bass + boom-chick guitar + major pentatonic fiddle lead, I-IV-V 8-bar form, 120 BPM default
-135. `create_metal_arrangement` — heavy metal: double kick drums + palm-muted power chord riffs (phrygian dominant) + root-following bass + shred lead, riff-based 4-bar, 160 BPM default
-136. `create_harmony_line` — diatonic harmony from existing melody: 5 intervals (third/sixth/fifth/fourth/octave), above/below direction, scale-step shifts, auto-creates target track/region
-137. `create_voice_led_progression` — chord pads with smooth voice leading: re-voices each chord for minimal voice movement, common tones stationary, reports per-chord movement stats, voice_range constrains spread
-138. `reharmonize_progression` — chord substitution / reharmonization: 5 techniques (tritone_sub, secondary_dominant, diatonic_sub, modal_interchange, passing_dim), intensity control, target_chord for selective substitution, returns reharmonized progression + explanations
-139. `displace_rhythm` — rhythmic displacement: shift notes by fixed offset (laid-back/pushed), two modes: shift (add offset, auto-extends region) and circular (rotate pattern within region — new patterns from same material), default 1/16 note, range -4 to 4 beats
-140. `thin_notes` — note density reduction: 3 strategies (interval=keep every Nth, velocity_threshold=remove ghost notes, random=probabilistic removal), preserve_strong_beats keeps beat 1 and 3
-141. `strum_notes` — guitar-style strumming: groups simultaneous notes, offsets by pitch order, 3 directions (down/up/random), configurable speed + jitter for humanization
-142. `constrain_note_range` — pitch range limiting: clamp (hard limit) or octave_wrap (shift by ±12 to fit, preserves pitch class), use for instrument range constraints
-143. `set_articulation` — articulation control: legato (extend to next note minus gap), staccato (shorten to ratio), tenuto (full duration), groups chords by position
-144. `generate_melody` — generative melody from scale + contour: 6 contour shapes (ascending/descending/arch/v_shape/wave/random), 5 rhythm patterns, weighted random pitch selection, rest probability, no chord progression needed
-145. `double_melody` — note doubling: 7 named intervals (octave/double_octave/fifth/fourth/third/sixth/unison), diatonic mode (scale steps), same-region thickening (dest_track=-1) or cross-track (dest_track=N)
-146. `split_note_region` — split region at beat position: notes after split_point moved to new region, straddling notes stay, original trimmed
-147. `merge_note_regions` — merge two regions: copy notes from B to A (positions recalculated), extend A duration, delete B. Works with adjacent/gapped/overlapping
-148. `filter_notes` — multi-criteria note filtering: pitch range + velocity range + time range (AND logic, -1=wildcard), 3 actions (list/delete/keep)
-149. `note_stats` — full note statistics: pitch (min/max/span + note names), velocity (min/max/mean/median/std), duration, density, pitch class histogram, top 5 pitches
-150. `accent_beats` — beat-aware velocity accents: 6 patterns (4/4/backbeat/3-4/6-8/off_beat/four_on_floor), 16th note interpolation
-151. `analyze_melody` — melodic contour analysis: contour profile, interval histogram, step vs leap ratio, direction changes, climax/nadir, contour shape, phrase count, melodic range
-152. `extract_rhythm` — rhythmic pattern extraction: onset grid, rhythm string, syncopation, swing factor, IOI, density. 4 grid resolutions
-153. `apply_rhythm_pattern` — apply rhythmic pattern to notes (inverse of extract_rhythm): rhythm string or onset grid, pattern cycling, 4 velocity modes, 3 duration modes
-154. `detect_scale_from_notes` — scale detection from MIDI: 15 scales × 12 roots via Pearson correlation, returns best match + 5 alternatives + confidence
-155. `analyze_harmonic_rhythm` — chord change rate analysis: chord timeline, harmonic rhythm rate (fast/medium/slow), stable/active sections, modulation detection
-156. `map_velocity_by_pitch` — pitch-based velocity mapping: 4 modes (higher_quieter/lower_quieter/bell_curve/inverse_bell), intensity control, per-octave stats
-157. `quantize_velocities` — snap velocities to discrete levels: MPC 16-level, 2-128 steps, 4 modes (snap/floor/ceil/round_random), level distribution
-158. `balance_track_velocities` — cross-track velocity balance: 5 presets (mix_balanced/drums_forward/vocal_forward/pads_quiet/bass_heavy) + custom mode
-159. `create_midi_echo` — MIDI echo with decaying velocity: 4 feedback modes (linear/exponential/constant/reverse), pitch shift per repeat, dest_track for separate echo
+123. `move_notes` — move notes between tracks: copy + delete source, optional transpose + time_offset + velocity_scale, delete_source=False for copy mode
+124. `scale_durations` — MIDI note duration scaling: multiply/add/set/quantize/legato durations of all notes in region
+125. `groove_transfer` — groove feel transfer: extract timing + velocity groove template from source region, apply to destination region(s). Cycles every groove_length beats
+126. `time_warp_notes` — half-time / double-time: warp note positions AND durations by factor (0.5=half-time, 2.0=double-time). Moves notes in time, not just durations
+127. `force_scale_notes` — harmonic snap: force all notes into a scale (13 scales), nearest/up/down direction, preserve_octave option
+128. `identify_chords` — harmonic analysis: group notes by temporal overlap, match pitch-class sets against 10 chord types, return chord names with time positions
+129. `diatonic_transpose_notes` — scale-step transpose: move notes up/down by N steps within a scale (not semitones), preserves scale, skips out-of-scale notes
+130. `create_blues_arrangement` — 12-bar blues: shuffle drums + walking bass + dom7 stabs + blues scale lead, I-IV-V form, 120 BPM default
+131. `extract_motifs` — melodic analysis: extract repeating motifs (3-8 notes) by interval contour, classify contour type (ascending/descending/arch/V-shape/wave), significance scoring, deduplication
+132. `analyze_song_structure` — structural analysis: segment MIDI into intro/verse/chorus/bridge/outro/breakdown based on per-bar density/energy, return form string
+133. `classify_drum_pattern` — rhythmic analysis: classify drum pattern as four-on-the-floor/boom-bap/trap/breakbeat/shuffle/half-time/amen/march using GM drum map, syncopation, triplet feel, hat density
+134. `create_motif_variations` — motif development: extract motif from existing MIDI, create classical variation (sequence/inversion/retrograde/augmentation/diminution/fragmentation) in target region. Closes analysis→creation loop
+135. `create_country_arrangement` — country/Americana: straight 8th drums + root-five bass + boom-chick guitar + major pentatonic fiddle lead, I-IV-V 8-bar form, 120 BPM default
+136. `create_metal_arrangement` — heavy metal: double kick drums + palm-muted power chord riffs (phrygian dominant) + root-following bass + shred lead, riff-based 4-bar, 160 BPM default
+137. `create_harmony_line` — diatonic harmony from existing melody: 5 intervals (third/sixth/fifth/fourth/octave), above/below direction, scale-step shifts, auto-creates target track/region
+138. `create_voice_led_progression` — chord pads with smooth voice leading: re-voices each chord for minimal voice movement, common tones stationary, reports per-chord movement stats, voice_range constrains spread
+139. `reharmonize_progression` — chord substitution / reharmonization: 5 techniques (tritone_sub, secondary_dominant, diatonic_sub, modal_interchange, passing_dim), intensity control, target_chord for selective substitution, returns reharmonized progression + explanations
+140. `displace_rhythm` — rhythmic displacement: shift notes by fixed offset (laid-back/pushed), two modes: shift (add offset, auto-extends region) and circular (rotate pattern within region — new patterns from same material), default 1/16 note, range -4 to 4 beats
+141. `thin_notes` — note density reduction: 3 strategies (interval=keep every Nth, velocity_threshold=remove ghost notes, random=probabilistic removal), preserve_strong_beats keeps beat 1 and 3
+142. `strum_notes` — guitar-style strumming: groups simultaneous notes, offsets by pitch order, 3 directions (down/up/random), configurable speed + jitter for humanization
+143. `constrain_note_range` — pitch range limiting: clamp (hard limit) or octave_wrap (shift by ±12 to fit, preserves pitch class), use for instrument range constraints
+144. `set_articulation` — articulation control: legato (extend to next note minus gap), staccato (shorten to ratio), tenuto (full duration), groups chords by position
+145. `generate_melody` — generative melody from scale + contour: 6 contour shapes (ascending/descending/arch/v_shape/wave/random), 5 rhythm patterns, weighted random pitch selection, rest probability, no chord progression needed
+146. `double_melody` — note doubling: 7 named intervals (octave/double_octave/fifth/fourth/third/sixth/unison), diatonic mode (scale steps), same-region thickening (dest_track=-1) or cross-track (dest_track=N)
+147. `split_note_region` — split region at beat position: notes after split_point moved to new region, straddling notes stay, original trimmed
+148. `merge_note_regions` — merge two regions: copy notes from B to A (positions recalculated), extend A duration, delete B. Works with adjacent/gapped/overlapping
+149. `filter_notes` — multi-criteria note filtering: pitch range + velocity range + time range (AND logic, -1=wildcard), 3 actions (list/delete/keep)
+150. `note_stats` — full note statistics: pitch (min/max/span + note names), velocity (min/max/mean/median/std), duration, density, pitch class histogram, top 5 pitches
+151. `accent_beats` — beat-aware velocity accents: 6 patterns (4/4/backbeat/3-4/6-8/off_beat/four_on_floor), 16th note interpolation
+152. `analyze_melody` — melodic contour analysis: contour profile, interval histogram, step vs leap ratio, direction changes, climax/nadir, contour shape, phrase count, melodic range
+153. `extract_rhythm` — rhythmic pattern extraction: onset grid, rhythm string, syncopation, swing factor, IOI, density. 4 grid resolutions
+154. `apply_rhythm_pattern` — apply rhythmic pattern to notes (inverse of extract_rhythm): rhythm string or onset grid, pattern cycling, 4 velocity modes, 3 duration modes
+155. `detect_scale_from_notes` — scale detection from MIDI: 15 scales × 12 roots via Pearson correlation, returns best match + 5 alternatives + confidence
+156. `analyze_harmonic_rhythm` — chord change rate analysis: chord timeline, harmonic rhythm rate (fast/medium/slow), stable/active sections, modulation detection
+157. `map_velocity_by_pitch` — pitch-based velocity mapping: 4 modes (higher_quieter/lower_quieter/bell_curve/inverse_bell), intensity control, per-octave stats
+158. `quantize_velocities` — snap velocities to discrete levels: MPC 16-level, 2-128 steps, 4 modes (snap/floor/ceil/round_random), level distribution
+159. `balance_track_velocities` — cross-track velocity balance: 5 presets (mix_balanced/drums_forward/vocal_forward/pads_quiet/bass_heavy) + custom mode
+160. `create_midi_echo` — MIDI echo with decaying velocity: 4 feedback modes (linear/exponential/constant/reverse), pitch shift per repeat, dest_track for separate echo
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
@@ -239,17 +240,17 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## Key Implementation Patterns
 
-1. **Python-side validation:** All JSON parsing and parameter validation happens in Python before the bridge call. Returns error strings immediately without touching the DAW.
+161. **Python-side validation:** All JSON parsing and parameter validation happens in Python before the bridge call. Returns error strings immediately without touching the DAW.
 
-2. **One bridge round-trip:** Each orchestration tool makes exactly one `bridge.evaluate()` call. All DAW mutations happen inside that call's JS execution.
+162. **One bridge round-trip:** Each orchestration tool makes exactly one `bridge.evaluate()` call. All DAW mutations happen inside that call's JS execution.
 
-3. **Multiple `h.modify()` blocks:** Within a single `evaluate()`, multiple `h.modify()` blocks are used for logically separate operations (e.g., separate blocks for chords, bass, drums in `create_genre_track`). This matches openDAW's requirement for atomic box operations.
+163. **Multiple `h.modify()` blocks:** Within a single `evaluate()`, multiple `h.modify()` blocks are used for logically separate operations (e.g., separate blocks for chords, bass, drums in `create_genre_track`). This matches openDAW's requirement for atomic box operations.
 
-4. **`json.dumps()` for data passing:** Python data structures (note lists, genre configs) are serialized via `json.dumps()` and interpolated into the JS template string. This handles escaping correctly — `_escape_js` was a dead function, replaced with `json.dumps()`.
+164. **`json.dumps()` for data passing:** Python data structures (note lists, genre configs) are serialized via `json.dumps()` and interpolated into the JS template string. This handles escaping correctly — `_escape_js` was a dead function, replaced with `json.dumps()`.
 
-5. **Auto-region creation:** If no region exists on the target track, one is created with `NoteEventCollectionBox` + `NoteRegionBox`. If a region exists, notes are appended to its event collection.
+165. **Auto-region creation:** If no region exists on the target track, one is created with `NoteEventCollectionBox` + `NoteRegionBox`. If a region exists, notes are appended to its event collection.
 
-6. **Region duration extension:** After adding notes, if any note extends beyond the current region duration, the duration (and loopDuration) are extended.
+166. **Region duration extension:** After adding notes, if any note extends beyond the current region duration, the duration (and loopDuration) are extended.
 
 ## CI Threshold
 
@@ -312,26 +313,26 @@ for (const [key, field] of Object.entries(record)) {
 ## Adding New Orchestration Tools
 
 When adding a new orchestration tool:
-1. Define input validation in Python (JSON parsing, enum checks, range checks)
-2. Build the data structure in Python (note lists, config dicts)
-3. Pass to bridge via `json.dumps()` interpolation in f-string
-4. Use multiple `h.modify()` blocks for separate logical operations
-5. Update: TOOL_CATALOG.md, README.md, pyproject.toml, server.json, CI threshold
-6. Run: `python3 -c "import ast; ..."` to verify AST tool count
-7. Run: `python -m pytest tests/ -q` to verify no regressions
-8. Commit with `feat: N orchestration tools — ...` message
+167. Define input validation in Python (JSON parsing, enum checks, range checks)
+168. Build the data structure in Python (note lists, config dicts)
+169. Pass to bridge via `json.dumps()` interpolation in f-string
+170. Use multiple `h.modify()` blocks for separate logical operations
+171. Update: TOOL_CATALOG.md, README.md, pyproject.toml, server.json, CI threshold
+172. Run: `python3 -c "import ast; ..."` to verify AST tool count
+173. Run: `python -m pytest tests/ -q` to verify no regressions
+174. Commit with `feat: N orchestration tools — ...` message
 
 ## PyPI Publishing Workflow
 
 When ready to publish a new version:
 
-1. Bump version in `pyproject.toml`
-2. Update all tool count references: README.md badge, README.md body, TOOL_CATALOG.md header + total, server.json description, pyproject.toml description, `main()` version string, `main()` help string, CI threshold in `.github/workflows/ci.yml`
-3. Build: `pip install build twine` (one-time), then `rm -rf dist && python3 -m build`
-4. Upload: `TWINE_PASSWORD="<token>" TWINE_USERNAME="__token__" python3 -m twine upload dist/opendaw_mcp-<version>*`
-5. GitHub Release: `gh release create v<version> --title "v<version> — ..." --notes "..."`
-6. Verify: `pip index versions opendaw-mcp`
-7. Store token in credentials: `python3 credentials/credman.py add-account pypi __token__ --password "<token>" --notes "PyPI API token for opendaw-mcp"`
+175. Bump version in `pyproject.toml`
+176. Update all tool count references: README.md badge, README.md body, TOOL_CATALOG.md header + total, server.json description, pyproject.toml description, `main()` version string, `main()` help string, CI threshold in `.github/workflows/ci.yml`
+177. Build: `pip install build twine` (one-time), then `rm -rf dist && python3 -m build`
+178. Upload: `TWINE_PASSWORD="<token>" TWINE_USERNAME="__token__" python3 -m twine upload dist/opendaw_mcp-<version>*`
+179. GitHub Release: `gh release create v<version> --title "v<version> — ..." --notes "..."`
+180. Verify: `pip index versions opendaw-mcp`
+181. Store token in credentials: `python3 credentials/credman.py add-account pypi __token__ --password "<token>" --notes "PyPI API token for opendaw-mcp"`
 
 **AST count note:** `ast.walk` counting `AsyncFunctionDef` includes helper functions (`start`, `stop`, `evaluate`) that are NOT MCP tools. Real tool count = AST count - 3 (roughly). Use the `mcp_opendaw_` prefix filter for accurate count: `[n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]`.
 
@@ -339,13 +340,13 @@ When ready to publish a new version:
 
 When orchestration tools have runtime bugs caught during bridge testing (not unit tests):
 
-1. Fix the JS code in `server.py` (e.g. `p.api.addMarker` → `MarkerBox.create()`)
-2. Bump patch version: `1.10.0` → `1.10.1` in `pyproject.toml`, `server.json`, `server.py` main() version string
-3. Do NOT bump tool count (same 260 tools, just fixed)
-4. Rebuild: `rm -rf dist && python3 -m build`
-5. Republish: `TWINE_PASSWORD=... TWINE_USERNAME=__token__ python3 -m twine upload dist/opendaw_mcp-<patch>*`
-6. GitHub Release with fix notes
-7. Comment on all open catalog PRs/issues (punkpeye/awesome-mcp-servers#9133, chatmcp/mcpso#3003, YuzeHao2023/Awesome-MCP-Servers#338)
-8. Update memory with new version
+182. Fix the JS code in `server.py` (e.g. `p.api.addMarker` → `MarkerBox.create()`)
+183. Bump patch version: `1.10.0` → `1.10.1` in `pyproject.toml`, `server.json`, `server.py` main() version string
+184. Do NOT bump tool count (same 260 tools, just fixed)
+185. Rebuild: `rm -rf dist && python3 -m build`
+186. Republish: `TWINE_PASSWORD=... TWINE_USERNAME=__token__ python3 -m twine upload dist/opendaw_mcp-<patch>*`
+187. GitHub Release with fix notes
+188. Comment on all open catalog PRs/issues (punkpeye/awesome-mcp-servers#9133, chatmcp/mcpso#3003, YuzeHao2023/Awesome-MCP-Servers#338)
+189. Update memory with new version
 
 **Token location:** `python3 credentials/credman.py search pypi` → pypi/__token__ account.

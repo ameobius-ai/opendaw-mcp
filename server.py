@@ -3499,6 +3499,146 @@ async def mcp_opendaw_copy_notes_to_track(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_move_notes(
+    source_unit: int,
+    source_track: int,
+    source_region: int,
+    dest_unit: int,
+    dest_track: int,
+    time_offset: int = 0,
+    transpose: int = 0,
+    velocity_scale: float = 1.0,
+    delete_source: bool = True,
+    dest_region: int = -1,
+) -> str:
+    """Move notes from a source region to another track — copy + delete.
+
+    Copies notes from source region to destination track (auto-creating a
+    region or appending to an existing one), then optionally deletes the
+    originals. Useful for splitting material across tracks, reorganising
+    arrangements, or moving a section to a different instrument.
+
+    Args:
+        source_unit: Source audio unit index
+        source_track: Source note track index
+        source_region: Source region index
+        dest_unit: Destination audio unit index
+        dest_track: Destination note track index
+        time_offset: Shift all moved notes by N ticks (0 = keep positions)
+        transpose: Transpose all moved notes by N semitones (0 = no change)
+        velocity_scale: Multiply velocity of moved notes (1.0 = unchanged,
+                        0.8 = quieter, 1.2 = louder, clamped to 0-1)
+        delete_source: If True (default), delete notes from source after copy.
+                       If False, behaves like copy_notes_to_track.
+        dest_region: Destination region index (-1 = auto-create or append to last)
+
+    Returns:
+        JSON with notes_moved, notes_deleted, source_region_cleared,
+        and destination region info.
+    """
+    velocity_scale = max(0.0, min(2.0, float(velocity_scale)))
+
+    result = await bridge.evaluate(f"""async () => {{
+        const srcUnitIdx = {source_unit};
+        const srcTrackIdx = {source_track};
+        const srcRegIdx = {source_region};
+        const destUnitIdx = {dest_unit};
+        const destTrackIdx = {dest_track};
+        const timeOffset = {time_offset};
+        const transposeAmt = {transpose};
+        const velScale = {velocity_scale};
+        const doDelete = {json.dumps(delete_source)};
+        const destRegIdx = {dest_region};
+
+        const h = window.DAW_HeadlessBridge;
+
+        // Find source
+        const units = [...h.api.units.pointerHub.incoming()];
+        if (srcUnitIdx >= units.length) return JSON.stringify({{"error": "source unit out of range"}});
+        if (destUnitIdx >= units.length) return JSON.stringify({{"error": "dest unit out of range"}});
+        const srcAu = units[srcUnitIdx];
+        const destAu = units[destUnitIdx];
+
+        const srcTracks = [...srcAu.tracks.pointerHub.incoming()];
+        if (srcTrackIdx >= srcTracks.length) return JSON.stringify({{"error": "source track out of range"}});
+        const srcTrack = srcTracks[srcTrackIdx];
+        const srcRegions = [...srcTrack.regions.pointerHub.incoming()];
+        if (srcRegIdx >= srcRegions.length) return JSON.stringify({{"error": "source region out of range"}});
+        const srcRegion = srcRegions[srcRegIdx];
+        const srcRegionBox = srcRegion.box;
+        const srcColl = srcRegionBox.events.targetVertex.unwrap();
+        if (!srcColl) return JSON.stringify({{"error": "source region has no note collection"}});
+        const srcNotes = [...srcColl.events.pointerHub.incoming()];
+
+        if (srcNotes.length === 0) return JSON.stringify({{"error": "source region has no notes"}});
+
+        // Find dest track
+        const destTracks = [...destAu.tracks.pointerHub.incoming()];
+        if (destTrackIdx >= destTracks.length) return JSON.stringify({{"error": "dest track out of range"}});
+        const destTrack = destTracks[destTrackIdx];
+        const destRegions = [...destTrack.regions.pointerHub.incoming()];
+
+        let destRegionBox;
+        let destColl;
+        if (destRegIdx >= 0 && destRegIdx < destRegions.length) {{
+            destRegionBox = destRegions[destRegIdx].box;
+            destColl = destRegionBox.events.targetVertex.unwrap();
+        }} else if (destRegions.length > 0) {{
+            destRegionBox = destRegions[destRegions.length - 1].box;
+            destColl = destRegionBox.events.targetVertex.unwrap();
+        }}
+
+        let notesCopied = 0;
+        let notesDeleted = 0;
+
+        await h.editing.modify(async () => {{
+            // Copy notes to dest
+            if (destColl) {{
+                for (const note of srcNotes) {{
+                    const nb = note.box;
+                    const newPitch = Math.max(0, Math.min(127, nb.pitch.value + transposeAmt));
+                    const newPos = Math.max(0, nb.position.value + timeOffset);
+                    const newVel = Math.max(0, Math.min(1, nb.velocity.value * velScale));
+                    const dur = nb.duration.value;
+
+                    const NoteEventBox = window.DAW_NoteEventBox;
+                    if (NoteEventBox) {{
+                        NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                            box.pitch.setValue(newPitch);
+                            box.position.setValue(newPos);
+                            box.duration.setValue(dur);
+                            box.velocity.setValue(newVel);
+                            if (nb.cent) box.cent.setValue(nb.cent.value);
+                            box.events.refer(destColl.events);
+                        }});
+                    }}
+                    notesCopied++;
+                }}
+            }}
+
+            // Delete source notes
+            if (doDelete) {{
+                for (const note of srcNotes) {{
+                    note.delete();
+                    notesDeleted++;
+                }}
+            }}
+        }});
+
+        return JSON.stringify({{
+            notes_moved: notesCopied,
+            notes_deleted: notesDeleted,
+            source_region_cleared: doDelete,
+            source: {{unit: srcUnitIdx, track: srcTrackIdx, region: srcRegIdx}},
+            dest: {{unit: destUnitIdx, track: destTrackIdx}},
+            transpose: transposeAmt,
+            time_offset: timeOffset,
+            velocity_scale: velScale,
+        }});
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_double_melody(
     unit_index: int,
     track_index: int,

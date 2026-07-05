@@ -130,6 +130,7 @@
 - `set_note_properties` — Edit properties of a single note within a region.
 - `transpose_notes` — Transpose all notes by a number of semitones. Supports region_index and skips out-of-range notes.
 - `copy_notes_to_track` — Copy notes from one track/region to another — MIDI layering and doubling. Optional transpose (semitones), time_offset (beats), velocity_scale. Use cases: layer drums, create octave harmony, echo/call-and-response, doubles. Cross-AU support via dest_unit_index.
+- `move_notes` — Move notes from source region to another track — copy + delete source. Transpose, time_offset, velocity_scale, delete_source flag (False = copy mode). Cross-AU. Use for reorganising arrangements, splitting material across instruments, moving sections.
 - `double_melody` — Parallel interval doubling — thickens melody at named musical intervals (octave, fifth, fourth, third, sixth, unison, double_octave). Diatonic mode shifts by scale steps (correct major/minor third quality). Same-region or cross-track. velocity_scale, time_offset for delay. Use for octave doubling, power chords, parallel harmony.
 - `reverse_notes` — Reverse note order in a region (retrograde). Positions mirrored, durations/velocities preserved.
 - `invert_notes` — Invert melody around a pitch axis (mirror reflection). newPitch = 2*axis - oldPitch.

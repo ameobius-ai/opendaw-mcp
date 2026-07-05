@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.248.0 (2026-07-06)
+
+### Added
+- `move_notes` — Move notes from source region to another track (copy + delete source). Transpose, time_offset, velocity_scale, delete_source flag. Cross-AU support.
+
 ## v1.247.0 (2026-07-06)
 
 ### Added
