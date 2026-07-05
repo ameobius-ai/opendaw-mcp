@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.88.0 (2026-07-05)
+
+- **`create_phase` orchestration tool** — Steve Reich-style phase shifting: 2-4 voices play the same melodic pattern, but drifting voices gradually shift in time creating evolving phase relationships. 3 drift directions (forward/backward/diverge), phase_rate, phase_amount with reset, per-voice velocity decay. Unlike create_canon (fixed offset) or create_isorhythm (repeating cycles), phasing creates continuous temporal drift. 310 MCP tools
+- **794 unit tests** (+10), E2E 8/8
+
 ## v1.87.0 (2026-07-05)
 
 - **`werkstatt_octaver.js` DSP script** — sub-octave generator (Boss OC-2 style): zero-crossing flip-flop divides input frequency by 2 (-1 oct) and 4 (-2 oct), envelope follower tracks amplitude for natural decay, hysteresis on zero-crossing detection, one-pole lowpass smoothing on square wave edges. 7 params (oct1/oct2/direct/smooth/track/trigger/output). 70 DSP scripts

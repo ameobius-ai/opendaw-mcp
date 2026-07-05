@@ -20282,5 +20282,208 @@ async def mcp_opendaw_create_stutter(
     return _wrap_eval(result)
 
 
+async def mcp_opendaw_create_phase(
+    pattern: str = "60 62 64 67 64 62",
+    voices: int = 2,
+    phase_rate: float = 0.1,
+    phase_direction: str = "forward",
+    phase_amount: float = 4.0,
+    step_duration: float = 0.25,
+    repeats: int = 8,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+    velocity_decay: float = 0.0,
+) -> str:
+    """Create a Steve Reich-style phase shifting pattern.
+
+    Two or more voices play the same melodic pattern, but one voice gradually
+    drifts in time, creating evolving phase relationships. As the voices shift
+    relative to each other, new rhythmic and melodic patterns emerge from the
+    interference. Essential for:
+    - Minimalist music (Steve Reich "Piano Phase", "Violin Phase")
+    - Ambient textures with slow evolution
+    - Generative electronic patterns
+    - Building tension through gradual transformation
+
+    Unlike create_canon (fixed offset between voices) or create_isorhythm
+    (repeating rhythmic/melodic cycles), phasing creates a CONTINUOUS temporal
+    drift — the relationship between voices constantly changes.
+
+    pattern: Space-separated MIDI pitches (2-16 notes, e.g. "60 62 64 67 64 62").
+    voices: Number of voices (2-4, default 2). Voice 1 is reference, others drift.
+    phase_rate: Drift speed in beats per repeat (0.01-1.0, default 0.1).
+      Each repeat, drifting voice shifts by this many beats.
+    phase_direction: How voices drift —
+      "forward" (voice 2 moves ahead of voice 1),
+      "backward" (voice 2 falls behind voice 1),
+      "diverge" (voices 2+3 spread in opposite directions).
+    phase_amount: Maximum drift in beats before reset (1-16, default 4).
+      When drift exceeds this, voice snaps back to alignment (creating phase reset).
+    step_duration: Duration of each pattern step in beats (0.0625-2.0, default 0.25 = 16th).
+    repeats: Number of pattern repetitions per voice (2-32, default 8).
+    unit_index: AU index with note track (-1 = auto-find).
+    track_index: Note track index.
+    start_beat: Position in beats.
+    velocity: Base velocity (0-1).
+    velocity_decay: Velocity decrease per voice (0-0.3, default 0).
+      Voice 2 is quieter than voice 1 by this amount, voice 3 even more.
+
+    Returns notes created, voices, phase relationships, total length.
+    """
+    try:
+        pitch_list = [int(p.strip()) for p in pattern.split()]
+    except ValueError:
+        return "Error: pattern must be space-separated integers"
+    if len(pitch_list) < 2 or len(pitch_list) > 16:
+        return "Error: need 2-16 pattern notes"
+    if not all(0 <= p <= 127 for p in pitch_list):
+        return "Error: pitches must be 0-127"
+    if voices < 2 or voices > 4:
+        return "Error: voices must be 2-4"
+    if phase_rate < 0.01 or phase_rate > 1.0:
+        return "Error: phase_rate must be 0.01-1.0"
+    if phase_direction not in ("forward", "backward", "diverge"):
+        return "Error: phase_direction must be forward, backward, or diverge"
+    if phase_amount < 1 or phase_amount > 16:
+        return "Error: phase_amount must be 1-16"
+    if step_duration < 0.0625 or step_duration > 2.0:
+        return "Error: step_duration must be 0.0625-2.0"
+    if repeats < 2 or repeats > 32:
+        return "Error: repeats must be 2-32"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if velocity_decay < 0 or velocity_decay > 0.3:
+        return "Error: velocity_decay must be 0-0.3"
+
+    pattern_len_beats = len(pitch_list) * step_duration
+    total_beats = repeats * pattern_len_beats + phase_amount  # extra space for drift
+
+    # Build note data for all voices
+    note_data = []
+
+    for voice in range(voices):
+        # Voice 0 is the reference (no drift)
+        # Voice 1+ drifts based on phase_direction
+        if voice == 0:
+            drift_sign = 0
+        elif phase_direction == "forward":
+            drift_sign = 1
+        elif phase_direction == "backward":
+            drift_sign = -1
+        elif phase_direction == "diverge":
+            # Alternate voices drift in opposite directions
+            drift_sign = 1 if voice % 2 == 1 else -1
+
+        # Velocity per voice
+        voice_vel = velocity * (1.0 - velocity_decay * voice)
+        voice_vel = max(0.05, voice_vel)
+
+        for rep in range(repeats):
+            # Accumulated drift for this voice at this repetition
+            drift = drift_sign * phase_rate * rep
+
+            # Phase reset: if drift exceeds phase_amount, wrap around
+            if abs(drift) > phase_amount:
+                drift = drift % phase_amount if drift > 0 else -((-drift) % phase_amount)
+
+            for j, pitch in enumerate(pitch_list):
+                pos = rep * pattern_len_beats + j * step_duration + drift
+                if pos < 0:
+                    pos = 0
+                dur = step_duration * 0.9
+                note_data.append({
+                    "pitch": pitch,
+                    "pos": round(pos, 6),
+                    "dur": round(dur, 6),
+                    "vel": round(voice_vel, 3),
+                    "voice": voice,
+                })
+
+    actual_notes = len(note_data)  # used in JS f-string below  # noqa: F841
+    total_beats = round(total_beats, 6)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Phase");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            voices: {voices},
+            pattern_notes: {len(pitch_list)},
+            repeats: {repeats},
+            phase_direction: "{phase_direction}",
+            phase_rate: {phase_rate},
+            phase_amount: {phase_amount},
+            step_duration: {step_duration},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()

@@ -2905,3 +2905,72 @@ class TestCreateStutter:
         from server import mcp_opendaw_create_stutter
         doc = mcp_opendaw_create_stutter.__doc__
         assert "BT" in doc or "stutter" in doc.lower()
+
+
+class TestCreatePhase:
+    """Unit tests for mcp_opendaw_create_phase orchestration tool."""
+
+    def test_invalid_pattern(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        result = asyncio.run(mcp_opendaw_create_phase(pattern="abc"))
+        assert "Error" in result
+
+    def test_too_few_notes(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        result = asyncio.run(mcp_opendaw_create_phase(pattern="60"))
+        assert "Error" in result
+
+    def test_too_many_notes(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        pattern = " ".join(["60"] * 20)
+        result = asyncio.run(mcp_opendaw_create_phase(pattern=pattern))
+        assert "Error" in result
+
+    def test_invalid_voices(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        r1 = asyncio.run(mcp_opendaw_create_phase(voices=1))
+        assert "Error" in r1
+        r2 = asyncio.run(mcp_opendaw_create_phase(voices=5))
+        assert "Error" in r2
+
+    def test_invalid_phase_direction(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        result = asyncio.run(mcp_opendaw_create_phase(phase_direction="sideways"))
+        assert "Error" in result
+
+    def test_phase_rate_bounds(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        r1 = asyncio.run(mcp_opendaw_create_phase(phase_rate=0.001))
+        assert "Error" in r1
+        r2 = asyncio.run(mcp_opendaw_create_phase(phase_rate=2.0))
+        assert "Error" in r2
+
+    def test_repeats_bounds(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        r1 = asyncio.run(mcp_opendaw_create_phase(repeats=1))
+        assert "Error" in r1
+        r2 = asyncio.run(mcp_opendaw_create_phase(repeats=50))
+        assert "Error" in r2
+
+    def test_velocity_decay_bounds(self):
+        import asyncio
+        from server import mcp_opendaw_create_phase
+        r = asyncio.run(mcp_opendaw_create_phase(velocity_decay=0.5))
+        assert "Error" in r
+
+    def test_doc_mentions_reich(self):
+        from server import mcp_opendaw_create_phase
+        doc = mcp_opendaw_create_phase.__doc__
+        assert "Reich" in doc or "phase" in doc.lower()
+
+    def test_doc_contrasts_canon(self):
+        from server import mcp_opendaw_create_phase
+        doc = mcp_opendaw_create_phase.__doc__
+        assert "canon" in doc.lower() or "isorhythm" in doc.lower()
