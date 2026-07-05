@@ -386,9 +386,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 313 tools**
 
-## DSP Scripts (scripts/) — 87 scripts
+## DSP Scripts (scripts/) — 88 scripts
 
-### Werkstatt (Audio Effects) — 69 scripts
+### Werkstatt (Audio Effects) — 70 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -455,6 +455,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_grain_delay.js` — Grain delay (Hann-windowed grains read from delay buffer with pitch shift, scatter, reverse, pan, feedback)
 - `werkstatt_expander.js` — Downward expander (compressor complement: attenuates signals below threshold, ratio controls expansion strength, range caps max attenuation, soft knee, stereo linked detection, gate at ratio=∞)
 - `werkstatt_binaural.js` — Binaural spatial panner (3D positioning via Woodworth ITD formula, frequency-dependent ILD head shadow, pinna elevation spectral notches, distance attenuation + air absorption, room reverb with decorrelation, azimuth/elevation/distance/head_size/room/mix/output)
+- `werkstatt_harmonic_tremolo.js` — Harmonic tremolo (Fender '60s: LR4 crossover splits low/high bands, dual LFO modulates them in antiphase, bass↔treble spectral rocking not amplitude, shape sine→square, phase_offset, crossover/rate/depth/shape/phase_offset/mix/output)
 
 ### Apparat (Instruments) — 8 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

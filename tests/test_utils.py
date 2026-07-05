@@ -2947,6 +2947,8 @@ class TestScaleQuantizerDSP:
         assert "reset()" in code, "Missing reset method"
 
 
+
+
 class TestDynamicEqDSP:
     """Unit tests for werkstatt_dynamic_eq.js DSP script structure."""
 
@@ -3105,6 +3107,8 @@ class TestSpielwerkHarmonizerDSP:
     def test_reset_method(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
 
 
 class TestMultitapDelayDSP:
@@ -4807,6 +4811,8 @@ class TestExpanderDSP:
         assert "reset()" in code, "Missing reset method"
 
 
+
+
 class TestGrainDelayDSP:
     """Unit tests for werkstatt_grain_delay.js — granular delay"""
 
@@ -5003,6 +5009,123 @@ class TestBinauralDSP:
         code = self._read_script()
         assert "outL" in code and "outR" in code, "Missing stereo output"
         assert "outL[i]" in code and "outR[i]" in code, "Missing per-sample stereo output"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "1 - p.mix" in code, "Missing dry gain"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert "delayBufL" in code, "Missing binaural reset"
+
+
+class TestHarmonicTremoloDSP:
+    """Unit tests for werkstatt_harmonic_tremolo.js — Fender harmonic tremolo"""
+
+    SCRIPT = "werkstatt_harmonic_tremolo.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt harmonic_tremolo" in code, "Missing header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_rate_param(self):
+        params = self._parse_params(self._read_script())
+        r = [p for p in params if p["name"] == "rate"][0]
+        assert r["type"] == "linear"
+
+    def test_depth_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "depth"][0]
+        assert d["type"] == "linear"
+
+    def test_crossover_param(self):
+        params = self._parse_params(self._read_script())
+        c = [p for p in params if p["name"] == "crossover"][0]
+        assert c["type"] == "exp" and c["default"] == 800
+
+    def test_shape_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "shape"][0]
+        assert s["type"] == "linear"
+
+    def test_phase_offset_param(self):
+        params = self._parse_params(self._read_script())
+        p = [p for p in params if p["name"] == "phase_offset"][0]
+        assert p["type"] == "linear"
+
+    def test_output_param_db(self):
+        params = self._parse_params(self._read_script())
+        o = [p for p in params if p["name"] == "output"][0]
+        assert o["min"] == -12 and o["max"] == 6 and o["type"] == "linear"
+
+    def test_lr4_crossover(self):
+        code = self._read_script()
+        assert "z1" in code, "Missing LR4 crossover state"
+        assert "_lpCoeff" in code, "Missing LP coefficient"
+        assert "Math.exp(-2 * Math.PI" in code, "Missing LR4 coefficient calc"
+
+    def test_band_split(self):
+        code = self._read_script()
+        assert "lowL" in code and "highL" in code, "Missing low/high band split"
+        assert "dryL - lowL" in code or "dryL - sL" in code, "Missing HP via subtraction"
+
+    def test_dual_lfo(self):
+        code = self._read_script()
+        assert "lfoLow" in code and "lfoHigh" in code, "Missing dual LFO"
+        assert "Math.sin(this.phase" in code, "Missing sine LFO"
+
+    def test_antiphase(self):
+        code = self._read_script()
+        assert "phaseOff" in code, "Missing phase offset between LFOs"
+        assert "Math.PI" in code, "Missing PI for antiphase"
+
+    def test_shape_blend(self):
+        code = self._read_script()
+        assert "shapeAmt" in code, "Missing shape amount"
+        assert "1 - shapeAmt" in code, "Missing shape blend toward square"
+
+    def test_gain_smoothing(self):
+        code = self._read_script()
+        assert "smoothCoeff" in code, "Missing gain smoothing coefficient"
+        assert "gainLowL" in code, "Missing smoothed gain state"
+
+    def test_band_recombine(self):
+        code = self._read_script()
+        assert "modLowL + modHighL" in code, "Missing band recombination"
+
+    def test_lfo_rate_mapping(self):
+        code = self._read_script()
+        assert "0.1 + Math.pow" in code, "Missing logarithmic rate mapping"
+        assert "phaseInc" in code, "Missing phase increment"
 
     def test_dry_wet_mix(self):
         code = self._read_script()

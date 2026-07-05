@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.109.0 (2026-07-05)
+
+- **`werkstatt_harmonic_tremolo.js` DSP script (88 DSP, 70 Werkstatt)** — harmonic tremolo: Fender '60s effect. LR4 Linkwitz-Riley crossover splits signal into low/high bands, dual LFO modulates each band's gain in antiphase. Unlike regular tremolo (amplitude up/down), harmonic tremolo rocks between bass and treble — spectral modulation, not amplitude. Shape blends sine→square for choppy vintage feel. Phase offset controls antiphase depth. 7 params (rate/depth/crossover/shape/phase_offset/mix/output). Khruangbin, Magic Sam, Fender Vibrolux style. 88 DSP scripts, 70 Werkstatt
+- **1157 unit tests** (+20)
+
 ## v1.108.0 (2026-07-05)
 
 - **`werkstatt_binaural.js` DSP script (87 DSP, 69 Werkstatt)** — binaural spatial panner: 3D sound positioning via HRTF approximation. Woodworth formula for ITD (interaural time difference), frequency-dependent ILD (head shadow effect, HF attenuated on shadowed ear), pinna elevation spectral notches (2 peaking biquads, notch frequency shifts with elevation), distance attenuation (inverse distance law + air absorption HF rolloff), room reverb with LCG decorrelation. 7 params (azimuth/elevation/distance/head_size/room/mix/output). 87 DSP scripts, 69 Werkstatt
