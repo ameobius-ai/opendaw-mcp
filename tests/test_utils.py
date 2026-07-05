@@ -6013,3 +6013,143 @@ class TestSpectralDenoiseDSP:
         assert "reset()" in code, "Missing reset method"
         assert ".fill(0)" in code, "Missing buffer reset in reset()"
         assert ".fill(1)" in code, "Missing gain reset to 1"
+
+
+class TestDeReverbDSP:
+    """Unit tests for werkstatt_dereverb.js — reverb tail suppression"""
+
+    def _read_script(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_dereverb.js")) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)
+            })
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt dereverb" in code, "Missing @werkstatt header"
+
+    def test_label(self):
+        code = self._read_script()
+        assert "De-Reverb" in code or "Reverb" in code, "Missing label"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_param_names(self):
+        params = self._parse_params(self._read_script())
+        names = [p["name"] for p in params]
+        assert "reduction" in names, "Missing reduction param"
+        assert "decay_est" in names, "Missing decay_est param"
+        assert "sensitivity" in names, "Missing sensitivity param"
+        assert "bands" in names, "Missing bands param"
+        assert "preserve" in names, "Missing preserve param"
+        assert "mix" in names, "Missing mix param"
+        assert "output" in names, "Missing output param"
+
+    def test_output_param_type(self):
+        params = self._parse_params(self._read_script())
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["type"] == "linear"
+
+    def test_fft_implementation(self):
+        code = self._read_script()
+        assert "_fft" in code, "Missing FFT method"
+        assert "halfLen" in code, "Missing FFT butterfly"
+
+    def test_fft_size(self):
+        code = self._read_script()
+        assert "FFT_SIZE = 1024" in code, "Missing FFT size"
+
+    def test_hann_window(self):
+        code = self._read_script()
+        assert "0.5 * (1 - Math.cos" in code, "Missing Hann window"
+
+    def test_per_band_processing(self):
+        code = self._read_script()
+        assert "numBands" in code, "Missing per-band processing"
+        assert "bandEdges" in code, "Missing band edges"
+        assert "MAX_BANDS" in code, "Missing max bands config"
+
+    def test_dual_envelope_followers(self):
+        """Fast envelope tracks direct signal, slow tracks reverb tail"""
+        code = self._read_script()
+        assert "fastEnv" in code, "Missing fast envelope follower"
+        assert "slowEnv" in code, "Missing slow envelope follower"
+
+    def test_transient_detection(self):
+        """Detects transients by comparing fast vs slow envelope ratio"""
+        code = self._read_script()
+        assert "transThresh" in code, "Missing transient threshold"
+        assert "energyRatio" in code, "Missing energy ratio comparison"
+        assert "tailActive" in code, "Missing tail active flag"
+
+    def test_tail_suppression(self):
+        """In tail mode, reduces gain based on tail dominance"""
+        code = self._read_script()
+        assert "tailDominance" in code, "Missing tail dominance calculation"
+        assert "targetGain" in code, "Missing target gain computation"
+        assert "reductionGain" in code, "Missing reduction gain"
+
+    def test_decay_estimation(self):
+        """Slow envelope decay rate tracks reverb decay"""
+        code = self._read_script()
+        assert "decayCoeff" in code or "slowCoeff" in code, "Missing decay coefficient"
+        assert "decay_est" in code, "Missing decay estimation parameter"
+
+    def test_decay_time_range(self):
+        code = self._read_script()
+        assert "100 + this.p.decay_est * 1900" in code, "Missing decay time range 100ms-2s"
+
+    def test_reduction_range(self):
+        code = self._read_script()
+        assert "-24" in code, "Missing -24 dB max reduction"
+
+    def test_band_count_configurable(self):
+        code = self._read_script()
+        assert "4 + this.p.bands * 12" in code, "Missing band count 4-16"
+
+    def test_preserve_direct_signal(self):
+        code = self._read_script()
+        assert "preserve" in code, "Missing preserve parameter"
+        assert "preserveAmt" in code, "Missing preserve amount"
+
+    def test_gain_smoothing(self):
+        code = self._read_script()
+        assert "prevGain" in code, "Missing smoothed gain"
+        assert "0.8" in code, "Missing smoothing coefficient"
+
+    def test_conjugate_symmetry(self):
+        code = self._read_script()
+        assert "N - bin" in code or "mirror" in code, "Missing conjugate symmetry"
+
+    def test_overlap_add(self):
+        code = self._read_script()
+        assert "outBuf" in code, "Missing output buffer for overlap-add"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10, value / 20)" in code, "Missing dB to linear conversion"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert ".fill(0)" in code, "Missing buffer reset"
+        assert ".fill(1)" in code, "Missing gain reset to 1"

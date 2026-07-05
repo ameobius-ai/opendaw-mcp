@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.122.0 (2026-07-05)
+
+- **`werkstatt_dereverb.js` DSP script (96 DSP, 77 Werkstatt)** — de-reverb: restoration tool that removes room reverb tails from recordings. Per-band (4-16 logarithmic bands) dual envelope follower: fast envelope tracks direct signal, slow envelope tracks reverb tail. Transient detection via fast/slow ratio threshold — when fast > slow × sensitivity, it's a direct signal (preserve). When fast < slow, it's a tail (suppress). Tail dominance = how much the tail dominates, determines gain reduction (0 to -24 dB). Decay estimation (100ms-2s) controls slow envelope time constant. Direct signal preservation parameter. iZotope RX De-reverb / Accusonus ERA style — second restoration processor. 7 params (reduction/decay_est/sensitivity/bands/preserve/mix/output). 96 DSP scripts, 77 Werkstatt
+- **1397 unit tests** (+24)
+
 ## v1.121.0 (2026-07-05)
 
 - **Complete DSP documentation rewrite** — docs/dsp-scripts.md now lists all 95 scripts (76 Werkstatt + 9 Apparat + 10 Spielwerk) organized by category. Previously listed only ~30 scripts with wrong section headers ("40 Werkstatt"). Every script now has its name, label, and description. Categories: dynamics (10), saturation (8), EQ (5), filter (8), modulation (8), reverb (5), delay (5), pitch (5), time (3), stereo/spatial (4), spectral/fx (8), restoration (1), physical modeling (1), vocoder (1), phase vocoder (2), utility (4), vocal (1), instruments (9), MIDI effects (10). 65% of the library was previously invisible in docs.

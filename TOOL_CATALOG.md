@@ -467,6 +467,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_time_stretch.js` — Phase vocoder time stretch (FFT-based: preserves pitch, changes duration 0.25x–4x, synthesis hop = analysis hop × ratio, transient detection + preservation, identity phase lock, Élastique-grade quality)
 - `werkstatt_matching_eq.js` — Matching EQ (adaptive spectral balance: LTAS accumulation, pink/white/brown noise targets interpolated, per-bin correction gain = (target/actual)^match, smoothing, adaptation speed, tilt, gain clamp 0.1-10x, Ozone EQ Match style)
 - `werkstatt_spectral_denoise.js` — Spectral denoiser (noise floor subtraction: 2-phase learn+denoise, Berouti spectral subtraction with oversubtraction 1-4x, spectral floor, half-wave rectification, gain smoothing, -30 dB max reduction, RX/CEDAR style, first restoration processor)
+- `werkstatt_dereverb.js` — De-reverb (reverb tail suppression: per-band dual envelope followers, fast=direct/slow=tail, transient detection via ratio, tail dominance gain reduction -24 dB, decay estimation, RX De-reverb style, second restoration processor)
 
 ### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
