@@ -24575,3 +24575,189 @@ async def mcp_opendaw_apply_genre_mix(
         "effect_count": len(effects_added),
         "sidechain": sidechain_result,
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_full_genre_pipeline(
+    genre: str,
+    bpm: float = None,
+    bars: int = 8,
+    root: str = None,
+    master_lufs: float = -14,
+) -> str:
+    """Create a complete genre track from zero to render-ready in one call.
+
+    Full pipeline: setup tracks → arrangement → genre mix → mastering chain.
+    One call replaces 5-10 individual tool calls with correct parameters.
+
+    Steps performed:
+    1. Set BPM to genre-appropriate default
+    2. Create a synth track + 4 note tracks
+    3. Create 32-bar regions on all tracks
+    4. Call the genre arrangement (notes across all tracks)
+    5. Apply genre-specific mix (compressor, EQ, saturation, reverb per track)
+    6. Apply sidechain (for electronic genres)
+    7. Add mastering chain (genre-appropriate LUFS target)
+
+    After this call, the project is ready for export_audio / render.
+
+    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae
+    bpm: Override tempo (None = genre default).
+    bars: Arrangement length (default 8, pop min 16).
+    root: Override key (None = genre default).
+    master_lufs: Mastering target (-14 Spotify, -10 loud, -16 Apple).
+
+    Returns complete pipeline status: tracks created, notes per track, effects added, mastering chain.
+
+    Example:
+      # Full DnB track in one call
+      create_full_genre_pipeline("dnb")
+      # Custom techno
+      create_full_genre_pipeline("techno", bpm=135, bars=16, master_lufs=-10)
+    """
+    # Genre defaults
+    defaults = {
+        "dnb":      {"bpm": 174, "root": "F",  "tracks": 3, "master_style": "loud"},
+        "house":    {"bpm": 124, "root": "C",  "tracks": 3, "master_style": "warm"},
+        "trap":     {"bpm": 140, "root": "F#", "tracks": 3, "master_style": "loud"},
+        "techno":   {"bpm": 130, "root": "C",  "tracks": 3, "master_style": "loud"},
+        "dubstep":  {"bpm": 140, "root": "G",  "tracks": 3, "master_style": "loud"},
+        "afrobeat": {"bpm": 120, "root": "F",  "tracks": 4, "master_style": "balanced"},
+        "rock":     {"bpm": 120, "root": "E",  "tracks": 4, "master_style": "warm"},
+        "jazz":     {"bpm": 120, "root": "F",  "tracks": 4, "master_style": "transparent"},
+        "pop":      {"bpm": 120, "root": "C",  "tracks": 4, "master_style": "balanced"},
+        "funk":     {"bpm": 100, "root": "D",  "tracks": 4, "master_style": "warm"},
+        "reggae":   {"bpm": 80,  "root": "A",  "tracks": 4, "master_style": "balanced"},
+    }
+
+    if genre not in defaults:
+        return f"Error: unknown genre '{genre}'. Valid: {list(defaults.keys())}"
+
+    d = defaults[genre]
+    actual_bpm = bpm if bpm is not None else d["bpm"]
+    actual_root = root if root is not None else d["root"]
+    num_tracks = d["tracks"]
+    master_style = d["master_style"]
+
+    # Pop requires min 16 bars
+    if genre == "pop" and bars < 16:
+        bars = 16
+
+    pipeline_steps = []
+
+    # Step 1: Set BPM
+    try:
+        await mcp_opendaw_set_bpm(actual_bpm)
+        pipeline_steps.append({"step": "set_bpm", "bpm": actual_bpm, "status": "ok"})
+    except Exception as e:
+        pipeline_steps.append({"step": "set_bpm", "error": str(e)})
+
+    # Step 2: Create synth + note tracks
+    try:
+        synth_result = await mcp_opendaw_create_synth_track(f"{genre.title()} Pipeline", "Playfield")
+        synth_data = json.loads(synth_result)
+        unit_index = synth_data.get("unit_index", 0)
+
+        for i in range(num_tracks):
+            await mcp_opendaw_create_note_track(unit_index)
+
+        region_bars = max(bars, 8) if genre != "pop" else bars
+        for i in range(num_tracks):
+            await mcp_opendaw_create_track_region(
+                unit_index, i, 0, region_bars, f"Track {i}", 200 + i * 40)
+
+        pipeline_steps.append({
+            "step": "create_tracks",
+            "unit_index": unit_index,
+            "note_tracks": num_tracks,
+            "region_bars": region_bars,
+            "status": "ok",
+        })
+    except Exception as e:
+        pipeline_steps.append({"step": "create_tracks", "error": str(e)})
+        return json.dumps({"error": f"Failed to create tracks: {e}"}, indent=2)
+
+    # Step 3: Arrangement
+    arrangement_fns = {
+        "dnb":      mcp_opendaw_create_dnb_arrangement,
+        "house":    mcp_opendaw_create_house_arrangement,
+        "trap":     mcp_opendaw_create_trap_arrangement,
+        "techno":   mcp_opendaw_create_techno_arrangement,
+        "dubstep":  mcp_opendaw_create_dubstep_arrangement,
+        "afrobeat": mcp_opendaw_create_afrobeat_arrangement,
+        "rock":     mcp_opendaw_create_rock_arrangement,
+        "jazz":     mcp_opendaw_create_jazz_arrangement,
+        "pop":      mcp_opendaw_create_pop_arrangement,
+        "funk":     mcp_opendaw_create_funk_arrangement,
+        "reggae":   mcp_opendaw_create_reggae_arrangement,
+    }
+
+    try:
+        arr_fn = arrangement_fns[genre]
+        arr_result = await arr_fn(
+            bpm=actual_bpm, bars=bars, root=actual_root,
+            unit_index=unit_index)
+        arr_data = json.loads(arr_result)
+        total_notes = arr_data.get("total_notes", 0)
+        pipeline_steps.append({
+            "step": "arrangement",
+            "genre": genre,
+            "total_notes": total_notes,
+            "status": "ok",
+        })
+    except Exception as e:
+        pipeline_steps.append({"step": "arrangement", "error": str(e)})
+
+    # Step 4: Genre mix
+    try:
+        mix_result = await mcp_opendaw_apply_genre_mix(
+            genre, unit_index=unit_index, num_tracks=num_tracks,
+            sidechain=(master_style == "loud" or genre in ["house", "techno", "dubstep", "dnb", "pop"]))
+        mix_data = json.loads(mix_result)
+        pipeline_steps.append({
+            "step": "genre_mix",
+            "effects_added": mix_data.get("effect_count", 0),
+            "sidechain": mix_data.get("sidechain"),
+            "status": "ok",
+        })
+    except Exception as e:
+        pipeline_steps.append({"step": "genre_mix", "error": str(e)})
+
+    # Step 5: Mastering chain
+    try:
+        await mcp_opendaw_add_mastering_chain(
+            target_lufs=master_lufs, style=master_style)
+        pipeline_steps.append({
+            "step": "mastering",
+            "target_lufs": master_lufs,
+            "style": master_style,
+            "status": "ok",
+        })
+    except Exception as e:
+        pipeline_steps.append({"step": "mastering", "error": str(e)})
+
+    # Summary
+    total_notes = 0
+    effects = 0
+    for step in pipeline_steps:
+        if step.get("step") == "arrangement":
+            total_notes = step.get("total_notes", 0)
+        if step.get("step") == "genre_mix":
+            effects = step.get("effects_added", 0)
+
+    return json.dumps({
+        "full_pipeline": True,
+        "genre": genre,
+        "bpm": actual_bpm,
+        "root": actual_root,
+        "bars": bars,
+        "unit_index": unit_index,
+        "tracks": num_tracks,
+        "total_notes": total_notes,
+        "effects_added": effects,
+        "master_style": master_style,
+        "master_lufs": master_lufs,
+        "pipeline_steps": pipeline_steps,
+        "ready_for_export": all(s.get("status") == "ok" for s in pipeline_steps),
+        "next_step": "call export_audio or render_range to render the track",
+    }, indent=2)

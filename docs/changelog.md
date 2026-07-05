@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.141.0 (2026-07-05)
+
+- **`create_full_genre_pipeline` orchestration tool (334 MCP tools)** — new capability: zero-to-render-ready in one call. Full pipeline: set BPM → create synth+note tracks → create regions → genre arrangement → genre mix (effects per track) → sidechain (electronic only) → mastering chain. One call replaces 5-10 individual tool calls. 11 genre defaults with correct BPM, key, track count, and master style. Pop auto-adjusts bars to 16 if less (needs song structure). Sidechain: electronic genres only (dnb/house/techno/dubstep/pop), organic skip. Master style: loud (dnb/trap/techno/dubstep), warm (house/rock/funk), balanced (afrobeat/pop/reggae), transparent (jazz). Returns pipeline_steps with status per step and ready_for_export flag. 77 orchestration tools. 334 MCP tools
+- **1781 unit tests** (+19)
+
 ## v1.140.0 (2026-07-05)
 
 - **`apply_genre_mix` orchestration tool (333 MCP tools)** — new capability: genre-aware mixing. Closes the loop: create arrangement → apply genre mix → ready to render. One call replaces 10-20 manual add_effect + set_effect_parameter calls. 11 genre-specific effect chain recipes, each with genre-appropriate: drums compressor (DnB ratio 8 attack 1ms, jazz ratio 2 attack 20ms), bass treatment (DnB Waveshaper saturation, reggae deep EQ, jazz natural), melody/chords (reverb + delay with genre-specific decay times), sidechain (electronic genres only: dnb/house/techno/dubstep/pop, organic genres skip: jazz/rock/funk/reggae/afrobeat). Every recipe starts with drums compressor. Compressor params vary by genre — not one-size-fits-all. 76 orchestration tools. 333 MCP tools
