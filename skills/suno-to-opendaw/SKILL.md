@@ -1,6 +1,6 @@
 ---
 name: suno-to-opendaw
-description: "End-to-end pipeline: Suno AI generation → download → SOTA stem separation → openDAW import → mix/master → export. The killer workflow that no other MCP server offers. 7 stem-split modes, 372 DAW tools, 108 DSP scripts, adaptive mastering. From prompt to finished track."
+description: "End-to-end pipeline: Suno AI generation → download → SOTA stem separation → openDAW import → mix/master → export. The killer workflow that no other MCP server offers. 7 stem-split modes, 377 DAW tools, 108 DSP scripts, adaptive mastering, auto BPM+key detection, one-call remix. From prompt to finished track."
 tags: [suno, opendaw, stem-splitting, mix-master, pipeline, e2e, ai-music, workflow]
 ---
 
@@ -180,6 +180,44 @@ Anchor = original track playing quietly alongside stems for reference/glue. Not 
 | Remix (change structure) | Cut/copy/reorder regions |
 | Remake (new structure) | Build new arrangement from stem fragments |
 | Extend (add sections) | Duplicate regions, add new parts |
+| **Auto-remix (new)** | **`remix_track` — one call: analyze + import + harmony + mix + master** |
+
+### Auto-analysis: BPM + key detection (new)
+
+`analyze_track` runs BPM + key + LUFS + duration + dynamic range in one call:
+
+```python
+# One call — full analysis
+result = await mcp_opendaw_analyze_track("/tmp/suno_track.wav")
+# → {bpm: 128.0, key: "A", mode: "minor", lufs_integrated: -14.2,
+#    duration_seconds: 30.0, dynamic_range_db: 8.5, chroma: [...]}
+
+# Auto-match project tempo
+await mcp_opendaw_set_bpm(result["bpm"])
+
+# Auto-generate matching progression from detected key
+await mcp_opendaw_create_progression_from_key(
+    key=result["key"], mode=result["mode"], style="synthwave")
+# → Am-F-C-G (diatonic, key-matched)
+```
+
+### One-call remix (new)
+
+`remix_track` does the entire pipeline in one call:
+
+```python
+# 7 steps in 1 call: analyze → set_bpm → import → progression → harmony → mix → master
+await mcp_opendaw_remix_track(
+    filename="/tmp/suno_track.wav",
+    genre="synthwave",
+    style="synthwave",
+    stem_mode="bs6",
+    add_counter_melody=True,
+    master_lufs=-14,
+)
+# → remix_complete: True, ready_for_export: True
+await mcp_opendaw_render_full(filename="remix_final")
+```
 
 ### Region operations
 
@@ -321,46 +359,94 @@ print(f'True peak: {20*np.log10(np.max(np.abs(y))):.1f} dB')
 
 ## Complete E2E Example
 
+### 4-call pipeline (recommended — uses remix_track)
+
 ```python
 import asyncio
 from server import (
     bridge,
     mcp_opendaw_download_audio,
-    mcp_opendaw_import_audio_to_tracks,
-    mcp_opendaw_apply_genre_mix,
-    mcp_opendaw_add_mastering_chain,
+    mcp_opendaw_remix_track,
     mcp_opendaw_render_full,
-    mcp_opendaw_set_bpm,
 )
 
-async def suno_to_opendaw_full(suno_url: str, bpm: float = 120):
-    """Full pipeline: Suno URL → stems → mix → master → render."""
+async def suno_remix_4call(suno_url: str):
+    """Full pipeline: Suno URL → remix → render. 4 calls total."""
     await bridge.start()
 
-    # S1: Download Suno track
+    # Call 1: Download Suno track
     dl = await mcp_opendaw_download_audio(url=suno_url, filename="suno_track.wav")
     path = dl["file_path"]
 
-    # S2+S3: Split into 6 stems and import to DAW (one call)
+    # Call 2: Full remix (analyze + set_bpm + import + progression + harmony + mix + master)
+    remix = await mcp_opendaw_remix_track(
+        filename=path,
+        genre="synthwave",
+        style="synthwave",
+        stem_mode="bs6",
+        add_counter_melody=True,
+        master_lufs=-14,
+    )
+
+    # Call 3: Render
+    await mcp_opendaw_render_full(filename="remix_final", sample_rate=48000)
+
+    await bridge.stop()
+    return f"Done: {remix}"
+
+# asyncio.run(suno_remix_4call("https://cdn.suno.ai/abc123.wav"))
+```
+
+### Manual pipeline (full control — 7 calls)
+
+```python
+import asyncio
+from server import (
+    bridge,
+    mcp_opendaw_download_audio,
+    mcp_opendaw_analyze_track,
+    mcp_opendaw_set_bpm,
+    mcp_opendaw_import_audio_to_tracks,
+    mcp_opendaw_create_progression_from_key,
+    mcp_opendaw_create_harmonic_arrangement,
+    mcp_opendaw_apply_genre_mix,
+    mcp_opendaw_add_mastering_chain,
+    mcp_opendaw_render_full,
+)
+
+async def suno_to_opendaw_full(suno_url: str):
+    """Manual pipeline: full control over each step."""
+    await bridge.start()
+
+    # S1: Download
+    dl = await mcp_opendaw_download_audio(url=suno_url, filename="suno_track.wav")
+    path = dl["file_path"]
+
+    # S2: Analyze (BPM + key + LUFS in one call)
+    analysis = await mcp_opendaw_analyze_track(path)
+
+    # S3: Set BPM
+    await mcp_opendaw_set_bpm(bpm=analysis["bpm"])
+
+    # S4: Import stems
     imp = await mcp_opendaw_import_audio_to_tracks(file_path=path, mode="bs6")
-    tracks = imp["tracks"]
-    num = imp["tracks_created"]
 
-    # S4: Set BPM
-    await mcp_opendaw_set_bpm(bpm=bpm)
+    # S5: Auto-progression from detected key
+    prog = await mcp_opendaw_create_progression_from_key(
+        key=analysis["key"], mode=analysis["mode"], style="synthwave")
 
-    # S5: Apply genre mix (compressor, EQ, saturation per stem)
-    await mcp_opendaw_apply_genre_mix(
-        genre="pop", unit_index=0, num_tracks=min(num, 4), sidechain=True)
+    # S6: Harmonic arrangement + mix + master
+    await mcp_opendaw_create_harmonic_arrangement(
+        "-".join(prog["progression"]), pad_octave=-1, bass_pattern="")
+    await mcp_opendaw_apply_genre_mix("synthwave", sidechain=True)
+    await mcp_opendaw_add_mastering_chain(target_lufs=-14)
 
-    # S6: Master + render
-    await mcp_opendaw_add_mastering_chain(target_lufs=-14, style="transparent")
+    # S7: Render
     await mcp_opendaw_render_full(filename="suno_final", sample_rate=48000)
 
     await bridge.stop()
-    return f"Done: {num} stems → mixed → mastered → rendered"
+    return f"Done: {imp['tracks_created']} stems → mixed → mastered → rendered"
 
-# Usage:
 # asyncio.run(suno_to_opendaw_full("https://cdn.suno.ai/abc123.wav"))
 ```
 
@@ -387,11 +473,16 @@ async def suno_to_opendaw_full(suno_url: str, bpm: float = 120):
 
 - **Suno**: `chirp_generate` (7 models, simple/custom mode, 2 variations per call)
 - **Download**: `mcp_opendaw_download_audio` (URL → local file, streaming, 60s timeout)
+- **Analysis**: `mcp_opendaw_analyze_track` (BPM + key + LUFS + duration + DR, one call)
+- **BPM**: `mcp_opendaw_detect_bpm` (onset + autocorrelation, pure Python)
+- **Key**: `mcp_opendaw_detect_key` (chroma + Krumhansl-Schmuckler, pure Python FFT)
+- **Progression**: `mcp_opendaw_create_progression_from_key` (diatonic, 6 styles, 12 templates)
+- **Remix**: `mcp_opendaw_remix_track` (7-step pipeline in one call)
 - **Import**: `mcp_opendaw_import_audio_to_tracks` (file → stems → tracks, one call)
 - **Stem splitter**: `mcp_opendaw_split_stems` (7 modes, GPU local)
-- **openDAW MCP**: 372 tools (v1.193.0)
+- **openDAW MCP**: 377 tools (v1.198.0)
 - **DSP scripts**: 108 scripts (88 Werkstatt + 9 Apparat + 10 Spielwerk)
 - **Mix**: `apply_genre_mix` (15 genres), `apply_full_mix` (one-call chains+mastering)
 - **Master**: `add_mastering_chain` (EQ + comp + maximizer, LUFS targeting)
 - **Render**: `render_full` (auto-detect length + 4 beat tail)
-- **Analysis**: pyloudnorm + librosa (LUFS, BPM, spectral)
+- **Analysis**: `analyze_track` (BPM + key + LUFS + DR, pure Python, no external deps)
