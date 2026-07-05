@@ -31704,6 +31704,287 @@ async def mcp_opendaw_explode_chords(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_add_passing_tones(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    scale: str = "major",
+    root: str = "C",
+    max_interval: int = 7,
+    velocity: float = 0.6,
+    duration_fraction: float = 0.5,
+    direction: str = "auto",
+    cross_track: int = -1,
+) -> str:
+    """Add passing tones between existing notes for smoother melodic lines.
+
+    Inserting diatonic passing tones in gaps where consecutive notes have
+    an interval larger than a 2nd. The passing tone is placed on the weak
+    part of the beat, connecting the two notes stepwise through the scale.
+
+    This is a fundamental counterpoint technique — makes large melodic
+    leaps sound smoother by filling them with scale steps. Bach inventions,
+    jazz walking lines, and pop vocal melismas all use passing tones.
+
+    Passing tones are only added when:
+    - The interval between consecutive notes is > 2 semitones
+    - There is enough time gap between notes (at least 1/8 note)
+    - The interval does not exceed max_interval semitones
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        scale: Scale for diatonic passing tones ("major", "minor",
+               "dorian", "phrygian", "lydian", "mixolydian",
+               "locrian", "harmonic_minor", "melodic_minor",
+               "pentatonic", "blues", "chromatic")
+        root: Root note for scale (C, C#, D, ... B)
+        max_interval: Maximum interval (semitones) to fill with passing
+                      tones (3-12, default 7 = perfect 5th). Intervals
+                      larger than this are left as leaps.
+        velocity: Velocity of passing tones (0-1, default 0.6 — slightly
+                  quieter than melodic notes, as is traditional)
+        duration_fraction: Duration of passing tones as fraction of the
+                           gap between notes (0.25-1.0, default 0.5)
+        direction: Passing tone direction —
+            "auto": choose direction that fits scale better
+            "ascending": always step up from lower to higher note
+            "descending": always step down from higher to lower note
+            "nearest": use nearest scale tone to midpoint
+        cross_track: If >= 0, place passing tones on this track index
+                     instead of source track (preserves original melody)
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const scaleName = "{scale}";
+        const rootNote = "{root}";
+        const maxInterval = Math.max(3, Math.min(12, {max_interval}));
+        const passVel = Math.max(0.01, Math.min(1, {velocity}));
+        const durFrac = Math.max(0.25, Math.min(1, {duration_fraction}));
+        const dirMode = "{direction}";
+        const crossTrack = {cross_track};
+
+        // Scale intervals
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "pentatonic": [0, 2, 4, 7, 9],
+            "blues": [0, 3, 5, 6, 7, 10],
+            "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{"error": "Invalid root: " + rootNote}};
+        if (!scaleMap[scaleName]) return {{"error": "Invalid scale: " + scaleName}};
+
+        function isInScale(pitch) {{
+            const intervals = scaleMap[scaleName];
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            return intervals.includes(rel);
+        }}
+
+        function nearestScaleTone(pitch) {{
+            if (isInScale(pitch)) return pitch;
+            // Search up and down for nearest scale tone
+            for (let offset = 1; offset <= 6; offset++) {{
+                if (isInScale(pitch + offset)) return pitch + offset;
+                if (isInScale(pitch - offset)) return pitch - offset;
+            }}
+            return pitch;
+        }}
+
+        function getScaleStep(pitch, direction) {{
+            // Get next scale tone in given direction
+            if (direction > 0) {{
+                for (let p = pitch + 1; p <= 127; p++) {{
+                    if (isInScale(p)) return p;
+                }}
+            }} else {{
+                for (let p = pitch - 1; p >= 0; p--) {{
+                    if (isInScale(p)) return p;
+                }}
+            }}
+            return pitch;
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length < 2) return {{"error": "Need at least 2 notes to add passing tones"}};
+
+        // Read and sort by position
+        const noteData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        // Find gaps where passing tones should be added
+        const passingTones = [];
+        const minGap = Quarter * 0.125; // 1/8 note minimum gap
+
+        for (let i = 0; i < noteData.length - 1; i++) {{
+            const a = noteData[i];
+            const b = noteData[i + 1];
+            const interval = Math.abs(b.pitch - a.pitch);
+            const gap = b.pos - (a.pos + a.dur);
+
+            // Only add passing tone if interval > 2 and gap is sufficient
+            if (interval <= 2 || interval > maxInterval) continue;
+            if (gap < minGap) continue;
+
+            // Determine direction
+            const goingUp = b.pitch > a.pitch;
+            let passDirection;
+            if (dirMode === "auto" || dirMode === "nearest") {{
+                passDirection = goingUp ? 1 : -1;
+            }} else if (dirMode === "ascending") {{
+                passDirection = 1;
+            }} else {{
+                passDirection = -1;
+            }}
+
+            // Calculate passing tone pitch
+            let passPitch;
+            if (dirMode === "nearest") {{
+                // Midpoint pitch, snapped to nearest scale tone
+                const midPitch = Math.round((a.pitch + b.pitch) / 2);
+                passPitch = nearestScaleTone(midPitch);
+            }} else {{
+                // Step from lower note towards higher note
+                const lowerPitch = Math.min(a.pitch, b.pitch);
+                passPitch = getScaleStep(lowerPitch, passDirection);
+                // If still not between a and b, try from the other note
+                if (passPitch <= Math.min(a.pitch, b.pitch) || passPitch >= Math.max(a.pitch, b.pitch)) {{
+                    const higherPitch = Math.max(a.pitch, b.pitch);
+                    passPitch = getScaleStep(higherPitch, -passDirection);
+                }}
+            }}
+
+            // Clamp and verify it is between a and b
+            passPitch = Math.max(0, Math.min(127, passPitch));
+            if (passPitch <= Math.min(a.pitch, b.pitch) || passPitch >= Math.max(a.pitch, b.pitch)) {{
+                continue; // No valid passing tone for this gap
+            }}
+
+            // Position: midpoint of the gap
+            const gapStart = a.pos + a.dur;
+            const gapEnd = b.pos;
+            const passPos = Math.round(gapStart + (gapEnd - gapStart) * 0.5 - (gapEnd - gapStart) * durFrac * 0.5);
+            const passDur = Math.max(1, Math.round((gapEnd - gapStart) * durFrac));
+
+            passingTones.push({{
+                pos: Math.max(gapStart, passPos),
+                dur: passDur,
+                pitch: passPitch,
+                vel: passVel,
+            }});
+        }}
+
+        if (passingTones.length === 0) {{
+            return {{
+                success: true,
+                passing_tones_added: 0,
+                message: "No suitable gaps found for passing tones",
+            }};
+        }}
+
+        // Determine destination track
+        let destCollection = collection;
+        let destTrack = track;
+        if (crossTrack >= 0 && crossTrack < noteTracks.length) {{
+            destTrack = noteTracks[crossTrack];
+            const destRegions = h.regionBoxes(destTrack);
+            if (destRegions.length > 0) {{
+                try {{
+                    const v = destRegions[0].events.targetVertex.unwrap();
+                    destCollection = v.box || v;
+                }} catch(e) {{}}
+            }}
+        }}
+
+        // Create passing tones
+        const editing = h.editing;
+        let created = 0;
+        const createdDetails = [];
+
+        await editing.modify(async () => {{
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            for (const pt of passingTones) {{
+                try {{
+                    if (NoteEventBox && bg && uuidGen) {{
+                        await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                            box.position.setValue(pt.pos);
+                            box.duration.setValue(pt.dur);
+                            box.pitch.setValue(pt.pitch);
+                            box.velocity.setValue(pt.vel);
+                            if (destCollection && destCollection.events) {{
+                                box.events.refer(destCollection.events);
+                            }}
+                        }});
+                        created++;
+                        if (createdDetails.length < 10) {{
+                            createdDetails.push({{
+                                pos_beat: Math.round(pt.pos / Quarter * 100) / 100,
+                                pitch: pt.pitch,
+                                duration_beats: Math.round(pt.dur / Quarter * 100) / 100,
+                                velocity: pt.vel,
+                            }});
+                        }}
+                    }}
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            scale: scaleName,
+            root: rootNote,
+            max_interval: maxInterval,
+            direction: dirMode,
+            passing_tones_added: created,
+            total_gaps_checked: noteData.length - 1,
+            cross_track: crossTrack >= 0,
+            created_details: createdDetails,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 

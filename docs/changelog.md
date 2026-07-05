@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.269.0 (2026-07-06)
+
+### Added
+- `add_passing_tones` — Add diatonic passing tones between existing notes for smoother melodic lines. Only fills gaps where interval > 2 semitones and gap >= 1/8 note. 12 scales, 4 directions (auto/ascending/descending/nearest). velocity and duration_fraction control passing tone character. Optional cross_track preserves original melody. Fundamental counterpoint: Bach inventions, jazz walking lines, pop melismas.
+
 ## v1.268.0 (2026-07-06)
 
 ### Added
