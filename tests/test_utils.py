@@ -4144,3 +4144,91 @@ class TestBassEnhancerDSP:
     def test_process_method(self):
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
+
+
+class TestTiltEqDSP:
+    """Unit tests for werkstatt_tilt_eq.js — single-knob spectral tilt EQ"""
+
+    SCRIPT = "werkstatt_tilt_eq.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt tilt_eq" in code, "Missing @werkstatt tilt_eq header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 5, f"Expected 5 params, got {len(params)}"
+
+    def test_tilt_param(self):
+        params = self._parse_params(self._read_script())
+        t = [p for p in params if p["name"] == "tilt"][0]
+        assert t["default"] == 0, "tilt default should be 0 (neutral)"
+        assert t["min"] == -6 and t["max"] == 6
+
+    def test_pivot_param(self):
+        params = self._parse_params(self._read_script())
+        p = [p for p in params if p["name"] == "pivot"][0]
+        assert p["default"] == 1000 and p["type"] == "exp"
+
+    def test_steepness_param(self):
+        params = self._parse_params(self._read_script())
+        s = [p for p in params if p["name"] == "steepness"][0]
+        assert s["default"] == 0.5 and s["min"] == 0.2 and s["max"] == 1
+
+    def test_low_shelf(self):
+        code = self._read_script()
+        assert "_shelfLP" in code, "Missing low shelf filter"
+        assert "lsCoeffs" in code, "Missing low shelf coefficients"
+
+    def test_high_shelf(self):
+        code = self._read_script()
+        assert "_shelfHP" in code, "Missing high shelf filter"
+        assert "hsCoeffs" in code, "Missing high shelf coefficients"
+
+    def test_tilt_logic(self):
+        code = self._read_script()
+        assert "lsGain = -tilt" in code, "Missing low shelf gain (opposite of tilt)"
+        assert "hsGain = tilt" in code, "Missing high shelf gain (same as tilt)"
+
+    def test_biquad(self):
+        code = self._read_script()
+        assert "_biquad" in code, "Missing biquad processing function"
+        assert "c[0]*x" in code, "Missing biquad formula"
+
+    def test_coeff_caching(self):
+        code = self._read_script()
+        assert "lastTilt" in code, "Missing coefficient caching"
+        assert "_updateCoeffs" in code, "Missing coefficient update function"
+
+    def test_shelf_slope(self):
+        code = self._read_script()
+        assert "steepness" in code or "S = this.p.steepness" in code, "Missing shelf slope parameter"
+        assert "sqrt" in code, "Missing sqrt in shelf coefficient calculation"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "mix" in code, "Missing dry/wet mix"
+        assert "dryGain" in code, "Missing dry gain"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"

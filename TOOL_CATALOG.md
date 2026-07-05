@@ -443,6 +443,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_reverse_delay.js` — Reverse delay (reads delay buffer backwards, fade ramps at window boundaries, damped feedback creates cascading reverse repeats, The Edge / U2 style, time/feedback/levels/pan/fade/damping/mix/output)
 - `werkstatt_freq_shifter.js` — SSB frequency shifter (single-sideband modulation via Hilbert transform allpass pair + complex carrier, shifts all frequencies by fixed Hz not ratio, breaks harmonic relationships, upper/lower sideband direction, feedback for spiraling, Buchla/banana synth style)
 - `werkstatt_bass_enhancer.js` — Psychoacoustic bass enhancer (MaxxBass / Renaissance Bass: LPF isolates bass, full-wave rectification generates sub-harmonics, LPF smoothing + HPF DC removal, envelope follower, tanh harmonic saturation for presence, band replacement, brain perceives missing fundamental on small speakers)
+- `werkstatt_tilt_eq.js` — Tilt EQ (single-knob spectral balance: low shelf cut + high shelf boost for brighten, reverse for darken, pivot frequency, steepness controls slope, biquad RBJ cookbook, coefficient caching, Ozone/FabFilter/Airwindows style)
 - `werkstatt_dynamic_eq.js` — Dynamic EQ (3 bands, peaking biquad + envelope follower, per-band threshold/range, attack/release, mix, output)
 
 ### Apparat (Instruments) — 8 scripts

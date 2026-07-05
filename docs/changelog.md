@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.97.0 (2026-07-05)
+
+- **`werkstatt_tilt_eq.js` DSP script** — single-knob spectral tilt EQ: low shelf (cut below pivot) + high shelf (boost above pivot) with one tilt parameter. Positive tilt = brighten, negative = darken. Pivot frequency configurable, steepness controls shelf slope. Biquad-based (RBJ cookbook), coefficient caching, 5 params (tilt/pivot/steepness/mix/output). Ozone / FabFilter / Airwindows Tilt style. 79 DSP scripts
+- **917 unit tests** (+14), E2E 8/8
+
 ## v1.96.0 (2026-07-05)
 
 - **`werkstatt_bass_enhancer.js` DSP script** — psychoacoustic bass enhancer (MaxxBass / Renaissance Bass style): isolates bass band via LPF, full-wave rectification generates sub-harmonic content, LPF smoothing extracts sub fundamental, HPF removes DC. Brain perceives lower fundamental even on small speakers/headphones. Envelope follower with attack/release, harmonic saturation via tanh for bass presence, band replacement (HPF dry + enhanced bass). 8 params (freq/sub_level/direct_level/harmonics/attack/release/mix/output). 78 DSP scripts

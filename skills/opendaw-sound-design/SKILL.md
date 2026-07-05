@@ -270,6 +270,7 @@ class Processor {
 | `werkstatt_reverse_delay.js` | Reverse delay (reads buffer backwards, fade ramps, feedback) | time, feedback, levels, pan, fade, damping, mix, output | |
 | `werkstatt_freq_shifter.js` | Frequency shifter (SSB, Hilbert transform, inharmonic shift) | shift, direction, feedback, mix, output | |
 | `werkstatt_bass_enhancer.js` | Bass enhancer (psychoacoustic, MaxxBass, sub-harmonic) | freq, sub_level, direct_level, harmonics, attack, release, mix, output | |
+| `werkstatt_tilt_eq.js` | Tilt EQ (single-knob spectral balance, low+high shelf) | tilt, pivot, steepness, mix, output | |
 | `werkstatt_dynamic_eq.js` | Dynamic EQ (3 bands, envelope-followed peaking) | band1-3 freq/gain/Q/threshold/range, attack, release, mix, output | |
 | `werkstatt_lookahead.js` | Lookahead compressor | threshold, ratio, attack, release, knee, makeup, mix | |
 | `werkstatt_shimmer.js` | Pitch-shift delay | time, feedback, pitch, shimmer, damping, mix | |
