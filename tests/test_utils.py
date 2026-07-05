@@ -772,3 +772,87 @@ class TestVelocityCurveMath:
         v = self._curve_value(0.0, "ramp_up", 0.01, 0.02)
         clamped = max(0.05, min(1.0, v))
         assert clamped >= 0.05
+
+
+class TestArticulationMath:
+    """Test articulation logic (mirrors JS in apply_articulation)."""
+
+    @staticmethod
+    def _staccato_duration(dur, amount, sixteenth=240):
+        slot = max(sixteenth, dur)
+        return max(1, int(slot * amount))
+
+    @staticmethod
+    def _legato_duration(pos, dur, next_start, amount):
+        target_end = pos + (next_start - pos) * amount
+        return max(1, int(target_end - pos))
+
+    @staticmethod
+    def _tenuto_duration(pos, dur, sixteenth=240):
+        slot_end = math.ceil((pos + dur) / sixteenth) * sixteenth
+        return max(1, slot_end - pos)
+
+    @staticmethod
+    def _accent_velocity(cur_vel, amount):
+        return min(1.0, cur_vel + amount * (1.0 - cur_vel))
+
+    def test_staccato_half(self):
+        d = self._staccato_duration(240, 0.5)
+        assert d == 120
+
+    def test_staccato_very_short(self):
+        d = self._staccato_duration(240, 0.3)
+        assert d == 72
+
+    def test_staccato_moderate(self):
+        d = self._staccato_duration(480, 0.5)
+        assert d == 240
+
+    def test_staccato_min_duration(self):
+        d = self._staccato_duration(240, 0.001)
+        assert d == 1  # never zero
+
+    def test_legato_near_full(self):
+        d = self._legato_duration(0, 240, 480, 0.95)
+        # target_end = 0 + 480 * 0.95 = 456 → dur = 456
+        assert d == 456
+
+    def test_legato_half(self):
+        d = self._legato_duration(0, 240, 480, 0.5)
+        # target_end = 0 + 480 * 0.5 = 240 → dur = 240
+        assert d == 240
+
+    def test_legato_last_note(self):
+        # Last note: next_start = pos + dur → target_end = pos + dur * amount
+        d = self._legato_duration(480, 240, 720, 0.95)
+        # target_end = 480 + 240 * 0.95 = 480 + 228 = 708 → dur = 228
+        assert d == 228
+
+    def test_tenuto_fills_slot(self):
+        # pos=0, dur=200 → slot_end = ceil(200/240)*240 = 240 → dur = 240
+        d = self._tenuto_duration(0, 200)
+        assert d == 240
+
+    def test_tenuto_already_full(self):
+        # pos=0, dur=240 → slot_end = 240 → dur = 240
+        d = self._tenuto_duration(0, 240)
+        assert d == 240
+
+    def test_tenuto_crosses_slot(self):
+        # pos=240, dur=300 → slot_end = ceil(540/240)*240 = 720 → dur = 480
+        d = self._tenuto_duration(240, 300)
+        assert d == 480
+
+    def test_accent_subtle(self):
+        v = self._accent_velocity(0.5, 0.3)
+        # 0.5 + 0.3 * 0.5 = 0.65
+        assert abs(v - 0.65) < 0.001
+
+    def test_accent_strong(self):
+        v = self._accent_velocity(0.5, 1.0)
+        assert v == 1.0
+
+    def test_accent_already_loud(self):
+        v = self._accent_velocity(0.9, 0.5)
+        # 0.9 + 0.5 * 0.1 = 0.95
+        assert abs(v - 0.95) < 0.001

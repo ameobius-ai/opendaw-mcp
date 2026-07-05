@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-282 MCP tools for headless openDAW control via Playwright bridge.
+283 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -350,13 +350,14 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apply_sidechain` — Apply sidechain ducking via volume automation. Classic pumping/breathing effect for house/techno/EDM. Adjustable depth, attack, release, kick interval.
 - `create_ghost_notes` — Add ghost notes (quiet grace notes) to existing drum patterns. Funk/R&B/neo-soul/hip-hop groove enhancer. Seeded reproducibility.
 - `apply_velocity_curve` — Apply velocity envelope across notes (ramp_up/ramp_down/arc/trough/power). Deterministic curve shape for build-ups, fade-ins, expressive phrasing.
+- `apply_articulation` — Apply articulation to notes (staccato/legato/tenuto/accent). Duration reshaping for phrasing character. Accent boosts velocity on downbeats.
 - `add_mastering_chain` — Add EQ + Compressor + Maximizer to the output bus with genre-style presets (balanced/warm/loud/transparent).
 - `create_genre_track` — Create a full genre starting point (house/techno/lofi/dnb/trap/ambient/coldwave/hiphop) — synth, drums, bass, chords, BPM in one call.
 - `create_song_structure` — Create arrangement markers (intro/verse/chorus/bridge/outro) from JSON section list. Enables agents to reason about song form.
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 282 tools**
+**Total: 283 tools**
 
 ## DSP Scripts (scripts/) — 30 scripts
 

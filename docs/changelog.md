@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.23.0 (2026-07-05)
+
+- **`apply_articulation`** — staccato/legato/tenuto/accent for existing notes. Duration reshaping for phrasing. Accent boosts velocity on downbeats
+- **13 unit tests** — 228→241 total
+- **E2E verified**: staccato (240→120), legato (240→228), accent (beats=0.9, off-beats=0.5)
+- **55 examples** (added apply_articulation.py)
+- **283 MCP tools**, **26 orchestration tools**
+
 ## v1.22.0 (2026-07-05)
 
 - **`apply_velocity_curve`** — deterministic velocity envelope across notes (ramp_up/ramp_down/arc/trough/power). Unlike humanize (random), applies mathematical curve shape — build-ups, fade-ins, crescendo rolls, expressive phrasing. Power exponent for exponential curves

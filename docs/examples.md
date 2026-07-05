@@ -91,6 +91,7 @@ python examples/genre_house.py
 | `apply_sidechain.py` | Sidechain ducking: classic house/techno pumping effect |
 | `create_ghost_notes.py` | Ghost notes: funk/R&B groove enhancer |
 | `apply_velocity_curve.py` | Velocity envelopes: ramp/arc/trough/power curves for expressive dynamics |
+| `apply_articulation.py` | Articulation: staccato/legato/tenuto/accent for phrasing character |
 
 ## Running examples
 

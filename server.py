@@ -15290,12 +15290,154 @@ async def mcp_opendaw_apply_velocity_curve(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_apply_articulation(
+    unit_index: int = 0,
+    track_index: int = 0,
+    region_index: int = -1,
+    articulation: str = "staccato",
+    amount: float = 0.5,
+) -> str:
+    """Apply articulation to existing notes — staccato, legato, tenuto, accent.
+
+    Reshapes note durations relative to their grid position to change phrasing character.
+    Unlike velocity_curve (dynamics) or humanize (random), this applies deterministic
+    duration ratios — the fundamental dimension of musical articulation.
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = all regions on the track).
+    articulation: Articulation type:
+      - "staccato" — shorten notes to fraction of their grid slot (default 50%)
+      - "legato"   — extend notes to nearly the next note's start (default 95%)
+      - "tenuto"   — hold notes to full grid slot (100%, no gap, no overlap)
+      - "accent"   — boost velocity on notes that fall on beat boundaries (downbeats)
+    amount: Articulation depth 0-1 (default 0.5):
+      - staccato: fraction of slot (0.3 = very short, 0.7 = moderate)
+      - legato:   overlap fraction (0.9 = near-full, 0.5 = half-fill)
+      - tenuto:   (unused, always full)
+      - accent:   velocity boost amount (0.3 = subtle, 1.0 = strong accent)
+
+    Returns per-region note counts and total notes reshaped.
+
+    Examples:
+      apply_articulation(articulation="staccato", amount=0.3)  # crisp, detached
+      apply_articulation(articulation="legato", amount=0.95)   # smooth, connected
+      apply_articulation(articulation="accent", amount=0.8)    # strong downbeat accents
+    """
+    if not (0.0 <= amount <= 1.0):
+        return f"Error: amount must be 0-1, got {amount}"
+    valid_articulations = ("staccato", "legato", "tenuto", "accent")
+    if articulation not in valid_articulations:
+        return f"Error: articulation must be one of {valid_articulations}, got '{articulation}'"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const artic = "{articulation}";
+        const amt = {amount};
+        const Quarter = h.ppqn.Quarter;
+
+        let totalNotes = 0;
+        const regionStats = [];
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{ error: "unit_index out of range" }};
+        const au = allUnits[unitIdx];
+
+        const noteTracks = h.trackBoxes(au).filter(box => box.type?.getValue?.() === 1);
+        if (trackIdx >= noteTracks.length) return {{ error: "track_index out of range" }};
+        const track = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(track);
+        const targetRegions = regionIdx < 0 ? regions : (regionIdx < regions.length ? [regions[regionIdx]] : []);
+
+        h.modify(() => {{
+            for (let ri = 0; ri < targetRegions.length; ri++) {{
+                const region = targetRegions[ri];
+                let noteCount = 0;
+                try {{
+                    const vertex = region.events.targetVertex.unwrap();
+                    const collectionBox = vertex.box || vertex;
+                    if (!collectionBox || !collectionBox.events) continue;
+
+                    const noteEvents = h.eventBoxes(collectionBox);
+                    if (noteEvents.length === 0) continue;
+
+                    // Sort notes by position for legato calculations
+                    const sorted = [...noteEvents].sort((a, b) => a.position.getValue() - b.position.getValue());
+
+                    if (artic === "staccato") {{
+                        for (const evt of sorted) {{
+                            const pos = evt.position.getValue();
+                            const dur = evt.duration.getValue();
+                            // Slot = duration rounded to nearest 16th
+                            const sixteenth = Math.floor(Quarter / 4);
+                            const slotDur = Math.max(sixteenth, dur);
+                            evt.duration.setValue(Math.max(1, Math.floor(slotDur * amt)));
+                            noteCount++; totalNotes++;
+                        }}
+                    }} else if (artic === "legato") {{
+                        for (let i = 0; i < sorted.length; i++) {{
+                            const evt = sorted[i];
+                            const pos = evt.position.getValue();
+                            const dur = evt.duration.getValue();
+                            const nextStart = (i < sorted.length - 1)
+                                ? sorted[i + 1].position.getValue()
+                                : pos + dur;
+                            const slotEnd = pos + dur;
+                            const targetEnd = pos + (nextStart - pos) * amt;
+                            evt.duration.setValue(Math.max(1, Math.floor(targetEnd - pos)));
+                            noteCount++; totalNotes++;
+                        }}
+                    }} else if (artic === "tenuto") {{
+                        // Fill each note to its nearest grid slot boundary
+                        const sixteenth = Math.floor(Quarter / 4);
+                        for (const evt of sorted) {{
+                            const pos = evt.position.getValue();
+                            const dur = evt.duration.getValue();
+                            const slotEnd = Math.ceil((pos + dur) / sixteenth) * sixteenth;
+                            evt.duration.setValue(Math.max(1, slotEnd - pos));
+                            noteCount++; totalNotes++;
+                        }}
+                    }} else if (artic === "accent") {{
+                        // Boost velocity on notes that fall on beat boundaries (quarter note grid)
+                        const beatTicks = Quarter;
+                        for (const evt of sorted) {{
+                            const pos = evt.position.getValue();
+                            const isOnBeat = (pos % beatTicks) === 0;
+                            if (isOnBeat) {{
+                                const curVel = evt.velocity.getValue();
+                                const boosted = Math.min(1.0, curVel + amt * (1.0 - curVel));
+                                evt.velocity.setValue(boosted);
+                            }}
+                            noteCount++; totalNotes++;
+                        }}
+                    }}
+                }} catch(e) {{}}
+                regionStats.push({{ region_index: ri, notes_reshaped: noteCount }});
+            }}
+        }});
+
+        return {{
+            success: true,
+            articulation: artic,
+            amount: amt,
+            total_notes_reshaped: totalNotes,
+            regions: regionStats,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.22.0 — 282 MCP tools")
+            print("opendaw-mcp 1.23.0 — 283 MCP tools")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
@@ -15305,7 +15447,7 @@ def main():
             print(f"\nTotal: {len(tools)} tools")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 282 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — 283 MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
             print("  opendaw-mcp              Start MCP server (stdio transport)")
