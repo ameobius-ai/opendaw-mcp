@@ -89,6 +89,8 @@ What do you want to create?
 ├── Section variation → create_arrangement_variation (14 genres: drum density/bass octave/melody transform)
 ├── Full song builder → create_song_with_variations (14 genres: 12 presets, one call)
 ├── Chord pads (string) → create_chord_pads ("Am-F-C-G", 10 chord types)
+├── Arpeggiated progression → create_arpeggiated_progression ("Am-F-C-G", 5 arp patterns)
+├── Bass from progression → create_bass_from_progression ("Am-F-C-G", 6 bass patterns)
 ├── Full pipeline → create_full_genre_pipeline (14 genres: zero-to-render in one call)
 └── Render entire song → render_full_song (auto-detect length, export WAV)
 ```
@@ -104,7 +106,9 @@ What do you want to create?
    └── One-call?            → create_full_genre_pipeline (all steps)
 
 2. HARMONY (optional, adds chord movement)
-   └── create_chord_pads ("Am-F-C-G", bars_per_chord=4)
+   ├── Sustained pads?      → create_chord_pads ("Am-F-C-G", bars_per_chord=4)
+   ├── Arp movement?        → create_arpeggiated_progression ("Am-F-C-G", pattern="up")
+   └── Bass from chords?    → create_bass_from_progression ("Am-F-C-G", pattern="walking")
 
 3. MIX
    └── apply_genre_mix (14 genres: per-track comp/EQ/sat/reverb/sidechain)
@@ -119,6 +123,13 @@ What do you want to create?
    └── render_full_song (auto-detect length + tail, export WAV)
 ```
 
+### Harmonic trio — same progression string
+
+All three take "Am-F-C-G":
+- **create_chord_pads** → sustained harmony (track 2)
+- **create_arpeggiated_progression** → melodic movement (track 3, 5 patterns: up/down/updown/random/bass)
+- **create_bass_from_progression** → bass foundation (track 1, 6 patterns: root/root_fifth/walking/pedal/octave/root_octave)
+
 ### Quick recipes
 
 **Minimal (2 calls):**
@@ -132,6 +143,22 @@ await mcp_opendaw_render_full_song(filename="my_dnb_track")
 await mcp_opendaw_create_song_with_variations("house", apply_mix=True, apply_humanize=True, apply_master=True)
 await mcp_opendaw_create_chord_pads("Cm-Gm-Ab-Bb", bars_per_chord=4, track_index=2)
 await mcp_opendaw_render_full_song(filename="house_with_chords")
+```
+
+**Harmonic trio (5 calls):**
+```python
+await mcp_opendaw_create_song_with_variations("synthwave")
+await mcp_opendaw_create_chord_pads("Am-F-C-G", bars_per_chord=4, track_index=2)
+await mcp_opendaw_create_arpeggiated_progression("Am-F-C-G", pattern="up", octave=4, step_duration=0.25, track_index=3)
+await mcp_opendaw_create_bass_from_progression("Am-F-C-G", pattern="root", octave=2, track_index=1)
+await mcp_opendaw_render_full_song(filename="synthwave_harmonic")
+```
+
+**Jazz walking bass (3 calls):**
+```python
+await mcp_opendaw_create_chord_pads("Dm7-G7-Cmaj7-Am7", bars_per_chord=2, octave=3, track_index=2)
+await mcp_opendaw_create_bass_from_progression("Dm7-G7-Cmaj7-Am7", pattern="walking", octave=2, track_index=1)
+await mcp_opendaw_render_full_song(filename="jazz_walking")
 ```
 
 **Custom sections (6 calls):**
