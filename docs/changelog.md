@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.87.0 (2026-07-05)
+
+- **`werkstatt_octaver.js` DSP script** — sub-octave generator (Boss OC-2 style): zero-crossing flip-flop divides input frequency by 2 (-1 oct) and 4 (-2 oct), envelope follower tracks amplitude for natural decay, hysteresis on zero-crossing detection, one-pole lowpass smoothing on square wave edges. 7 params (oct1/oct2/direct/smooth/track/trigger/output). 70 DSP scripts
+- **841 unit tests** (+13), E2E 8/8
+
 ## v1.86.0 (2026-07-05)
 
 - **`werkstatt_autowah.js` DSP script** — envelope-followed filter (autowah): filter frequency driven by input envelope, not LFO or static cutoff. 3 filter modes (bandpass/peaking/lowpass), sensitivity, attack/release, direction (up/down sweep), cutoff smoothing. 69 DSP scripts

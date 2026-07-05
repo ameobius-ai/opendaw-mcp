@@ -3360,3 +3360,85 @@ class TestDimensionChorusDSP:
     def test_process_audio(self):
         code = self._read_script()
         assert "processAudio" in code, "Missing processAudio method"
+
+
+class TestOctaverDSP:
+    """Unit tests for werkstatt_octaver.js — sub-octave generator (Boss OC-2 style)"""
+
+    SCRIPT = "werkstatt_octaver.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt octaver" in code, "Missing @werkstatt octaver header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_oct1_level(self):
+        params = self._parse_params(self._read_script())
+        o1 = [p for p in params if p["name"] == "oct1"][0]
+        assert o1["min"] == 0 and o1["max"] == 1
+        assert o1["default"] == 0.7, "oct1 default should be 0.7"
+
+    def test_oct2_level(self):
+        params = self._parse_params(self._read_script())
+        o2 = [p for p in params if p["name"] == "oct2"][0]
+        assert o2["min"] == 0 and o2["max"] == 1
+        assert o2["default"] == 0, "oct2 default should be 0 (off)"
+
+    def test_zero_crossing_flipflop(self):
+        code = self._read_script()
+        assert "flip1" in code and "flip2" in code, "Missing flip-flop state variables"
+        assert "1 - this.flip1" in code or "this.flip1 = 1 - this.flip1" in code, "Missing flip-flop toggle"
+        assert "this.flip2" in code, "Missing -2 octave flip-flop"
+
+    def test_hysteresis(self):
+        code = self._read_script()
+        assert "hyst" in code or "hystState" in code, "Missing hysteresis for zero-crossing"
+        assert "trigger" in code, "Missing trigger parameter for hysteresis"
+
+    def test_envelope_follower(self):
+        code = self._read_script()
+        assert "this.env" in code, "Missing envelope follower state"
+        assert "envCoeff" in code or "env" in code, "Missing envelope coefficient"
+
+    def test_square_wave_centering(self):
+        code = self._read_script()
+        assert "* 2 - 1" in code, "Missing square wave centering (-1..+1)"
+
+    def test_smoothing(self):
+        code = self._read_script()
+        assert "smooth1" in code and "smooth2" in code, "Missing smoothing state"
+        assert "smoothCoeff" in code, "Missing smoothing coefficient"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10" in code, "Missing dB-to-linear conversion"
+
+    def test_divide_by_4_logic(self):
+        code = self._read_script()
+        assert "if (this.flip1 === 1)" in code or "if (this.flip1==1)" in code, "Missing edge-triggered /4 logic"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "process(" in code or "processAudio" in code, "Missing process method"
+
+    def test_stereo_output(self):
+        code = self._read_script()
+        assert "io.out[0]" in code and "io.out[1]" in code, "Missing stereo output"

@@ -53,6 +53,7 @@
 | `werkstatt_comb_filter.js` | Comb filter (delay-line feedback, polarity, damping) | freq, feedback, damping, mix, polarity |
 | `werkstatt_formant_filter.js` | Formant filter (3-band vocal tract, vowel presets) | formant_a/b/c, bandwidth_a/b/c, vowel, resonance, mix |
 | `werkstatt_harmonizer.js` | Dual-voice harmonizer (pitch shift + detune) | shift1/2_semi, shift1/2_cent, shift1/2_gain, detune, delay, mix |
+| `werkstatt_octaver.js` | Octaver (sub-octave generator, Boss OC-2 style) | oct1, oct2, direct, smooth, track, trigger, output |
 | `werkstatt_multiband_comp.js` | 3-band multiband compressor (LR4 crossover, per-band dynamics) | crossover1/2, low/mid/high × threshold/ratio/attack/release/gain, mix |
 | `werkstatt_vocoder.js` | Channel vocoder (bandpass bank, spectral envelope mapping) | bands, carrier_wave, carrier_freq, mod_response, mod_threshold, band_q, emphasis, highpass, mix, output |
 | `werkstatt_reverse.js` | Real-time reverse (chunked buffer, variable speed, trigger modes) | chunk_size, feedback, speed, smooth, dry_gain, wet_gain, mix, stereo_mode, trigger_mode, output |
