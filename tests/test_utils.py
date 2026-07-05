@@ -5624,3 +5624,133 @@ class TestPhaseVocoderDSP:
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
         assert ".fill(0)" in code, "Missing buffer reset in reset()"
+
+
+class TestTimeStretchDSP:
+    """Unit tests for werkstatt_time_stretch.js — phase vocoder time stretch"""
+
+    def _read_script(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "scripts", "werkstatt_time_stretch.js")) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)
+            })
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt time_stretch" in code, "Missing @werkstatt header"
+
+    def test_label(self):
+        code = self._read_script()
+        assert "Time Stretch" in code, "Missing label"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 5, f"Expected 5 params, got {len(params)}"
+
+    def test_param_names(self):
+        params = self._parse_params(self._read_script())
+        names = [p["name"] for p in params]
+        assert "stretch" in names, "Missing stretch param"
+        assert "lock_phase" in names, "Missing lock_phase param"
+        assert "transient" in names, "Missing transient param"
+        assert "mix" in names, "Missing mix param"
+        assert "output" in names, "Missing output param"
+
+    def test_stretch_range(self):
+        params = self._parse_params(self._read_script())
+        stretch = [p for p in params if p["name"] == "stretch"][0]
+        assert stretch["min"] == 0 and stretch["max"] == 1, "stretch range should be 0-1"
+        assert stretch["default"] == 0.5, "stretch default should be 0.5 (unison)"
+
+    def test_output_param_type(self):
+        params = self._parse_params(self._read_script())
+        out = [p for p in params if p["name"] == "output"][0]
+        assert out["type"] == "linear", f"output should be linear, got {out['type']}"
+
+    def test_fft_implementation(self):
+        code = self._read_script()
+        assert "_fft" in code, "Missing FFT method"
+        assert "halfLen" in code, "Missing FFT butterfly"
+
+    def test_fft_size(self):
+        code = self._read_script()
+        assert "FFT_SIZE = 2048" in code, "Missing FFT size 2048"
+
+    def test_hop_size(self):
+        code = self._read_script()
+        assert "HOP_SIZE = 512" in code, "Missing hop size 512"
+
+    def test_hann_window(self):
+        code = self._read_script()
+        assert "0.5 * (1 - Math.cos" in code, "Missing Hann window"
+
+    def test_phase_unwrapping(self):
+        code = self._read_script()
+        assert "phaseDev" in code, "Missing phase deviation"
+        assert "while (phaseDev > Math.PI)" in code, "Missing phase unwrapping"
+        assert "while (phaseDev < -Math.PI)" in code, "Missing phase unwrapping lower bound"
+
+    def test_true_frequency(self):
+        code = self._read_script()
+        assert "trueFreq" in code, "Missing true frequency computation"
+
+    def test_accumulated_phase(self):
+        code = self._read_script()
+        assert "accumPhase" in code, "Missing accumulated phase"
+        assert "prevPhase" in code, "Missing previous phase tracking"
+
+    def test_synthesis_hop_differs(self):
+        code = self._read_script()
+        assert "synthesisHop" in code, "Missing synthesis hop"
+        assert "analysisHop" in code, "Missing analysis hop"
+        assert "ratio" in code, "Missing stretch ratio"
+
+    def test_transient_detection(self):
+        code = self._read_script()
+        assert "_detectTransient" in code, "Missing transient detection"
+        assert "prevEnergy" in code, "Missing energy tracking"
+        assert "transientFlag" in code, "Missing transient flag"
+
+    def test_transient_preservation(self):
+        code = self._read_script()
+        assert "transientPres" in code, "Missing transient preservation"
+        assert "tMix" in code, "Missing transient blend"
+
+    def test_phase_locking(self):
+        code = self._read_script()
+        assert "lockPhase" in code, "Missing phase locking"
+        assert "lockAmount" in code, "Missing lock amount"
+
+    def test_magnitude_preserved(self):
+        code = self._read_script()
+        assert "mag * Math.cos(outPhase)" in code, "Missing magnitude-preserved output"
+
+    def test_overlap_add(self):
+        code = self._read_script()
+        assert "outBuf" in code, "Missing output buffer for overlap-add"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "outGain" in code, "Missing output gain"
+        assert "Math.pow(10, value / 20)" in code, "Missing dB to linear conversion"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"
+        assert ".fill(0)" in code, "Missing buffer reset in reset()"

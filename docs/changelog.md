@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.116.0 (2026-07-05)
+
+- **`werkstatt_time_stretch.js` DSP script (93 DSP, 74 Werkstatt)** — phase vocoder time stretch: high-quality time stretching that preserves pitch. Same STFT + phase unwrapping framework as phase_vocoder but stretches duration without changing frequency. Synthesis hop = analysis hop × stretch ratio (0.25x–4x). Transient detection via energy jump (2x threshold) + transient preservation blends input phase during attacks to reduce smearing. Identity phase locking. Élastique-grade quality — complements granular_stretch (texture) and paulstretch (ambient) with the third time-stretch algorithm. 5 params (stretch/lock_phase/transient/mix/output). 93 DSP scripts, 74 Werkstatt
+- **1292 unit tests** (+23)
+
 ## v1.115.0 (2026-07-05)
 
 - **`werkstatt_phase_vocoder.js` DSP script (92 DSP, 73 Werkstatt)** — phase vocoder pitch shifter: high-quality FFT-based pitch shifting with phase unwrapping. STFT (2048-point FFT, 512 hop, Hann window) → per-bin magnitude/phase → phase deviation from expected advance → true frequency (phase derivative) → accumulated output phase with synthesis hop = analysis hop × ratio → inverse FFT + overlap-add. Identity phase locking reduces phasiness artifacts. Formant control shifts/preserves/boosts spectral envelope. ±12 semitones range. Élastique / Melodyne quality — preserves phase coherence across frames, no transient smearing of time-domain pitch shifters. 5 params (pitch/formant/lock_phase/mix/output). 92 DSP scripts, 73 Werkstatt
