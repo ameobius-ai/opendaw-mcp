@@ -8157,6 +8157,78 @@ class TestWaveguideStringDSP:
         assert "fwdL + bwdL" in code or "waveOut" in code
 
 
+class TestPhaserDSP:
+    """Tests for werkstatt_phaser.js — cascaded allpass phaser with LFO sweep"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_phaser.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt phaser" in code
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_phaser.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_seven_params(self):
+        """7 params: rate, depth, stages, base_freq, feedback, mix, stereo"""
+        code = self._read_script()
+        params = code.count("@param")
+        assert params == 7
+
+    def test_allpass_stages(self):
+        """Cascaded allpass filters (phaser core)"""
+        code = self._read_script()
+        assert "allpass" in code
+        assert "stages" in code
+
+    def test_lfo_sine(self):
+        """LFO uses sine wave for sweep"""
+        code = self._read_script()
+        assert "Math.sin" in code
+        assert "lfoPhase" in code
+
+    def test_feedback_path(self):
+        """Resonance feedback from last stage output"""
+        code = self._read_script()
+        assert "feedback" in code
+        assert "fbL" in code
+
+    def test_stereo_offset(self):
+        """Stereo parameter creates L/R LFO phase offset"""
+        code = self._read_script()
+        assert "stereo" in code
+        assert "lfoPhaseR" in code
+
+    def test_dry_wet_mix(self):
+        """Output = dry*(1-mix) + wet*mix"""
+        code = self._read_script()
+        assert "1 - mix" in code
+        assert "* mix" in code
+
+    def test_allpass_coefficient(self):
+        """Allpass coefficient from frequency: a = (1-sin(wT))/(1+sin(wT))"""
+        code = self._read_script()
+        assert "1 - sinW" in code
+        assert "1 + sinW" in code
+
+    def test_stage_clamping(self):
+        """Stages clamped to 2-12 range"""
+        code = self._read_script()
+        assert "Math.min(12" in code or "min(12" in code
+        assert "Math.max(2" in code or "max(2" in code
+
+    def test_feedback_clamped(self):
+        """Feedback clamped to ±0.95"""
+        code = self._read_script()
+        assert "0.95" in code
+
+
 class TestDetectBpm:
     """Tests for _detect_bpm and detect_bpm tool"""
 
@@ -9369,7 +9441,7 @@ class TestAnalyzeTrack:
     def test_synthetic_track_analysis(self):
         """Composite analysis of synthetic C major track: all fields present"""
         import math
-        from opendaw_mcp.utils import _detect_bpm, _detect_key, _compute_lufs, _parse_wav
+        from opendaw_mcp.utils import _detect_bpm, _detect_key, _compute_lufs
 
         sr = 44100
         duration_s = 10.0

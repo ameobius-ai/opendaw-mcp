@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.199.0 (2026-07-05)
+
+### Added
+- `werkstatt_phaser.js` DSP script — cascaded allpass phaser with LFO sweep. 7 params: rate (0.1-8 Hz), depth, stages (2-12 allpass filters), base_freq (100-8000 Hz), feedback (±0.95 resonance), mix (dry/wet), stereo (L/R LFO phase offset). First-order allpass coefficient: a = (1-sin(wT))/(1+sin(wT)). Completes the "big four" modulation effects (chorus ✅, flanger ✅, phaser ✅, tremolo ✅). 11 unit tests. **109 DSP scripts** (90 Werkstatt + 9 Apparat + 10 Spielwerk), 1392 unit tests, ruff F401 fix
+
 ## v1.198.0 (2026-07-05)
 
 ### Added
