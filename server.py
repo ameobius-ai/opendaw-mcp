@@ -39714,6 +39714,134 @@ async def mcp_opendaw_invert_chord_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_spread_voicing(
+    unit_index: int,
+    track_index: int,
+    region_index: int,
+    chord_position: float,
+    mode: str = "open",
+    spread_octaves: int = 1,
+) -> str:
+    """Spread or compact a chord voicing — open vs close harmony.
+
+    Transforms the spacing between chord tones at a specific beat position.
+    Close voicing (all notes within one octave) sounds tight and focused.
+    Open voicing (notes spread across multiple octaves) sounds wide and
+    spacious — the hallmark of jazz piano, film score strings, and
+    orchestral arrangements.
+
+    mode: "open" — move every other note up by spread_octaves octaves.
+      This creates drop-2/drop-3 style open voicings from close chords.
+      The lowest note stays, the next goes up an octave, the next stays,
+      etc. Result: wider intervallic spacing, more airy sound.
+    mode: "close" — collapse all chord tones into the lowest possible
+      octave (within 12 semitones from the lowest note). Compresses
+      spread voicings back to close harmony. Useful for tight block
+      chords after open passages.
+    mode: "drop2" — drop the second-highest note down an octave.
+      Classic jazz piano voicing technique. Creates the quintessential
+      "comping" sound.
+    mode: "drop3" — drop the third-highest note down an octave.
+      Another standard jazz voicing, slightly wider than drop2.
+
+    chord_position: Beat position where the chord starts (finds all
+      notes at this position, groups them as a chord).
+    spread_octaves: For "open" mode — how many octaves to spread (1-3,
+      default 1). 1 = subtle widening, 2 = very open, 3 = extreme.
+
+    Returns original pitches, new pitches, mode used, chord size.
+
+    Example:
+      # Open up a close triad for jazz piano sound
+      spread_voicing(0, 2, 0, 4.0, mode="open")
+      # Classic drop-2 jazz voicing
+      spread_voicing(0, 2, 0, 4.0, mode="drop2")
+    """
+    valid_modes = ("open", "close", "drop2", "drop3")
+    if mode not in valid_modes:
+        return f'{{"error": "mode must be one of {list(valid_modes)}, got {mode}"}}'
+    if not (1 <= spread_octaves <= 3):
+        return f'{{"error": "spread_octaves must be 1-3, got {spread_octaves}"}}'
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const beatPos = {chord_position};
+        const mode = "{mode}";
+        const spreadOct = {spread_octaves};
+
+        const region = h.region(unitIdx, trackIdx, regionIdx);
+        if (region.isEmpty?.()) return {{error: "region not found"}};
+        const reg = region.unwrap?.() || region;
+        const eventsField = reg.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const noteEvents = [...collBox.events.pointerHub.incoming()];
+
+        const Quarter = h.ppqn.Quarter;
+        const targetTicks = Math.round(beatPos * Quarter);
+
+        // Find notes at this position
+        const chordNotes = noteEvents
+            .filter(n => n.box.position.getValue() === targetTicks)
+            .sort((a, b) => a.box.pitch.getValue() - b.box.pitch.getValue());
+
+        if (chordNotes.length < 2) return {{error: "need at least 2 notes at beat position for voicing spread"}};
+
+        const originalPitches = chordNotes.map(n => n.box.pitch.getValue());
+
+        h.modify(() => {{
+            if (mode === "open") {{
+                // Move every other note (starting from 2nd lowest) up by spread_octaves
+                for (let i = 1; i < chordNotes.length; i += 2) {{
+                    const newPitch = chordNotes[i].box.pitch.getValue() + 12 * spreadOct;
+                    chordNotes[i].box.pitch.setValue(Math.min(127, newPitch));
+                }}
+            }} else if (mode === "close") {{
+                // Collapse all notes to within one octave of lowest
+                const lowest = chordNotes[0].box.pitch.getValue();
+                for (let i = 1; i < chordNotes.length; i++) {{
+                    let p = chordNotes[i].box.pitch.getValue();
+                    while (p >= lowest + 12) p -= 12;
+                    chordNotes[i].box.pitch.setValue(p);
+                }}
+                // Re-sort by pitch after collapsing
+                const sorted = chordNotes.slice().sort((a, b) => a.box.pitch.getValue() - b.box.pitch.getValue());
+                // Ensure ascending order maintained
+            }} else if (mode === "drop2") {{
+                // Drop 2nd highest note down an octave
+                if (chordNotes.length >= 2) {{
+                    const idx = chordNotes.length - 2;
+                    const newPitch = chordNotes[idx].box.pitch.getValue() - 12;
+                    chordNotes[idx].box.pitch.setValue(Math.max(0, newPitch));
+                }}
+            }} else if (mode === "drop3") {{
+                // Drop 3rd highest note down an octave
+                if (chordNotes.length >= 3) {{
+                    const idx = chordNotes.length - 3;
+                    const newPitch = chordNotes[idx].box.pitch.getValue() - 12;
+                    chordNotes[idx].box.pitch.setValue(Math.max(0, newPitch));
+                }}
+            }}
+        }});
+
+        const newPitches = chordNotes.map(n => n.box.pitch.getValue());
+
+        return {{
+            mode: mode,
+            chord_position: beatPos,
+            chord_size: chordNotes.length,
+            original_pitches: originalPitches,
+            new_pitches: newPitches,
+            spread_octaves: spreadOct,
+            next_step: "use create_voice_led_progression for smooth voicing transitions between chords",
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_counter_melody_from_progression(
     progression: str = "Am-F-C-G",
     pattern: str = "contrary",

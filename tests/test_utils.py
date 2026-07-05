@@ -13438,6 +13438,123 @@ class TestReharmonizeProgression:
         assert False, "default not found"
 
 
+class TestSpreadVoicing:
+    """Tests for spread_voicing — open/close/drop2/drop3 chord voicing."""
+
+    def test_function_exists(self):
+        import ast
+        with open("server.py") as f:
+            tree = ast.parse(f.read())
+        tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                 and n.name == "mcp_opendaw_spread_voicing"]
+        assert len(tools) == 1
+
+    def test_has_mode_param(self):
+        """Has mode param with 4 voicing options"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                arg_names = [a.arg for a in node.args.args]
+                assert "mode" in arg_names
+                assert "spread_octaves" in arg_names
+                assert "chord_position" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_mode_options(self):
+        """Supports open/close/drop2/drop3 modes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                source = ast.unparse(node)
+                assert "open" in source
+                assert "close" in source
+                assert "drop2" in source
+                assert "drop3" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_mode(self):
+        """Validates mode against allowed values"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                source = ast.unparse(node)
+                assert "valid_modes" in source
+                assert "open" in source and "close" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_spread_octaves(self):
+        """spread_octaves must be 1-3"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                source = ast.unparse(node)
+                assert "1 <= spread_octaves" in source
+                return
+        assert False, "function not found"
+
+    def test_default_mode_is_open(self):
+        """Default mode is 'open'"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                source = ast.unparse(node)
+                assert '"open"' in source or "'open'" in source
+                return
+        assert False, "function not found"
+
+    def test_complements_invert_chord(self):
+        """spread_voicing complements invert_chord_notes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_invert_chord_notes" in tool_names
+        assert "mcp_opendaw_spread_voicing" in tool_names
+
+    def test_returns_original_and_new_pitches(self):
+        """Returns original_pitches and new_pitches"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                source = ast.unparse(node)
+                assert "original_pitches" in source
+                assert "new_pitches" in source
+                return
+        assert False, "function not found"
+
+    def test_param_count(self):
+        """Has exactly 6 parameters"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                assert len(node.args.args) == 6
+                return
+        assert False, "function not found"
+
+    def test_drop2_drops_second_highest(self):
+        """drop2 mode drops 2nd highest note"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_spread_voicing":
+                source = ast.unparse(node)
+                assert "length - 2" in source
+                assert "drop2" in source
+                return
+        assert False, "function not found"
+
+
 class TestInvertChordNotes:
     """Tests for mcp_opendaw_invert_chord_notes — chord inversion/voicing change."""
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.255.0 (2026-07-06)
+
+### Added
+- `spread_voicing` — Chord voicing spread/compact. 4 modes: open (widen spacing, spread_octaves 1-3), close (collapse to one octave), drop2 (jazz piano comping — 2nd highest down octave), drop3 (wider jazz — 3rd highest down octave). Complements invert_chord_notes.
+
 ## v1.254.0 (2026-07-06)
 
 ### Added
