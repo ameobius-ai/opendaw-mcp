@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.115.0 (2026-07-05)
+
+- **`werkstatt_phase_vocoder.js` DSP script (92 DSP, 73 Werkstatt)** — phase vocoder pitch shifter: high-quality FFT-based pitch shifting with phase unwrapping. STFT (2048-point FFT, 512 hop, Hann window) → per-bin magnitude/phase → phase deviation from expected advance → true frequency (phase derivative) → accumulated output phase with synthesis hop = analysis hop × ratio → inverse FFT + overlap-add. Identity phase locking reduces phasiness artifacts. Formant control shifts/preserves/boosts spectral envelope. ±12 semitones range. Élastique / Melodyne quality — preserves phase coherence across frames, no transient smearing of time-domain pitch shifters. 5 params (pitch/formant/lock_phase/mix/output). 92 DSP scripts, 73 Werkstatt
+- **1269 unit tests** (+20)
+
 ## v1.114.0 (2026-07-05)
 
 - **`create_cascara` orchestration tool (315 MCP tools)** — Afro-Cuban cáscara pattern: timbale shell rhythm that fills space around clave and tumbao. Completes the Afro-Cuban rhythm section trilogy (clave + tumbao + cáscara). 4 variants: son_3_2 (forward), son_2_3 (reverse), guaguanco (ghost strokes on downbeats for density), mambo (syncopated accents + fill on bar 2). Two stroke heights: high (rim/edge, accented) + low (shell body, unaccented) + ghost (very soft). High/low alternation creates call-and-response within the pattern. 58 orchestration tools. 315 MCP tools

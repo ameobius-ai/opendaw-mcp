@@ -461,6 +461,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_spectral_compressor.js` — Spectral compressor (STFT per-bin dynamics: Cooley-Tukey FFT, Hann window, per-bin envelope follower + compression, tilt shifts threshold across frequency, gain smoothing, overlap-add, no crossover artifacts, Flux Syrah / FabFilter Pro-MB style)
 - `apparat_bowed_string.js` — Bowed string (digital waveguide + bow friction: Stribeck stick-slip model, Helmholtz motion, two delay lines split at bow position, string damping filter, 3-resonator violin body, vibrato, noteOn MIDI trigger)
 - `werkstatt_auto_tune.js` — Auto-tune pitch correction (autocorrelation pitch detection 60-1200Hz with parabolic interpolation, snap-to-scale: 7 scales × 12 roots, time-domain pitch shift via ring buffer, retune speed hard/soft, strength blend, detune offset, Cher/T-Pain style)
+- `werkstatt_phase_vocoder.js` — Phase vocoder (FFT-based pitch shifter: 2048-point STFT + phase unwrapping + true frequency + accumulated output phase + identity phase lock, formant control, ±12 semitones, Élastique/Melodyne quality, no transient smearing)
 
 ### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)
