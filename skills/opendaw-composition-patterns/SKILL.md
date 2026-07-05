@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 53 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue, two_hand_piano, variations, motif_development, stutter, phase. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 69 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue, two_hand_piano, variations, motif_development, stutter, phase. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
 ---
 
 # openDAW Composition Patterns
@@ -77,7 +77,71 @@ What do you want to create?
 ├── Reverse → reverse_notes (mirror note order)
 ├── Invert → invert_notes (mirror pitches around axis)
 ├── Transpose → transpose_notes (shift all pitches by N semitones)
-└── Quantize → quantize_notes (snap to grid, adjustable strength)
+├── Quantize → quantize_notes (snap to grid, adjustable strength)
+│
+├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
+│   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
+│   └── synthwave/trance/disco/afrobeat/rock/jazz/pop/funk/reggae (4 tracks)
+│
+├── Genre-aware mix → apply_genre_mix (14 genres: comp/EQ/sat/reverb/sidechain)
+├── Genre-aware humanize → apply_genre_humanization (14 genres: jazz=loose, techno=tight)
+├── Song structure (DJ) → create_genre_sections (8 electronic: intro→buildup→drop→breakdown→outro)
+├── Section variation → create_arrangement_variation (14 genres: drum density/bass octave/melody transform)
+├── Full song builder → create_song_with_variations (14 genres: 12 presets, one call)
+├── Chord pads (string) → create_chord_pads ("Am-F-C-G", 10 chord types)
+├── Full pipeline → create_full_genre_pipeline (14 genres: zero-to-render in one call)
+└── Render entire song → render_full_song (auto-detect length, export WAV)
+```
+
+## Full production pipeline
+
+```
+1. CREATE
+   ├── Loop-based?          → create_XXX_arrangement (14 genres)
+   ├── Song structure?      → create_genre_sections (8 electronic)
+   ├── Varied sections?     → create_arrangement_variation (14 genres)
+   ├── Full song w/ vars?   → create_song_with_variations (12 presets, one call)
+   └── One-call?            → create_full_genre_pipeline (all steps)
+
+2. HARMONY (optional, adds chord movement)
+   └── create_chord_pads ("Am-F-C-G", bars_per_chord=4)
+
+3. MIX
+   └── apply_genre_mix (14 genres: per-track comp/EQ/sat/reverb/sidechain)
+
+4. HUMANIZE
+   └── apply_genre_humanization (14 genres: timing/velocity/swing per genre)
+
+5. MASTER
+   └── add_mastering_chain (LUFS: -14 Spotify, -10 loud, -16 Apple)
+
+6. RENDER
+   └── render_full_song (auto-detect length + tail, export WAV)
+```
+
+### Quick recipes
+
+**Minimal (2 calls):**
+```python
+await mcp_opendaw_create_song_with_variations("dnb")
+await mcp_opendaw_render_full_song(filename="my_dnb_track")
+```
+
+**Full production (4 calls):**
+```python
+await mcp_opendaw_create_song_with_variations("house", apply_mix=True, apply_humanize=True, apply_master=True)
+await mcp_opendaw_create_chord_pads("Cm-Gm-Ab-Bb", bars_per_chord=4, track_index=2)
+await mcp_opendaw_render_full_song(filename="house_with_chords")
+```
+
+**Custom sections (6 calls):**
+```python
+await mcp_opendaw_create_arrangement_variation("dnb", section_name="intro", bars=4, velocity=0.5, drum_density=0.3, include_bass=False)
+await mcp_opendaw_create_arrangement_variation("dnb", section_name="verse", bars=8, velocity=0.8, start_beat=16)
+await mcp_opendaw_create_arrangement_variation("dnb", section_name="chorus", bars=8, velocity=1.0, start_beat=48, drum_density=1.5, bass_octave_shift=1)
+await mcp_opendaw_create_arrangement_variation("dnb", section_name="bridge", bars=4, velocity=0.6, start_beat=80, melody_transform="invert")
+await mcp_opendaw_create_arrangement_variation("dnb", section_name="outro", bars=8, velocity=0.4, start_beat=96, drum_density=0.5, include_melody=False)
+await mcp_opendaw_render_full_song(filename="custom_dnb")
 ```
 
 ## Genre-specific tool recipes
