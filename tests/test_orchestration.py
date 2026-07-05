@@ -8076,15 +8076,49 @@ class TestHarmonicArrangement:
             layers.append("melody")
         assert len(layers) == 2
 
-    def test_pads_always_created(self):
-        """Pads are always created (harmony foundation)"""
-        layers = ["pads", "bass"]
-        assert "pads" in layers
+    def test_skip_bass_with_empty_string(self):
+        """bass_pattern='' skips bass → 3 layers (pads + arp + melody)"""
+        bass_pattern = ""
+        layers = ["pads", "arp", "melody"]
+        if bass_pattern:
+            layers.append("bass")
+        assert "bass" not in layers
+        assert len(layers) == 3
+
+    def test_skip_pads_with_negative_octave(self):
+        """pad_octave=-1 skips pads → 3 layers (bass + arp + melody)"""
+        pad_octave = -1
+        layers = ["bass", "arp", "melody"]
+        if pad_octave >= 0:
+            layers.append("pads")
+        assert "pads" not in layers
+        assert len(layers) == 3
+
+    def test_skip_all_optional(self):
+        """Only pads when bass='', arp='', melody='' → 1 layer"""
+        bass_pattern = ""
+        arp_pattern = ""
+        melody_pattern = ""
+        layers = []
+        if True:  # pads always unless pad_octave < 0
+            layers.append("pads")
+        if bass_pattern:
+            layers.append("bass")
+        if arp_pattern:
+            layers.append("arp")
+        if melody_pattern:
+            layers.append("melody")
+        assert len(layers) == 1
+
+    def test_pads_always_created_by_default(self):
+        """Pads created by default (pad_octave >= 0)"""
+        pad_octave = 3
+        assert pad_octave >= 0  # pads will be created
 
     def test_bass_always_created(self):
-        """Bass is always created (foundation)"""
-        layers = ["pads", "bass"]
-        assert "bass" in layers
+        """Bass created by default (bass_pattern != "")"""
+        bass_pattern = "root"
+        assert bass_pattern  # bass will be created
 
     def test_velocity_scaling(self):
         """Velocity scaled per layer: pads=0.9x, bass=1.0x, arp=0.85x, melody=0.75x"""

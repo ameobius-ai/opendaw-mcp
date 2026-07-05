@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.158.0 (2026-07-05)
+
+- **create_harmonic_arrangement: all 4 layers now skippable** — bass_pattern="" skips bass (useful when genre arrangement already has bass), pad_octave=-1 skips pads. Previously pads and bass were always created, causing conflicts when combining with genre arrangements. New example: `liquid_dnb_harmonic.py` shows combined pipeline (genre arrangement + harmonic layers with skipped pads/bass). 119 examples.
+- **2102 unit tests** (+3)
+
 ## v1.157.0 (2026-07-05)
 
 - **2 new DSP scripts (100 total)** — `werkstatt_envelope_follower.js`: amplitude tracking DSP, attack/release envelope detection with per-sample coefficients, dry/wet mix. Building block for auto-wah, tremolo depth, ducking, sidechain detection. `werkstatt_auto_wah.js`: envelope-driven resonant filter sweep, biquad bandpass with dynamic frequency mapping (min-max Hz based on input level), per-channel state for stereo. Classic funk/disco quack (Mu-Tron III, Cry Baby, Bootsy Collins). 4+6 params. 81 Werkstatt + 9 Apparat + 10 Spielwerk = 100 DSP scripts.

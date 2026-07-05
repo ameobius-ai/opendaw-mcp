@@ -27517,7 +27517,8 @@ async def mcp_opendaw_create_harmonic_arrangement(
     create_melody_from_progression separately on track 4).
 
     By default arp and melody share track 3 (melody track). Set
-    melody_pattern to "" to skip melody, or arp_pattern to "" to skip arp.
+    melody_pattern to "" to skip melody, arp_pattern to "" to skip arp,
+    bass_pattern to "" to skip bass, pad_octave to -1 to skip pads.
 
     progression: Hyphen-separated chords (same format as the quartet tools).
     pad_octave: Octave for chord pads (default 3).
@@ -27549,28 +27550,30 @@ async def mcp_opendaw_create_harmonic_arrangement(
     results = {}
     total_notes = 0
 
-    # 1. Chord pads (always created — harmony foundation)
-    r = await mcp_opendaw_create_chord_pads(
-        progression, bars_per_chord, pad_octave,
-        velocity * 0.9, unit_index, 2, start_beat)
-    try:
-        d = json.loads(r)
-        results["pads"] = {"notes": d.get("notes_created", 0), "octave": pad_octave}
-        total_notes += d.get("notes_created", 0)
-    except Exception:
-        results["pads"] = {"error": "failed"}
+    # 1. Chord pads (skip if pad_octave < 0)
+    if pad_octave >= 0:
+        r = await mcp_opendaw_create_chord_pads(
+            progression, bars_per_chord, pad_octave,
+            velocity * 0.9, unit_index, 2, start_beat)
+        try:
+            d = json.loads(r)
+            results["pads"] = {"notes": d.get("notes_created", 0), "octave": pad_octave}
+            total_notes += d.get("notes_created", 0)
+        except Exception:
+            results["pads"] = {"error": "failed"}
 
-    # 2. Bass (always created — foundation)
-    r = await mcp_opendaw_create_bass_from_progression(
-        progression, bass_pattern, bars_per_chord,
-        bass_octave, velocity * 1.0, unit_index, 1, start_beat)
-    try:
-        d = json.loads(r)
-        results["bass"] = {"notes": d.get("notes_created", 0), "pattern": bass_pattern,
-                           "octave": bass_octave}
-        total_notes += d.get("notes_created", 0)
-    except Exception:
-        results["bass"] = {"error": "failed"}
+    # 2. Bass (skip if bass_pattern is "")
+    if bass_pattern:
+        r = await mcp_opendaw_create_bass_from_progression(
+            progression, bass_pattern, bars_per_chord,
+            bass_octave, velocity * 1.0, unit_index, 1, start_beat)
+        try:
+            d = json.loads(r)
+            results["bass"] = {"notes": d.get("notes_created", 0), "pattern": bass_pattern,
+                               "octave": bass_octave}
+            total_notes += d.get("notes_created", 0)
+        except Exception:
+            results["bass"] = {"error": "failed"}
 
     # 3. Arp (optional — skip if pattern is "")
     if arp_pattern:
