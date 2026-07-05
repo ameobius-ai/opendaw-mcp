@@ -1,6 +1,6 @@
 ---
 name: opendaw-sound-design
-description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 36 DSP scripts. How to synthesize and shape sound with MCP tools."
+description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 42 DSP scripts. How to synthesize and shape sound with MCP tools."
 tags: [opendaw, mcp, sound-design, instruments, synth, dsp, werkstatt, apparat, spielwerk, scriptable]
 ---
 
@@ -250,6 +250,7 @@ class Processor {
 | `werkstatt_phaser.js` | Allpass cascade phaser | rate, depth, feedback, stages, mix | #133 |
 | `werkstatt_flanger.js` | Stereo flanger | rate, depth, center, feedback, mix | |
 | `werkstatt_tremolo.js` | Tremolo | rate, depth, shape (sine→square), phase | |
+| `werkstatt_vibrato.js` | Pitch vibrato (modulated delay) | rate, depth, shape (sine→tri), stereo | |
 | `werkstatt_stereo_delay.js` | Stereo delay w/ ping-pong | time_l, time_r, feedback, tone, mix, pingpong | |
 | `werkstatt_overdrive.js` | Asymmetric soft-clip overdrive | drive, tone, level, bias, dry | |
 | `werkstatt_multifilter.js` | Multi-mode SVF (LP/HP/BP/Notch) | mode, cutoff, resonance, drive, mix | |
@@ -318,6 +319,7 @@ class Processor {
 | Phaser | `werkstatt_phaser.js` | Werkstatt |
 | Flanger | `werkstatt_flanger.js` | Werkstatt |
 | Tremolo | `werkstatt_tremolo.js` | Werkstatt |
+| Vibrato | `werkstatt_vibrato.js` | Werkstatt |
 | Noise gate | `werkstatt_noisegate.js` | Werkstatt |
 | Time-stretch (extreme) | `werkstatt_paulstretch.js` | Werkstatt |
 | Time-stretch (granular) | `werkstatt_granular_stretch.js` | Werkstatt |

@@ -17,12 +17,12 @@ from server import (
 def parse(s):
     try:
         return json.loads(s)
-    except:
+    except Exception:
         try:
             start = s.index("{")
             end = s.rindex("}") + 1
             return json.loads(s[start:end])
-        except:
+        except Exception:
             return None
 
 async def run_all_tests():
@@ -153,6 +153,6 @@ if __name__ == "__main__":
         vite_proc.terminate()
         try:
             vite_proc.wait(timeout=5)
-        except:
+        except Exception:
             vite_proc.kill()
     sys.exit(0 if ok else 1)

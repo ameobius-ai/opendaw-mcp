@@ -1409,7 +1409,7 @@ class TestGlissandoPatternGeneration:
         notes, _, _ = self._generate_glissando(rate="16th", duration_beats=4)
         for i in range(1, len(notes)):
             gap = notes[i]["pos"] - notes[i - 1]["pos"]
-            assert gap > 0, f"Positions should be increasing"
+            assert gap > 0, "Positions should be increasing"
 
 
 class TestSequencePatternGeneration:

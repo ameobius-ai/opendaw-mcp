@@ -396,6 +396,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_flanger.js` — Stereo flanger (rate, depth, center, feedback, mix)
 - `werkstatt_noisegate.js` — Noise gate (threshold, attack, hold, release, range)
 - `werkstatt_tremolo.js` — Tremolo (rate, depth, shape sine→square, phase)
+- `werkstatt_vibrato.js` — Pitch vibrato (rate, depth, shape sine→tri, stereo spread)
 - `werkstatt_stereo_delay.js` — Stereo delay with ping-pong (time_l, time_r, feedback, tone, mix, pingpong)
 - `werkstatt_overdrive.js` — Asymmetric soft-clip overdrive (drive, tone, level, bias, dry)
 - `werkstatt_multifilter.js` — Multi-mode SVF filter: LP/HP/BP/Notch (mode, cutoff, resonance, drive, mix)

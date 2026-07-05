@@ -101,7 +101,7 @@ def main():
             # Test 5: bad voices count
             r = await mcp_opendaw_create_canon(melody="60,62", voices=1)
             if "Error" in r:
-                print(f"  ✅ test 5: bad voices (1) rejected")
+                print("  ✅ test 5: bad voices (1) rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 5: {r[:80]}")
@@ -114,7 +114,7 @@ def main():
                 transposition="0,7",  # only 2, need 3
             )
             if "Error" in r:
-                print(f"  ✅ test 6: transposition count mismatch rejected")
+                print("  ✅ test 6: transposition count mismatch rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 6: {r[:80]}")
@@ -123,7 +123,7 @@ def main():
             # Test 7: bad direction
             r = await mcp_opendaw_create_canon(melody="60,62", voices=2, direction="sideways")
             if "Error" in r:
-                print(f"  ✅ test 7: bad direction rejected")
+                print("  ✅ test 7: bad direction rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 7: {r[:80]}")

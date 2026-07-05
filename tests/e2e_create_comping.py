@@ -99,7 +99,7 @@ def main():
             # Test 5: bad chord JSON
             r = await mcp_opendaw_create_comping(chords='not json')
             if "Error" in r:
-                print(f"  ✅ test 5: bad JSON rejected")
+                print("  ✅ test 5: bad JSON rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 5: {r[:80]}")
@@ -111,7 +111,7 @@ def main():
                 rhythm="x!x!",
             )
             if "Error" in r:
-                print(f"  ✅ test 6: bad rhythm chars rejected")
+                print("  ✅ test 6: bad rhythm chars rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 6: {r[:80]}")
@@ -123,7 +123,7 @@ def main():
                 velocity=2.0,
             )
             if "Error" in r:
-                print(f"  ✅ test 7: bad velocity rejected")
+                print("  ✅ test 7: bad velocity rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 7: {r[:80]}")
@@ -134,7 +134,7 @@ def main():
                 chords='[["C","minor7flat5"]]',
             )
             if "Error" in r:
-                print(f"  ✅ test 8: unknown chord type rejected")
+                print("  ✅ test 8: unknown chord type rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 8: {r[:80]}")

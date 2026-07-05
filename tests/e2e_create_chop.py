@@ -38,7 +38,6 @@ def parse(s):
 
 async def run_all_tests():
     """Run all chop tests using a single bridge connection."""
-    results = []
     passed = 0
     failed = 0
 

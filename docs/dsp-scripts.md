@@ -1,8 +1,8 @@
 # DSP Scripts
 
-41 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+42 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 29 scripts
+## Werkstatt (Audio Effects) — 30 scripts
 
 | Script | Description | Parameters |
 |--------|-------------|------------|
@@ -24,6 +24,7 @@
 | `werkstatt_phaser.js` | Phaser | rate, depth, feedback, mix |
 | `werkstatt_flanger.js` | Flanger | rate, depth, feedback, mix |
 | `werkstatt_tremolo.js` | Tremolo | rate, depth, shape, mix |
+| `werkstatt_vibrato.js` | Pitch vibrato (modulated delay) | rate, depth, shape, stereo |
 | `werkstatt_shimmer.js` | Shimmer reverb (pitch-shifted tail) | pitch, decay, mix |
 | `werkstatt_pitch_shift.js` | Pitch shifter | semitones, mix |
 | `werkstatt_granular_stretch.js` | Granular time stretch | grain_size, density, pitch |

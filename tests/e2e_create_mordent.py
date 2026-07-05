@@ -63,7 +63,7 @@ def main():
             # Test 4: bad direction
             r = await mcp_opendaw_create_mordent(main_pitch=60, direction="sideways", unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 4: bad direction rejected")
+                print("  ✅ test 4: bad direction rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 4: {r[:80]}")
@@ -72,7 +72,7 @@ def main():
             # Test 5: bad interval (0)
             r = await mcp_opendaw_create_mordent(main_pitch=60, interval=0, unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 5: bad interval (0) rejected")
+                print("  ✅ test 5: bad interval (0) rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 5: {r[:80]}")
@@ -81,7 +81,7 @@ def main():
             # Test 6: bad pitch (128)
             r = await mcp_opendaw_create_mordent(main_pitch=128, unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 6: bad pitch rejected")
+                print("  ✅ test 6: bad pitch rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 6: {r[:80]}")
@@ -90,7 +90,7 @@ def main():
             # Test 7: bad velocity
             r = await mcp_opendaw_create_mordent(main_pitch=60, velocity=1.5, unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 7: bad velocity rejected")
+                print("  ✅ test 7: bad velocity rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 7: {r[:80]}")
@@ -99,7 +99,7 @@ def main():
             # Test 8: pitch clamped neighbor (main=0, lower, interval=7)
             r = await mcp_opendaw_create_mordent(main_pitch=0, direction="lower", interval=7, unit_index=1)
             if "Error" in r and "clamped" in r:
-                print(f"  ✅ test 8: clamped neighbor detected")
+                print("  ✅ test 8: clamped neighbor detected")
                 passed += 1
             else:
                 print(f"  ❌ test 8: {r[:80]}")

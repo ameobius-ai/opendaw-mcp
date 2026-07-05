@@ -63,7 +63,7 @@ def main():
             # Test 4: bad direction
             r = await mcp_opendaw_create_turn(main_pitch=60, direction="around", unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 4: bad direction rejected")
+                print("  ✅ test 4: bad direction rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 4: {r[:80]}")
@@ -72,7 +72,7 @@ def main():
             # Test 5: bad interval
             r = await mcp_opendaw_create_turn(main_pitch=60, interval=0, unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 5: bad interval rejected")
+                print("  ✅ test 5: bad interval rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 5: {r[:80]}")
@@ -81,7 +81,7 @@ def main():
             # Test 6: bad pitch
             r = await mcp_opendaw_create_turn(main_pitch=128, unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 6: bad pitch rejected")
+                print("  ✅ test 6: bad pitch rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 6: {r[:80]}")
@@ -90,7 +90,7 @@ def main():
             # Test 7: bad velocity
             r = await mcp_opendaw_create_turn(main_pitch=60, velocity=2.0, unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 7: bad velocity rejected")
+                print("  ✅ test 7: bad velocity rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 7: {r[:80]}")
@@ -99,7 +99,7 @@ def main():
             # Test 8: bad duration
             r = await mcp_opendaw_create_turn(main_pitch=60, duration_beats=0.1, unit_index=1)
             if "Error" in r:
-                print(f"  ✅ test 8: bad duration rejected")
+                print("  ✅ test 8: bad duration rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 8: {r[:80]}")

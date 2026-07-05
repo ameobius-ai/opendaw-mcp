@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **293** MCP tools | **64** Python examples (8 genre templates) |
-| **36** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **324** unit + **20** E2E tests |
+| **298** MCP tools | **69** Python examples (8 genre templates) |
+| **42** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **374** unit + **20** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,14 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.47.0 (2026-07-05)
+
+- **`werkstatt_vibrato.js` DSP script** — pitch vibrato via modulated delay line. 4 params: rate (0.1-20 Hz, exp), depth (0.5-20 ms), shape (sine→triangle morph), stereo (phase offset 0-1). Completes the modulation family: chorus ✅ flanger ✅ phaser ✅ tremolo ✅ vibrato ✅
+- **42 DSP scripts** (30 Werkstatt + 6 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 4 params, rate 5→8, depth 0.003→0.008
+- **298 MCP tools** (260 low-level + 41 orchestration + 3 melodic)
+- ruff clean, CI green
 
 ### v1.46.0 (2026-07-05)
 

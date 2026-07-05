@@ -1454,3 +1454,85 @@ class TestAppoggiatura:
         notes = self._build_notes(60, 62, duration=1.0, ratio=0.9)
         assert abs(notes[0]["dur"] - 0.9) < 0.001  # 90% approach
         assert abs(notes[1]["dur"] - 0.1) < 0.001  # 10% resolution
+
+
+class TestVibratoDSP:
+    """Unit tests for werkstatt_vibrato.js DSP script structure."""
+
+    def _parse_params(self, code):
+        """Extract @param declarations from DSP script."""
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_vibrato.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt vibrato" in code, "Missing @werkstatt vibrato header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 4, f"Expected 4 params, got {len(params)}"
+
+    def test_rate_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        rate = [p for p in params if p["name"] == "rate"][0]
+        assert rate["min"] == 0.1
+        assert rate["max"] == 20
+        assert rate["scale"] == "exp"
+
+    def test_depth_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        depth = [p for p in params if p["name"] == "depth"][0]
+        assert depth["min"] == 0.0005
+        assert depth["max"] == 0.02
+        assert depth["scale"] == "linear"
+
+    def test_shape_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        shape = [p for p in params if p["name"] == "shape"][0]
+        assert shape["min"] == 0
+        assert shape["max"] == 1
+        assert shape["scale"] == "linear"
+
+    def test_stereo_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        stereo = [p for p in params if p["name"] == "stereo"][0]
+        assert stereo["min"] == 0
+        assert stereo["max"] == 1
+
+    def test_delay_buffer_exists(self):
+        code = self._read_script()
+        assert "Float32Array" in code, "Missing delay buffer"
+        assert "maxDelay" in code, "Missing maxDelay"
+
+    def test_lfo_implementation(self):
+        code = self._read_script()
+        assert "Math.sin" in code, "Missing sine LFO"
+        assert "this.phase" in code, "Missing phase accumulator"
+
+    def test_fractional_delay_interp(self):
+        code = self._read_script()
+        assert "Math.floor(readL)" in code or "Math.floor(read" in code, "Missing fractional delay interpolation"
+
+    def test_stereo_phase_offset(self):
+        code = self._read_script()
+        assert "Math.PI * stereo" in code or "Math.PI * this.p.stereo" in code, "Missing stereo phase offset"

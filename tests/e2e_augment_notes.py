@@ -58,7 +58,7 @@ def main():
                 failed += 1
 
             # Verify durations doubled — recreate melody first
-            r2 = await mcp_opendaw_create_melody(
+            await mcp_opendaw_create_melody(
                 pattern="1 2 3",
                 root="C",
                 scale="major",
@@ -99,7 +99,7 @@ def main():
             # Test 5: bad factor (too small)
             r = await mcp_opendaw_augment_notes(factor=0.1, unit_index=1, track_index=0, region_index=0)
             if "Error" in r:
-                print(f"  ✅ test 5: bad factor (0.1) rejected")
+                print("  ✅ test 5: bad factor (0.1) rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 5: {r[:80]}")
@@ -108,7 +108,7 @@ def main():
             # Test 6: bad factor (too large)
             r = await mcp_opendaw_augment_notes(factor=5.0, unit_index=1, track_index=0, region_index=0)
             if "Error" in r:
-                print(f"  ✅ test 6: bad factor (5.0) rejected")
+                print("  ✅ test 6: bad factor (5.0) rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 6: {r[:80]}")
@@ -117,7 +117,7 @@ def main():
             # Test 7: bad mode
             r = await mcp_opendaw_augment_notes(factor=2.0, unit_index=1, track_index=0, region_index=0, mode="wobble")
             if "Error" in r:
-                print(f"  ✅ test 7: bad mode rejected")
+                print("  ✅ test 7: bad mode rejected")
                 passed += 1
             else:
                 print(f"  ❌ test 7: {r[:80]}")
@@ -127,7 +127,7 @@ def main():
             r = await mcp_opendaw_augment_notes(factor=2.0, unit_index=99, track_index=0, region_index=0)
             d = json.loads(r) if r.strip().startswith("{") else {}
             if d.get("error"):
-                print(f"  ✅ test 8: non-existent AU error handled")
+                print("  ✅ test 8: non-existent AU error handled")
                 passed += 1
             else:
                 print(f"  ❌ test 8: {r[:80]}")
