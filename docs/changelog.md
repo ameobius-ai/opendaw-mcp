@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.272.0 (2026-07-06)
+
+### Added
+- `add_anticipation` — anticipation notes before strong-beat notes. Creates forward rhythmic motion by arriving early on weak beat. 12 scales, 4 directions (auto/upper/lower/approach). anticipation_offset + anticipation_fraction control timing. Fourth and final non-chord tone technique (passing ✅, suspension ✅, neighbor ✅, anticipation ✅). Jazz syncopation, pop vocal anticipations, salsa montuno, funk guitar stabs.
+
 ## v1.271.0 (2026-07-06)
 
 ### Added

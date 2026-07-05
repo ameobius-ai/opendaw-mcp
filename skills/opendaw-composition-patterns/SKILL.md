@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.271.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.272.0"
 ---
 
 # openDAW Composition Patterns
@@ -117,6 +117,7 @@ What do you want to create?
 ├── PassTones → add_passing_tones (diatonic passing tones between notes, 12 scales, 4 directions, counterpoint smoothing)
 ├── Suspension → add_suspension (preparation→suspension→resolution on strong beats, 10 scales, 3 resolution modes, Bach/jazz)
 ├── Neighbor → add_neighbor_tones (upper/lower neighbor embellishment, 12 scales, 3 directions, note splitting, Bach/jazz ornaments)
+├── Anticipation → add_anticipation (notes before strong beats, forward rhythmic motion, 12 scales, 4 directions, jazz/pop/salsa/funk)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

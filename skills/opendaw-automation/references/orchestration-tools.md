@@ -207,6 +207,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 194. `add_passing_tones` — diatonic passing tones: 12 scales, 4 directions, max_interval, cross_track
 195. `add_suspension` — suspension-resolution: preparation→suspension→resolution on strong beats, 10 scales, 3 modes
 196. `add_neighbor_tones` — upper/lower neighbor embellishment: 12 scales, 3 directions, neighbor_fraction/offset, cross_track
+197. `add_anticipation` — anticipation before strong beats: 12 scales, 4 directions (auto/upper/lower/approach), offset/fraction, cross_track
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

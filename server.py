@@ -32584,6 +32584,295 @@ async def mcp_opendaw_add_neighbor_tones(
         }};
     }}""")
     return _wrap_eval(result)
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_add_anticipation(
+    unit_index: int,
+    track_index: int,
+    region_index: int = -1,
+    scale: str = "major",
+    root: str = "C",
+    anticipation_offset: float = 0.25,
+    anticipation_fraction: float = 0.33,
+    anticipation_velocity: float = 0.55,
+    direction: str = "auto",
+    min_duration_beats: float = 1.5,
+    cross_track: int = -1,
+) -> str:
+    """Add anticipation notes before strong-beat notes.
+
+    Anticipation is the fourth classic non-chord tone technique: a note
+    that arrives early — on the weak part of the beat before a strong
+    beat — anticipating the pitch of the upcoming note. This creates
+    forward rhythmic motion and is ubiquitous in jazz, pop, and Latin
+    music.
+
+    Unlike passing tones (which connect two different pitches stepwise),
+    suspensions (which hold a note into the next chord), and neighbor
+    tones (which ornament a single note), anticipation reaches forward
+    to the next melodic/harmonic goal before the beat arrives.
+
+    Structure: [original note shortened] → [anticipation on weak beat] → [strong beat note]
+
+    The tool finds notes on strong beats (integer beat positions) and
+    inserts an anticipation note just before them. The anticipation has
+    the same pitch as the target note (or a related scale tone if
+    direction is set), placed on the weak portion of the beat.
+
+    Jazz syncopation, pop vocal anticipations, salsa montuno, and funk
+    guitar stabs all rely on this device.
+
+    Args:
+        unit_index: Audio unit index
+        track_index: Note track index
+        region_index: Region index (-1 = first region)
+        scale: Scale for anticipation pitch selection ("major", "minor",
+               "dorian", "phrygian", "lydian", "mixolydian",
+               "locrian", "harmonic_minor", "melodic_minor",
+               "pentatonic", "blues", "chromatic")
+        root: Root note for scale (C, C#, D, ... B)
+        anticipation_offset: How early the anticipation arrives, in beats
+            before the strong beat (0.0625-0.5, default 0.25 = sixteenth
+            note before). Smaller = more subtle, larger = more pronounced.
+        anticipation_fraction: Duration of anticipation as fraction of
+            the offset gap (0.1-1.0, default 0.33). Controls how long
+            the anticipation note lasts relative to the gap before the
+            strong beat.
+        anticipation_velocity: Velocity of anticipation note (0-1,
+            default 0.55 — softer than the main note, as it is on a
+            weak beat).
+        direction: Anticipation pitch direction —
+            "auto": same pitch as target note (classic anticipation)
+            "upper": one scale step above target
+            "lower": one scale step below target
+            "approach": scale step approaching target from the direction
+                        of the previous note
+        min_duration_beats: Minimum note duration in beats to qualify
+            (0.5-4.0, default 1.5). Ensures the target note is long
+            enough to anticipate meaningfully.
+        cross_track: If >= 0, place anticipations on this track index
+            instead of source track (preserves original notes).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const scaleName = "{scale}";
+        const rootNote = "{root}";
+        const offsetBeats = Math.max(0.0625, Math.min(0.5, {anticipation_offset}));
+        const fracVal = Math.max(0.1, Math.min(1, {anticipation_fraction}));
+        const anticVel = Math.max(0.01, Math.min(1, {anticipation_velocity}));
+        const dirMode = "{direction}";
+        const minDurBeats = Math.max(0.5, Math.min(4, {min_duration_beats}));
+        const crossTrack = {cross_track};
+
+        const scaleMap = {{
+            "major": [0, 2, 4, 5, 7, 9, 11],
+            "minor": [0, 2, 3, 5, 7, 8, 10],
+            "dorian": [0, 2, 3, 5, 7, 9, 10],
+            "phrygian": [0, 1, 3, 5, 7, 8, 10],
+            "lydian": [0, 2, 4, 6, 7, 9, 11],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+            "locrian": [0, 1, 3, 5, 6, 8, 10],
+            "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+            "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+            "pentatonic": [0, 2, 4, 7, 9],
+            "blues": [0, 3, 5, 6, 7, 10],
+            "chromatic": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }};
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const rootIdx = noteNames.indexOf(rootNote);
+        if (rootIdx < 0) return {{"error": "Invalid root: " + rootNote}};
+        if (!scaleMap[scaleName]) return {{"error": "Invalid scale: " + scaleName}};
+
+        function isInScale(pitch) {{
+            const intervals = scaleMap[scaleName];
+            const rel = ((pitch - rootIdx) % 12 + 12) % 12;
+            return intervals.includes(rel);
+        }}
+
+        function getScaleStep(pitch, direction) {{
+            if (direction > 0) {{
+                for (let p = pitch + 1; p <= 127; p++) {{
+                    if (isInScale(p)) return p;
+                }}
+            }} else {{
+                for (let p = pitch - 1; p >= 0; p--) {{
+                    if (isInScale(p)) return p;
+                }}
+            }}
+            return pitch;
+        }}
+
+        const noteTracks = h.noteTracks();
+        if (noteTracks.length === 0) return {{"error": "No note tracks"}};
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{"error": "Track out of range"}};
+        const track = noteTracks[trackIdx];
+        const regions = h.regionBoxes(track);
+        if (regions.length === 0) return {{"error": "No regions on track"}};
+        const regIdx = regionIdx < 0 ? 0 : regionIdx;
+        if (regIdx >= regions.length) return {{"error": "Region out of range"}};
+        const region = regions[regIdx];
+
+        let collection = null;
+        try {{
+            const vertex = region.events.targetVertex.unwrap();
+            collection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collection || !collection.events) return {{"error": "No note collection in region"}};
+        const srcNotes = h.eventBoxes(collection);
+        if (srcNotes.length === 0) return {{"error": "No notes to add anticipations to"}};
+
+        // Read and sort by position
+        const noteData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }})).sort((a, b) => a.pos - b.pos);
+
+        const minDurTicks = Math.round(minDurBeats * Quarter);
+        const offsetTicks = Math.round(offsetBeats * Quarter);
+        const anticipations = [];
+
+        for (let i = 0; i < noteData.length; i++) {{
+            const note = noteData[i];
+            // Only anticipate notes on strong beats with sufficient duration
+            const beatPos = note.pos / Quarter;
+            const isStrongBeat = Math.abs(beatPos - Math.round(beatPos)) < 0.01;
+            if (!isStrongBeat) continue;
+            if (note.dur < minDurTicks) continue;
+
+            // Anticipation position: before the strong beat
+            const anticPos = note.pos - offsetTicks;
+            if (anticPos < 0) continue;
+
+            // Check there is room (previous note doesn't overlap)
+            if (i > 0) {{
+                const prevEnd = noteData[i-1].pos + noteData[i-1].dur;
+                if (prevEnd > anticPos) continue;
+            }}
+
+            // Determine anticipation pitch
+            let anticPitch = note.pitch;
+            if (dirMode === "upper") {{
+                anticPitch = getScaleStep(note.pitch, 1);
+            }} else if (dirMode === "lower") {{
+                anticPitch = getScaleStep(note.pitch, -1);
+            }} else if (dirMode === "approach") {{
+                // Approach from direction of previous note
+                if (i > 0) {{
+                    const prevPitch = noteData[i-1].pitch;
+                    const approachDir = note.pitch > prevPitch ? -1 : 1;
+                    anticPitch = getScaleStep(note.pitch, approachDir);
+                }}
+            }}
+            // "auto" = same pitch as target (classic anticipation)
+            if (anticPitch < 0 || anticPitch > 127) continue;
+
+            // Anticipation duration
+            const anticDur = Math.max(1, Math.round(offsetTicks * fracVal));
+
+            // New target note start: shifted slightly later if not cross_track
+            const newTargetPos = note.pos;
+            const newTargetDur = note.dur;
+
+            anticipations.push({{
+                antic_pos: anticPos,
+                antic_dur: anticDur,
+                antic_pitch: anticPitch,
+                antic_vel: anticVel,
+                target_pos: newTargetPos,
+                target_dur: newTargetDur,
+                target_pitch: note.pitch,
+                target_vel: note.vel,
+                note_index: i,
+                direction: dirMode,
+            }});
+        }}
+
+        if (anticipations.length === 0) {{
+            return {{
+                success: true,
+                anticipations_added: 0,
+                message: "No suitable strong-beat notes found for anticipations",
+            }};
+        }}
+
+        // Determine destination
+        let destCollection = collection;
+        if (crossTrack >= 0 && crossTrack < noteTracks.length) {{
+            const destTrack = noteTracks[crossTrack];
+            const destRegions = h.regionBoxes(destTrack);
+            if (destRegions.length > 0) {{
+                try {{
+                    const v = destRegions[0].events.targetVertex.unwrap();
+                    destCollection = v.box || v;
+                }} catch(e) {{}}
+            }}
+        }}
+
+        // Create anticipation notes
+        const editing = h.editing;
+        let created = 0;
+        const createdDetails = [];
+
+        await editing.modify(async () => {{
+            const NoteEventBox = h.NoteEventBox;
+            const bg = h.boxGraph;
+            const uuidGen = h.uuid;
+
+            for (const a of anticipations) {{
+                try {{
+                    if (!NoteEventBox || !bg || !uuidGen) continue;
+
+                    // Create anticipation note
+                    await NoteEventBox.create(bg, uuidGen.generate(), (box) => {{
+                        box.position.setValue(a.antic_pos);
+                        box.duration.setValue(a.antic_dur);
+                        box.pitch.setValue(a.antic_pitch);
+                        box.velocity.setValue(a.antic_vel);
+                        if (destCollection && destCollection.events) {{
+                            box.events.refer(destCollection.events);
+                        }}
+                    }});
+                    created++;
+
+                    if (createdDetails.length < 10) {{
+                        createdDetails.push({{
+                            beat: Math.round(a.target_pos / Quarter * 100) / 100,
+                            anticipation_pitch: a.antic_pitch,
+                            target_pitch: a.target_pitch,
+                            offset_beats: offsetBeats,
+                            direction: a.direction,
+                        }});
+                    }}
+                }} catch(e) {{}}
+            }}
+        }});
+
+        return {{
+            success: true,
+            scale: scaleName,
+            root: rootNote,
+            direction: dirMode,
+            anticipations_added: anticipations.length,
+            notes_created: created,
+            offset_beats: offsetBeats,
+            min_duration_beats: minDurBeats,
+            cross_track: crossTrack >= 0,
+            details: createdDetails,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 
 
 
