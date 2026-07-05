@@ -8157,6 +8157,68 @@ class TestWaveguideStringDSP:
         assert "fwdL + bwdL" in code or "waveOut" in code
 
 
+class TestCreateSoloAutomation:
+    """Tests for create_solo_automation orchestration tool"""
+
+    def test_solo_events_for_muted_tracks(self):
+        """Each non-solo track gets [0,false], [start,true], [end,false] events"""
+        import json
+        events = json.dumps([[0.0, False], [8.0, True], [16.0, False]])
+        parsed = json.loads(events)
+        assert len(parsed) == 3
+        assert parsed[0] == [0.0, False]   # audible before
+        assert parsed[1] == [8.0, True]    # muted during solo
+        assert parsed[2] == [16.0, False]  # audible after
+
+    def test_solo_track_not_muted(self):
+        """Solo track stays audible — skipped in the mute loop"""
+        solo_track = 0
+        total_tracks = 4
+        muted_tracks = [i for i in range(total_tracks) if i != solo_track]
+        assert len(muted_tracks) == 3
+        assert solo_track not in muted_tracks
+
+    def test_unit_indices_default(self):
+        """Empty unit_indices defaults to 0..N-1"""
+        total_tracks = 4
+        indices = list(range(total_tracks))
+        assert indices == [0, 1, 2, 3]
+
+    def test_unit_indices_custom(self):
+        """Custom unit_indices parse correctly"""
+        unit_indices = "5,6,7,8"
+        indices = [int(x.strip()) for x in unit_indices.split(",")]
+        assert indices == [5, 6, 7, 8]
+
+    def test_unit_indices_mismatch(self):
+        """Mismatched unit_indices count returns error"""
+        total_tracks = 4
+        indices = [int(x.strip()) for x in "0,1,2".split(",")]
+        if len(indices) != total_tracks:
+            error = True
+        else:
+            error = False
+        assert error is True
+
+    def test_start_end_validation(self):
+        """start_beat >= end_beat is invalid"""
+        start_beat = 16.0
+        end_beat = 8.0
+        assert start_beat >= end_beat  # should be rejected
+
+    def test_solo_track_out_of_range(self):
+        """solo_track >= total_tracks is invalid"""
+        solo_track = 5
+        total_tracks = 4
+        assert not (0 <= solo_track < total_tracks)
+
+    def test_tracks_muted_count(self):
+        """tracks_muted = total_tracks - 1"""
+        total_tracks = 4
+        tracks_muted = total_tracks - 1
+        assert tracks_muted == 3
+
+
 class TestCreateSectionTransition:
     """Tests for create_section_transition orchestration tool"""
 

@@ -14975,6 +14975,79 @@ async def mcp_opendaw_create_mute_automation(unit_index: int, events: str) -> st
 
 
 @mcp.tool()
+async def mcp_opendaw_create_solo_automation(
+    solo_track: int,
+    total_tracks: int,
+    start_beat: float,
+    end_beat: float,
+    unit_indices: str = "",
+) -> str:
+    """Mute all tracks except the solo track for a beat range, then restore.
+
+    Essential production technique: spotlight one element (bass solo, drum
+    break, vocal spotlight) while everything else drops out. Without this you
+    need N separate create_mute_automation calls with coordinated timing — this
+    tool does it in one shot and guarantees all tracks return audible after.
+
+    Internally calls create_mute_automation for each non-solo track with events
+    [[0, false], [start_beat, true], [end_beat, false]] — audible before solo,
+    muted during, audible after.
+
+    solo_track: Track index that stays audible throughout (0-based).
+    total_tracks: Total number of tracks to manage (e.g. 4 for a 4-track
+        arrangement).
+    start_beat: Beat position where solo begins (others mute).
+    end_beat: Beat position where solo ends (others unmute).
+    unit_indices: Optional comma-separated AU indices (e.g. "0,1,2,3").
+        If empty, uses 0..total_tracks-1.
+
+    Returns per-track mute schedule and confirmation.
+
+    Examples:
+      # Drum break: drums solo for 4 beats (1 bar at 120 BPM)
+      create_solo_automation(solo_track=0, total_tracks=4, start_beat=8, end_beat=12)
+      # Bass spotlight at bar 9
+      create_solo_automation(solo_track=1, total_tracks=4, start_beat=32, end_beat=40)
+    """
+    # Parse unit indices
+    if unit_indices:
+        try:
+            indices = [int(x.strip()) for x in unit_indices.split(",")]
+        except ValueError:
+            return "Error: unit_indices must be comma-separated integers"
+        if len(indices) != total_tracks:
+            return f"Error: expected {total_tracks} unit indices, got {len(indices)}"
+    else:
+        indices = list(range(total_tracks))
+
+    if not (0 <= solo_track < total_tracks):
+        return f"Error: solo_track must be 0..{total_tracks - 1}"
+    if start_beat >= end_beat:
+        return "Error: end_beat must be greater than start_beat"
+
+    events = json.dumps([[0.0, False], [start_beat, True], [end_beat, False]])
+    results = []
+    for i, au_idx in enumerate(indices):
+        if i == solo_track:
+            results.append({"track": i, "unit_index": au_idx, "status": "solo (stays audible)"})
+            continue
+        try:
+            r = await mcp_opendaw_create_mute_automation(au_idx, events)
+            results.append({"track": i, "unit_index": au_idx, "result": json.loads(r)})
+        except Exception as e:
+            results.append({"track": i, "unit_index": au_idx, "error": str(e)})
+
+    return json.dumps({
+        "solo_automation": True,
+        "solo_track": solo_track,
+        "total_tracks": total_tracks,
+        "solo_range": [start_beat, end_beat],
+        "tracks_muted": total_tracks - 1,
+        "per_track": results,
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_section_transition(transition_type: str, start_beat: float = 0, duration_beats: float = 16, unit_indices: str = "0,1,2,3") -> str:
     """Create a complete section transition in one call — combines multiple automation tools.
 
