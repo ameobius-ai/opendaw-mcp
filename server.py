@@ -19016,6 +19016,333 @@ async def mcp_opendaw_analyze_song_structure(
 
 
 @mcp.tool()
+async def mcp_opendaw_classify_drum_pattern(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+) -> str:
+    """Classify a drum pattern from MIDI notes in a region.
+
+    Analyzes drum note positions, pitches (GM drum map: 36=kick, 38=snare,
+    42=closed hat, 46=open hat, 50=high tom, 45=low tom, 49=crash, 51=ride),
+    and velocities to classify the pattern as one of: four-on-the-floor,
+    breakbeat, boom-bap, trap, shuffle, half-time, military/march, amen,
+    unknown.
+
+    Essential for: understanding existing drum patterns, matching genre
+    expectations, verifying generated patterns, and suggesting variations.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks).
+    region_index: Region index (-1 = all regions on track).
+
+    Returns pattern classification with confidence, features, and per-bar
+    breakdown.
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+
+        const ppqnBar = 960 * 4;
+        const ppqn16th = 960 / 4;  // 240
+        const ppqn8th = 480;
+
+        // GM drum pitch map
+        const KICK = 36;
+        const SNARE = 38;
+        const CLOSED_HAT = 42;
+        const OPEN_HAT = 46;
+        const HIGH_TOM = 50;
+        const MID_TOM = 47;
+        const LOW_TOM = 45;
+        const CRASH = 49;
+        const RIDE = 51;
+
+        const allFeatures = [];
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+
+                    const notes = noteEvents.map(n => ({{
+                        pitch: n.box.pitch.getValue(),
+                        position: n.box.position.getValue(),
+                        velocity: n.box.velocity.getValue(),
+                        duration: n.box.duration.getValue(),
+                    }})).sort((a, b) => a.position - b.position);
+
+                    if (notes.length === 0) continue;
+
+                    // Group by bar
+                    const barMap = new Map();
+                    for (const n of notes) {{
+                        const barIdx = Math.floor(n.position / ppqnBar);
+                        if (!barMap.has(barIdx)) barMap.set(barIdx, []);
+                        barMap.get(barIdx).push(n);
+                    }}
+
+                    const barAnalyses = [];
+
+                    for (const [barIdx, barNotes] of barMap) {{
+                        const barStart = barIdx * ppqnBar;
+                        const localNotes = barNotes.map(n => ({{
+                            ...n,
+                            localPos: n.position - barStart,
+                        }}));
+
+                        const kicks = localNotes.filter(n => n.pitch === KICK);
+                        const snares = localNotes.filter(n => n.pitch === SNARE);
+                        const closedHats = localNotes.filter(n => n.pitch === CLOSED_HAT);
+                        const openHats = localNotes.filter(n => n.pitch === OPEN_HAT);
+                        const toms = localNotes.filter(n => n.pitch === HIGH_TOM || n.pitch === MID_TOM || n.pitch === LOW_TOM);
+                        const crashes = localNotes.filter(n => n.pitch === CRASH);
+                        const rides = localNotes.filter(n => n.pitch === RIDE);
+
+                        // Features
+                        const kickPositions = kicks.map(k => k.localPos / ppqn16th);  // in 16th units
+                        const snarePositions = snares.map(s => s.localPos / ppqn16th);
+                        const hatCount = closedHats.length + openHats.length;
+
+                        // Kick on each quarter (positions 0, 4, 8, 12 in 16th grid)
+                        const kickOnQuarters = kicks.filter(k =>
+                            Math.abs(k.localPos % ppqnBar) < ppqn16th * 0.5 ||
+                            Math.abs((k.localPos % ppqnBar) - ppqnBar * 0.25) < ppqn16th * 0.5 ||
+                            Math.abs((k.localPos % ppqnBar) - ppqnBar * 0.5) < ppqn16th * 0.5 ||
+                            Math.abs((k.localPos % ppqnBar) - ppqnBar * 0.75) < ppqn16th * 0.5
+                        ).length;
+
+                        // Four-on-the-floor: kick on every quarter
+                        const isFourOnFloor = kicks.length >= 4 &&
+                            [0, 4, 8, 12].every(beat => kicks.some(k => Math.abs(k.localPos - beat * ppqn16th) < ppqn16th * 0.5));
+
+                        // Snare on 2 and 4 (positions 4 and 12 in 16th)
+                        const snareOn2And4 = snares.length >= 2 &&
+                            snares.some(s => Math.abs(s.localPos - 4 * ppqn16th) < ppqn16th * 0.5) &&
+                            snares.some(s => Math.abs(s.localPos - 12 * ppqn16th) < ppqn16th * 0.5);
+
+                        // Half-time: snare on beat 3 only (position 8)
+                        const snareOn3Only = snares.length >= 1 &&
+                            snares.some(s => Math.abs(s.localPos - 8 * ppqn16th) < ppqn16th * 0.5) &&
+                            !snares.some(s => Math.abs(s.localPos - 4 * ppqn16th) < ppqn16th * 0.5) &&
+                            !snares.some(s => Math.abs(s.localPos - 12 * ppqn16th) < ppqn16th * 0.5);
+
+                        // Hats on off-beats (syncopation)
+                        const hatsOnOffbeats = closedHats.filter(h =>
+                            Math.abs((h.localPos % ppqn8th) - ppqn8th * 0.5) < ppqn16th * 0.3
+                        ).length;
+
+                        // Triplet/shuffle feel: hats at 1/3 and 2/3 of each beat
+                        const tripletHats = closedHats.filter(h => {{
+                            const beatPos = (h.localPos % ppqnBar) / ppqn8th;  // 0-8
+                            const third = ppqn8th / 3;
+                            return Math.abs((h.localPos % ppqn8th) - third) < ppqn16th * 0.2 ||
+                                   Math.abs((h.localPos % ppqn8th) - 2 * third) < ppqn16th * 0.2;
+                        }}).length;
+
+                        // Breakbeat: kicks and snares heavily syncopated, many off-grid hits
+                        const offGridHits = localNotes.filter(n => {{
+                            const gridPos = Math.round(n.localPos / ppqn16th) * ppqn16th;
+                            return Math.abs(n.localPos - gridPos) > ppqn16th * 0.3;
+                        }}).length;
+                        const syncopationRatio = localNotes.length > 0 ? offGridHits / localNotes.length : 0;
+
+                        // Trap: fast hats (32nd note density), kick syncopation
+                        const hatDensity = hatCount;  // hats per bar
+                        const fastHats = closedHats.filter(h => {{
+                            const gridPos = h.localPos / ppqn16th;
+                            return gridPos % 0.5 < 0.1;  // on 32nd positions
+                        }}).length;
+
+                        // Amen: specific snare placement (syncopated snares on e's and a's)
+                        const amenSnares = snares.filter(s => {{
+                            const grid16 = s.localPos / ppqn16th;
+                            // Amen break: snares on beat 2 (grid 4), and syncopated snares
+                            return Math.abs(grid16 - 4) < 0.3 || Math.abs(grid16 - 6) < 0.3 ||
+                                   Math.abs(grid16 - 10) < 0.3 || Math.abs(grid16 - 14) < 0.3 ||
+                                   Math.abs(grid16 - 7) < 0.3 || Math.abs(grid16 - 11) < 0.3;
+                        }}).length;
+
+                        // Military/march: snare rolls, lots of snares, no kick groove
+                        const snareRolls = snares.length >= 6 && kicks.length <= 1;
+
+                        // Velocity analysis
+                        const avgKickVel = kicks.length > 0 ? kicks.reduce((a, k) => a + k.velocity, 0) / kicks.length : 0;
+                        const avgSnareVel = snares.length > 0 ? snares.reduce((a, s) => a + s.velocity, 0) / snares.length : 0;
+                        const avgHatVel = closedHats.length > 0 ? closedHats.reduce((a, h) => a + h.velocity, 0) / closedHats.length : 0;
+
+                        // Velocity variation (for human feel detection)
+                        const hatVels = closedHats.map(h => h.velocity);
+                        const hatVelStd = hatVels.length > 1 ? {{
+                            const mean = hatVels.reduce((a, b) => a + b, 0) / hatVels.length;
+                            const variance = hatVels.reduce((a, b) => a + (b - mean) ** 2, 0) / hatVels.length;
+                            return Math.sqrt(variance);
+                        }}() : 0;
+
+                        barAnalyses.push({{
+                            bar: barIdx,
+                            kick_count: kicks.length,
+                            snare_count: snares.length,
+                            hat_count: hatCount,
+                            tom_count: toms.length,
+                            crash_count: crashes.length,
+                            ride_count: rides.length,
+                            is_four_on_floor: isFourOnFloor,
+                            snare_on_2_and_4: snareOn2And4,
+                            snare_on_3_only: snareOn3Only,
+                            syncopation_ratio: Math.round(syncopationRatio * 100) / 100,
+                            triplet_feel: tripletHats > 2,
+                            hat_density: hatDensity,
+                            fast_hats: fastHats,
+                            amen_snares: amenSnares,
+                            snare_rolls: snareRolls,
+                            avg_kick_vel: Math.round(avgKickVel * 100) / 100,
+                            avg_snare_vel: Math.round(avgSnareVel * 100) / 100,
+                            avg_hat_vel: Math.round(avgHatVel * 100) / 100,
+                            hat_vel_std: Math.round(hatVelStd * 100) / 100,
+                        }});
+                    }}
+
+                    if (barAnalyses.length === 0) continue;
+
+                    // Aggregate across bars
+                    const avgSyncopation = barAnalyses.reduce((a, b) => a + b.syncopation_ratio, 0) / barAnalyses.length;
+                    const fourFloorBars = barAnalyses.filter(b => b.is_four_on_floor).length;
+                    const snare2And4Bars = barAnalyses.filter(b => b.snare_on_2_and_4).length;
+                    const halfTimeBars = barAnalyses.filter(b => b.snare_on_3_only).length;
+                    const tripletBars = barAnalyses.filter(b => b.triplet_feel).length;
+                    const avgHatDensity = barAnalyses.reduce((a, b) => a + b.hat_density, 0) / barAnalyses.length;
+                    const fastHatBars = barAnalyses.filter(b => b.fast_hats > 4).length;
+                    const amenBars = barAnalyses.filter(b => b.amen_snares >= 3).length;
+                    const snareRollBars = barAnalyses.filter(b => b.snare_rolls).length;
+                    const totalBars = barAnalyses.length;
+
+                    // Classify
+                    const patterns = [];
+
+                    // Four-on-the-floor (house, techno, disco)
+                    if (fourFloorBars / totalBars > 0.6) {{
+                        patterns.push({{
+                            pattern: "four-on-the-floor",
+                            confidence: Math.round(fourFloorBars / totalBars * 100) / 100,
+                            description: "Kick on every quarter — house/techno/disco backbone",
+                        }});
+                    }}
+
+                    // Boom-bap (hip-hop)
+                    if (snare2And4Bars / totalBars > 0.5 && avgSyncopation < 0.3 && avgHatDensity < 10) {{
+                        patterns.push({{
+                            pattern: "boom-bap",
+                            confidence: Math.round(snare2And4Bars / totalBars * 0.7 + (1 - avgSyncopation) * 0.3),
+                            description: "Snare on 2+4, moderate syncopation, steady hats — classic hip-hop",
+                        }});
+                    }}
+
+                    // Trap
+                    if (fastHatBars / totalBars > 0.4 || avgHatDensity > 12) {{
+                        patterns.push({{
+                            pattern: "trap",
+                            confidence: Math.round(Math.max(fastHatBars / totalBars, Math.min(avgHatDensity / 16, 1))),
+                            description: "Fast hats (32nd rolls), high hat density, kick syncopation — modern hip-hop",
+                        }});
+                    }}
+
+                    // Breakbeat
+                    if (avgSyncopation > 0.35 && snare2And4Bars / totalBars < 0.4) {{
+                        patterns.push({{
+                            pattern: "breakbeat",
+                            confidence: Math.round(avgSyncopation * 100) / 100,
+                            description: "Heavy syncopation, off-grid kicks and snares — jungle/DnB/funk breaks",
+                        }});
+                    }}
+
+                    // Shuffle
+                    if (tripletBars / totalBars > 0.5) {{
+                        patterns.push({{
+                            pattern: "shuffle",
+                            confidence: Math.round(tripletBars / totalBars * 100) / 100,
+                            description: "Triplet-feel hats, swing groove — blues/jazz/shuffle rock",
+                        }});
+                    }}
+
+                    // Half-time
+                    if (halfTimeBars / totalBars > 0.5) {{
+                        patterns.push({{
+                            pattern: "half-time",
+                            confidence: Math.round(halfTimeBars / totalBars * 100) / 100,
+                            description: "Snare on beat 3 only, slow feel — trap ballads/R&B/ballads",
+                        }});
+                    }}
+
+                    // Amen
+                    if (amenBars / totalBars > 0.4) {{
+                        patterns.push({{
+                            pattern: "amen",
+                            confidence: Math.round(amenBars / totalBars * 100) / 100,
+                            description: "Syncopated snares on e's and a's — DnB/jungle classic break",
+                        }});
+                    }}
+
+                    // Military/march
+                    if (snareRollBars / totalBars > 0.5) {{
+                        patterns.push({{
+                            pattern: "march",
+                            confidence: Math.round(snareRollBars / totalBars * 100) / 100,
+                            description: "Snare rolls, minimal kick, marching rhythm — military/snare line",
+                        }});
+                    }}
+
+                    // Sort by confidence
+                    patterns.sort((a, b) => b.confidence - a.confidence);
+
+                    const bestMatch = patterns.length > 0 ? patterns[0] : {{
+                        pattern: "unknown",
+                        confidence: 0,
+                        description: "Pattern does not match any known classification",
+                    }};
+
+                    allFeatures.push({{
+                        unit: u,
+                        track: t,
+                        total_bars: totalBars,
+                        best_match: bestMatch,
+                        all_matches: patterns,
+                        avg_syncopation: Math.round(avgSyncopation * 100) / 100,
+                        avg_hat_density: Math.round(avgHatDensity * 100) / 100,
+                        per_bar: barAnalyses,
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            total_regions_analyzed: allFeatures.length,
+            results: allFeatures,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

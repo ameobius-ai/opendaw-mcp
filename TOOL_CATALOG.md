@@ -438,6 +438,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `diatonic_transpose_notes` — Transpose notes by scale steps instead of semitones. C major C→D = +1 step (2 semitones), E→F = +1 step (1 semitone) — preserves the scale. 13 scales. Skips out-of-scale notes. Octave wrapping. For creating variations, sequences, modal interchange, counterpoint.
 - `extract_motifs` — Extract repeating melodic motifs from MIDI regions. Identifies short melodic phrases (3-8 notes) by their interval contour — the pattern of pitch changes. Same motif transposed still matches. Contour classification (ascending/descending/arch/V-shape/wave/static/mixed), rhythm pattern matching, significance scoring, deduplication. Returns occurrences with positions and pitches. Use to understand melodic structure, find repetitive patterns, build call-and-response."
 - `analyze_song_structure` — Structural analysis of MIDI content. Scans all note tracks bar-by-bar, computes per-bar features (density, pitch range, velocity, active tracks, energy). Groups consecutive bars into segments and classifies as intro/verse/chorus/bridge/outro/breakdown. Returns form string (e.g. 'intro → verse → chorus → outro'). Use to understand existing arrangements, verify song form, plan variations."
+- `classify_drum_pattern` — Rhythmic pattern classification from MIDI drum notes. Uses GM drum map (36=kick, 38=snare, 42=hat, 46=open hat, 49=crash, 51=ride). Classifies into 8 patterns: four-on-the-floor, boom-bap, trap, breakbeat, shuffle, half-time, amen, march. Confidence scoring, per-bar breakdown, syncopation/triplet/velocity analysis. Use to understand existing drum patterns, match genre expectations."
 - `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.
 - `create_polyrhythm` — Create polyrhythms — two rhythmic streams with different subdivision counts (3:4, 2:3, 5:7, etc.). Jazz, electronic, progressive, math rock.
 - `create_scale_run` — Create ascending/descending scale runs for fills and transitions. 14 scales, 1-4 octaves, adjustable step duration.
@@ -465,7 +466,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
 - `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 
-**Total: 394 tools**
+**Total: 395 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 

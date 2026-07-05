@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.220.0 (2026-07-05)
+
+### Added
+- `classify_drum_pattern` — Rhythmic pattern classification from MIDI drum notes. Uses GM drum map (36=kick, 38=snare, 42=closed hat, 46=open hat, 50/47/45=toms, 49=crash, 51=ride). Analyzes per-bar: kick/snare positions, syncopation ratio, triplet feel, hat density, fast hats (32nd), velocity stats. Classifies into 8 patterns: four-on-the-floor (house/techno), boom-bap (hip-hop), trap (fast hats), breakbeat (jungle/DnB), shuffle (blues/jazz), half-time (R&B/ballads), amen (DnB classic), march (military). Confidence scoring, sorted matches, unknown fallback. Fills the rhythmic-analysis gap. 12 unit tests. **395 MCP tools**, 2791 unit tests
+
 ## v1.219.0 (2026-07-05)
 
 ### Added

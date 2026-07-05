@@ -11925,3 +11925,154 @@ class TestAnalyzeSongStructure:
                 return
         assert False, "function not found"
 
+
+class TestClassifyDrumPattern:
+    """Tests for classify_drum_pattern — rhythmic pattern classification"""
+
+    def test_tool_signature_exists(self):
+        """classify_drum_pattern is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_classify_drum_pattern" in tool_names
+
+    def test_has_3_params(self):
+        """Has unit_index, track_index, region_index params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                arg_names = [a.arg for a in node.args.args]
+                assert "unit_index" in arg_names
+                assert "track_index" in arg_names
+                assert "region_index" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_gm_drum_map(self):
+        """Uses GM drum pitch map (36=kick, 38=snare, 42=hat, etc.)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "36" in source
+                assert "38" in source
+                assert "42" in source
+                assert "46" in source
+                return
+        assert False, "function not found"
+
+    def test_has_pattern_classifications(self):
+        """Has all 8 pattern classifications"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "four-on-the-floor" in source
+                assert "boom-bap" in source
+                assert "trap" in source
+                assert "breakbeat" in source
+                assert "shuffle" in source
+                assert "half-time" in source
+                assert "amen" in source
+                assert "march" in source
+                return
+        assert False, "function not found"
+
+    def test_has_confidence_scoring(self):
+        """Has confidence scoring for each pattern match"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "confidence" in source
+                return
+        assert False, "function not found"
+
+    def test_has_syncopation_analysis(self):
+        """Has syncopation analysis (off-grid hits ratio)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "syncopation" in source
+                return
+        assert False, "function not found"
+
+    def test_has_triplet_detection(self):
+        """Has triplet/shuffle feel detection"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "triplet" in source
+                return
+        assert False, "function not found"
+
+    def test_has_velocity_analysis(self):
+        """Has velocity analysis (avg velocity per drum type)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "avg_kick_vel" in source
+                assert "avg_snare_vel" in source
+                assert "avg_hat_vel" in source
+                return
+        assert False, "function not found"
+
+    def test_has_per_bar_breakdown(self):
+        """Has per-bar analysis breakdown"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "per_bar" in source
+                assert "barAnalyses" in source
+                return
+        assert False, "function not found"
+
+    def test_has_unknown_fallback(self):
+        """Has unknown fallback when no pattern matches"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "unknown" in source
+                return
+        assert False, "function not found"
+
+    def test_has_best_match_sorting(self):
+        """Sorts pattern matches by confidence and returns best match"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "best_match" in source
+                assert "sort" in source
+                return
+        assert False, "function not found"
+
+    def test_has_hat_density_analysis(self):
+        """Has hat density analysis for trap detection"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_classify_drum_pattern":
+                source = ast.unparse(node)
+                assert "hat_density" in source
+                assert "fast_hats" in source
+                return
+        assert False, "function not found"
+
