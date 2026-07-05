@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.23.1 (2026-07-05)
+
+- **`werkstatt_stereo_delay.js`** — stereo delay with ping-pong, feedback, tone filter. 6 params. Fills delay gap in DSP library
+- **31 DSP scripts** (20 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled, 6 params, set_param works
+
 ## v1.23.0 (2026-07-05)
 
 - **`apply_articulation`** — staccato/legato/tenuto/accent for existing notes. Duration reshaping for phrasing. Accent boosts velocity on downbeats

@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 | | |
 |---|---|
 | **283** MCP tools | **55** Python examples (8 genre templates) |
-| **30** DSP scripts | **10** agent skills |
+| **31** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **241** unit + **11** E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.23.1 (2026-07-05)
+
+- **`werkstatt_stereo_delay.js`** — stereo delay with ping-pong, feedback, tone filter. 6 params: time_l, time_r, feedback, tone, mix, pingpong. Fill gap — delay was missing from DSP library while reverb/chorus/flanger/phaser all present
+- **31 DSP scripts** (20 Werkstatt + 5 Apparat + 6 Spielwerk)
+- **E2E verified**: compiled via ScriptCompiler, 6 params created with correct defaults, set_param works (feedback 0.35→0.6, pingpong 0→1.0)
+- ruff clean, CI green
 
 ### v1.23.0 (2026-07-05)
 
