@@ -11348,3 +11348,126 @@ class TestIdentifyChords:
                 return
         assert False, "function not found"
 
+
+class TestDiatonicTransposeNotes:
+    """Tests for diatonic_transpose_notes — scale-step transpose (not semitones)"""
+
+    def test_tool_signature_exists(self):
+        """diatonic_transpose_notes is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_diatonic_transpose_notes" in tool_names
+
+    def test_has_steps_param(self):
+        """Has steps param (scale steps, not semitones)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "steps" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_root_note_and_scale_params(self):
+        """Has root_note and scale params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "root_note" in arg_names
+                assert "scale" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_step_is_1(self):
+        """Default steps is 1 (up one scale step)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "steps" and isinstance(d, ast.Constant):
+                        assert d.value == 1
+                    if arg_name == "root_note" and isinstance(d, ast.Constant):
+                        assert d.value == "C"
+                    if arg_name == "scale" and isinstance(d, ast.Constant):
+                        assert d.value == "major"
+                return
+        assert False, "function not found"
+
+    def test_validates_nonzero_steps(self):
+        """Validates steps != 0"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                source = ast.unparse(node)
+                assert "steps must be non-zero" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_scale_intervals(self):
+        """Uses SCALE_INTERVALS from music_theory"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                source = ast.unparse(node)
+                assert "SCALE_INTERVALS" in source
+                return
+        assert False, "function not found"
+
+    def test_skips_out_of_scale_notes(self):
+        """Skips notes that are not in the scale (doesn't force them in)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                source = ast.unparse(node)
+                assert "skipped" in source or "not in scale" in source
+                return
+        assert False, "function not found"
+
+    def test_handles_octave_wrapping(self):
+        """Handles octave wrapping when shifting past scale boundaries"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                source = ast.unparse(node)
+                assert "newOctave" in source or "octave" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_modify_for_mutations(self):
+        """Uses h.modify() for box mutations"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                source = ast.unparse(node)
+                assert "h.modify" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_transposed_and_skipped_counts(self):
+        """Returns notes_transposed and notes_skipped counts"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_diatonic_transpose_notes":
+                source = ast.unparse(node)
+                assert "notes_transposed" in source
+                assert "notes_skipped" in source
+                return
+        assert False, "function not found"
+

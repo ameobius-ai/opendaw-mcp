@@ -46,6 +46,7 @@ What do you want to create?
 ├── Time warp (half-time/double-time) → time_warp_notes (0.5× spread = half-time, 2.0× compress = double-time, moves both position + duration)
 ├── Force scale (harmonic snap) → force_scale_notes (out-of-scale notes → nearest in-scale pitch, 13 scales, nearest/up/down)
 ├── Identify chords (analysis) → identify_chords (read notes, group by overlap, match pitch-class sets → chord names with positions)
+├── Diatonic transpose (scale steps) → diatonic_transpose_notes (up/down by N steps within scale, preserves key, skips out-of-scale)
 │
 ├── Melody → create_melody (scale-based, pattern notation 1-7)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)

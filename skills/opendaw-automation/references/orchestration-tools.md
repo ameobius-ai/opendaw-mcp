@@ -138,6 +138,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 125. `time_warp_notes` — half-time / double-time: warp note positions AND durations by factor (0.5=half-time, 2.0=double-time). Moves notes in time, not just durations
 126. `force_scale_notes` — harmonic snap: force all notes into a scale (13 scales), nearest/up/down direction, preserve_octave option
 127. `identify_chords` — harmonic analysis: group notes by temporal overlap, match pitch-class sets against 10 chord types, return chord names with time positions
+128. `diatonic_transpose_notes` — scale-step transpose: move notes up/down by N steps within a scale (not semitones), preserves scale, skips out-of-scale notes
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

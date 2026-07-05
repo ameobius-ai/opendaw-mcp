@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.215.0 (2026-07-05)
+
+### Added
+- `diatonic_transpose_notes` — Scale-step transpose (diatonic) instead of semitone transpose (chromatic). Moves notes up/down by N steps within the specified scale — C major C→D = +1 step (2 semitones), E→F = +1 step (1 semitone). 13 scales. Skips out-of-scale notes. Octave wrapping. For creating variations that stay in key, sequences, modal interchange, walking bass from scale degrees, counterpoint. 10 unit tests. **391 MCP tools**, 2743 unit tests
+
 ## v1.214.0 (2026-07-05)
 
 ### Added

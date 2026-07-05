@@ -18433,6 +18433,155 @@ async def mcp_opendaw_identify_chords(
 
 
 @mcp.tool()
+async def mcp_opendaw_diatonic_transpose_notes(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    steps: int = 1,
+    root_note: str = "C",
+    scale: str = "major",
+) -> str:
+    """Transpose notes by scale steps (diatonic) instead of semitones (chromatic).
+
+    Moves each note up or down by N steps within the specified scale. Unlike
+    transpose_notes (which shifts by fixed semitones), diatonic transpose preserves
+    the scale — C major C→D = +1 step (2 semitones), E→F = +1 step (1 semitone).
+
+    Essential for: creating variations that stay in key, modal interchange,
+    sequence construction (moving a motif up the scale), walking bass from
+    scale degrees, and counterpoint writing.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks).
+    region_index: Region index (-1 = all regions on track).
+    steps: Number of scale steps to transpose. +1 = up one step, -1 = down one step,
+      +3 = up a third, -5 = down a fifth. 0 = no change.
+    root_note: Root note of the scale — C, C#, D, D#, E, F, F#, G, G#, A, A#, B.
+    scale: Scale name — major, minor, dorian, phrygian, lydian, mixolydian,
+      pentatonic_major, pentatonic_minor, blues, harmonic_minor, melodic_minor.
+
+    Returns per-track note counts transposed.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    note_to_num = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                   "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = note_to_num.get(root_note)
+    if root_num is None:
+        return f"Error: invalid root_note '{root_note}'"
+    intervals = SCALE_INTERVALS.get(scale)
+    if intervals is None:
+        return f"Error: unknown scale '{scale}'"
+    if steps == 0:
+        return "Error: steps must be non-zero (use transpose_notes for semitone shifts)"
+
+    # Build full chromatic scale mapping: for each pitch class, which scale degree is it?
+    # Then shifting by N steps = find the pitch class N positions ahead in the scale.
+    # Build a 2-octave scale for safe up/down shifting
+    scale_pcs = sorted(set((root_num + iv) % 12 for iv in intervals))
+    # Build extended scale: [pc, pc, ...] repeating across octaves
+    # For mapping: given a pitch, find its position in scale, then shift
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const stepShift = {steps};
+        const scalePcs = {json.dumps(scale_pcs)};
+        const Quarter = 960;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+
+        const trackResults = [];
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                let transposed = 0;
+                let skipped = 0;
+                const changes = [];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+
+                    h.modify(() => {{
+                        for (const n of noteEvents) {{
+                            const origPitch = n.box.pitch.getValue();
+                            const pc = origPitch % 12;
+                            const octave = Math.floor(origPitch / 12);
+
+                            // Find this pitch class in the scale
+                            let scaleIdx = scalePcs.indexOf(pc);
+                            if (scaleIdx === -1) {{
+                                // Note is not in scale — skip it (don't force it in)
+                                skipped++;
+                                continue;
+                            }}
+
+                            // Shift by stepShift positions in the scale
+                            let newScaleIdx = scaleIdx + stepShift;
+                            let newOctave = octave;
+
+                            // Handle octave wrapping
+                            while (newScaleIdx >= scalePcs.length) {{
+                                newScaleIdx -= scalePcs.length;
+                                newOctave++;
+                            }}
+                            while (newScaleIdx < 0) {{
+                                newScaleIdx += scalePcs.length;
+                                newOctave--;
+                            }}
+
+                            const newPc = scalePcs[newScaleIdx];
+                            const newPitch = newOctave * 12 + newPc;
+
+                            if (newPitch !== origPitch) {{
+                                changes.push({{ from: origPitch, to: newPitch }});
+                                n.box.pitch.setValue(newPitch);
+                                transposed++;
+                            }}
+                        }}
+                    }});
+                }}
+
+                trackResults.push({{
+                    unit: u,
+                    track: t,
+                    notes_transposed: transposed,
+                    notes_skipped_not_in_scale: skipped,
+                    sample_changes: changes.slice(0, 20),
+                }});
+            }}
+        }}
+
+        return {{
+            success: true,
+            steps: stepShift,
+            root_note: "{root_note}",
+            scale: "{scale}",
+            total_transposed: trackResults.reduce((a, b) => a + b.notes_transposed, 0),
+            total_skipped: trackResults.reduce((a, b) => a + b.notes_skipped_not_in_scale, 0),
+            per_track: trackResults,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

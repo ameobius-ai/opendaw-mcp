@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.AMEOBIUS/opendaw-mcp",
   "title": "openDAW MCP",
-  "description": "390 MCP tools for agent-native control of openDAW — 21 instruments/effects, scriptable DSP, stem splitting, preset management, offline render",
-  "version": "1.214.0",
+  "description": "391 MCP tools for agent-native control of openDAW — 21 instruments/effects, scriptable DSP, stem splitting, preset management, offline render",
+  "version": "1.215.0",
   "repository": {
     "url": "https://github.com/AMEOBIUS/opendaw-mcp",
     "source": "github"
