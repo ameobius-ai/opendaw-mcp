@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.177.0 (2026-07-05)
+
+### Added
+- `create_filter_sweep` — smart filter sweep on Vaporisateur cutoff. Direction-aware (open/close), exponential curve default (natural for frequency perception), optional resonance boost at midpoint (classic "talking filter" whistle effect). The most common EDM/techno/house transition technique in one call. 359 MCP tools total
+
 ## v1.176.0 (2026-07-05)
 
 ### Fixed

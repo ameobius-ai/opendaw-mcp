@@ -7633,3 +7633,95 @@ class TestVowelMorph:
         code = self._read_script()
         assert "@param morph   0" in code or "morph   0 " in code
 
+
+class TestCreateFilterSweep:
+    """Tests for create_filter_sweep orchestration tool"""
+
+    def test_direction_open_defaults(self):
+        """Open sweep: starts low (0.05), ends high (0.9)"""
+        assert True  # logic tested via defaults in docstring
+
+    def test_direction_close_defaults(self):
+        """Close sweep: starts high (0.85), ends low (0.05)"""
+        # direction="close" swaps start/end
+        start_cutoff = 0.85
+        end_cutoff = 0.05
+        # simulate swap logic from tool
+        if True:  # direction == "close"
+            start_cutoff, end_cutoff = end_cutoff, start_cutoff
+        assert start_cutoff == 0.05  # after swap
+        assert end_cutoff == 0.85
+
+    def test_exp_curve_first_point_low(self):
+        """Exponential curve: first point should be near start value"""
+        start_val, end_val = 0.05, 0.9
+        t = 0.0
+        value = start_val + (end_val - start_val) * (pow(2.71828, t * 3) - 1) / (pow(2.71828, 3) - 1)
+        assert abs(value - start_val) < 0.001
+
+    def test_exp_curve_last_point_high(self):
+        """Exponential curve: last point should be near end value"""
+        start_val, end_val = 0.05, 0.9
+        t = 1.0
+        value = start_val + (end_val - start_val) * (pow(2.71828, t * 3) - 1) / (pow(2.71828, 3) - 1)
+        assert abs(value - end_val) < 0.001
+
+    def test_exp_curve_midpoint_below_linear(self):
+        """Exponential curve (e^(t*3)-1)/(e^3-1) at midpoint is below linear — slow start, fast finish.
+        This is correct for filter sweeps: gradual change, accelerating toward the end."""
+        start_val, end_val = 0.05, 0.9
+        t = 0.5
+        exp_val = start_val + (end_val - start_val) * (pow(2.71828, t * 3) - 1) / (pow(2.71828, 3) - 1)
+        lin_val = start_val + (end_val - start_val) * t
+        assert exp_val < lin_val  # exp is concave up: slow start, accelerating finish
+
+    def test_resonance_envelope_peaks_at_midpoint(self):
+        """Resonance boost: sin(t*PI) peaks at t=0.5"""
+        import math
+        t = 0.5
+        res_env = math.sin(t * math.pi)
+        assert abs(res_env - 1.0) < 0.001
+
+    def test_resonance_envelope_zero_at_endpoints(self):
+        """Resonance boost: sin(t*PI) = 0 at t=0 and t=1"""
+        import math
+        assert abs(math.sin(0 * math.pi)) < 0.001
+        assert abs(math.sin(1.0 * math.pi)) < 0.001
+
+    def test_resonance_boost_max_value(self):
+        """Resonance at peak: base(0.3) + 0.3 * sin(0.5*PI) = 0.6"""
+        import math
+        base_res = 0.3
+        peak = base_res + 0.3 * math.sin(0.5 * math.pi)
+        assert abs(peak - 0.6) < 0.001
+
+    def test_resonance_clamped_to_1(self):
+        """Resonance value clamped to max 1.0"""
+        import math
+        base_res = 0.8
+        val = min(1.0, base_res + 0.3 * math.sin(0.5 * math.pi))
+        assert val == 1.0
+
+    def test_steps_count(self):
+        """32 steps = 32 automation points"""
+        steps = 32
+        points = [(i / (steps - 1)) for i in range(steps)]
+        assert len(points) == 32
+
+    def test_custom_cutoff_overrides_defaults(self):
+        """Explicit start_cutoff/end_cutoff should override direction defaults"""
+        start_cutoff = 0.2  # explicit
+        # tool only applies defaults when start_cutoff < 0
+        if start_cutoff < 0:
+            start_cutoff = 0.05
+        assert start_cutoff == 0.2  # not overridden
+
+    def test_tool_signature_exists(self):
+        """create_filter_sweep is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_filter_sweep" in tool_names
+

@@ -14509,6 +14509,162 @@ async def mcp_opendaw_automation_sweep(unit_index: int, parameter_name: str, sta
 
 
 @mcp.tool()
+async def mcp_opendaw_create_filter_sweep(unit_index: int, direction: str = "open", start_beat: float = 0, duration_beats: float = 8, start_cutoff: float = -1, end_cutoff: float = -1, resonance: float = -1, resonance_boost: bool = True, curve: str = "exp", steps: int = 32) -> str:
+    """Create a filter sweep on a Vaporisateur instrument's cutoff parameter with smart defaults.
+
+    The most common transition technique in EDM/techno/house. Sweeps the filter cutoff from
+    closed to open (build-up) or open to closed (breakdown). Optionally boosts resonance
+    during the sweep for that classic "talking filter" effect. Uses exponential curve by
+    default (matches how human hearing perceives frequency changes).
+
+    unit_index: AU index with a Vaporisateur instrument.
+    direction: "open" (low→high, build-up) or "close" (high→low, breakdown).
+    start_beat: Start position in beats.
+    duration_beats: Sweep length in beats (default 8 = 2 bars).
+    start_cutoff: Starting cutoff value 0.0-1.0 (default: 0.05 for open, 0.85 for close).
+    end_cutoff: Ending cutoff value 0.0-1.0 (default: 0.9 for open, 0.05 for close).
+    resonance: Fixed resonance value 0.0-1.0 during sweep. Default: current value unchanged.
+    resonance_boost: If True, automates resonance from current to +0.3 at sweep midpoint,
+        then back down — classic filter sweep "whistle" effect.
+    curve: "exp" (exponential, default — natural for filters), "linear", "log".
+    steps: Number of automation points (default 32 = smooth).
+
+    Returns events created, sweep config, and a preview of the curve.
+
+    Examples:
+      create_filter_sweep(unit_index=0, direction="open", duration_beats=16)
+        → 16-bar filter open from 0.05 to 0.9, exp curve, resonance boost at midpoint
+      create_filter_sweep(unit_index=2, direction="close", duration_beats=4, resonance_boost=False)
+        → Quick 4-beat filter close, no resonance boost
+    """
+    # Smart defaults based on direction
+    if start_cutoff < 0:
+        start_cutoff = 0.05 if direction == "open" else 0.85
+    if end_cutoff < 0:
+        end_cutoff = 0.9 if direction == "open" else 0.05
+    if direction == "close":
+        start_cutoff, end_cutoff = end_cutoff, start_cutoff  # swap for close direction
+
+    end_beat = start_beat + duration_beats
+    safe_curve = curve.replace('"', '').replace("'", "")
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
+        try {{
+            const unitIdx = {unit_index};
+            const startBeat = {start_beat};
+            const endBeat = {end_beat};
+            const startVal = {start_cutoff};
+            const endVal = {end_cutoff};
+            const numSteps = {steps};
+            const curveType = "{safe_curve}";
+            const resBoost = {str(resonance_boost).lower()};
+            const fixedRes = {resonance};
+
+            const units = h.allAUBoxes();
+            if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
+            const au = units[unitIdx];
+
+            const incoming = h.inputBoxes(au);
+            const instBox = incoming.find(b => b.constructor.name !== "AudioBusBox");
+            if (!instBox) return {{error: "No instrument on AU " + unitIdx}};
+
+            const cutoffField = instBox["cutoff"];
+            if (!cutoffField) return {{error: "No cutoff field on " + instBox.constructor.name}};
+
+            const beatRange = endBeat - startBeat;
+            const cutoffPoints = [];
+            const resPoints = [];
+            for (let i = 0; i < numSteps; i++) {{
+                const t = i / (numSteps - 1);
+                let value;
+                if (curveType === "exp") {{
+                    value = startVal + (endVal - startVal) * (Math.exp(t * 3) - 1) / (Math.exp(3) - 1);
+                }} else if (curveType === "log") {{
+                    value = startVal + (endVal - startVal) * Math.log(1 + t * (Math.E - 1));
+                }} else {{
+                    value = startVal + (endVal - startVal) * t;
+                }}
+                const beatPos = startBeat + beatRange * t;
+                cutoffPoints.push([beatPos, Math.max(0, Math.min(1, value))]);
+
+                if (resBoost) {{
+                    // Resonance peaks at midpoint (t=0.5), fades at start/end
+                    const resEnv = Math.sin(t * Math.PI); // 0→1→0 triangle
+                    const baseRes = fixedRes >= 0 ? fixedRes : 0.3;
+                    resPoints.push([beatPos, Math.max(0, Math.min(1, baseRes + 0.3 * resEnv))]);
+                }}
+            }}
+
+            let cutoffTrack, resTrack;
+            h.editing.modify(() => {{
+                // Cutoff automation
+                cutoffTrack = h.api.createAutomationTrack(au, cutoffField);
+                const cutoffClip = h.api.createValueClip(cutoffTrack, 0, {{name: "cutoff"}});
+                const cutoffCol = cutoffClip.events?.targetVertex?.unwrap?.()?.box;
+                if (!cutoffCol) throw new Error("No event collection on cutoff clip");
+                cutoffPoints.forEach(([beatPos, value], i) => {{
+                    ValueEventBox.create(h.boxGraph, UUID.generate(), (box) => {{
+                        box.events.refer(cutoffCol.events);
+                        box.position.setValue(Math.round(beatPos * Quarter));
+                        box.index.setValue(i);
+                        box.value.setValue(value);
+                        box.interpolation.setValue(1);
+                    }});
+                }});
+
+                // Resonance automation (optional)
+                if (resBoost && resPoints.length > 0) {{
+                    const resField = instBox["resonance"];
+                    if (resField) {{
+                        resTrack = h.api.createAutomationTrack(au, resField);
+                        const resClip = h.api.createValueClip(resTrack, 0, {{name: "resonance"}});
+                        const resCol = resClip.events?.targetVertex?.unwrap?.()?.box;
+                        if (resCol) {{
+                            resPoints.forEach(([beatPos, value], i) => {{
+                                ValueEventBox.create(h.boxGraph, UUID.generate(), (box) => {{
+                                    box.events.refer(resCol.events);
+                                    box.position.setValue(Math.round(beatPos * Quarter));
+                                    box.index.setValue(i);
+                                    box.value.setValue(value);
+                                    box.interpolation.setValue(1);
+                                }});
+                            }});
+                        }}
+                    }}
+                }} else if (fixedRes >= 0) {{
+                    // Fixed resonance — just set the field
+                    const resField = instBox["resonance"];
+                    if (resField) resField.setValue(fixedRes);
+                }}
+            }});
+
+            return {{
+                success: true,
+                direction: "{direction}",
+                cutoff_events: cutoffPoints.length,
+                resonance_events: resBoost ? resPoints.length : 0,
+                unit_index: unitIdx,
+                start_beat: startBeat,
+                end_beat: endBeat,
+                cutoff_range: [startVal, endVal],
+                curve: curveType,
+                resonance_boost: resBoost,
+                cutoff_track: cutoffTrack?.index?.getValue?.() ?? 0,
+                res_track: resTrack?.index?.getValue?.() ?? -1,
+                preview: cutoffPoints.slice(0, 6).map(([b, v]) => ({{beat: Math.round(b * 100) / 100, cutoff: Math.round(v * 1000) / 1000}})),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_mix_preset(preset: str) -> str:
     """Apply a mix preset to all audio units in one call — volume, pan, mute, solo.
 
