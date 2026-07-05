@@ -4,6 +4,7 @@
 
 - **`create_funk_arrangement` orchestration tool (331 MCP tools)** — tenth multi-track genre arrangement. James Brown / Parliament-Funkadelic style — vamp-based (one chord, no progression). Across 4 tracks: drums (Funky Drummer — Clyde Stubblefield's most sampled break in history: syncopated kick at 1.25/1.75, strong ghost snare, 16th-note hi-hat with varying dynamics), bass (slap bass — Larry Graham thumb/pluck technique: thumb=root, pluck=octave/fifth/min7, 16th-note density, 16 notes per bar), guitar (scratch "chank" — all 16 16ths played with accent pattern, root+min7 voicing, extremely short 0.08 duration), horns (dominant7 stabs — root+maj3+min7, on the "and" of beats, short and tight). Vamp (one chord groove, no changes) is the fundamental difference from all 9 other arrangements — pop/rock/jazz change chords, funk stays on one. 1-bar cycle (not 2-bar like others). 16th-note syncopation is the rhythmic DNA — every instrument plays 16ths. D default (classic funk key). 85-120 BPM, default 100. 4-16 bars. 74 orchestration tools. 331 MCP tools
 - **1723 unit tests** (+23)
+- **`multi_track_arrangements.py` example** — demo of all 10 arrangement tools with parameters, output format, and genre comparison table. 114 examples total.
 
 ## v1.137.0 (2026-07-05)
 

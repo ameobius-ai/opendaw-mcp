@@ -1,6 +1,28 @@
 # Examples
 
-113 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge. See also `examples/create_two_hand_piano.py` for piano arrangements.
+114 Python examples covering every aspect of opendaw-mcp. All runnable with a live DAW bridge.
+
+## Multi-Track Arrangements (10)
+
+Complete genre sections across 3-4 tracks in one call. One call = 100+ notes.
+
+| Example | Genre | Tracks | Key Feature |
+|---------|-------|--------|-------------|
+| `multi_track_arrangements.py` | All 10 | 4 | Demo of every arrangement tool |
+| `create_dnb_arrangement` | DnB | 3 | Amen breakbeat + Reese + pad |
+| `create_house_arrangement` | House | 3 | Four-on-floor + off-beat bass + stabs |
+| `create_trap_arrangement` | Trap | 3 | Trap rolls + 808 slides + bell |
+| `create_techno_arrangement` | Techno | 3 | Four-on-floor + sub drone + stabs |
+| `create_dubstep_arrangement` | Dubstep | 3 | Half-time + wobble bass + arp |
+| `create_afrobeat_arrangement` | Afrobeat | 4 | Polyrhythm + ostinato + horns + chanka |
+| `create_rock_arrangement` | Rock | 4 | Rock beat + power chords + I-IV-V |
+| `create_jazz_arrangement` | Jazz | 4 | Swing ride + walking bass + ii-V-I |
+| `create_pop_arrangement` | Pop | 4 | Song structure (verse-chorus-bridge) |
+| `create_funk_arrangement` | Funk | 4 | Vamp + Funky Drummer + slap bass |
+
+```bash
+python examples/multi_track_arrangements.py
+```
 
 ## Genre Templates (8)
 
