@@ -27704,6 +27704,157 @@ async def mcp_opendaw_create_harmonic_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_modulated_song(
+    sections: str = "verse:Am-F-C-G:8:0.7,chorus:C-G-Am-F:8:1.0,bridge:F-C-Dm-G:4:0.6,outro:Am-F-C-G:4:0.5",
+    arp_pattern: str = "up",
+    bass_pattern: str = "root",
+    melody_pattern: str = "chord_tones",
+    counter_melody_pattern: str = "",
+    unit_index: int = 0,
+    velocity: float = 0.7,
+) -> str:
+    """Build a multi-section song with key modulation between sections — one call.
+
+    Each section has its own chord progression, length (bars), and energy
+    (velocity multiplier). The tool automatically modulates between keys
+    by using different progressions per section — no manual start_beat
+    calculation needed.
+
+    sections: Comma-separated section specs. Each section format:
+      name:progression:bars:energy
+      - name: section label (verse, chorus, bridge, outro, etc.)
+      - progression: chord progression string (e.g. "Am-F-C-G")
+      - bars: total bars for this section
+      - energy: velocity multiplier (0.0-1.0, relative to base velocity)
+
+    Default creates a 24-bar song:
+      verse (Am-F-C-G, 8 bars, 0.7) → chorus (C-G-Am-F, 8 bars, 1.0) →
+      bridge (F-C-Dm-G, 4 bars, 0.6) → outro (Am-F-C-G, 4 bars, 0.5)
+
+    The chorus modulates to C major (relative major of A minor), the bridge
+    modulates to F (up a fourth), and the outro returns to Am.
+
+    arp_pattern/bass_pattern/melody_pattern/counter_melody_pattern:
+      Same as create_harmonic_arrangement. Applied to all sections.
+      Use "" to skip any layer.
+
+    Example:
+      # Default 4-section modulated song
+      create_modulated_song()
+
+      # Simple verse-chorus with modulation
+      create_modulated_song("verse:Em-G-D-C:8:0.7,chorus:G-D-Em-C:8:1.0")
+
+      # Full quintet with counter-melody
+      create_modulated_song(counter_melody_pattern="contrary")
+    """
+    # Parse sections
+    parsed_sections = []
+    for sec_str in sections.split(","):
+        sec_str = sec_str.strip()
+        if not sec_str:
+            continue
+        parts = sec_str.split(":")
+        if len(parts) != 4:
+            return f"Error: section '{sec_str}' must have 4 colon-separated parts: name:progression:bars:energy"
+        name, prog, bars_str, energy_str = parts
+        name = name.strip()
+        prog = prog.strip()
+        try:
+            bars = int(bars_str.strip())
+        except ValueError:
+            return f"Error: bars must be integer in section '{sec_str}', got '{bars_str}'"
+        try:
+            energy = float(energy_str.strip())
+        except ValueError:
+            return f"Error: energy must be float 0-1 in section '{sec_str}', got '{energy_str}'"
+        if not (0.0 <= energy <= 1.0):
+            return f"Error: energy must be 0-1 in section '{sec_str}'"
+        if bars < 1 or bars > 64:
+            return f"Error: bars must be 1-64 in section '{sec_str}'"
+        if not prog:
+            return f"Error: progression must be non-empty in section '{sec_str}'"
+        parsed_sections.append({
+            "name": name,
+            "progression": prog,
+            "bars": bars,
+            "energy": energy,
+        })
+
+    if not parsed_sections:
+        return "Error: sections must be a non-empty comma-separated list"
+    if len(parsed_sections) > 12:
+        return "Error: maximum 12 sections per song"
+
+    section_results = []
+    total_notes = 0
+    current_beat = 0.0
+    layers_summary = set()
+
+    for sec in parsed_sections:
+        sec_energy = velocity * sec["energy"]
+        # Determine bars_per_chord: each chord gets equal share
+        # Count chords in progression
+        chord_count = len([c for c in sec["progression"].split("-") if c.strip()])
+        bars_per_chord = max(1, sec["bars"] // chord_count) if chord_count > 0 else sec["bars"]
+
+        r = await mcp_opendaw_create_harmonic_arrangement(
+            progression=sec["progression"],
+            pad_octave=3,
+            arp_pattern=arp_pattern,
+            arp_octave=4,
+            bass_pattern=bass_pattern,
+            bass_octave=2,
+            melody_pattern=melody_pattern,
+            melody_octave=5,
+            counter_melody_pattern=counter_melody_pattern,
+            counter_melody_octave=4,
+            bars_per_chord=bars_per_chord,
+            velocity=sec_energy,
+            unit_index=unit_index,
+            start_beat=current_beat,
+        )
+        try:
+            d = json.loads(r)
+            sec_notes = d.get("total_notes", 0)
+            sec_layers = d.get("layers", [])
+            layers_summary.update(sec_layers)
+            section_results.append({
+                "section": sec["name"],
+                "progression": sec["progression"],
+                "bars": sec["bars"],
+                "energy": sec["energy"],
+                "start_beat": current_beat,
+                "notes": sec_notes,
+                "layers": sec_layers,
+            })
+            total_notes += sec_notes
+        except Exception:
+            section_results.append({
+                "section": sec["name"],
+                "progression": sec["progression"],
+                "error": "harmonic_arrangement failed",
+            })
+
+        current_beat += sec["bars"] * 4  # 4 beats per bar
+
+    total_bars = sum(s["bars"] for s in parsed_sections)
+
+    return json.dumps({
+        "modulated_song": True,
+        "sections": [s["section"] for s in parsed_sections],
+        "section_count": len(parsed_sections),
+        "total_bars": total_bars,
+        "total_beats": current_beat,
+        "total_notes": total_notes,
+        "layers_used": sorted(layers_summary),
+        "section_details": section_results,
+        "unit_index": unit_index,
+        "next_step": "call apply_genre_mix then render_full_song to complete production",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_modulate_progression(
     progression: str = "Am-F-C-G",
     target_key: str = "C",

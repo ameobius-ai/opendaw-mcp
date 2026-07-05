@@ -95,6 +95,7 @@ What do you want to create?
 ├── Harmonic arrangement → create_harmonic_arrangement ("Am-F-C-G", all 5 layers in one call)
 ├── Counter-melody → create_counter_melody_from_progression ("Am-F-C-G", 5 contrapuntal patterns)
 ├── Modulation → modulate_progression ("Am-F-C-G", target_key="C") — key change for bridge/chorus
+├── Modulated song → create_modulated_song (multi-section: verse→chorus→bridge→outro with key changes)
 ├── Full pipeline → create_full_genre_pipeline (15 genres, optional harmonic layers via progression param)
 └── Render entire song → render_full_song (auto-detect length, export WAV)
 ```

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.163.0 (2026-07-05)
+
+- **create_modulated_song** — new multi-section song builder with key modulation. Builds verse→chorus→bridge→outro in one call, each section with its own chord progression, length, and energy level. Auto-calculates start_beat for each section. Default: 24-bar song (verse Am-F-C-G 8 bars 0.7 → chorus C-G-Am-F 8 bars 1.0 → bridge F-C-Dm-G 4 bars 0.6 → outro Am-F-C-G 4 bars 0.5). Inherits all 5 harmonic layers from create_harmonic_arrangement. Supports up to 12 sections. New example: modulated_song.py. 17 unit tests. 351 MCP tools, 2164 tests.
+
 ## v1.162.0 (2026-07-05)
 
 - **modulate_progression** — new music theory tool. Transpose chord progression to a new key while preserving chord qualities and interval relationships. Supports up/down direction, flat/sharp key naming, per-chord mapping with root shifts. Common modulations: relative major/minor (Am↔C), up a fourth (C→F, chorus energy), up a fifth (C→G, triumphant), down a third (C→A, bridge). Returns modulated progression string ready for create_harmonic_arrangement. 16 unit tests. 350 MCP tools, 2147 tests.

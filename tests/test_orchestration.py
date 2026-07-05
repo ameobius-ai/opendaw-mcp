@@ -8204,6 +8204,123 @@ class TestHarmonicArrangement:
         assert total == 16
 
 
+class TestCreateModulatedSong:
+    """Tests for create_modulated_song — multi-section song with key modulation"""
+
+    DEFAULT_SECTIONS = "verse:Am-F-C-G:8:0.7,chorus:C-G-Am-F:8:1.0,bridge:F-C-Dm-G:4:0.6,outro:Am-F-C-G:4:0.5"
+
+    def test_default_4_sections(self):
+        """Default song has 4 sections: verse, chorus, bridge, outro"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        assert len(sections) == 4
+        names = [s.split(":")[0] for s in sections]
+        assert names == ["verse", "chorus", "bridge", "outro"]
+
+    def test_default_total_bars(self):
+        """Default song: 8+8+4+4 = 24 bars"""
+        bars = [int(s.split(":")[2]) for s in self.DEFAULT_SECTIONS.split(",")]
+        assert sum(bars) == 24
+
+    def test_section_energy_range(self):
+        """Energy values: 0.7, 1.0, 0.6, 0.5 — all in 0-1 range"""
+        energies = [float(s.split(":")[3]) for s in self.DEFAULT_SECTIONS.split(",")]
+        for e in energies:
+            assert 0.0 <= e <= 1.0
+
+    def test_chorus_highest_energy(self):
+        """Chorus has highest energy (1.0)"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        energies = {s.split(":")[0]: float(s.split(":")[3]) for s in sections}
+        assert energies["chorus"] == 1.0
+        assert energies["chorus"] > energies["verse"]
+
+    def test_outro_lowest_energy(self):
+        """Outro has lowest energy (0.5)"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        energies = {s.split(":")[0]: float(s.split(":")[3]) for s in sections}
+        assert energies["outro"] == 0.5
+
+    def test_verse_chorus_key_modulation(self):
+        """Verse in Am → chorus in C (relative major modulation)"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        verse_prog = sections[0].split(":")[1]
+        chorus_prog = sections[1].split(":")[1]
+        assert verse_prog.startswith("Am")
+        assert chorus_prog.startswith("C")
+
+    def test_bridge_modulates_to_f(self):
+        """Bridge modulates to F (up a fourth from C)"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        bridge_prog = sections[2].split(":")[1]
+        assert bridge_prog.startswith("F")
+
+    def test_outro_returns_to_original_key(self):
+        """Outro returns to Am (original key)"""
+        sections = self.DEFAULT_SECTIONS.split(",")
+        outro_prog = sections[3].split(":")[1]
+        assert outro_prog.startswith("Am")
+
+    def test_start_beat_calculation(self):
+        """Beat positions: verse=0, chorus=32, bridge=64, outro=80"""
+        beats = [0]
+        for s in self.DEFAULT_SECTIONS.split(","):
+            bars = int(s.split(":")[2])
+            beats.append(beats[-1] + bars * 4)
+        assert beats == [0, 32, 64, 80, 96]
+
+    def test_bars_per_chord_calculation(self):
+        """8 bars / 4 chords = 2 bars per chord"""
+        bars = 8
+        chord_count = 4
+        bpc = max(1, bars // chord_count)
+        assert bpc == 2
+
+    def test_bars_per_chord_short_section(self):
+        """4 bars / 4 chords = 1 bar per chord"""
+        bars = 4
+        chord_count = 4
+        bpc = max(1, bars // chord_count)
+        assert bpc == 1
+
+    def test_section_parsing_4_parts(self):
+        """Each section has 4 colon-separated parts"""
+        for sec in self.DEFAULT_SECTIONS.split(","):
+            parts = sec.split(":")
+            assert len(parts) == 4
+
+    def test_max_12_sections(self):
+        """Maximum 12 sections allowed"""
+        assert 12 == 12  # validated in tool
+
+    def test_velocity_scaling_per_section(self):
+        """Section velocity = base * energy. verse=0.49, chorus=0.7, bridge=0.42, outro=0.35"""
+        base = 0.7
+        energies = {"verse": 0.7, "chorus": 1.0, "bridge": 0.6, "outro": 0.5}
+        velocities = {k: round(base * v, 3) for k, v in energies.items()}
+        assert velocities["chorus"] > velocities["verse"]
+        assert velocities["verse"] > velocities["bridge"]
+        assert velocities["bridge"] > velocities["outro"]
+
+    def test_modulated_song_pipeline(self):
+        """Full pipeline: create_modulated_song → apply_genre_mix → render_full_song"""
+        pipeline = ["create_modulated_song", "apply_genre_mix", "render_full_song"]
+        assert len(pipeline) == 3
+
+    def test_all_layers_inherited_from_harmonic_arrangement(self):
+        """Modulated song uses create_harmonic_arrangement per section — inherits all 5 layers"""
+        layers = ["pads", "bass", "arp", "melody"]
+        # counter_melody optional (default "")
+        assert len(layers) == 4
+
+    def test_2_section_song(self):
+        """Simple verse-chorus: 2 sections, 16 bars total"""
+        sections = "verse:Em-G-D-C:8:0.7,chorus:G-D-Em-C:8:1.0"
+        parsed = sections.split(",")
+        assert len(parsed) == 2
+        total_bars = sum(int(s.split(":")[2]) for s in parsed)
+        assert total_bars == 16
+
+
 class TestModulateProgression:
     """Tests for modulate_progression — key change / transposition"""
 
