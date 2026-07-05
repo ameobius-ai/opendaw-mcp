@@ -25332,6 +25332,153 @@ async def mcp_opendaw_apply_genre_mix(
 
 
 @mcp.tool()
+async def mcp_opendaw_apply_genre_humanization(
+    genre: str,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    harmony_track: int = 2,
+    melody_track: int = 3,
+    has_4th_track: bool = True,
+) -> str:
+    """Apply genre-aware humanization to arrangement tracks — makes programmed MIDI feel alive.
+
+    After creating an arrangement, notes are perfectly quantized — robotic.
+    This tool applies genre-appropriate humanization: jazz gets loose timing
+    and wide velocity variation, electronic genres stay tight with minimal
+    variation, funk gets behind-the-beat pocket feel.
+
+    Each genre has a different humanization recipe:
+    - Jazz: high timing variation (0.20), high velocity variation (0.20),
+            swing 0.66 (classic jazz swing feel). Drums get the most humanization.
+    - Funk: behind-the-beat timing (positive bias), medium velocity variation,
+            swing 0.0 (straight 16ths but with pocket feel).
+    - Rock: medium timing (0.10), medium velocity (0.12), no swing.
+            Drums get slight push, bass stays tight.
+    - Reggae: laid-back timing (positive bias, behind beat), medium velocity,
+            no swing. Bass stays tight (it's the lead), drums get loose.
+    - Pop: very subtle (0.05 timing, 0.08 velocity), no swing.
+            Pop should sound polished, not loose.
+    - DnB/House/Techno/Trance/Synthwave/Dubstep/Trap: minimal humanization.
+            Electronic genres should sound tight and consistent.
+            Timing 0.03, velocity 0.05, no swing.
+    - Afrobeat: medium timing (0.12), medium velocity (0.15), no swing.
+            Polyrhythms need some human feel but stay grounded.
+    - Disco: subtle timing (0.06), medium velocity (0.10), no swing.
+            Disco should sound tight but not robotic — live drummer feel.
+
+    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz,
+            pop, funk, reggae, synthwave, trance, disco
+    unit_index: AU index with the arrangement tracks.
+    drum_track / bass_track / harmony_track / melody_track: Track indices.
+    has_4th_track: True if arrangement has 4 tracks (False for 3-track genres).
+
+    Returns humanization parameters applied per track.
+
+    Example:
+      # After: create_jazz_arrangement(...)
+      apply_genre_humanization("jazz", unit_index=0)
+      # After: create_dnb_arrangement(...)
+      apply_genre_humanization("dnb", unit_index=0, has_4th_track=False)
+    """
+    valid_genres = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
+                    "rock", "jazz", "pop", "funk", "reggae", "synthwave",
+                    "trance", "disco"]
+    if genre not in valid_genres:
+        return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
+
+    # Genre-specific humanization recipes
+    # (timing, velocity, duration, swing, timing_bias)
+    # timing_bias: positive = behind the beat, negative = ahead
+    recipes = {
+        "jazz":      {"timing": 0.20, "velocity": 0.20, "duration": 0.12, "swing": 0.66, "bias": 0.0},
+        "funk":      {"timing": 0.10, "velocity": 0.15, "duration": 0.08, "swing": 0.0,  "bias": 0.02},
+        "rock":      {"timing": 0.10, "velocity": 0.12, "duration": 0.06, "swing": 0.0,  "bias": 0.0},
+        "reggae":    {"timing": 0.12, "velocity": 0.15, "duration": 0.08, "swing": 0.0,  "bias": 0.03},
+        "pop":       {"timing": 0.05, "velocity": 0.08, "duration": 0.04, "swing": 0.0,  "bias": 0.0},
+        "afrobeat":  {"timing": 0.12, "velocity": 0.15, "duration": 0.08, "swing": 0.0,  "bias": 0.0},
+        "disco":     {"timing": 0.06, "velocity": 0.10, "duration": 0.05, "swing": 0.0,  "bias": 0.0},
+        # Electronic — tight and consistent
+        "dnb":       {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
+        "house":     {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
+        "trap":      {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
+        "techno":    {"timing": 0.02, "velocity": 0.04, "duration": 0.02, "swing": 0.0,  "bias": 0.0},
+        "dubstep":   {"timing": 0.03, "velocity": 0.05, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
+        "synthwave": {"timing": 0.04, "velocity": 0.06, "duration": 0.03, "swing": 0.0,  "bias": 0.0},
+        "trance":    {"timing": 0.02, "velocity": 0.04, "duration": 0.02, "swing": 0.0,  "bias": 0.0},
+    }
+
+    recipe = recipes[genre]
+    results = []
+
+    # Per-track humanization — drums get more variation, bass stays tighter
+    track_configs = [
+        ("drums", drum_track, 1.0),      # full humanization
+        ("bass", bass_track, 0.5),       # half — bass should stay tight
+        ("harmony", harmony_track, 0.7), # medium
+    ]
+    if has_4th_track:
+        track_configs.append(("melody", melody_track, 0.8))  # medium-high
+
+    for track_name, track_idx, factor in track_configs:
+        timing = round(recipe["timing"] * factor, 4)
+        velocity = round(recipe["velocity"] * factor, 4)
+        duration = round(recipe["duration"] * factor, 4)
+        swing = recipe["swing"]
+
+        try:
+            await mcp_opendaw_humanize_notes(
+                unit_index=unit_index,
+                track_index=track_idx,
+                velocity_amount=velocity,
+                timing_amount=timing,
+                duration_amount=duration,
+                swing=swing,
+                seed=42,
+            )
+            results.append({
+                "track": track_name,
+                "track_index": track_idx,
+                "timing": timing,
+                "velocity": velocity,
+                "duration": duration,
+                "swing": swing,
+                "status": "ok",
+            })
+        except Exception as e:
+            results.append({
+                "track": track_name,
+                "track_index": track_idx,
+                "error": str(e),
+            })
+
+    return json.dumps({
+        "genre_humanization": True,
+        "genre": genre,
+        "unit_index": unit_index,
+        "recipe": recipe,
+        "tracks_humanized": results,
+        "track_count": len(results),
+        "description": _genre_humanization_description(genre, recipe),
+    }, indent=2)
+
+
+def _genre_humanization_description(genre: str, recipe: dict) -> str:
+    """Human-readable description of the humanization applied."""
+    if genre == "jazz":
+        return "Jazz: loose timing (0.20), wide velocity variation (0.20), swing 0.66 — classic jazz feel"
+    elif genre in ("funk", "reggae"):
+        bias = "behind the beat" if recipe["bias"] > 0 else "straight"
+        return f"{genre.title()}: {bias} pocket feel, medium velocity variation, tight bass"
+    elif genre == "pop":
+        return "Pop: subtle humanization (0.05 timing) — polished, not loose"
+    elif genre in ("dnb", "house", "techno", "trance", "dubstep", "trap", "synthwave"):
+        return f"{genre.title()}: minimal humanization (0.03 timing) — tight electronic feel"
+    else:
+        return f"{genre.title()}: medium humanization — organic feel"
+
+
+@mcp.tool()
 async def mcp_opendaw_create_full_genre_pipeline(
     genre: str,
     bpm: float = None,
@@ -25483,7 +25630,15 @@ async def mcp_opendaw_create_full_genre_pipeline(
     except Exception as e:
         pipeline_steps.append({"step": "genre_mix", "error": str(e)})
 
-    # Step 5: Mastering chain
+    # Step 5: Genre humanization
+    try:
+        await mcp_opendaw_apply_genre_humanization(
+            genre, unit_index=unit_index, has_4th_track=(num_tracks >= 4))
+        pipeline_steps.append({"step": "humanization", "genre": genre, "status": "ok"})
+    except Exception as e:
+        pipeline_steps.append({"step": "humanization", "error": str(e)})
+
+    # Step 6: Mastering chain
     try:
         await mcp_opendaw_add_mastering_chain(
             target_lufs=master_lufs, style=master_style)
