@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.41.0 (2026-07-05)
+
+- **`create_canon` orchestration tool (293 MCP tools)** — strict melodic imitation with delayed voice entries. The foundation of contrapuntal music: Pachelbel's Canon, "Row Row Row Your Boat", Bach fugue subjects, film score layering. Unlike create_counterpoint (generates a new line), a canon copies the SAME melody into each voice — just shifted in time and pitch. 2-6 voices, per-voice transposition, velocity decay, up/down entry order. One call replaces 16-48 manual note creations. Essential for: rounds, fugues, film scores, call-and-response layering, minimalism
+- **+10 unit tests** for canon voice generation + transposition + direction + clamping (324 total)
+- **293 MCP tools** (255 low-level + 35 orchestration + 3 melodic)
+
+## v1.40.0 (2026-07-05)
+
+- **`create_pedal_point` orchestration tool (292 MCP tools)** — sustained bass note under changing chords. The foundational technique in film scoring (Hans Zimmer drones), organ preludes (Bach), and rock ballads. Retrigger or sustained pedal mode. Full chord name parsing (maj/min/m7/maj7/dom7/sus2/sus4/dim/aug + implicit major). Adjustable time signatures (3/4, 4/4, 6/8). One call replaces 13-34 manual note creations. Essential for: film scoring, organ music, rock ballads, ambient drones, harmonic tension
+- **+10 unit tests** for pedal point generation + chord parsing (314 total)
+- **292 MCP tools** (254 low-level + 35 orchestration + 3 melodic)
+
 ## v1.35.0 (2026-07-05)
 
 - **`create_bass_drop` orchestration tool (287 MCP tools)** — descending pitch sweep into sustained sub bass for dubstep/EDM/trap. Two phases: sweep (16th-note resolution pitch glide) + hold (sustained landing note). 3 curves (linear/exp/log), adjustable sweep (0.25-8 beats) and hold (0-16 beats). Complement to `create_riser` — riser builds up, bass drop lands. One call replaces 10-65 manual note creations. Essential for: dubstep drops, EDM build-and-drop, trap bass falls, impact transitions

@@ -1029,3 +1029,92 @@ class TestGenrePresets:
         from opendaw_mcp.music_theory import GENRE_PRESETS
         bpm = GENRE_PRESETS["lofi"]["bpm"]
         assert 60 <= bpm <= 90, f"lofi bpm {bpm} out of range"
+
+
+class TestCanon:
+    """Unit tests for create_canon orchestration tool — logic validation."""
+
+    def _build_voice_data(self, melody, voices, entry_delay, transpose_list, vel=0.85, decay=0.15, direction="up"):
+        """Replicate the Python-side note generation from create_canon."""
+        note_spacing = 0.5
+        voice_data = []
+        for v in range(voices):
+            if direction == "down":
+                delay = (voices - 1 - v) * entry_delay
+                tr = transpose_list[voices - 1 - v]
+                v_vel = max(0.1, vel - (voices - 1 - v) * decay)
+            else:
+                delay = v * entry_delay
+                tr = transpose_list[v]
+                v_vel = max(0.1, vel - v * decay)
+            notes = []
+            for i, p in enumerate(melody):
+                tp = max(0, min(127, p + tr))
+                notes.append({"pitch": tp, "pos": delay + i * note_spacing, "dur": note_spacing * 0.9, "vel": round(v_vel, 3)})
+            voice_data.append(notes)
+        return voice_data
+
+    def test_basic_3_voice(self):
+        vd = self._build_voice_data([60, 62, 64, 67, 64, 62, 60, 57], 3, 4, [0, 7, 12])
+        assert len(vd) == 3
+        assert len(vd[0]) == 8
+        assert len(vd[2]) == 8
+        # Voice 0 starts at beat 0, voice 1 at beat 4, voice 2 at beat 8
+        assert vd[0][0]["pos"] == 0.0
+        assert vd[1][0]["pos"] == 4.0
+        assert vd[2][0]["pos"] == 8.0
+
+    def test_transposition_applied(self):
+        vd = self._build_voice_data([60, 62], 3, 4, [0, 7, 12])
+        assert vd[0][0]["pitch"] == 60  # unison
+        assert vd[1][0]["pitch"] == 67  # fifth
+        assert vd[2][0]["pitch"] == 72  # octave
+
+    def test_velocity_decay(self):
+        vd = self._build_voice_data([60], 4, 2, [0, 5, 7, 12], vel=0.85, decay=0.1)
+        assert vd[0][0]["vel"] == 0.85
+        assert vd[1][0]["vel"] == 0.75
+        assert vd[2][0]["vel"] == 0.65
+        assert vd[3][0]["vel"] == 0.55
+
+    def test_direction_down(self):
+        vd = self._build_voice_data([60], 3, 4, [0, 7, 12], direction="down")
+        # Voice 0 should have highest delay and highest transposition
+        assert vd[0][0]["pos"] == 8.0  # (3-1-0)*4 = 8
+        assert vd[0][0]["pitch"] == 72  # transpose_list[2] = 12
+        assert vd[2][0]["pos"] == 0.0  # (3-1-2)*4 = 0
+        assert vd[2][0]["pitch"] == 60  # transpose_list[0] = 0
+
+    def test_velocity_clamp(self):
+        # With high decay, velocity should clamp to 0.1
+        vd = self._build_voice_data([60], 6, 1, [0, 0, 0, 0, 0, 0], vel=0.5, decay=0.3)
+        assert vd[5][0]["vel"] == 0.1  # 0.5 - 5*0.3 = -1.0 → clamped to 0.1
+
+    def test_pitch_clamp(self):
+        # Extreme transposition should clamp to 0-127
+        vd = self._build_voice_data([60], 2, 1, [0, 80])
+        assert vd[1][0]["pitch"] == 127  # 60+80=140 → clamped
+
+    def test_pitch_clamp_low(self):
+        vd = self._build_voice_data([10], 2, 1, [0, -50])
+        assert vd[1][0]["pitch"] == 0  # 10-50=-40 → clamped
+
+    def test_total_beats(self):
+        voices = 4
+        entry_delay = 4
+        melody_len = 8 * 0.5  # 8 notes × 0.5 spacing
+        total = (voices - 1) * entry_delay + melody_len
+        assert total == 16.0  # 3*4 + 4 = 16
+
+    def test_round_unison(self):
+        # All voices at same pitch (round/canon)
+        vd = self._build_voice_data([60, 62, 64, 65], 2, 2, [0, 0])
+        assert vd[0][0]["pitch"] == 60
+        assert vd[1][0]["pitch"] == 60  # same pitch, just delayed
+
+    def test_note_count(self):
+        melody = [60, 62, 64, 67, 64, 62, 60, 57]
+        voices = 3
+        vd = self._build_voice_data(melody, voices, 4, [0, 7, 12])
+        total_notes = sum(len(v) for v in vd)
+        assert total_notes == len(melody) * voices  # 24

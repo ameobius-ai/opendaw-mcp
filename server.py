@@ -16540,6 +16540,177 @@ async def mcp_opendaw_create_pedal_point(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_canon(
+    melody: str = "60,62,64,67,64,62,60,57",
+    voices: int = 3,
+    entry_delay_beats: float = 4,
+    transposition: str = "0,7,12",
+    velocity_decay: float = 0.15,
+    direction: str = "up",
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a canon — strict melodic imitation with delayed voice entries.
+
+    The foundation of contrapuntal music: a single melody is repeated in multiple
+    voices, each entering after a delay, optionally transposed. Think Pachelbel's
+    Canon, "Row Row Row Your Boat", Bach's fugue subjects, or modern call-and-response
+    layers in film scores. Unlike create_counterpoint (which generates a new line),
+    a canon copies the SAME melody into each voice — just shifted in time and pitch.
+
+    melody: Comma-separated MIDI pitches of the lead voice (e.g. "60,62,64,67").
+    voices: Number of imitating voices (2-6, default 3). Voice 1 enters first.
+    entry_delay_beats: Beats between each voice entry (1-16, default 4 = one bar in 4/4).
+    transposition: Comma-separated semitone offsets per voice (e.g. "0,7,12" = unison, fifth, octave).
+      Must have exactly `voices` values. "0,0,0" = all at same pitch (round/canon).
+    velocity_decay: Velocity reduction per voice (0-0.3, default 0.15). Later voices are quieter,
+      simulating natural ensemble hierarchy.
+    direction: Voice entry order — "up" (low to high) or "down" (high to low).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the first voice begins.
+    velocity: Base velocity for the first voice (0-1, default 0.85).
+
+    Returns notes created, voice count, total length, transpositions used.
+    """
+    try:
+        melody_pitches = [int(p.strip()) for p in melody.split(",")]
+    except ValueError:
+        return "Error: melody must be comma-separated integers (e.g. '60,62,64,67')"
+    if len(melody_pitches) < 2:
+        return "Error: need at least 2 melody notes"
+    if len(melody_pitches) > 64:
+        return "Error: maximum 64 melody notes"
+    if not all(0 <= p <= 127 for p in melody_pitches):
+        return "Error: melody pitches must be 0-127"
+    if voices < 2 or voices > 6:
+        return "Error: voices must be 2-6"
+    if entry_delay_beats < 1 or entry_delay_beats > 16:
+        return "Error: entry_delay_beats must be 1-16"
+    if velocity_decay < 0 or velocity_decay > 0.3:
+        return "Error: velocity_decay must be 0-0.3"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+    if direction not in ("up", "down"):
+        return "Error: direction must be 'up' or 'down'"
+
+    try:
+        transpose_list = [int(t.strip()) for t in transposition.split(",")]
+    except ValueError:
+        return "Error: transposition must be comma-separated integers (e.g. '0,7,12')"
+    if len(transpose_list) != voices:
+        return f"Error: transposition must have exactly {voices} values, got {len(transpose_list)}"
+
+    note_spacing = 0.5  # each melody note = 8th note
+    melody_len_beats = len(melody_pitches) * note_spacing
+
+    voice_data = []
+    for v in range(voices):
+        delay = v * entry_delay_beats
+        transpose = transpose_list[v]
+        vel = max(0.1, velocity - v * velocity_decay)
+        if direction == "down":
+            # Reverse voice order: highest enters first
+            delay = (voices - 1 - v) * entry_delay_beats
+            transpose = transpose_list[voices - 1 - v]
+            vel = max(0.1, velocity - (voices - 1 - v) * velocity_decay)
+        notes = []
+        for i, p in enumerate(melody_pitches):
+            tp = max(0, min(127, p + transpose))
+            notes.append({
+                "pitch": tp,
+                "pos": delay + i * note_spacing,
+                "dur": note_spacing * 0.9,
+                "vel": round(vel, 3),
+            })
+        voice_data.append(notes)
+
+    total_beats = (voices - 1) * entry_delay_beats + melody_len_beats
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const voiceData = {json.dumps(voice_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Canon");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const voice of voiceData) {{
+                for (const nd of voice) {{
+                    NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                        box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                        box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                        box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                        box.pitch.setValue(nd.pitch);
+                        box.chance.setValue(100);
+                        box.cent.setValue(0);
+                        box.events.refer(collBox.events);
+                    }});
+                    totalNotes++;
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            voices: {voices},
+            melody_notes: {len(melody_pitches)},
+            entry_delay_beats: {entry_delay_beats},
+            transpositions: "{transposition}",
+            direction: "{direction}",
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,

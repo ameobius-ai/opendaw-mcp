@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-292 MCP tools for headless openDAW control via Playwright bridge.
+293 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -349,6 +349,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_glissando` — Smooth scale run between two pitches. 6 scale types (chromatic/major/minor/pentatonic/whole_tone). 5 rates. 4 velocity curves (flat/ramp_up/ramp_down/arc). Ascending or descending.
 - `create_sequence` — Repeat a melodic pattern at transposed pitch levels. 3 directions (up/down/alternating). Adjustable transposition (semitones), repeats (1-8), velocity decay. The fundamental compositional technique — baroque sequences, jazz chains, film score builds.
 - `create_pedal_point` — Sustained bass note under changing chords. Retrigger or sustained mode. Chord name parsing (maj/min/m7/maj7/sus2/sus4/dim/aug). Adjustable time signatures. Film scoring, organ preludes, rock ballads.
+- `create_canon` — Strict melodic imitation with delayed voice entries. 2-6 voices, per-voice transposition, velocity decay, up/down entry order. Pachelbel, rounds, fugue subjects, film score layering.
 - `create_ostinato` — Create a repeating melodic/rhythmic pattern as a foundation layer. Scale-based, 1-16 repeats. Common in minimalism, electronic, and film music.
 - `create_crescendo` — Apply crescendo/decrescendo to existing notes. Linear, exponential, or logarithmic velocity curves. One call modifies all notes in a region.
 - `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.
