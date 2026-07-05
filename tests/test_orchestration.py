@@ -8166,8 +8166,6 @@ class TestHarmonicArrangement:
 
     def test_house_preset(self):
         """House: pedal sub-bass + arp bass, skip melody"""
-        arp_pattern = "bass"
-        bass_pattern = "pedal"
         bass_octave = 1
         melody_pattern = ""
         assert bass_octave == 1  # sub-bass
@@ -8375,7 +8373,6 @@ class TestCreateModulatedSong:
     def test_bpm_passed_to_arrangement(self):
         """bpm parameter is passed to drum arrangement"""
         bpm = 124
-        drum_genre = "house"
         # bpm=None means genre default; explicit bpm overrides
         actual_bpm = bpm if bpm is not None else 0
         assert actual_bpm == 124
@@ -8853,7 +8850,6 @@ class TestLiquidDnbGenreIntegration:
 
     def test_liquid_dnb_one_call_pipeline(self):
         """create_full_genre_pipeline('liquid_dnb') covers all steps"""
-        steps = ["set_bpm", "create_tracks", "arrangement", "genre_mix", "humanization", "mastering"]
         # liquid_dnb arrangement fn is in arrangement_fns dict
         arrangement_fns_has_liquid = True
         assert arrangement_fns_has_liquid

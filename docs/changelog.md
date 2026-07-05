@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.183.0 (2026-07-05)
+
+### Added
+- `werkstatt_karplus_strong.js` — Karplus-Strong physical modeling string synthesis. Delay-line with one-pole lowpass feedback loop. 7 params: frequency (exp 20-2000 Hz), decay, brightness (feedback filtering), pluck_damping (excitation gain), stretch (inharmonic/detuned strings), mix, output. Stereo processing. 107 DSP scripts total
+
+### Fixed
+- Ruff: 4 unused variables removed from test_orchestration.py (arp_pattern, bass_pattern, drum_genre, steps)
+
 ## v1.182.0 (2026-07-05)
 
 ### Added

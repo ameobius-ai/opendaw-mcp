@@ -8014,6 +8014,79 @@ class TestSpectralBlurDSP:
         assert "Math.sin(phase" in code
 
 
+class TestKarplusStrongDSP:
+    """Tests for werkstatt_karplus_strong.js — physical modeling string synthesis"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_karplus_strong.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt karplus_strong" in code
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_karplus_strong.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_seven_params(self):
+        """7 params: frequency, decay, brightness, pluck_damping, stretch, mix, output"""
+        code = self._read_script()
+        params = code.count("@param")
+        assert params == 7
+
+    def test_frequency_is_exp(self):
+        """frequency is exponential type (20-2000 Hz)"""
+        code = self._read_script()
+        assert "frequency 220 20 2000 exp" in code
+
+    def test_delay_line_initialized(self):
+        """Float32Array delay line per channel"""
+        code = self._read_script()
+        assert "Float32Array" in code
+        assert "delayL" in code
+        assert "delayR" in code
+
+    def test_delay_length_from_frequency(self):
+        """Delay length = floor(sr / freq * stretch)"""
+        code = self._read_script()
+        assert "delayLen" in code
+        assert "sr / f" in code or "sr / this.frequency" in code
+
+    def test_one_pole_lowpass_feedback(self):
+        """One-pole averaging lowpass in feedback path (brightness control)"""
+        code = self._read_script()
+        assert "lastFiltL" in code
+        assert "lastFiltR" in code
+        assert "bright * next" in code or "brightness" in code
+
+    def test_decay_clamped(self):
+        """Decay gain clamped to prevent infinite ring (0.995 max)"""
+        code = self._read_script()
+        assert "0.995" in code
+
+    def test_pluck_damping_controls_excitation(self):
+        """pluck_damping reduces excitation gain"""
+        code = self._read_script()
+        assert "pluck_damping" in code
+        assert "exciteGain" in code
+
+    def test_stretch_param(self):
+        """Stretch parameter for inharmonic/detuned strings"""
+        code = self._read_script()
+        assert "stretch" in code
+
+    def test_process_audio_wet_dry(self):
+        """Wet/dry mix with output gain"""
+        code = self._read_script()
+        assert "dry" in code
+        assert "wet" in code
+        assert "outGain" in code
+
+
 class TestCreateSectionTransition:
     """Tests for create_section_transition orchestration tool"""
 
