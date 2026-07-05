@@ -23547,3 +23547,324 @@ async def mcp_opendaw_create_jazz_arrangement(
         "horn_type": "bluesy_head",
         "harmony": "ii_V_I_jazz",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_pop_arrangement(
+    bpm: float = 120,
+    bars: int = 16,
+    root: str = "C",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    chord_track: int = 2,
+    melody_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+) -> str:
+    """Create a full pop arrangement with verse-chorus-bridge song structure across 4 tracks.
+
+    Pop music with real song form — fundamentally different from all loop-based arrangements:
+    - Track 0: Drums — verse (sparse: kick+hat) → chorus (full: kick+snare+hat+crash)
+                     → bridge (build: rising energy) → final chorus (maximum density)
+    - Track 1: Bass — verse (root notes, sparse) → chorus (octave jumps, driving)
+                     → bridge (walking, building) → final chorus (full energy)
+    - Track 2: Chords — I-V-vi-IV progression (the "four chords of pop"), played
+                     differently per section: verse (light arpeggios), chorus (full
+                     block chords), bridge (sus/resolution)
+    - Track 3: Melody — catchy hook that varies per section: verse (sparse, low)
+                     → chorus (anthemic, high register) → bridge (tension, chromatic)
+                     → final chorus (hook + variation)
+
+    At 120 BPM (default), this creates a modern pop feel. The I-V-vi-IV progression
+    is the most used chord sequence in pop music (I=0, V=7, vi=9, IV=5) — different
+    from rock's I-IV-V and jazz's ii-V-I. Song structure (verse-chorus-bridge) is
+    the key difference from all loop-based arrangements.
+
+    Sections (16 bars default):
+    - Verse 1: bars 1-4 (sparse, intimate)
+    - Chorus 1: bars 5-8 (full energy, hook)
+    - Verse 2: bars 9-12 (sparse + variation)
+    - Chorus 2: bars 13-16 (full energy, hook)
+    - Bridge: bars 17-20 (tension, build)
+    - Final Chorus: bars 21-24 (maximum, hook + variation)
+
+    bpm: Tempo (90-140, default 120 = modern pop).
+    bars: Total length in bars (16-32, default 16 = standard pop song).
+    root: Root note (C is the most common pop key).
+    octave: MIDI octave for bass (2 = C2=36, standard bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / chord_track / melody_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_pop_arrangement(bpm=120, root="C", bars=16)
+      create_pop_arrangement(bpm=128, root="G", bars=24)
+    """
+    if not (85 <= bpm <= 145):
+        return "Error: bpm must be 85-145"
+    if bars < 16 or bars > 32:
+        return "Error: bars must be 16-32 (pop needs song structure)"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    chord_base = (octave + 3) * 12 + root_pc
+    melody_base = (octave + 4) * 12 + root_pc
+
+    # I-V-vi-IV progression: the "four chords of pop"
+    # I=0, V=7, vi=9 (relative minor), IV=5
+    # Each chord = 1 bar
+    pop_chords = [
+        (0, "I"), (7, "V"), (9, "vi"), (5, "IV"),  # 4-bar progression
+    ]
+
+    # Song structure: each section = 4 bars (one full I-V-vi-IV cycle)
+    # 16 bars = 4 sections: verse, chorus, verse, chorus (or verse-chorus-bridge-final)
+    # For longer songs, sections repeat
+    # Section types determine energy and patterns
+    sections = []
+    section_types = ["verse", "chorus", "verse", "chorus"]
+    if bars >= 20:
+        section_types = ["verse", "chorus", "verse", "chorus", "bridge", "chorus"]
+    if bars >= 28:
+        section_types = ["verse", "chorus", "verse", "chorus", "bridge", "chorus", "outro"]
+
+    section_bars = 4  # each section = 4 bars = 1 chord cycle
+    for i, stype in enumerate(section_types):
+        sections.append({
+            "type": stype,
+            "start_bar": i * section_bars,
+            "bars": section_bars,
+        })
+
+    # Energy levels per section
+    energy = {
+        "verse": 0.5,
+        "chorus": 1.0,
+        "bridge": 0.7,
+        "outro": 0.6,
+    }
+
+    drum_notes = []
+    bass_notes = []
+    chord_notes = []
+    melody_notes = []
+
+    for section in sections:
+        if section["start_bar"] * 4 >= bars * 4:
+            break  # safety
+
+        stype = section["type"]
+        sect_vel = energy.get(stype, 0.7) * velocity
+        sect_start = start_beat + section["start_bar"] * 4  # in beats
+
+        # --- DRUMS per section ---
+        if stype == "verse":
+            # Sparse: kick on 1, hat on off-beats
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                drum_notes.append({"pitch": 36, "start": round(bar_off + 0.0, 4), "duration": 0.2, "velocity": round(sect_vel * 0.8, 3)})
+                drum_notes.append({"pitch": 36, "start": round(bar_off + 2.0, 4), "duration": 0.2, "velocity": round(sect_vel * 0.7, 3)})
+                for h in [0.5, 1.5, 2.5, 3.5]:
+                    drum_notes.append({"pitch": 42, "start": round(bar_off + h, 4), "duration": 0.04, "velocity": round(sect_vel * 0.5, 3)})
+        elif stype == "chorus":
+            # Full: kick 1&3, snare 2&4, hats, crash on bar 1
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                if bar == 0:
+                    drum_notes.append({"pitch": 49, "start": round(bar_off + 0.0, 4), "duration": 0.3, "velocity": round(sect_vel * 0.9, 3)})
+                drum_notes.append({"pitch": 36, "start": round(bar_off + 0.0, 4), "duration": 0.2, "velocity": round(sect_vel * 1.0, 3)})
+                drum_notes.append({"pitch": 38, "start": round(bar_off + 1.0, 4), "duration": 0.15, "velocity": round(sect_vel * 0.9, 3)})
+                drum_notes.append({"pitch": 36, "start": round(bar_off + 2.0, 4), "duration": 0.2, "velocity": round(sect_vel * 0.95, 3)})
+                drum_notes.append({"pitch": 38, "start": round(bar_off + 3.0, 4), "duration": 0.15, "velocity": round(sect_vel * 0.9, 3)})
+                for h in [0.5, 1.5, 2.5, 3.5]:
+                    drum_notes.append({"pitch": 42, "start": round(bar_off + h, 4), "duration": 0.05, "velocity": round(sect_vel * 0.65, 3)})
+        elif stype == "bridge":
+            # Build: rising energy, toms, no crash yet
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                build_vel = sect_vel * (0.6 + bar * 0.1)  # rising
+                drum_notes.append({"pitch": 36, "start": round(bar_off + 0.0, 4), "duration": 0.2, "velocity": round(min(1.0, build_vel), 3)})
+                drum_notes.append({"pitch": 38, "start": round(bar_off + 1.0, 4), "duration": 0.15, "velocity": round(min(1.0, build_vel * 0.8), 3)})
+                drum_notes.append({"pitch": 36, "start": round(bar_off + 2.0, 4), "duration": 0.2, "velocity": round(min(1.0, build_vel * 0.9), 3)})
+                drum_notes.append({"pitch": 45, "start": round(bar_off + 3.0, 4), "duration": 0.12, "velocity": round(min(1.0, build_vel * 0.7), 3)})
+                drum_notes.append({"pitch": 45, "start": round(bar_off + 3.5, 4), "duration": 0.12, "velocity": round(min(1.0, build_vel * 0.8), 3)})
+        elif stype == "outro":
+            # Winding down: kick on 1, sparse
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                drum_notes.append({"pitch": 36, "start": round(bar_off + 0.0, 4), "duration": 0.2, "velocity": round(sect_vel * 0.7, 3)})
+                drum_notes.append({"pitch": 42, "start": round(bar_off + 2.0, 4), "duration": 0.05, "velocity": round(sect_vel * 0.4, 3)})
+
+        # --- BASS per section ---
+        if stype == "verse":
+            # Sparse: root notes on beats 1 and 3
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 0.0, 4), "duration": 2.0, "velocity": round(sect_vel * 0.8, 3)})
+                bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 2.0, 4), "duration": 2.0, "velocity": round(sect_vel * 0.75, 3)})
+        elif stype == "chorus":
+            # Driving: root + octave jumps
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 0.0, 4), "duration": 1.5, "velocity": round(sect_vel * 1.0, 3)})
+                bass_notes.append({"pitch": bass_base + chord_root + 12, "start": round(bar_off + 1.5, 4), "duration": 0.5, "velocity": round(sect_vel * 0.85, 3)})
+                bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 2.0, 4), "duration": 1.5, "velocity": round(sect_vel * 0.95, 3)})
+                bass_notes.append({"pitch": bass_base + chord_root + 7, "start": round(bar_off + 3.5, 4), "duration": 0.5, "velocity": round(sect_vel * 0.8, 3)})
+        elif stype == "bridge":
+            # Walking: chord tones, building
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 0.0, 4), "duration": 1.0, "velocity": round(sect_vel * 0.8, 3)})
+                bass_notes.append({"pitch": bass_base + chord_root + 4, "start": round(bar_off + 1.0, 4), "duration": 1.0, "velocity": round(sect_vel * 0.75, 3)})
+                bass_notes.append({"pitch": bass_base + chord_root + 7, "start": round(bar_off + 2.0, 4), "duration": 1.0, "velocity": round(sect_vel * 0.85, 3)})
+                bass_notes.append({"pitch": bass_base + chord_root + 12, "start": round(bar_off + 3.0, 4), "duration": 1.0, "velocity": round(sect_vel * 0.9, 3)})
+        elif stype == "outro":
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                bass_notes.append({"pitch": bass_base + chord_root, "start": round(bar_off + 0.0, 4), "duration": 4.0, "velocity": round(sect_vel * 0.6, 3)})
+
+        # --- CHORDS per section ---
+        if stype == "verse":
+            # Light arpeggios: root, third, fifth as individual notes
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                # Determine triad: I/IV/V = major (0,4,7), vi = minor (0,3,7)
+                triad = [0, 4, 7] if pop_chords[bar % 4][1] in ("I", "IV", "V") else [0, 3, 7]
+                for i, interval in enumerate(triad):
+                    chord_notes.append({"pitch": chord_base + chord_root + interval, "start": round(bar_off + i * 1.0, 4), "duration": 0.8, "velocity": round(sect_vel * 0.5, 3)})
+        elif stype == "chorus":
+            # Full block chords: root + third + fifth sustained
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                triad = [0, 4, 7] if pop_chords[bar % 4][1] in ("I", "IV", "V") else [0, 3, 7]
+                for interval in triad:
+                    chord_notes.append({"pitch": chord_base + chord_root + interval, "start": round(bar_off + 0.0, 4), "duration": 3.5, "velocity": round(sect_vel * 0.7, 3)})
+        elif stype == "bridge":
+            # Sus4 → resolution: root + 4 + 7 → root + 3 + 7
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                # Sus4 first 2 beats
+                for interval in [0, 5, 7]:
+                    chord_notes.append({"pitch": chord_base + chord_root + interval, "start": round(bar_off + 0.0, 4), "duration": 2.0, "velocity": round(sect_vel * 0.6, 3)})
+                # Resolution last 2 beats
+                triad = [0, 4, 7] if pop_chords[bar % 4][1] in ("I", "IV", "V") else [0, 3, 7]
+                for interval in triad:
+                    chord_notes.append({"pitch": chord_base + chord_root + interval, "start": round(bar_off + 2.0, 4), "duration": 2.0, "velocity": round(sect_vel * 0.7, 3)})
+        elif stype == "outro":
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                triad = [0, 4, 7] if pop_chords[bar % 4][1] in ("I", "IV", "V") else [0, 3, 7]
+                for interval in triad:
+                    chord_notes.append({"pitch": chord_base + chord_root + interval, "start": round(bar_off + 0.0, 4), "duration": 4.0, "velocity": round(sect_vel * 0.5, 3)})
+
+        # --- MELODY (hook) per section ---
+        if stype == "verse":
+            # Sparse, low register, simple
+            verse_melody = [
+                (0.0, 0, 1.0, 0.7), (1.0, 7, 0.5, 0.6), (1.5, 9, 0.5, 0.65),
+                (2.5, 7, 1.0, 0.6), (3.5, 4, 0.5, 0.55),
+            ]
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                for beat, interval, dur, vm in verse_melody:
+                    melody_notes.append({"pitch": melody_base + chord_root + interval, "start": round(bar_off + beat, 4), "duration": dur, "velocity": round(sect_vel * vm * 0.5, 3)})
+        elif stype == "chorus":
+            # Anthemic hook, high register, catchy
+            chorus_melody = [
+                (0.0, 0, 0.5, 0.9), (0.5, 4, 0.5, 0.85), (1.0, 7, 0.75, 0.9), (1.75, 9, 0.25, 0.8),
+                (2.0, 12, 0.5, 0.95), (2.5, 11, 0.5, 0.85), (3.0, 9, 0.5, 0.8), (3.5, 7, 0.5, 0.75),
+            ]
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                for beat, interval, dur, vm in chorus_melody:
+                    melody_notes.append({"pitch": melody_base + chord_root + interval, "start": round(bar_off + beat, 4), "duration": dur, "velocity": round(sect_vel * vm * 0.7, 3)})
+        elif stype == "bridge":
+            # Tension, chromatic approach, building
+            bridge_melody = [
+                (0.0, 9, 0.5, 0.7), (0.5, 11, 0.5, 0.65), (1.0, 12, 0.5, 0.7),
+                (1.5, 14, 0.5, 0.75), (2.0, 12, 1.0, 0.8), (3.0, 11, 0.5, 0.7), (3.5, 9, 0.5, 0.65),
+            ]
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                for beat, interval, dur, vm in bridge_melody:
+                    melody_notes.append({"pitch": melody_base + chord_root + interval, "start": round(bar_off + beat, 4), "duration": dur, "velocity": round(sect_vel * vm * 0.6, 3)})
+        elif stype == "outro":
+            # Winding down, simple
+            outro_melody = [
+                (0.0, 0, 2.0, 0.6), (2.0, 4, 1.0, 0.55), (3.0, 7, 1.0, 0.5),
+            ]
+            for bar in range(section["bars"]):
+                bar_off = sect_start + bar * 4
+                chord_root = pop_chords[bar % 4][0]
+                for beat, interval, dur, vm in outro_melody:
+                    melody_notes.append({"pitch": melody_base + chord_root + interval, "start": round(bar_off + beat, 4), "duration": dur, "velocity": round(sect_vel * vm * 0.5, 3)})
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    chord_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(chord_notes), unit_index, chord_track)
+    melody_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(melody_notes), unit_index, melody_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        chord_data = json.loads(chord_result)
+    except Exception:
+        chord_data = {"raw": chord_result}
+    try:
+        melody_data = json.loads(melody_result)
+    except Exception:
+        melody_data = {"raw": melody_result}
+
+    # Count sections
+    section_list = [s["type"] for s in sections]
+
+    return json.dumps({
+        "pop_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "song_structure": section_list,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "chords": {"track": chord_track, "notes": len(chord_notes), "result": chord_data.get("notes_created", len(chord_notes))},
+            "melody": {"track": melody_track, "notes": len(melody_notes), "result": melody_data.get("notes_created", len(melody_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(chord_notes) + len(melody_notes),
+        "drum_pattern": "section_aware",
+        "bass_pattern": "section_aware",
+        "chord_type": "I_V_vi_IV_progression",
+        "melody_type": "section_aware_hook",
+        "harmony": "I_V_vi_IV_diatonic",
+    }, indent=2)

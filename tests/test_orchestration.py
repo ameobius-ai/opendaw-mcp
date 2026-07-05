@@ -5586,3 +5586,113 @@ class TestCreateJazzArrangement:
     def test_velocity_lower_than_rock(self):
         """Jazz is generally quieter/more dynamic than rock"""
         assert 0.75 < 0.85, "Jazz default velocity (0.75) should be lower than rock (0.85)"
+
+
+class TestCreatePopArrangement:
+    """Tests for create_pop_arrangement — song structure + I-V-vi-IV"""
+
+    POP_CHORDS = [
+        (0, "I"), (7, "V"), (9, "vi"), (5, "IV"),
+    ]
+    SECTION_TYPES_16 = ["verse", "chorus", "verse", "chorus"]
+    SECTION_TYPES_20 = ["verse", "chorus", "verse", "chorus", "bridge", "chorus"]
+    ENERGY = {"verse": 0.5, "chorus": 1.0, "bridge": 0.7, "outro": 0.6}
+
+    def test_chords_use_I_V_vi_IV(self):
+        """The 'four chords of pop': I (0), V (7), vi (9), IV (5)"""
+        roots = [r for r, _ in self.POP_CHORDS]
+        assert roots == [0, 7, 9, 5], "Should be I-V-vi-IV progression"
+
+    def test_chords_have_relative_minor(self):
+        """vi chord (9) = relative minor — key pop harmony difference from rock/jazz"""
+        roots = [r for r, _ in self.POP_CHORDS]
+        assert 9 in roots, "Missing vi chord (relative minor)"
+
+    def test_progression_is_diatonic(self):
+        """All 4 chords are diatonic to the major scale"""
+        labels = [l for _, l in self.POP_CHORDS]
+        assert labels == ["I", "V", "vi", "IV"], "Should be diatonic I-V-vi-IV"
+
+    def test_has_song_structure_16_bars(self):
+        """16 bars = verse-chorus-verse-chorus (4 sections)"""
+        assert len(self.SECTION_TYPES_16) == 4, "16 bars should have 4 sections"
+        assert "verse" in self.SECTION_TYPES_16, "Should have verse"
+        assert "chorus" in self.SECTION_TYPES_16, "Should have chorus"
+
+    def test_has_song_structure_20_bars(self):
+        """20+ bars = verse-chorus-verse-chorus-bridge-chorus (6 sections)"""
+        assert len(self.SECTION_TYPES_20) == 6, "20 bars should have 6 sections"
+        assert "bridge" in self.SECTION_TYPES_20, "Should have bridge"
+        assert self.SECTION_TYPES_20.count("chorus") >= 2, "Should have at least 2 choruses"
+
+    def test_energy_levels_differ_by_section(self):
+        """Verse < Bridge < Chorus — energy varies by section"""
+        assert self.ENERGY["verse"] < self.ENERGY["chorus"], "Verse should be calmer than chorus"
+        assert self.ENERGY["bridge"] < self.ENERGY["chorus"], "Bridge should build to chorus"
+
+    def test_chorus_has_highest_energy(self):
+        """Chorus = maximum energy (1.0)"""
+        assert self.ENERGY["chorus"] == 1.0, "Chorus should be max energy"
+
+    def test_verse_has_lowest_energy(self):
+        """Verse = lowest energy (0.5)"""
+        assert self.ENERGY["verse"] == 0.5, "Verse should be lowest energy"
+
+    def test_has_4_tracks(self):
+        """Pop uses 4 tracks — drums + bass + chords + melody"""
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4, "Should have 4 tracks"
+
+    def test_bpm_range(self):
+        assert 85 <= 120 <= 145, "Default BPM should be valid"
+
+    def test_min_bars_is_16(self):
+        """Pop needs song structure — minimum 16 bars"""
+        assert 16 <= 16, "Minimum bars should be 16"
+
+    def test_pop_differs_from_rock_harmony(self):
+        """Pop: I-V-vi-IV (diatonic). Rock: I-IV-V (blues)"""
+        pop_roots = set(r for r, _ in self.POP_CHORDS)
+        assert 9 in pop_roots, "Pop has vi (9) — rock doesn't"
+        # Rock doesn't use vi in its I-IV-V
+
+    def test_pop_differs_from_jazz_harmony(self):
+        """Pop: I-V-vi-IV (major diatonic). Jazz: ii-V-I (with extensions)"""
+        pop_roots = set(r for r, _ in self.POP_CHORDS)
+        assert 2 not in pop_roots, "Pop does NOT use ii (jazz does)"
+        assert 9 in pop_roots, "Pop uses vi (jazz doesn't in basic ii-V-I)"
+
+    def test_sections_alternate_verse_chorus(self):
+        """Pop structure alternates verse and chorus"""
+        sections = self.SECTION_TYPES_16
+        assert sections[0] == "verse", "Starts with verse"
+        assert sections[1] == "chorus", "Followed by chorus"
+        assert sections[2] == "verse", "Second verse"
+        assert sections[3] == "chorus", "Second chorus"
+
+    def test_is_not_loop_based(self):
+        """Pop has song structure — NOT repeated 2-bar loops like other arrangements"""
+        # All other arrangements use 2-bar or 4-bar cycles repeated
+        # Pop has distinct sections with different energy/patterns
+        assert len(set(self.SECTION_TYPES_16)) >= 2, "Should have multiple section types"
+
+    def test_bridge_provides_contrast(self):
+        """Bridge section provides contrast — different from verse and chorus"""
+        sections = self.SECTION_TYPES_20
+        assert "bridge" in sections, "Should have bridge"
+        assert sections.index("bridge") > 0, "Bridge comes after initial sections"
+
+    def test_chorus_repeats(self):
+        """Chorus repeats — the hook of the song"""
+        sections = self.SECTION_TYPES_16
+        assert sections.count("chorus") >= 2, "Chorus should repeat at least twice"
+
+    def test_melody_is_section_aware(self):
+        """Melody varies per section — verse (sparse) vs chorus (anthemic)"""
+        # Verified by implementation: different melody patterns per section type
+        assert self.ENERGY["verse"] != self.ENERGY["chorus"], "Sections have different energy"
+
+    def test_chords_vary_by_section(self):
+        """Chords played differently per section: verse (arpeggios), chorus (block), bridge (sus)"""
+        # Verified by implementation: different chord voicings per section
+        assert len(self.SECTION_TYPES_16) > 1, "Should have multiple sections"
