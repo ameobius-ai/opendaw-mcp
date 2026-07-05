@@ -14894,6 +14894,86 @@ async def mcp_opendaw_create_pan_sweep(unit_index: int, start_beat: float = 0, d
 
 
 @mcp.tool()
+async def mcp_opendaw_create_mute_automation(unit_index: int, events: str) -> str:
+    """Create timed mute/unmute automation events on an audio unit.
+
+    Essential for section dynamics: mute drums during breakdowns, unmute for drops,
+    create structural silences. Each event is a (beat, mute_state) pair — mute at
+    beat X, unmute at beat Y. Replaces multiple set_track_mute calls with one
+    automation track that plays back predictably every time.
+
+    unit_index: AU index to automate mute on.
+    events: JSON array of [beat, muted] pairs. beat = position in beats,
+        muted = true (silence) or false (audible).
+        Example: [[0, false], [16, true], [24, false]] = audible 0-16, muted 16-24, audible 24+
+
+    Returns events created, mute schedule, and track index.
+
+    Examples:
+      create_mute_automation(unit_index=0, events='[[0,false],[16,true],[24,false]]')
+        → Drums audible for 16 beats, muted for 8 (breakdown), back on at 24
+      create_mute_automation(unit_index=2, events='[[0,true],[8,false]]')
+        → Bass silent for intro, kicks in at beat 8
+    """
+    try:
+        import json
+        event_list = json.loads(events)
+        if not isinstance(event_list, list) or len(event_list) == 0:
+            return "Error: events must be a non-empty JSON array of [beat, muted] pairs"
+        for e in event_list:
+            if not isinstance(e, (list, tuple)) or len(e) != 2:
+                return "Error: each event must be [beat, muted] pair"
+    except Exception as e:
+        return f"Error parsing events: {e}"
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const UUID = h.uuid;
+        const Quarter = h.ppqn.Quarter;
+        const ValueEventBox = window.DAW_ValueEventBox;
+        try {{
+            const unitIdx = {unit_index};
+            const eventData = {events};
+
+            const units = h.allAUBoxes();
+            if (unitIdx >= units.length) return {{error: "No AU at " + unitIdx}};
+            const au = units[unitIdx];
+
+            const muteField = au["mute"];
+            if (!muteField) return {{error: "No mute field on AU"}};
+
+            let autoTrack;
+            h.editing.modify(() => {{
+                autoTrack = h.api.createAutomationTrack(au, muteField);
+                const muteClip = h.api.createValueClip(autoTrack, 0, {{name: "mute"}});
+                const muteCol = muteClip.events?.targetVertex?.unwrap?.()?.box;
+                if (!muteCol) throw new Error("No event collection on mute clip");
+                eventData.forEach(([beatPos, muted], i) => {{
+                    ValueEventBox.create(h.boxGraph, UUID.generate(), (box) => {{
+                        box.events.refer(muteCol.events);
+                        box.position.setValue(Math.round(beatPos * Quarter));
+                        box.index.setValue(i);
+                        box.value.setValue(muted ? 1 : 0);
+                        box.interpolation.setValue(0); // step, no interpolation for boolean
+                    }});
+                }});
+            }});
+
+            return {{
+                success: true,
+                events_created: eventData.length,
+                unit_index: unitIdx,
+                track_index: autoTrack?.index?.getValue?.() ?? 0,
+                schedule: eventData.map(([b, m]) => ({{beat: b, state: m ? "muted" : "audible"}})),
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_mix_preset(preset: str) -> str:
     """Apply a mix preset to all audio units in one call — volume, pan, mute, solo.
 

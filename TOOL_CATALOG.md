@@ -347,6 +347,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_filter_sweep` — Smart filter sweep on Vaporisateur cutoff. Direction-aware (open/close), exp curve default, optional resonance boost at midpoint. The most common EDM/techno transition technique in one call.
 - `create_volume_fade` — Smart volume fade automation on AU volume. Direction-aware (in/out), dB-to-normalized conversion via VolumeMapper powerByCenter, exp curve default. For intros, outros, breakdowns, section transitions.
 - `create_pan_sweep` — Stereo panning automation sweep. L→R or R→L or partial. Linear curve default (panning is psychoacoustic). For intros, guitar solos, EDM builds, stereo movement.
+- `create_mute_automation` — Timed mute/unmute events for section dynamics. Mute drums in breakdowns, unmute for drops, create structural silences. Step interpolation (boolean, no smooth ramp). Replaces multiple set_track_mute calls.
 - `create_stab` — Generate rhythmic chord stabs for house/disco/funk. Grid pattern with 'x' (stab), '-' (rest), '.' (ghost). Cycles through chord progressions. Adjustable octave, velocity, stab duration.
 - `create_break` — Generate classic drum breaks (Amen, Think, Ashanti, Funky Drummer, When the Levee, Synthetic). 1-8 bars with variation modes (none/fill/humanize/drop) and swing.
 - `create_bass_drop` — Generate descending pitch sweep into sustained sub bass for dubstep/EDM/trap drops. 3 curves (linear/exp/log), adjustable sweep/hold duration.
@@ -431,7 +432,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `automation_sweep` — Create smooth automation ramps (filter sweeps, volume fades) with linear/exp/log curves in one call. Replaces 10-30 create_automation_event calls.
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
-**Total: 361 tools**
+**Total: 362 tools**
 
 ## DSP Scripts (scripts/) — 105 scripts
 

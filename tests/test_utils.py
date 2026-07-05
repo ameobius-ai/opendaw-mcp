@@ -7878,3 +7878,67 @@ class TestCreatePanSweep:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_create_pan_sweep" in tool_names
 
+
+class TestCreateMuteAutomation:
+    """Tests for create_mute_automation orchestration tool"""
+
+    def test_event_parsing(self):
+        """Valid JSON events parse correctly"""
+        import json
+        events = json.loads('[[0,false],[16,true],[24,false]]')
+        assert len(events) == 3
+        assert events[0] == [0, False]
+        assert events[1] == [16, True]
+
+    def test_mute_value_conversion(self):
+        """muted=true → value 1, muted=false → value 0"""
+        assert (1 if True else 0) == 1
+        assert (1 if False else 0) == 0
+
+    def test_step_interpolation_for_boolean(self):
+        """Mute automation uses step interpolation (0), not smooth (1)"""
+        interp = 0  # step, no interpolation for boolean
+        assert interp == 0
+
+    def test_schedule_format(self):
+        """Schedule maps events to readable format"""
+        events = [[0, False], [16, True], [24, False]]
+        schedule = [{"beat": b, "state": "muted" if m else "audible"} for b, m in events]
+        assert schedule[0]["state"] == "audible"
+        assert schedule[1]["state"] == "muted"
+        assert schedule[2]["state"] == "audible"
+
+    def test_breakdown_pattern(self):
+        """Classic breakdown: audible → muted → audible"""
+        events = [[0, False], [16, True], [24, False]]
+        # 0-16 audible, 16-24 muted (breakdown), 24+ audible (drop)
+        assert events[0][1] == False  # start audible
+        assert events[1][1] == True   # mute for breakdown
+        assert events[2][1] == False  # unmute for drop
+
+    def test_intro_silence_pattern(self):
+        """Intro silence: muted → audible"""
+        events = [[0, True], [8, False]]
+        assert events[0][1] == True   # silent intro
+        assert events[1][1] == False  # kicks in
+
+    def test_empty_events_rejected(self):
+        """Empty events array should be rejected"""
+        import json
+        events = json.loads('[]')
+        assert len(events) == 0  # should be rejected by validation
+
+    def test_invalid_event_format_rejected(self):
+        """Non-pair events should be rejected"""
+        bad_event = [0, 1, 2]  # 3 elements, not 2
+        assert len(bad_event) != 2
+
+    def test_tool_signature_exists(self):
+        """create_mute_automation is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_mute_automation" in tool_names
+

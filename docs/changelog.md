@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.180.0 (2026-07-05)
+
+### Added
+- `create_mute_automation` — timed mute/unmute automation events for section dynamics. Mute drums in breakdowns, unmute for drops, create structural silences. Step interpolation (boolean, no smooth ramp). JSON event array input. 362 MCP tools total
+
 ## v1.179.0 (2026-07-05)
 
 ### Added
