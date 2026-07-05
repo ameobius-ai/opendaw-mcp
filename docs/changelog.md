@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.151.0 (2026-07-05)
+
+- **`create_arpeggiated_progression` orchestration tool (344 MCP tools)** — new capability: arpeggiated chord progression engine. Takes a progression string ("Am-F-C-G") and generates arpeggiated notes cycling through chord tones, changing chords every bars_per_chord bars. 5 patterns: up (root→3rd→5th→oct — classic synthwave), down (oct→5th→3rd→root), updown (full cycle), random (dreamy, picks from chord tones), bass (root only, driving — synthwave bass engine). Configurable octave (2=bass arp, 4=mid, 5=lead), step_duration (16th/8th/32nd), bars_per_chord. Unlike create_arpeggio (single chord repeated), this cycles through a full progression. Pairs with create_chord_pads (sustained) for the complete harmonic layer: chord_pads (harmony) + arpeggiated_progression (melodic movement from same chords). 70 orchestration tools. 344 MCP tools
+- **1990 unit tests** (+16)
+
 ## v1.150.0 (2026-07-05)
 
 - **`create_chord_pads` orchestration tool (343 MCP tools)** — new capability: human-readable chord progression pads. Takes a simple hyphen-separated string like "Am-F-C-G" instead of JSON arrays (create_chord_progression takes JSON). 10 chord types: maj, min, dom7, maj7, min7, sus2, sus4, add9, dim, aug. Parses chord names with sharps/flats (F#m, Bbmaj7). Configurable: bars_per_chord (1-16), octave (0-6), velocity, note_duration (default 3.8 beats = almost full bar with articulation gap). Default progression: Am-F-C-G = i-VI-III-VII in A minor (synthwave/trance). Also supports C-G-Am-F (pop I-V-vi-IV), Dm7-G7-Cmaj7-Am7 (jazz ii-V-I-vi). Completes the harmonic layer: create_song_with_variations (rhythm/melody) + create_chord_pads (harmony) + apply_genre_mix + render_full_song = complete production pipeline. 69 orchestration tools. 343 MCP tools

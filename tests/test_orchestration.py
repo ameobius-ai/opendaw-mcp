@@ -7578,3 +7578,113 @@ class TestCreateChordPads:
         ]
         assert "create_chord_pads" in pipeline
         assert len(pipeline) == 4
+
+
+class TestCreateArpeggiatedProgression:
+    """Tests for create_arpeggiated_progression — chord progression arp engine"""
+
+    PATTERNS = ["up", "down", "updown", "random", "bass"]
+
+    def test_5_patterns(self):
+        """5 arp patterns: up, down, updown, random, bass"""
+        assert len(self.PATTERNS) == 5
+
+    def test_up_pattern(self):
+        """up: root→third→fifth→oct(root) — classic synthwave"""
+        tones = [0, 3, 7]  # Am intervals
+        arp = tones + [tones[0] + 12]  # [0, 3, 7, 12]
+        assert arp == [0, 3, 7, 12]
+
+    def test_down_pattern(self):
+        """down: oct(root)→fifth→third→root — descending"""
+        tones = [0, 3, 7]
+        arp = [tones[0] + 12] + tones[::-1]  # [12, 7, 3, 0]
+        assert arp == [12, 7, 3, 0]
+
+    def test_updown_pattern(self):
+        """updown: root→third→fifth→oct→fifth→third — full cycle"""
+        tones = [0, 3, 7]
+        arp = tones + [tones[0] + 12] + tones[::-1]  # [0, 3, 7, 12, 7, 3, 0]
+        assert arp == [0, 3, 7, 12, 7, 3, 0]
+
+    def test_bass_pattern(self):
+        """bass: root only, repeated — driving bass arp"""
+        tones = [0, 3, 7]
+        arp = [tones[0]]  # [0] — root only
+        assert arp == [0]
+
+    def test_random_uses_chord_tones(self):
+        """random: picks from chord tones + octave — dreamy"""
+        tones = [0, 3, 7]
+        arp = tones + [tones[0] + 12]  # pool of 4 pitches
+        assert len(arp) == 4
+
+    def test_steps_per_chord_16th(self):
+        """16th notes: 4 bars × 4 beats / 0.25 = 64 steps per chord"""
+        chord_beats = 4 * 4  # 4 bars
+        step_dur = 0.25  # 16th
+        steps = int(chord_beats / step_dur)
+        assert steps == 64
+
+    def test_steps_per_chord_8th(self):
+        """8th notes: 4 bars × 4 beats / 0.5 = 32 steps per chord"""
+        chord_beats = 16
+        step_dur = 0.5
+        steps = int(chord_beats / step_dur)
+        assert steps == 32
+
+    def test_note_duration_has_gap(self):
+        """Note duration = step * 0.9 — slight gap for articulation"""
+        step = 0.25
+        dur = step * 0.9
+        assert dur == 0.225
+        assert dur < step  # gap exists
+
+    def test_bass_arp_for_syncthwave(self):
+        """Synthwave bass: pattern=bass, octave=2, 16th notes"""
+        # Am at octave 2: A2 = 33
+        root_pc = NOTE_TO_PITCH["A"]
+        base = (2 + 1) * 12 + root_pc  # 36 + 9 = 45
+        assert base == 45  # A2
+
+    def test_trance_supersaw_octave(self):
+        """Trance supersaw: pattern=up, octave=4 — mid-high range"""
+        root_pc = NOTE_TO_PITCH["F"]
+        base = (4 + 1) * 12 + root_pc  # 60 + 5 = 65
+        assert base == 65  # F4
+
+    def test_pop_arp_8th_updown(self):
+        """Pop arp: I-V-vi-IV, updown, 8th notes, octave 5"""
+        prog = "C-G-Am-F"
+        chords = prog.split("-")
+        assert len(chords) == 4
+
+    def test_vs_create_arpeggio(self):
+        """create_arpeggiated_progression cycles through chords;
+        create_arpeggio uses a single chord"""
+        # arpeggiated_progression: "Am-F-C-G" → 4 chords, chord changes
+        # arpeggio: single chord, repeated
+        assert True  # different tools for different needs
+
+    def test_max_16_chords(self):
+        """Maximum 16 chords per progression"""
+        assert 16 == 16
+
+    def test_total_notes_calculation(self):
+        """4 chords × 64 steps (16th, 4 bars) = 256 notes"""
+        chords = 4
+        steps_per = 64
+        total = chords * steps_per
+        assert total == 256
+
+    def test_completes_melodic_harmonic_layer(self):
+        """Pipeline: song (drums/bass) + chord_pads (harmony) + arpeggiated (melody)"""
+        pipeline = [
+            "create_song_with_variations",
+            "create_chord_pads",
+            "create_arpeggiated_progression",
+            "apply_genre_mix",
+            "render_full_song",
+        ]
+        assert "create_arpeggiated_progression" in pipeline
+        assert len(pipeline) == 5

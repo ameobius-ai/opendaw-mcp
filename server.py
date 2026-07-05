@@ -26815,3 +26815,191 @@ async def mcp_opendaw_create_chord_pads(
         "start_beat": start_beat,
         "next_step": "call create_song_with_variations for rhythm/melody, then apply_genre_mix and render_full_song",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_arpeggiated_progression(
+    progression: str = "Am-F-C-G",
+    pattern: str = "up",
+    bars_per_chord: int = 4,
+    octave: int = 3,
+    velocity: float = 0.7,
+    step_duration: float = 0.25,
+    unit_index: int = 0,
+    track_index: int = 3,
+    start_beat: float = 0,
+) -> str:
+    """Create an arpeggiated chord progression — synthwave/trance arp engine.
+
+    Takes a chord progression string (same format as create_chord_pads:
+    "Am-F-C-G") and generates arpeggiated notes cycling through chord tones.
+    This is the synthwave arpeggiated bass, the trance supersaw arp, the
+    house plucked chord stab — all from a simple progression string.
+
+    Unlike create_arpeggio (which takes a single chord), this cycles through
+    a full progression, changing chord tones every bars_per_chord bars.
+
+    progression: Hyphen-separated chords (same as create_chord_pads).
+      "Am-F-C-G" = i-VI-III-VII in A minor.
+      "C-G-Am-F" = I-V-vi-IV in C major (pop).
+
+    pattern: Arpeggio pattern:
+      "up" — root, third, fifth, root(oct) — classic synthwave
+      "down" — oct root, fifth, third, root — descending
+      "updown" — root, third, fifth, oct, fifth, third — full cycle
+      "random" — random chord tones — dreamy, unpredictable
+      "bass" — root only, 8th notes — driving bass arp (synthwave bass)
+
+    bars_per_chord: Bars per chord (default 4).
+    octave: MIDI octave (3 = bass arp, 4 = mid arp, 5 = lead arp).
+    velocity: Note velocity (0-1).
+    step_duration: Note length in beats (0.25 = 16th, 0.5 = 8th, 0.125 = 32nd).
+    track_index: Track for arp notes (typically melody track = 3).
+
+    Returns chords arpeggiated, total notes, pattern used.
+
+    Example:
+      # Synthwave bass arp (16th notes, octave 2)
+      create_arpeggiated_progression("Am-F-C-G", pattern="bass",
+          octave=2, step_duration=0.25, track_index=1)
+
+      # Trance supersaw arp (16th up, octave 4)
+      create_arpeggiated_progression("Fm-Db-Ab-Eb", pattern="up",
+          octave=4, step_duration=0.25, track_index=3)
+
+      # Pop arp (8th updown, octave 5)
+      create_arpeggiated_progression("C-G-Am-F", pattern="updown",
+          octave=5, step_duration=0.5, track_index=3)
+    """
+    # Parse progression (reuse same parsing as create_chord_pads)
+    chord_specs = []
+    for chord_str in progression.split("-"):
+        chord_str = chord_str.strip()
+        if not chord_str:
+            continue
+
+        root = ""
+        chord_type = "maj"
+
+        if len(chord_str) >= 2 and chord_str[1] in "#b":
+            root = chord_str[:2]
+            remainder = chord_str[2:]
+        else:
+            root = chord_str[0]
+            remainder = chord_str[1:]
+
+        if remainder:
+            type_map = {
+                "m": "min", "7": "dom7", "maj7": "maj7", "m7": "min7",
+                "sus2": "sus2", "sus4": "sus4", "add9": "add9",
+                "dim": "dim", "aug": "aug", "maj": "maj",
+            }
+            if remainder not in type_map:
+                return f"Error: unknown chord type '{remainder}' in chord '{chord_str}'. Valid: {list(type_map.keys())}"
+            chord_type = type_map[remainder]
+
+        if root not in NOTE_TO_PITCH:
+            return f"Error: unknown root note '{root}' in chord '{chord_str}'"
+
+        chord_specs.append((root, chord_type, chord_str))
+
+    if not chord_specs:
+        return "Error: progression must be a non-empty hyphen-separated chord list"
+    if len(chord_specs) > 16:
+        return "Error: maximum 16 chords per progression"
+    if bars_per_chord < 1 or bars_per_chord > 16:
+        return "Error: bars_per_chord must be 1-16"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+    if pattern not in ("up", "down", "updown", "random", "bass"):
+        return f"Error: pattern must be up/down/updown/random/bass, got '{pattern}'"
+    if step_duration < 0.0625 or step_duration > 2.0:
+        return "Error: step_duration must be 0.0625-2.0"
+
+    import random as _random
+
+    all_notes = []
+    chord_info = []
+    current_beat = start_beat
+
+    for root, chord_type, label in chord_specs:
+        intervals = CHORD_INTERVALS[chord_type]
+        root_pc = NOTE_TO_PITCH[root]
+        base = (octave + 1) * 12 + root_pc
+
+        # Chord tones (add octave for up/down patterns)
+        tones = [base + iv for iv in intervals]
+
+        # For bass pattern: root only, repeated
+        if pattern == "bass":
+            arp_pitches = [base]
+        elif pattern == "up":
+            arp_pitches = tones + [tones[0] + 12]  # root octave up
+        elif pattern == "down":
+            arp_pitches = [tones[0] + 12] + tones[::-1]  # oct root down
+        elif pattern == "updown":
+            arp_pitches = tones + [tones[0] + 12] + tones[::-1]
+        elif pattern == "random":
+            arp_pitches = tones + [tones[0] + 12]
+
+        chord_info.append({
+            "chord": label,
+            "root": root,
+            "type": chord_type,
+            "pitches": tones,
+            "arp_pitches": arp_pitches,
+            "start_beat": current_beat,
+            "bars": bars_per_chord,
+        })
+
+        # Generate notes for this chord's duration
+        chord_beats = bars_per_chord * 4
+        steps_per_chord = int(chord_beats / step_duration)
+
+        for step in range(steps_per_chord):
+            if pattern == "random":
+                pitch = _random.choice(arp_pitches)
+            else:
+                pitch = arp_pitches[step % len(arp_pitches)]
+
+            if 0 <= pitch <= 127:
+                all_notes.append({
+                    "pitch": pitch,
+                    "start": round(current_beat + step * step_duration, 4),
+                    "duration": step_duration * 0.9,  # slight gap for articulation
+                    "velocity": round(velocity, 3),
+                })
+
+        current_beat += chord_beats
+
+    # Create notes via batch
+    notes_json = json.dumps(all_notes)
+    result = await mcp_opendaw_create_notes_batch(
+        notes_json, unit_index, track_index)
+
+    try:
+        batch_data = json.loads(result)
+        notes_created = batch_data.get("notes_created", len(all_notes))
+    except Exception:
+        notes_created = len(all_notes)
+
+    total_bars = len(chord_specs) * bars_per_chord
+
+    return json.dumps({
+        "arpeggiated_progression": True,
+        "progression": progression,
+        "pattern": pattern,
+        "chords": chord_info,
+        "chord_count": len(chord_specs),
+        "bars_per_chord": bars_per_chord,
+        "total_bars": total_bars,
+        "octave": octave,
+        "step_duration": step_duration,
+        "notes_created": notes_created,
+        "total_notes": len(all_notes),
+        "track": track_index,
+        "start_beat": start_beat,
+        "next_step": "call create_song_with_variations for drums/bass, then apply_genre_mix and render_full_song",
+    }, indent=2)
