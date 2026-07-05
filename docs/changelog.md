@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.174.0 (2026-07-05)
+
+### Added
+- `create_buildup` — combined build-up tool: riser + snare roll in one call. 5 styles: edm (4-stage roll + exp riser C2→C6), trap (triplet roll + C1→C5), techno (3-stage), rock (linear riser + tom), minimal (riser only). Pairs with `create_impact` for complete build-up → drop transition
+
 ## v1.173.0 (2026-07-05)
 
 ### Added

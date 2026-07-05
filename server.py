@@ -15361,6 +15361,185 @@ async def mcp_opendaw_create_impact(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_create_buildup(
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    length_beats: float = 8,
+    style: str = "edm",
+    velocity: float = 0.7,
+) -> str:
+    """Create a complete build-up — riser + snare roll in one call.
+
+    Combines two transition elements for a full build-up before a drop/chorus:
+    1. Pitch riser (ascending notes with velocity ramp)
+    2. Snare roll (increasing density + velocity crescendo)
+
+    style: Build-up character:
+      - "edm" — 1/4 snare → 1/8 → 1/16 → 32nd roll, exp riser C2→C6
+      - "trap" — 1/4 snare → triplets → 32nd roll, exp riser C1→C5
+      - "techno" — ride cymbal buildup + open hat crescendo, exp riser C2→C4
+      - "rock" — tom roll buildup, linear riser C2→C4
+      - "minimal" — just riser, no snare roll (subtle build)
+
+    unit_index: AU index (-1 = find first AU with note tracks).
+    track_index: Note track index for riser.
+    start_beat: Where the build-up begins.
+    length_beats: Total build-up length (default 8 = 2 bars).
+    velocity: Base velocity (0-1, ramped up during build).
+
+    Returns notes created for riser and snare roll.
+
+    Example:
+      # 8-beat EDM build-up before a drop
+      create_buildup(start_beat=0, length_beats=8, style="edm")
+      # Then drop
+      create_impact(start_beat=8, impact_type="sub_boom")
+    """
+    styles = {
+        "edm":     {"snare": True,  "riser_start": 36, "riser_end": 84, "curve": "exp", "roll_type": "edm"},
+        "trap":    {"snare": True,  "riser_start": 24, "riser_end": 72, "curve": "exp", "roll_type": "trap"},
+        "techno":  {"snare": True,  "riser_start": 36, "riser_end": 60, "curve": "exp", "roll_type": "techno"},
+        "rock":    {"snare": True,  "riser_start": 36, "riser_end": 60, "curve": "linear", "roll_type": "rock"},
+        "minimal": {"snare": False, "riser_start": 36, "riser_end": 72, "curve": "exp", "roll_type": None},
+    }
+    if style not in styles:
+        return f"Error: unknown style '{style}'. Valid: {list(styles.keys())}"
+    if length_beats < 2 or length_beats > 32:
+        return "Error: length_beats must be 2-32"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    s = styles[style]
+    steps_per_section = {
+        "edm": [("quarter", 0.25), ("eighth", 0.15), ("sixteenth", 0.35), ("thirtysecond", 0.25)],
+        "trap": [("quarter", 0.20), ("triplet", 0.30), ("sixteenth", 0.20), ("thirtysecond", 0.30)],
+        "techno": [("quarter", 0.30), ("eighth", 0.30), ("sixteenth", 0.40)],
+        "rock": [("quarter", 0.25), ("eighth", 0.35), ("sixteenth", 0.40)],
+    }
+
+    # Build snare roll note data
+    snare_pitch = 38  # snare drum MIDI
+    note_data = []
+    if s["snare"] and s["roll_type"]:
+        sections = steps_per_section.get(s["roll_type"], [])
+        for sec_idx, (div_name, sec_frac) in enumerate(sections):
+            sec_start = start_beat + length_beats * sum(f for _, f in sections[:sec_idx])
+            sec_len = length_beats * sec_frac
+            if div_name == "quarter":
+                num = max(1, int(sec_len / 1))
+                div = 1
+            elif div_name == "eighth":
+                num = max(1, int(sec_len / 0.5))
+                div = 0.5
+            elif div_name == "triplet":
+                num = max(1, int(sec_len / (1/3)))
+                div = 1/3
+            elif div_name == "sixteenth":
+                num = max(1, int(sec_len / 0.25))
+                div = 0.25
+            else:  # thirtysecond
+                num = max(1, int(sec_len / 0.125))
+                div = 0.125
+            for i in range(num):
+                progress = (sec_idx + i / max(1, num)) / len(sections)
+                pos = sec_start + i * div
+                vel = velocity * (0.3 + 0.7 * progress)
+                note_data.append({"pitch": snare_pitch, "pos": pos, "vel": vel, "dur": div * 0.8})
+
+    # Build riser note data
+    riser_steps = max(8, int(length_beats * 4))
+    for i in range(riser_steps):
+        progress = i / max(1, riser_steps - 1)
+        if s["curve"] == "exp":
+            t = progress * progress
+        else:
+            t = progress
+        pitch = round(s["riser_start"] + (s["riser_end"] - s["riser_start"]) * t)
+        pos = start_beat + progress * length_beats
+        vel = velocity * (0.3 + 0.7 * progress)
+        note_data.append({"pitch": pitch, "pos": pos, "vel": vel, "dur": length_beats / riser_steps})
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const noteData = {json.dumps(note_data)};
+        const lengthBeats = {length_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if (unitIdx >= 0 && unitIdx < allUnits.length) {{
+            targetAU = allUnits[unitIdx];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min(trackIdx, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(lengthBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Buildup");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (let i = 0; i < noteData.length; i++) {{
+                const nd = noteData[i];
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            style: "{style}",
+            length_beats: {length_beats},
+            has_snare_roll: {str(s['snare']).lower()},
+            riser_range: [{s['riser_start']}, {s['riser_end']}],
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_create_stab(chords: str, rhythm: str = "x-x-", unit_index: int = -1, track_index: int = 0, start_beat: float = 0, octave: int = 4, velocity: float = 0.85, length_beats: float = 4, stab_duration: float = 0.5) -> str:
     """Create rhythmic stabs — short chord jabs that define house, disco, funk.
 

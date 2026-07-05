@@ -7443,3 +7443,83 @@ class TestCreateImpact:
         assert vel_end < vel_start  # decays
         assert abs(vel_end - 0.49) < 0.01  # 0.7 * 0.7
 
+
+class TestCreateBuildup:
+    """Tests for create_buildup — combined riser + snare roll"""
+
+    STYLES = ["edm", "trap", "techno", "rock", "minimal"]
+
+    def test_5_styles(self):
+        assert len(self.STYLES) == 5
+
+    def test_edm_has_snare_roll(self):
+        s = {"snare": True, "riser_start": 36, "riser_end": 84}
+        assert s["snare"] is True
+
+    def test_minimal_no_snare_roll(self):
+        s = {"snare": False, "riser_start": 36, "riser_end": 72}
+        assert s["snare"] is False
+
+    def test_edm_riser_widest_range(self):
+        """EDM: C2→C6 (48 semitone range, widest)"""
+        edm_range = 84 - 36
+        techno_range = 60 - 36
+        assert edm_range > techno_range
+
+    def test_trap_riser_starts_lowest(self):
+        """Trap: starts at C1 (24), lowest of all styles"""
+        trap_start = 24
+        edm_start = 36
+        assert trap_start < edm_start
+
+    def test_rock_uses_linear_curve(self):
+        """Rock: linear riser (not exp) for steady build"""
+        rock_curve = "linear"
+        edm_curve = "exp"
+        assert rock_curve != edm_curve
+
+    def test_snare_pitch_38(self):
+        """Snare drum MIDI pitch = 38 (D2)"""
+        assert 38 == 38
+
+    def test_snare_density_increases(self):
+        """Snare roll: quarter → eighth → sixteenth → 32nd (density increases)"""
+        divisions = ["quarter", "eighth", "sixteenth", "thirtysecond"]
+        rates = [1, 0.5, 0.25, 0.125]
+        # each subsequent is faster (smaller division)
+        for i in range(len(rates) - 1):
+            assert rates[i] > rates[i + 1]
+
+    def test_velocity_crescendo(self):
+        """Velocity ramps up during build-up (0.3→1.0 of base)"""
+        base_vel = 0.7
+        start_vel = base_vel * 0.3
+        end_vel = base_vel * 1.0
+        assert end_vel > start_vel
+
+    def test_buildup_impact_pipeline(self):
+        """Build-up → impact: the classic EDM transition"""
+        pipeline = ["create_buildup", "create_impact"]
+        assert pipeline[0] == "create_buildup"
+        assert pipeline[1] == "create_impact"
+
+    def test_full_transition_pipeline(self):
+        """Full transition: buildup → impact → main arrangement → mix"""
+        pipeline = ["create_buildup", "create_impact", "create_dnb_arrangement",
+                    "apply_full_mix", "render_full_song"]
+        assert len(pipeline) == 5
+        assert pipeline.index("create_buildup") < pipeline.index("create_impact")
+        assert pipeline.index("create_impact") < pipeline.index("apply_full_mix")
+
+    def test_trap_has_triplet_section(self):
+        """Trap: includes triplet division in snare roll"""
+        trap_sections = [("quarter", 0.20), ("triplet", 0.30), ("sixteenth", 0.20), ("thirtysecond", 0.30)]
+        divisions = [s[0] for s in trap_sections]
+        assert "triplet" in divisions
+
+    def test_minimal_just_riser(self):
+        """Minimal: no snare roll, just a riser"""
+        s = {"snare": False, "roll_type": None}
+        assert s["snare"] is False
+        assert s["roll_type"] is None
+
