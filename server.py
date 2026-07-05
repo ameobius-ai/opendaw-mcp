@@ -4577,6 +4577,144 @@ async def mcp_opendaw_split_note_region(
     return _wrap_eval(result)
 
 @mcp.tool()
+async def mcp_opendaw_merge_note_regions(
+    unit_index: int,
+    track_index: int,
+    region_index_a: int,
+    region_index_b: int,
+) -> str:
+    """Merge two note regions on the same track into one.
+
+    Copies all notes from region B into region A's note collection, adjusting
+    positions so they remain at their original absolute timeline position.
+    Region A's duration is extended to cover both regions. Region B is deleted.
+
+    The regions do not need to be adjacent — if there's a gap between them,
+    the merged region spans the full range (with silence in the gap).
+
+    Use cases:
+    - Join verse + chorus into one continuous region
+    - Consolidate split regions back together
+    - Merge separately-recorded MIDI takes
+    - Simplify arrangement before export
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index_a: First region (keeps its identity, absorbs B's notes).
+    region_index_b: Second region (deleted after merge).
+
+    Returns merged region details.
+
+    Example:
+      # Merge regions 0 and 1 into one
+      merge_note_regions(0, 0, 0, 1)
+    """
+    if region_index_a == region_index_b:
+        return "Error: region_index_a and region_index_b must be different"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regAIdx = {region_index_a};
+        const regBIdx = {region_index_b};
+        const Quarter = h.ppqn.Quarter;
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+        const regions = h.regionBoxes(trackBox);
+        if (regAIdx < 0 || regAIdx >= regions.length) return {{error: "region_index_a out of range"}};
+        if (regBIdx < 0 || regBIdx >= regions.length) return {{error: "region_index_b out of range"}};
+
+        const regA = regions[regAIdx];
+        const regB = regions[regBIdx];
+
+        const posA = regA.position.getValue();
+        const durA = regA.duration.getValue();
+        const posB = regB.position.getValue();
+        const durB = regB.duration.getValue();
+        const endA = posA + durA;
+        const endB = posB + durB;
+
+        // Read region B notes
+        let collB = null;
+        try {{
+            const vertex = regB.events.targetVertex.unwrap();
+            collB = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collB || !collB.events) return {{error: "No note collection in region B"}};
+
+        const notesB = h.eventBoxes(collB);
+
+        // Read region A collection
+        let collA = null;
+        try {{
+            const vertex = regA.events.targetVertex.unwrap();
+            collA = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!collA || !collA.events) return {{error: "No note collection in region A"}};
+
+        let moved = 0;
+        let skipped = 0;
+
+        h.modify(() => {{
+            // Copy notes from B into A's collection
+            // Note positions in B are relative to B's start (posB)
+            // Absolute position = posB + notePos
+            // New relative position in A = absolute - posA
+            for (const n of notesB) {{
+                const absPos = posB + n.position.getValue();
+                const relPos = absPos - posA;
+
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(Math.round(relPos));
+                    box.duration.setValue(n.duration.getValue());
+                    box.velocity.setValue(n.velocity.getValue());
+                    box.pitch.setValue(n.pitch.getValue());
+                    box.chance.setValue(n.chance?.getValue?.() ?? 100);
+                    box.cent.setValue(n.cent?.getValue?.() ?? 0);
+                    box.events.refer(collA.events);
+                }});
+                moved++;
+            }}
+
+            // Extend region A duration to cover both regions
+            const newEnd = Math.max(endA, endB);
+            const newDur = newEnd - posA;
+            regA.duration.setValue(newDur);
+
+            // Delete region B
+            regB.delete();
+        }});
+
+        const remainingRegions = h.regionBoxes(trackBox).length;
+
+        return {{
+            success: true,
+            merged_region_index: regAIdx,
+            notes_moved: moved,
+            notes_skipped: skipped,
+            original_a: {{
+                position_beats: posA / Quarter,
+                duration_beats: durA / Quarter,
+            }},
+            merged: {{
+                position_beats: posA / Quarter,
+                duration_beats: (Math.max(endA, endB) - posA) / Quarter,
+            }},
+            deleted_region_b: regBIdx,
+            remaining_regions: remainingRegions,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+@mcp.tool()
 async def mcp_opendaw_duplicate_notes(unit_index: int, track_index: int, region_index: int) -> str:
     """Duplicate all notes within a region, shifting them after the last note.
 

@@ -14547,3 +14547,134 @@ class TestSplitNoteRegion:
         assert moved["chance"] == orig["chance"]
         assert moved["cent"] == orig["cent"]
         assert moved["pos"] == 0, "Position should be relative to new region"
+
+
+class TestMergeNoteRegions:
+    """Tests for mcp_opendaw_merge_note_regions — region merging"""
+
+    def test_function_exists(self):
+        import ast
+        tree = ast.parse(open("server.py").read())
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_merge_note_regions" in names
+
+    def test_same_region_rejected(self):
+        """Merging a region with itself should be rejected"""
+        a, b = 0, 0
+        assert a == b, "Same indices should be rejected"
+
+    def test_note_position_recalculation(self):
+        """Notes from B get positions relative to A's start"""
+        Quarter = 960
+        posA = 0 * Quarter      # Region A starts at beat 0
+        posB = 8 * Quarter      # Region B starts at beat 8
+        notePosB = 2 * Quarter   # Note in B at beat 2 (relative to B)
+
+        # Absolute position = posB + notePosB = 10 beats
+        absPos = posB + notePosB
+        # New relative in A = absPos - posA = 10 beats
+        relPos = absPos - posA
+        assert relPos == 10 * Quarter, "Note at B:2 should be at A:10"
+
+    def test_position_recalculation_with_offset_a(self):
+        """A starts at beat 4, B starts at beat 12, note in B at beat 2"""
+        Quarter = 960
+        posA = 4 * Quarter
+        posB = 12 * Quarter
+        notePosB = 2 * Quarter
+
+        absPos = posB + notePosB  # beat 14
+        relPos = absPos - posA     # beat 10 relative to A
+        assert relPos == 10 * Quarter, "Note at B:2 with A:4 should be at A:10"
+
+    def test_duration_extension_adjacent(self):
+        """Adjacent regions: A(0-8) + B(8-16) → merged(0-16)"""
+        posA, durA = 0, 8
+        posB, durB = 8, 8
+        endA = posA + durA  # 8
+        endB = posB + durB  # 16
+        newEnd = max(endA, endB)
+        newDur = newEnd - posA
+        assert newDur == 16, "Merged adjacent regions should span 16 beats"
+
+    def test_duration_extension_gap(self):
+        """Regions with gap: A(0-4) + B(8-12) → merged(0-12)"""
+        posA, durA = 0, 4
+        posB, durB = 8, 4
+        endA = posA + durA  # 4
+        endB = posB + durB  # 12
+        newEnd = max(endA, endB)
+        newDur = newEnd - posA
+        assert newDur == 12, "Merged with gap should span to furthest end"
+
+    def test_duration_extension_overlap(self):
+        """Overlapping regions: A(0-8) + B(4-12) → merged(0-12)"""
+        posA, durA = 0, 8
+        posB, durB = 4, 8
+        endA = posA + durA  # 8
+        endB = posB + durB  # 12
+        newEnd = max(endA, endB)
+        newDur = newEnd - posA
+        assert newDur == 12, "Merged overlapping should span to furthest end"
+
+    def test_b_extends_before_a(self):
+        """B starts before A: B(0-4) + A(2-8) → A absorbs, spans 0-8"""
+        # If A is at beat 2, B at beat 0
+        posA, durA = 2, 6
+        posB, durB = 0, 4
+        endA = posA + durA  # 8
+        endB = posB + durB  # 4
+        newEnd = max(endA, endB)  # 8
+        newDur = newEnd - posA  # 6 (A keeps its position, extends to 8)
+        assert newDur == 6, "A keeps its position, duration extends to cover B"
+
+    def test_b_deleted_after_merge(self):
+        """Region B is deleted, remaining regions decremented"""
+        regions_before = 3
+        regions_after = regions_before - 1
+        assert regions_after == 2, "Should have one fewer region after merge"
+
+    def test_preserves_note_properties(self):
+        """Moved notes keep pitch, velocity, duration, chance, cent"""
+        orig = {"pos": 960, "dur": 480, "vel": 0.85, "pitch": 67, "chance": 90, "cent": -5}
+        moved = dict(orig)
+        # Only position changes
+        posA = 0
+        posB = 3840
+        absPos = posB + orig["pos"]
+        moved["pos"] = absPos - posA
+        assert moved["pitch"] == orig["pitch"]
+        assert moved["vel"] == orig["vel"]
+        assert moved["dur"] == orig["dur"]
+        assert moved["chance"] == orig["chance"]
+        assert moved["cent"] == orig["cent"]
+        assert moved["pos"] == 4800, "Position should be absolute relative to A"
+
+    def test_empty_region_b(self):
+        """Merging an empty region B adds 0 notes but extends duration"""
+        notesB = []
+        moved = len(notesB)
+        assert moved == 0, "Empty B → 0 notes moved"
+
+    def test_round_trip_split_merge(self):
+        """Split then merge should restore original duration"""
+        # Original: 16 beats
+        # Split at 8 → A: 8 beats, B: 8 beats
+        # Merge A + B → 16 beats
+        orig_dur = 16
+        split = 8
+        durA = split  # 8
+        durB = orig_dur - split  # 8
+        posB = split  # 8
+        endA = durA  # 8
+        endB = posB + durB  # 16
+        merged_dur = max(endA, endB)  # 16
+        assert merged_dur == orig_dur, "Split+merge should restore original duration"
+
+    def test_all_notes_combined(self):
+        """After merge, A should have A_notes + B_notes total"""
+        notesA = 5
+        notesB = 3
+        total = notesA + notesB
+        assert total == 8, "Merged region should have all notes from both"

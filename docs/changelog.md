@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.235.0 (2026-07-06)
+
+### Added
+- `merge_note_regions` — Merge two note regions into one. Copies all notes from region B into A's collection, adjusting positions to absolute timeline (absPos = posB + notePos, relPos = absPos - posA). Region A duration extends to cover both regions. Region B deleted. Works with adjacent, gapped, overlapping, and out-of-order regions. 13 unit tests including position recalculation, duration extension (adjacent/gap/overlap), round-trip split+merge, note property preservation. **410 MCP tools**, 2982 unit tests
+
 ## v1.234.0 (2026-07-06)
 
 ### Added

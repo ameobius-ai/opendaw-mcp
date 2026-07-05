@@ -75,7 +75,7 @@ for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
 ### export_effect_chain
 - Source: AU 0 (Delay + Reverb audio effects)
-- Export: 2216 bytes, 2969 base64 chars, effect_names=["Delay","Reverb"]
+- Export: 2216 bytes, 2982 base64 chars, effect_names=["Delay","Reverb"]
 - Uses PresetEncoder.encodeEffects(effects, ChainKind.Audio=1) or ChainKind.Midi=0
 - Wrapper AU created internally (NoopInstrumentBox + CaptureBox), not visible in project
 
