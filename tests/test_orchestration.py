@@ -1410,3 +1410,91 @@ class TestGlissandoPatternGeneration:
         for i in range(1, len(notes)):
             gap = notes[i]["pos"] - notes[i - 1]["pos"]
             assert gap > 0, f"Positions should be increasing"
+
+
+class TestSequencePatternGeneration:
+    """Test the Python-side pattern generation logic of create_sequence."""
+
+    def _generate_sequence(self, pattern="60,62,64,60", transposition=5,
+                           repeats=3, direction="up", segment_beats=2,
+                           velocity_decay=0.0, velocity=0.8, start_beat=0):
+        """Replicate the pattern generation logic from create_sequence."""
+        base_pitches = [int(p.strip()) for p in pattern.split(",")]
+        note_data = []
+        note_dur = segment_beats / len(base_pitches)
+
+        for rep in range(repeats):
+            if direction == "up":
+                transpose = transposition * rep
+            elif direction == "down":
+                transpose = -transposition * rep
+            elif direction == "alternating":
+                transpose = transposition * rep if rep % 2 == 0 else -transposition * rep
+
+            rep_vel = max(0.01, min(1.0, velocity + velocity_decay * rep))
+
+            for j, base_pitch in enumerate(base_pitches):
+                pitch = max(0, min(127, base_pitch + transpose))
+                pos = start_beat + rep * segment_beats + j * note_dur
+                note_data.append({
+                    "pitch": pitch,
+                    "pos": pos,
+                    "dur": note_dur * 0.9,
+                    "vel": round(rep_vel, 3),
+                })
+        return note_data
+
+    def test_default_note_count(self):
+        notes = self._generate_sequence(pattern="60,62,64,60", repeats=3)
+        assert len(notes) == 12, f"Expected 12 (4x3), got {len(notes)}"
+
+    def test_ascending_transposition(self):
+        notes = self._generate_sequence(pattern="60,62,64", transposition=5, repeats=3, direction="up")
+        # rep 0: 60,62,64; rep 1: 65,67,69; rep 2: 70,72,74
+        assert notes[0]["pitch"] == 60
+        assert notes[3]["pitch"] == 65
+        assert notes[6]["pitch"] == 70
+
+    def test_descending_transposition(self):
+        notes = self._generate_sequence(pattern="72,71,69", transposition=2, repeats=3, direction="down")
+        assert notes[0]["pitch"] == 72
+        assert notes[3]["pitch"] == 70
+        assert notes[6]["pitch"] == 68
+
+    def test_alternating_direction(self):
+        notes = self._generate_sequence(pattern="60,62,64", transposition=7, repeats=4, direction="alternating")
+        # rep 0: +0, rep 1: +7, rep 2: -14? No: rep 2 = +7*2=+14? Let me check
+        # rep 0: 0%2==0 → +7*0=0, rep 1: 1%2==1 → -7*1=-7, rep 2: 2%2==0 → +7*2=14, rep 3: 3%2==1 → -7*3=-21
+        assert notes[0]["pitch"] == 60  # rep 0, transpose=0
+        assert notes[3]["pitch"] == 53  # rep 1, transpose=-7
+        assert notes[6]["pitch"] == 74  # rep 2, transpose=+14
+
+    def test_velocity_decay(self):
+        notes = self._generate_sequence(pattern="60,62,64", repeats=3, velocity_decay=-0.1, velocity=0.8)
+        assert notes[0]["vel"] == 0.8
+        assert notes[3]["vel"] == 0.7
+        assert notes[6]["vel"] == 0.6
+
+    def test_velocity_increase(self):
+        notes = self._generate_sequence(pattern="60,62,64", repeats=3, velocity_decay=0.15, velocity=0.5)
+        assert notes[0]["vel"] == 0.5
+        assert notes[3]["vel"] == 0.65
+        assert notes[6]["vel"] == 0.8
+
+    def test_position_spacing(self):
+        notes = self._generate_sequence(pattern="60,62,64,60", repeats=2, segment_beats=2)
+        # Each note dur = 2/4 = 0.5 beats
+        for i in range(1, len(notes)):
+            gap = notes[i]["pos"] - notes[i - 1]["pos"]
+            assert abs(gap - 0.5) < 0.01, f"Gap should be 0.5, got {gap}"
+
+    def test_single_repeat(self):
+        notes = self._generate_sequence(pattern="60,62,64,67", repeats=1, transposition=7)
+        assert len(notes) == 4
+        assert all(n["pitch"] in (60, 62, 64, 67) for n in notes)
+
+    def test_pitch_clamping(self):
+        # High pitches + high transposition should clamp to 127
+        notes = self._generate_sequence(pattern="120,122,124", transposition=12, repeats=3, direction="up")
+        for n in notes:
+            assert n["pitch"] <= 127

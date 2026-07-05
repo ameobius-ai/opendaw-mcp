@@ -16166,6 +16166,173 @@ async def mcp_opendaw_create_glissando(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_sequence(
+    pattern: str = "60,62,64,60",
+    transposition: int = 5,
+    repeats: int = 3,
+    direction: str = "up",
+    segment_beats: float = 2,
+    velocity_decay: float = 0.0,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+) -> str:
+    """Create a melodic sequence — repeat a pattern at transposed pitch levels.
+
+    The most fundamental compositional technique in Western music: take a melodic
+    fragment, repeat it at a different pitch (usually up/down a 4th or 5th).
+    Think baroque sequences (Pachelbel), jazz ii-V-I chains, film score ascending
+    quint sequences, or EDM build-ups with rising motifs.
+
+    pattern: Comma-separated MIDI pitches (e.g. "60,62,64,67").
+    transposition: Semitones to shift each repeat (default 5 = perfect 4th up).
+      Common: 5 (4th), 7 (5th), 2 (major 2nd), -2 (down), -5 (4th down).
+    repeats: Number of transposed repetitions (1-8, default 3).
+    direction: "up" (transpose up), "down" (transpose down), "alternating" (up/down/up...).
+    segment_beats: Duration of each pattern repetition in beats (0.5-16, default 2).
+    velocity_decay: Velocity change per repeat (-0.3 to 0.3). Positive = louder,
+      negative = quieter (fade-out). 0 = constant.
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the sequence begins.
+    velocity: Base velocity 0-1 (default 0.8).
+
+    Returns notes created, repeat count, total transposition.
+    """
+    try:
+        base_pitches = [int(p.strip()) for p in pattern.split(",")]
+    except ValueError:
+        return "Error: pattern must be comma-separated integers (e.g. '60,62,64,67')"
+    if len(base_pitches) < 2:
+        return "Error: need at least 2 pitches in pattern"
+    if len(base_pitches) > 32:
+        return "Error: maximum 32 pitches in pattern"
+    if not all(0 <= p <= 127 for p in base_pitches):
+        return "Error: pitches must be 0-127"
+    if transposition < -24 or transposition > 24:
+        return "Error: transposition must be -24 to 24"
+    if repeats < 1 or repeats > 8:
+        return "Error: repeats must be 1-8"
+    if direction not in ("up", "down", "alternating"):
+        return "Error: direction must be up, down, or alternating"
+    if segment_beats < 0.25 or segment_beats > 16:
+        return "Error: segment_beats must be 0.25-16"
+    if velocity_decay < -0.3 or velocity_decay > 0.3:
+        return "Error: velocity_decay must be -0.3 to 0.3"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    note_data = []
+    note_dur = segment_beats / len(base_pitches)
+
+    for rep in range(repeats):
+        # Calculate transposition for this repeat
+        if direction == "up":
+            transpose = transposition * rep
+        elif direction == "down":
+            transpose = -transposition * rep
+        elif direction == "alternating":
+            transpose = transposition * rep if rep % 2 == 0 else -transposition * rep
+
+        # Velocity per repeat
+        rep_vel = max(0.01, min(1.0, velocity + velocity_decay * rep))
+
+        for j, base_pitch in enumerate(base_pitches):
+            pitch = max(0, min(127, base_pitch + transpose))
+            pos = start_beat + rep * segment_beats + j * note_dur
+            note_data.append({
+                "pitch": pitch,
+                "pos": pos,
+                "dur": note_dur * 0.9,
+                "vel": round(rep_vel, 3),
+            })
+
+    total_beats = repeats * segment_beats
+    total_transpose = transposition * (repeats - 1) if direction != "down" else -transposition * (repeats - 1)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Sequence");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            pattern_notes: {len(base_pitches)},
+            repeats: {repeats},
+            transposition: {transposition},
+            direction: "{direction}",
+            total_transposition: {total_transpose},
+            segment_beats: {segment_beats},
+            velocity_decay: {velocity_decay},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_ghost_notes(
     unit_index: int = 0,
     track_index: int = 0,

@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-290 MCP tools for headless openDAW control via Playwright bridge.
+291 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -327,7 +327,7 @@
 - `save_effect_preset` — Encode an audio effect chain as a .opb preset bundle (ZIP: meta.json + preset.odp). Uses PresetEncoder.encodeEffects. Shareable, drag-and-drop into openDAW.
 - `load_effect_preset` — Load a .opb preset file and decode it via PresetDecoder into a project skeleton. Returns imported unit count.
 
-## Orchestration Tools (31)
+## Orchestration Tools (32)
 High-level composers that combine multiple low-level operations into a single call.
 Designed for agents — reduce token usage and round-trips when building musical structures.
 - `create_notes_batch` — Create multiple MIDI notes from a JSON array in one call. Replaces 10-50 create_note calls.
@@ -347,6 +347,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_chop` — Slice source pitches into segments and rearrange. 5 modes: reverse (Dilla flip), stutter (glitch repeat), shuffle (Madlib random), ping-pong (ABBA), gate (chopped break). Octave shift, velocity variation, inner-pitch reverse.
 - `create_trill` — Create rapid two-note alternation (ornament). 5 rates (32nd/16th/8th/32t/16t). Upper note accent (baroque style). Start on upper or lower. Classical, jazz, metal, electronic.
 - `create_glissando` — Smooth scale run between two pitches. 6 scale types (chromatic/major/minor/pentatonic/whole_tone). 5 rates. 4 velocity curves (flat/ramp_up/ramp_down/arc). Ascending or descending.
+- `create_sequence` — Repeat a melodic pattern at transposed pitch levels. 3 directions (up/down/alternating). Adjustable transposition (semitones), repeats (1-8), velocity decay. The fundamental compositional technique — baroque sequences, jazz chains, film score builds.
 - `create_ostinato` — Create a repeating melodic/rhythmic pattern as a foundation layer. Scale-based, 1-16 repeats. Common in minimalism, electronic, and film music.
 - `create_crescendo` — Apply crescendo/decrescendo to existing notes. Linear, exponential, or logarithmic velocity curves. One call modifies all notes in a region.
 - `apply_swing` — Apply pure swing feel to existing notes without changing velocity or duration. Deterministic, no randomness. 16th or 8th grid. 0.58 = classic hip-hop/lofi swing.

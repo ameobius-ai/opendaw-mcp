@@ -8,7 +8,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## Tools Added (v1.10.0, 255 total → v1.32.0, 284 total)
 
-33 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+34 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
 ### Full orchestration tool list (v1.32.0)
 1. `create_notes_batch` — batch note creation from JSON
@@ -44,6 +44,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 31. `create_chop` — slice source pitches into segments and rearrange (reverse/stutter/shuffle/ping-pong/gate, Dilla/Madlib/glitch-hop)
 32. `create_trill` — rapid two-note alternation ornament (5 rates, upper accent, start convention)
 33. `create_glissando` — smooth scale run between two pitches (6 scale types, 5 rates, 4 velocity curves, asc/desc)
+34. `create_sequence` — transposed melodic repetition (up/down/alternating, adjustable transposition, velocity decay)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

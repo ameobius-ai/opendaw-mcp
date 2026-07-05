@@ -98,6 +98,7 @@ python examples/genre_house.py
 | `create_chop.py` | Pitch chopping: reverse (Dilla), stutter (glitch), shuffle (Madlib), ping-pong, gate, bass chop |
 | `create_trill.py` | Two-note trills: baroque 16th, fast 32nd, slow 8th, jazz triplet, minor 3rd |
 | `create_glissando.py` | Scale runs: chromatic, major, pentatonic, descending, whole tone |
+| `create_sequence.py` | Transposed repetition: baroque 4th, jazz 2nd, film 5th, fade-out, rising quint |
 
 ## Running examples
 
