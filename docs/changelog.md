@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.83.0 (2026-07-05)
+
+- **`create_stutter` orchestration tool** — stutter edit: rapid rhythmic repetitions with evolving rate and dynamics. 5 patterns (accelerate, decelerate, ping_pong, constant, random), 5 accent patterns, 5 velocity ramps, gate, pitch jitter. 309 MCP tools
+- **792 unit tests** (+10), E2E 8/8
+
 ## v1.82.0 (2026-07-05)
 
 - **`spielwerk_harmonizer.js` DSP script** — MIDI harmonizer: 3 voices at fixed intervals or diatonic, per-voice velocity, 14 scales. Forces notes into scale. 66 DSP scripts

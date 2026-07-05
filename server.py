@@ -20037,5 +20037,250 @@ async def mcp_opendaw_create_motif_development(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_stutter(
+    pitches: str = "60",
+    rate: str = "16th",
+    pattern: str = "accelerate",
+    repeat_count: int = 16,
+    accent_pattern: str = "downbeat",
+    velocity_ramp: str = "build",
+    gate: float = 0.85,
+    pitch_jitter: int = 0,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    velocity: float = 0.9,
+    seed: int = 42,
+) -> str:
+    """Create a stutter edit — rapid rhythmic repetitions with evolving rate and dynamics.
+
+    The classic stutter edit (BT, Imogen Heap, Deadmau5, Skrillex): take a note
+    and repeat it with changing rhythmic density. Unlike create_chop (equal segments)
+    or create_trill (alternating two notes), stutter edit evolves over time —
+    accelerating, decelerating, or shifting accents. Essential for:
+    - Build-up transitions before drops
+    - Glitch fills at end of phrases
+    - Vocal-chop style rhythmic patterns
+    - Energy ramps in EDM/hip-hop
+
+    pitches: Comma-separated MIDI pitches (1-8, default "60"). Cycles through if repeat_count > len.
+    rate: Base rhythmic subdivision —
+      "16th" (0.25 beats), "32nd" (0.125), "64th" (0.0625),
+      "triplet" (0.167), "triplet32" (0.083).
+    pattern: How rate evolves —
+      "constant" (same spacing throughout),
+      "accelerate" (notes get closer — classic stutter build),
+      "decelerate" (notes spread out — reverse stutter),
+      "ping_pong" (alternate fast/slow),
+      "random" (jittered spacing, seeded).
+    repeat_count: Total repetitions (4-64, default 16).
+    accent_pattern: Velocity accent structure —
+      "none" (all equal), "downbeat" (every 4th accented),
+      "1_and" (1st + 3rd accented), "1_e_and_a" (1st strongest, 3rd medium),
+      "every_other" (alternating accent).
+    velocity_ramp: Dynamic envelope —
+      "constant", "fade_in", "fade_out", "fade_in_out", "build" (exponential increase).
+    gate: Portion of each step with sound (0.3-1.0, default 0.85). Lower = more gaps = choppy.
+    pitch_jitter: Random pitch variation in semitones (0-12, default 0). 0 = exact repeat.
+    unit_index: AU index with note track (-1 = auto-find).
+    track_index: Note track index.
+    start_beat: Position in beats.
+    velocity: Base velocity (0-1).
+    seed: Random seed.
+
+    Returns notes created, pattern, rate, total length.
+    """
+    try:
+        pitch_list = [int(p.strip()) for p in pitches.split(",")]
+    except ValueError:
+        return "Error: pitches must be comma-separated integers"
+    if len(pitch_list) < 1 or len(pitch_list) > 8:
+        return "Error: need 1-8 pitches"
+    if not all(0 <= p <= 127 for p in pitch_list):
+        return "Error: pitches must be 0-127"
+    if rate not in ("16th", "32nd", "64th", "triplet", "triplet32"):
+        return "Error: rate must be 16th, 32nd, 64th, triplet, or triplet32"
+    if pattern not in ("constant", "accelerate", "decelerate", "ping_pong", "random"):
+        return "Error: pattern must be constant, accelerate, decelerate, ping_pong, or random"
+    if repeat_count < 4 or repeat_count > 64:
+        return "Error: repeat_count must be 4-64"
+    if accent_pattern not in ("none", "downbeat", "1_and", "1_e_and_a", "every_other"):
+        return "Error: accent_pattern must be none, downbeat, 1_and, 1_e_and_a, or every_other"
+    if velocity_ramp not in ("constant", "fade_in", "fade_out", "fade_in_out", "build"):
+        return "Error: velocity_ramp must be constant, fade_in, fade_out, fade_in_out, or build"
+    if gate < 0.3 or gate > 1.0:
+        return "Error: gate must be 0.3-1.0"
+    if pitch_jitter < 0 or pitch_jitter > 12:
+        return "Error: pitch_jitter must be 0-12"
+    if velocity < 0 or velocity > 1:
+        return "Error: velocity must be 0-1"
+
+    import random as _rng
+    rng = _rng.Random(seed)
+
+    # Base step duration in beats
+    rate_map = {"16th": 0.25, "32nd": 0.125, "64th": 0.0625, "triplet": 1.0/6.0, "triplet32": 1.0/12.0}
+    base_step = rate_map[rate]
+
+    # Compute positions based on pattern
+    positions = []
+    for i in range(repeat_count):
+        if pattern == "constant":
+            step = base_step
+        elif pattern == "accelerate":
+            # exponential decrease: start at base_step, shrink toward base_step/4
+            t = i / max(1, repeat_count - 1)
+            step = base_step * (1.0 - 0.75 * t)
+        elif pattern == "decelerate":
+            t = i / max(1, repeat_count - 1)
+            step = base_step * (0.25 + 0.75 * t)
+        elif pattern == "ping_pong":
+            step = base_step if i % 2 == 0 else base_step * 0.5
+        elif pattern == "random":
+            step = base_step * rng.uniform(0.4, 1.0)
+        positions.append(step)
+
+    # Cumulative positions
+    cumulative = []
+    pos = 0.0
+    for step in positions:
+        cumulative.append(pos)
+        pos += step
+    total_beats = pos
+
+    # Build note data with velocity ramp and accent pattern
+    note_data = []
+    for i in range(repeat_count):
+        # Velocity ramp
+        t = i / max(1, repeat_count - 1)
+        if velocity_ramp == "constant":
+            ramp_vel = velocity
+        elif velocity_ramp == "fade_in":
+            ramp_vel = velocity * (0.2 + 0.8 * t)
+        elif velocity_ramp == "fade_out":
+            ramp_vel = velocity * (0.2 + 0.8 * (1.0 - t))
+        elif velocity_ramp == "fade_in_out":
+            tri = 1.0 - abs(2.0 * t - 1.0)
+            ramp_vel = velocity * (0.3 + 0.7 * tri)
+        elif velocity_ramp == "build":
+            ramp_vel = velocity * (0.1 + 0.9 * (t ** 2))
+
+        # Accent pattern
+        if accent_pattern == "none":
+            accent = 1.0
+        elif accent_pattern == "downbeat":
+            accent = 1.15 if i % 4 == 0 else 0.85
+        elif accent_pattern == "1_and":
+            accent = 1.2 if i % 4 in (0, 2) else 0.7
+        elif accent_pattern == "1_e_and_a":
+            mod4 = i % 4
+            accent = 1.3 if mod4 == 0 else (1.0 if mod4 == 2 else 0.6)
+        elif accent_pattern == "every_other":
+            accent = 1.2 if i % 2 == 0 else 0.75
+
+        vel = max(0.05, min(1.0, ramp_vel * accent))
+
+        # Gate: some steps become rests
+        is_rest = (gate < 1.0) and (rng.random() > gate)
+
+        # Pitch selection
+        pitch = pitch_list[i % len(pitch_list)]
+        if pitch_jitter > 0:
+            pitch = max(0, min(127, pitch + rng.randint(-pitch_jitter, pitch_jitter)))
+
+        if not is_rest:
+            dur = positions[i] * 0.9
+            note_data.append({
+                "pitch": pitch,
+                "pos": round(cumulative[i], 6),
+                "dur": round(dur, 6),
+                "vel": round(vel, 3),
+            })
+
+    actual_notes = len(note_data)  # used in JS f-string below  # noqa: F841
+    total_beats = round(total_beats, 6)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteEventCollectionBox = window.DAW_NoteEventCollectionBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Stutter");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            repeats: {repeat_count},
+            pattern: "{pattern}",
+            rate: "{rate}",
+            accent: "{accent_pattern}",
+            velocity_ramp: "{velocity_ramp}",
+            gate: {gate},
+            notes_after_gate: {actual_notes},
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 if __name__ == "__main__":
     main()

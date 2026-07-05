@@ -8,7 +8,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## Tools Added (v1.10.0, 255 total → v1.32.0, 284 total)
 
-51 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+52 orchestration tools total. First 7 documented below with full implementation details. Later tools follow the same patterns. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
 ### Full orchestration tool list (v1.70.0)
 1. `create_notes_batch` — batch note creation from JSON
@@ -60,6 +60,9 @@ Orchestration tools solve this by combining multiple low-level operations into a
 47. `create_chorale` — 4-voice SATB chorale with voice-leading rules (nearest chord tone, parallel fifth detection, S/A/T/B range clamping, Bach/vocal/strings)
 48. `create_fugue` — polyphonic fugue with subject, tonal/real answer, optional countersubject, stretto (voice alternation, 2-5 voices, Bach WTC/Art of Fugue)
 49. `create_two_hand_piano` — two-hand piano arrangement: left hand accompaniment (block/arpeggio/Alberti/bass+chord) + right hand (chord tones/arpeggio/melody). Separate octaves, adjustable arpeggio rate (piano ballads, jazz comping, lofi piano)
+50. `create_variations` — 9 transformations in one operation (transpose/invert/retrograde/augment/diminish/fragment/transpose_cadence/octave_shift/reverse)
+51. `create_motif_development` — through-composed melodic development: 11 stages (statement/sequence/fragment/invert/octave/expand/compress/cadence)
+52. `create_stutter` — stutter edit: rapid rhythmic repetitions with evolving rate (accelerate/decelerate/ping_pong/random), accent patterns, velocity ramps, gate, pitch jitter (BT/Imogen Heap/Deadmau5)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

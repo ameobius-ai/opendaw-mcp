@@ -5,11 +5,11 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-308-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-309-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-66-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-782%20unit%20%2B%20E2E-brightgreen)](tests/)
-[![Examples](https://img.shields.io/badge/Examples-104-blue)](examples/)
+[![Tests](https://img.shields.io/badge/Tests-792%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Examples](https://img.shields.io/badge/Examples-105-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -509,7 +509,12 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
-## v1.82.0 (2026-07-05)
+## v1.83.0 (2026-07-05)
+
+- **`create_stutter` orchestration tool** — stutter edit: rapid rhythmic repetitions with evolving rate and dynamics. 5 patterns (accelerate, decelerate, ping_pong, constant, random), 5 accent patterns, 5 velocity ramps, gate, pitch jitter. Unlike create_chop (equal segments) — rate evolves over time. 309 MCP tools
+- **792 unit tests** (+10), E2E 8/8
+
+### v1.82.0 (2026-07-05)
 
 - **`spielwerk_harmonizer.js` DSP script** — MIDI harmonizer: 3 voices at fixed intervals or diatonic, per-voice velocity, 14 scales. 66 DSP scripts
 - **782 unit tests** (+11), E2E 8/8

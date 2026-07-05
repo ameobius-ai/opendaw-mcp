@@ -2831,3 +2831,77 @@ class TestCreateMotifDevelopment:
         for stage in ["statement", "sequence_up", "sequence_down", "fragment",
                        "invert", "octave_up", "octave_down", "expand", "compress", "cadence"]:
             assert stage in doc, f"Stage '{stage}' not in docstring"
+
+
+class TestCreateStutter:
+    """Unit tests for create_stutter orchestration tool."""
+
+    def test_signature(self):
+        from server import mcp_opendaw_create_stutter
+        sig = inspect.signature(mcp_opendaw_create_stutter)
+        assert "pitches" in sig.parameters
+        assert "rate" in sig.parameters
+        assert "pattern" in sig.parameters
+        assert "repeat_count" in sig.parameters
+        assert "accent_pattern" in sig.parameters
+        assert "velocity_ramp" in sig.parameters
+        assert "gate" in sig.parameters
+        assert sig.parameters["rate"].default == "16th"
+        assert sig.parameters["pattern"].default == "accelerate"
+
+    def test_invalid_pitches(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        result = asyncio.run(mcp_opendaw_create_stutter(pitches="abc"))
+        assert "Error" in result
+
+    def test_too_many_pitches(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        result = asyncio.run(mcp_opendaw_create_stutter(pitches="60,62,64,67,69,72,74,76,77"))
+        assert "Error" in result
+
+    def test_invalid_rate(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        result = asyncio.run(mcp_opendaw_create_stutter(rate="bogus"))
+        assert "Error" in result
+
+    def test_invalid_pattern(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        result = asyncio.run(mcp_opendaw_create_stutter(pattern="bogus"))
+        assert "Error" in result
+
+    def test_repeat_count_bounds(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        r1 = asyncio.run(mcp_opendaw_create_stutter(repeat_count=2))
+        assert "Error" in r1
+        r2 = asyncio.run(mcp_opendaw_create_stutter(repeat_count=100))
+        assert "Error" in r2
+
+    def test_invalid_accent(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        result = asyncio.run(mcp_opendaw_create_stutter(accent_pattern="bogus"))
+        assert "Error" in result
+
+    def test_invalid_velocity_ramp(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        result = asyncio.run(mcp_opendaw_create_stutter(velocity_ramp="bogus"))
+        assert "Error" in result
+
+    def test_gate_bounds(self):
+        import asyncio
+        from server import mcp_opendaw_create_stutter
+        r1 = asyncio.run(mcp_opendaw_create_stutter(gate=0.1))
+        assert "Error" in r1
+        r2 = asyncio.run(mcp_opendaw_create_stutter(gate=1.5))
+        assert "Error" in r2
+
+    def test_doc_mentions_bt(self):
+        from server import mcp_opendaw_create_stutter
+        doc = mcp_opendaw_create_stutter.__doc__
+        assert "BT" in doc or "stutter" in doc.lower()

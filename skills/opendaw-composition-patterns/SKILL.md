@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 51 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue, two_hand_piano, variations, motif_development. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 52 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue, two_hand_piano, variations, motif_development, stutter. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
 ---
 
 # openDAW Composition Patterns
@@ -21,6 +21,7 @@ What do you want to create?
 ├── Drum break (classic) → create_break (Amen/Think/Funky Drummer/etc, variation + swing)
 ├── Bass drop (dubstep/EDM) → create_bass_drop (descending sweep + sustained sub bass)
 ├── Chop (sample flip) → create_chop (reverse/stutter/shuffle/ping-pong/gate, Dilla/Madlib/glitch)
+├── Stutter edit (evolving repetition) → create_stutter (accelerate/decelerate/ping_pong/random, accent patterns, velocity ramps, gate, pitch jitter)
 ├── Trill (ornament) → create_trill (two-note alternation, 32nd/16th/8th/triplet rates, baroque accent)
 ├── Mordent (ornament) → create_mordent (main→neighbor→main, upper/lower, Bach/Mozart)
 ├── Turn (ornament) → create_turn (main→up→main→down→main, gruppetto, Mozart/Beethoven/Bach)
