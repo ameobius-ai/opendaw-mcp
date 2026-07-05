@@ -24826,6 +24826,248 @@ async def mcp_opendaw_create_trance_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_disco_arrangement(
+    bpm: float = 120,
+    bars: int = 8,
+    root: str = "G",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    string_track: int = 2,
+    guitar_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.78,
+) -> str:
+    """Create a full disco arrangement — four-on-floor + octave bass + string sustains + wah guitar across 4 tracks.
+
+    Classic 70s disco with the signature groove — fundamentally different from house (its descendant):
+    - Track 0: Drums — four-on-floor with 16th OPEN hats (not closed 8ths like house).
+                     Kick on every quarter, clap on 2 & 4. The 16th-note open hi-hat
+                     pattern is the disco signature — busier and more open than house's
+                     closed 8th hats. The groove that launched dance music.
+    - Track 1: Bass — SYNCOPATED OCTAVE bass: the "good times" bass line. Root on
+                     beat 1, then syncopated octave jumps on the "and" of beats 2
+                     and 4. Not off-beat 8ths like house, not arpeggiated like
+                     synthwave — it's a melodic bass line with octave leaps.
+                     The bass IS the hook in disco.
+    - Track 2: Strings — sustained chord pads with octave doubling. Full bar
+                     sustain, lush and smooth. The orchestral element that
+                     separates disco from house — house uses stabs, disco uses
+                     sustained strings. Minor or major triad depending on chord.
+    - Track 3: Guitar — wah-wah chops: 16th-note rhythmic scratching with
+                     accent pattern. Root + minor seventh voicing (funk-influenced).
+                     The "chukka-chukka" that drives the groove. Different from
+                     reggae skank (off-beat only) — disco guitar plays ALL 16ths
+                     with accents.
+
+    Uses I-vi-IV-V progression (G-Em-C-D in G major) — the classic disco
+    four-chord loop. Different from house (minor vamp), pop (I-V-vi-IV),
+    rock (I-IV-V). Disco's progression is major-key and optimistic —
+    the "feel good" sound of the 70s.
+
+    At 120 BPM (default), this creates the classic disco groove — the tempo
+    that defined the genre. The syncopated octave bass and 16th open hats are
+    the fundamental differences from all 13 other arrangements: house has
+    off-beat bass stabs with closed 8th hats, disco has melodic octave bass
+    with 16th open hats.
+
+    bpm: Tempo (110-130, default 120 = classic disco).
+    bars: Arrangement length (4-16, default 8). Must be multiple of 4.
+    root: Root note (G is a classic disco key — G major).
+    octave: MIDI octave for bass (2 = G2=43, standard disco bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / string_track / guitar_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_disco_arrangement(bpm=120, root="G", bars=8)
+      create_disco_arrangement(bpm=115, root="C", bars=16)
+    """
+    if not (110 <= bpm <= 130):
+        return "Error: bpm must be 110-130"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if bars % 4 != 0:
+        return "Error: bars must be a multiple of 4 for chord cycle"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    string_base = (octave + 3) * 12 + root_pc
+    guitar_base = (octave + 3) * 12 + root_pc
+
+    # I-vi-IV-V chord progression (G-Em-C-D in G major) — 4-bar cycle
+    chord_changes = [
+        (0, 0, "I"),      # G  — tonic major
+        (4, 9, "vi"),     # Em — relative minor (9 semitones up)
+        (8, 5, "IV"),     # C  — subdominant (5 semitones up)
+        (12, 7, "V"),     # D  — dominant (7 semitones up)
+    ]
+
+    # --- DRUMS: four-on-floor with 16th open hats (4-bar cycle) ---
+    # Kick on every quarter, clap on 2 & 4, OPEN hat on every 16th off-beat
+    # The 16th open hat pattern is the disco signature — busier than house
+    kick_p, clap_p, ohat_p = 36, 39, 46
+    drum_notes = []
+    drum_cycle = 16.0
+    drum_cycles = bars // 4
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for bar in range(4):
+            bar_off = off + bar * 4
+            # Kick on every quarter
+            for beat in range(4):
+                drum_notes.append({
+                    "pitch": kick_p,
+                    "start": round(start_beat + bar_off + beat, 4),
+                    "duration": 0.3,
+                    "velocity": round(velocity * 0.85, 3),
+                })
+            # Clap on 2 & 4
+            for clap_beat in [1.0, 3.0]:
+                drum_notes.append({
+                    "pitch": clap_p,
+                    "start": round(start_beat + bar_off + clap_beat, 4),
+                    "duration": 0.1,
+                    "velocity": round(velocity * 0.7, 3),
+                })
+            # Open hats on ALL 16th off-beats (0.25, 0.75, 1.25, 1.75, ...)
+            for hat_idx in range(16):
+                hat_beat = hat_idx * 0.25
+                if hat_idx % 4 != 0:  # skip quarter positions (kick is there)
+                    drum_notes.append({
+                        "pitch": ohat_p,
+                        "start": round(start_beat + bar_off + hat_beat, 4),
+                        "duration": 0.08,
+                        "velocity": round(velocity * (0.45 if hat_idx % 2 == 0 else 0.55), 3),
+                    })
+
+    # --- BASS: syncopated octave bass (4-bar cycle) ---
+    # The "good times" bass line: root on beat 1, syncopated octave jumps
+    # on the "and" of beats 2 and 4. Melodic, not just rhythmic.
+    bass_patterns = {
+        "I":  [(0.0, 0, 0.75), (1.5, 12, 0.25), (2.0, 0, 0.5), (2.5, 7, 0.25), (3.5, 12, 0.25)],
+        "vi": [(0.0, 0, 0.75), (1.5, 12, 0.25), (2.0, 0, 0.5), (2.5, 7, 0.25), (3.5, 12, 0.25)],
+        "IV": [(0.0, 0, 0.75), (1.5, 12, 0.25), (2.0, 0, 0.5), (2.5, 7, 0.25), (3.5, 12, 0.25)],
+        "V":  [(0.0, 0, 0.75), (1.5, 12, 0.25), (2.0, 0, 0.5), (2.5, 7, 0.25), (3.5, 12, 0.25)],
+    }
+    bass_notes = []
+    bass_cycle = 16.0
+    bass_cycles = bars // 4
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for bar_start, chord_root, chord_name in chord_changes:
+            bar_off = off + bar_start
+            pattern = bass_patterns[chord_name]
+            for beat, interval, dur in pattern:
+                bass_notes.append({
+                    "pitch": bass_base + chord_root + interval,
+                    "start": round(start_beat + bar_off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * (1.0 if beat == 0.0 else 0.8), 3),
+                })
+
+    # --- STRINGS: sustained chord pads (4-bar cycle) ---
+    # Full bar sustain, lush orchestral strings with octave doubling
+    string_voicings = {
+        "I":  [0, 4, 7, 12],    # G:  major triad + octave
+        "vi": [0, 3, 7, 12],    # Em: minor triad + octave
+        "IV": [0, 4, 7, 12],    # C:  major triad + octave
+        "V":  [0, 4, 7, 12],    # D:  major triad + octave
+    }
+    string_notes = []
+    string_cycle = 16.0
+    string_cycles = bars // 4
+    for c in range(string_cycles):
+        off = c * string_cycle
+        for bar_start, chord_root, chord_name in chord_changes:
+            bar_off = off + bar_start
+            voicing = string_voicings[chord_name]
+            for interval in voicing:
+                string_notes.append({
+                    "pitch": string_base + chord_root + interval,
+                    "start": round(start_beat + bar_off, 4),
+                    "duration": 3.8,
+                    "velocity": round(velocity * 0.5, 3),
+                })
+
+    # --- GUITAR: wah-wah 16th chops (4-bar cycle) ---
+    # All 16 16ths played with accent pattern. Root + min7 voicing.
+    # The "chukka-chukka" — funk-influenced rhythmic guitar
+    guitar_voicing = [0, 10]  # root + min7 (dominant7 feel)
+    guitar_accents = [1.0, 0.4, 0.7, 0.3, 0.6, 0.3, 0.7, 0.4,
+                      1.0, 0.4, 0.7, 0.3, 0.6, 0.3, 0.7, 0.4]
+    guitar_notes = []
+    guitar_cycle = 16.0
+    guitar_cycles = bars // 4
+    for c in range(guitar_cycles):
+        off = c * guitar_cycle
+        for bar_start, chord_root, _ in chord_changes:
+            bar_off = off + bar_start
+            for sixteenth in range(16):
+                for interval in guitar_voicing:
+                    guitar_notes.append({
+                        "pitch": guitar_base + chord_root + interval,
+                        "start": round(start_beat + bar_off + sixteenth * 0.25, 4),
+                        "duration": 0.06,  # very short — chop
+                        "velocity": round(velocity * guitar_accents[sixteenth] * 0.6, 3),
+                    })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    string_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(string_notes), unit_index, string_track)
+    guitar_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(guitar_notes), unit_index, guitar_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        string_data = json.loads(string_result)
+    except Exception:
+        string_data = {"raw": string_result}
+    try:
+        guitar_data = json.loads(guitar_result)
+    except Exception:
+        guitar_data = {"raw": guitar_result}
+
+    return json.dumps({
+        "disco_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "strings": {"track": string_track, "notes": len(string_notes), "result": string_data.get("notes_created", len(string_notes))},
+            "guitar": {"track": guitar_track, "notes": len(guitar_notes), "result": guitar_data.get("notes_created", len(guitar_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(string_notes) + len(guitar_notes),
+        "drum_pattern": "four_on_floor_16th_open_hats",
+        "bass_pattern": "syncopated_octave_good_times",
+        "string_type": "sustained_chord_pads_octave",
+        "guitar_type": "wah_wah_16th_chops_root_min7",
+        "harmony": "I_vi_IV_V_major",
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_genre_mix(
     genre: str,
     unit_index: int = 0,
@@ -24858,7 +25100,7 @@ async def mcp_opendaw_apply_genre_mix(
       apply_genre_mix("jazz", unit_index=0, num_tracks=4, sidechain=False)
     """
     valid_genres = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
-                    "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance"]
+                    "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco"]
     if genre not in valid_genres:
         return f"Error: unknown genre '{genre}'. Valid: {valid_genres}"
     if not (2 <= num_tracks <= 4):
@@ -25019,6 +25261,17 @@ async def mcp_opendaw_apply_genre_mix(
             "sidechain": True,  # electronic
             "sc_params": {"threshold": -15, "ratio": 4, "attack": 3, "release": 60},
         },
+        "disco": {
+            "effects": [
+                (0, "Compressor", {"threshold": -12, "ratio": 3, "attack": 5, "release": 80}),
+                (0, "Revamp", {"low": 1, "high": 3}),    # drums: bright open hats
+                (1, "Revamp", {"low": 2, "high": 0}),    # octave bass: warm
+                (2, "Reverb", {"decay": 0.4}),           # strings: room reverb
+                (3, "Revamp", {"low": -1, "high": 2}),   # wah guitar: bright
+            ],
+            "sidechain": False,  # organic-electronic hybrid, no sidechain
+            "sc_params": {},
+        },
     }
 
     recipe = recipes[genre]
@@ -25102,7 +25355,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
 
     After this call, the project is ready for export_audio / render.
 
-    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae, synthwave, trance
+    genre: One of: dnb, house, trap, techno, dubstep, afrobeat, rock, jazz, pop, funk, reggae, synthwave, trance, disco
     bpm: Override tempo (None = genre default).
     bars: Arrangement length (default 8, pop min 16).
     root: Override key (None = genre default).
@@ -25131,6 +25384,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "reggae":   {"bpm": 80,  "root": "A",  "tracks": 4, "master_style": "balanced"},
         "synthwave": {"bpm": 110, "root": "A",  "tracks": 4, "master_style": "warm"},
         "trance":    {"bpm": 138, "root": "F",  "tracks": 4, "master_style": "loud"},
+        "disco":     {"bpm": 120, "root": "G",  "tracks": 4, "master_style": "warm"},
     }
 
     if genre not in defaults:
@@ -25195,6 +25449,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "reggae":   mcp_opendaw_create_reggae_arrangement,
         "synthwave": mcp_opendaw_create_synthwave_arrangement,
         "trance":    mcp_opendaw_create_trance_arrangement,
+        "disco":     mcp_opendaw_create_disco_arrangement,
     }
 
     try:

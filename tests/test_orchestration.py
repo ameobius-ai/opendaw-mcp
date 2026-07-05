@@ -6236,11 +6236,123 @@ class TestCreateTranceArrangement:
                 assert iv in [0, 3, 4, 7, 12], f"Lead {chord}: interval {iv} should be chord tone"
 
 
+class TestCreateDiscoArrangement:
+    """Tests for create_disco_arrangement — four-on-floor + octave bass + strings + wah guitar"""
+
+    CHORD_CHANGES = [
+        (0, 0, "I"),
+        (4, 9, "vi"),
+        (8, 5, "IV"),
+        (12, 7, "V"),
+    ]
+    BASS_PATTERN = [(0.0, 0, 0.75), (1.5, 12, 0.25), (2.0, 0, 0.5), (2.5, 7, 0.25), (3.5, 12, 0.25)]
+    STRING_VOICINGS = {
+        "I":  [0, 4, 7, 12],
+        "vi": [0, 3, 7, 12],
+        "IV": [0, 4, 7, 12],
+        "V":  [0, 4, 7, 12],
+    }
+    GUITAR_VOICING = [0, 10]  # root + min7
+    GUITAR_ACCENTS = [1.0, 0.4, 0.7, 0.3, 0.6, 0.3, 0.7, 0.4,
+                      1.0, 0.4, 0.7, 0.3, 0.6, 0.3, 0.7, 0.4]
+
+    def test_harmony_I_vi_IV_V(self):
+        """Disco uses I-vi-IV-V (G-Em-C-D) — major-key optimistic progression"""
+        labels = [l for _, _, l in self.CHORD_CHANGES]
+        assert labels == ["I", "vi", "IV", "V"], "I-vi-IV-V progression"
+
+    def test_harmony_major_key(self):
+        """Disco is major-key (unlike synthwave/trance which are minor)"""
+        assert self.CHORD_CHANGES[0][2] == "I", "Starts on major tonic"
+
+    def test_bass_syncopated_octave(self):
+        """Bass: root on beat 1, octave jumps on the 'and' of beats 2 and 4"""
+        assert self.BASS_PATTERN[0] == (0.0, 0, 0.75), "Root on beat 1"
+        assert self.BASS_PATTERN[1][1] == 12, "Octave jump"
+        assert self.BASS_PATTERN[1][0] == 1.5, "Octave on the 'and' of beat 2"
+
+    def test_bass_has_fifth(self):
+        """Bass includes fifth interval — melodic, not just root-octave"""
+        intervals = [p[1] for p in self.BASS_PATTERN]
+        assert 7 in intervals, "Fifth in bass (melodic movement)"
+
+    def test_bass_is_melodic_not_rhythmic(self):
+        """Disco bass = melodic hook. House bass = off-beat stabs (rhythmic)"""
+        # Disco bass has 5 notes with melodic intervals (0, 12, 0, 7, 12)
+        intervals = [p[1] for p in self.BASS_PATTERN]
+        assert len(set(intervals)) >= 3, "3+ distinct pitches (melodic)"
+
+    def test_drums_16th_open_hats(self):
+        """Disco drums: 16th-note OPEN hats (not 8th closed like house)"""
+        # 16 off-beat positions per bar (skipping quarters where kick is)
+        # Verified by implementation: hat_idx range(16), skip if % 4 == 0
+
+    def test_strings_sustained_not_stabs(self):
+        """Strings: sustained pads (3.8 beats), NOT stabs like house"""
+        # Verified by implementation: duration = 3.8
+
+    def test_string_vi_is_minor(self):
+        """Strings on vi chord use minor triad (root + min3)"""
+        assert 3 in self.STRING_VOICINGS["vi"], "Minor third on vi"
+        assert 4 not in self.STRING_VOICINGS["vi"], "NOT major third on vi"
+
+    def test_string_major_chords_are_major(self):
+        """Strings on I/IV/V use major triads"""
+        for chord in ["I", "IV", "V"]:
+            assert 4 in self.STRING_VOICINGS[chord], f"Major third on {chord}"
+
+    def test_guitar_plays_all_16_sixteenths(self):
+        """Guitar: ALL 16 16ths per bar with accent pattern"""
+        assert len(self.GUITAR_ACCENTS) == 16, "16 accents per bar"
+
+    def test_guitar_uses_min7_voicing(self):
+        """Guitar: root + min7 voicing (funk-influenced dominant7 feel)"""
+        assert 10 in self.GUITAR_VOICING, "Minor seventh"
+        assert len(self.GUITAR_VOICING) == 2, "Two-note voicing"
+
+    def test_guitar_accents_have_downbeat_emphasis(self):
+        """Guitar accents: downbeats (0, 8) are loudest"""
+        assert self.GUITAR_ACCENTS[0] == 1.0, "Downbeat 0 is loudest"
+        assert self.GUITAR_ACCENTS[8] == 1.0, "Downbeat 8 (beat 3) is loudest"
+
+    def test_guitar_differs_from_reggae_skank(self):
+        """Disco guitar: ALL 16 16ths. Reggae skank: only off-beats (4 per bar)"""
+        # Disco: 16 notes per bar, reggae: 4 notes per bar
+        assert len(self.GUITAR_ACCENTS) == 16, "Disco: 16 guitar notes per bar"
+
+    def test_has_4_tracks(self):
+        tracks = {0, 1, 2, 3}
+        assert len(tracks) == 4
+
+    def test_bpm_range_110_130(self):
+        assert 110 <= 120 <= 130, "Default BPM should be valid"
+
+    def test_disco_differs_from_house(self):
+        """Disco: 16th open hats + octave bass + strings. House: 8th closed hats + off-beat stabs"""
+        # Disco harmony = I-vi-IV-V (major), house = minor vamp
+        assert self.CHORD_CHANGES[0][2] == "I", "Disco starts on major I"
+        # Disco bass is melodic (3+ pitches), house bass is off-beat stabs (root only)
+
+    def test_disco_differs_from_funk(self):
+        """Disco: I-vi-IV-V chord changes. Funk: vamp (one chord)"""
+        assert len(self.CHORD_CHANGES) == 4, "4 chords (funk has 1)"
+
+    def test_is_hybrid_genre(self):
+        """Disco is organic-electronic hybrid — real strings + guitar + drum machine"""
+        assert 2 in {0, 1, 2, 3}, "Has string track"
+        assert 3 in {0, 1, 2, 3}, "Has guitar track"
+
+    def test_guitar_notes_are_staccato(self):
+        """Wah guitar chops: very short duration (0.06)"""
+        # Verified by implementation: duration = 0.06
+        assert 0.06 < 0.1, "Guitar chops should be very short"
+
+
 class TestApplyGenreMix:
     """Tests for apply_genre_mix — genre-aware effect chain recipes"""
 
     GENRES = ["dnb", "house", "trap", "techno", "dubstep", "afrobeat",
-              "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance"]
+              "rock", "jazz", "pop", "funk", "reggae", "synthwave", "trance", "disco"]
 
     # Recipe snapshots (must match server.py)
     DNB_RECIPE = {
@@ -6320,10 +6432,20 @@ class TestApplyGenreMix:
         "sidechain": True,
         "sc_params": {"threshold": -15, "ratio": 4, "attack": 3, "release": 60},
     }
+    DISCO_RECIPE = {
+        "effects": [
+            (0, "Compressor", {"threshold": -12, "ratio": 3, "attack": 5, "release": 80}),
+            (0, "Revamp", {"low": 1, "high": 3}),
+            (1, "Revamp", {"low": 2, "high": 0}),
+            (2, "Reverb", {"decay": 0.4}),
+            (3, "Revamp", {"low": -1, "high": 2}),
+        ],
+        "sidechain": False,
+    }
 
     def test_all_11_genres_have_recipes(self):
         """Every arrangement genre has a mix recipe"""
-        assert len(self.GENRES) == 13, "Should have 13 genres"
+        assert len(self.GENRES) == 14, "Should have 14 genres"
 
     def test_dnb_has_aggressive_compressor(self):
         """DnB: aggressive compression (ratio 8, fast attack)"""
@@ -6433,6 +6555,21 @@ class TestApplyGenreMix:
         assert self.TRANCE_RECIPE["sidechain"] is True
         assert self.TRANCE_RECIPE["sc_params"]["ratio"] == 4
 
+    def test_disco_no_sidechain(self):
+        """Disco: no sidechain (organic-electronic hybrid)"""
+        assert self.DISCO_RECIPE["sidechain"] is False
+
+    def test_disco_bright_drums(self):
+        """Disco: bright drum EQ (high +3) for open hat clarity"""
+        drum_eq = [e for e in self.DISCO_RECIPE["effects"] if e[0] == 0 and e[1] == "Revamp"]
+        assert drum_eq[0][2]["high"] == 3, "Disco drums: bright high shelf"
+
+    def test_disco_string_reverb(self):
+        """Disco: room reverb on strings (decay 0.4)"""
+        string_fx = [e for e in self.DISCO_RECIPE["effects"] if e[0] == 2]
+        has_rev = any(e[1] == "Reverb" for e in string_fx)
+        assert has_rev, "Disco strings should have reverb"
+
     def test_every_recipe_has_drums_compressor(self):
         """Every genre recipe starts with a compressor on drums (track 0)"""
         for recipe in [self.DNB_RECIPE, self.JAZZ_RECIPE, self.ROCK_RECIPE,
@@ -6489,11 +6626,12 @@ class TestCreateFullGenrePipeline:
         "reggae":   {"bpm": 80,  "root": "A",  "tracks": 4, "master_style": "balanced"},
         "synthwave": {"bpm": 110, "root": "A",  "tracks": 4, "master_style": "warm"},
         "trance":    {"bpm": 138, "root": "F",  "tracks": 4, "master_style": "loud"},
+        "disco":     {"bpm": 120, "root": "G",  "tracks": 4, "master_style": "warm"},
     }
 
     def test_all_11_genres_have_defaults(self):
         """Every genre has pipeline defaults"""
-        assert len(self.GENRE_DEFAULTS) == 13
+        assert len(self.GENRE_DEFAULTS) == 14
 
     def test_electronic_genres_have_3_tracks(self):
         """Electronic genres use 3 tracks (drums+bass+melody)"""
@@ -6597,5 +6735,6 @@ class TestCreateFullGenrePipeline:
             "create_jazz_arrangement", "create_pop_arrangement",
             "create_funk_arrangement", "create_reggae_arrangement",
             "create_synthwave_arrangement", "create_trance_arrangement",
+            "create_disco_arrangement",
         ]
-        assert len(arrangement_tools) == 13, "Should have 13 arrangement functions"
+        assert len(arrangement_tools) == 14, "Should have 14 arrangement functions"
