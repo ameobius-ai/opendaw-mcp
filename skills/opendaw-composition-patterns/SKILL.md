@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 69 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola, chorale, fugue, two_hand_piano, variations, motif_development, stutter, phase. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 83 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.246.0"
 ---
 
 # openDAW Composition Patterns
@@ -95,6 +95,9 @@ What do you want to create?
 ├── Harmonic rhythm → analyze_harmonic_rhythm (chord change rate, stable/active sections)
 ├── Rhythm analysis → extract_rhythm (onset grid, syncopation, swing, IOI)
 ├── Rhythm apply → apply_rhythm_pattern (stamp pattern onto notes, inverse of extract)
+├── Pitch-based dynamics → map_velocity_by_pitch (higher_quieter/lower_quieter/bell_curve)
+├── Cross-track balance → balance_track_velocities (5 presets, MIDI mix leveling)
+├── MIDI echo → create_midi_echo (decaying repeats, pitch shift, 4 feedback modes)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
@@ -128,6 +131,9 @@ What do you want to create?
    ├── Harmonic rhythm?    → analyze_harmonic_rhythm (chord change rate, sections)
    ├── Rhythm pattern?     → extract_rhythm (onset grid, syncopation, swing)
    ├── Apply rhythm?       → apply_rhythm_pattern (stamp groove onto notes)
+   ├── Pitch dynamics?     → map_velocity_by_pitch (natural velocity by register)
+   ├── Balance tracks?     → balance_track_velocities (5 mix presets)
+   ├── MIDI echo?          → create_midi_echo (decaying repeats, pitch shift)
    └── Chord identification? → identify_chords (reverse-engineer harmony)
 
 1. CREATE

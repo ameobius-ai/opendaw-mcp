@@ -155,6 +155,20 @@ Orchestration tools solve this by combining multiple low-level operations into a
 142. `constrain_note_range` — pitch range limiting: clamp (hard limit) or octave_wrap (shift by ±12 to fit, preserves pitch class), use for instrument range constraints
 143. `set_articulation` — articulation control: legato (extend to next note minus gap), staccato (shorten to ratio), tenuto (full duration), groups chords by position
 144. `generate_melody` — generative melody from scale + contour: 6 contour shapes (ascending/descending/arch/v_shape/wave/random), 5 rhythm patterns, weighted random pitch selection, rest probability, no chord progression needed
+145. `double_melody` — note doubling: 7 named intervals (octave/double_octave/fifth/fourth/third/sixth/unison), diatonic mode (scale steps), same-region thickening (dest_track=-1) or cross-track (dest_track=N)
+146. `split_note_region` — split region at beat position: notes after split_point moved to new region, straddling notes stay, original trimmed
+147. `merge_note_regions` — merge two regions: copy notes from B to A (positions recalculated), extend A duration, delete B. Works with adjacent/gapped/overlapping
+148. `filter_notes` — multi-criteria note filtering: pitch range + velocity range + time range (AND logic, -1=wildcard), 3 actions (list/delete/keep)
+149. `note_stats` — full note statistics: pitch (min/max/span + note names), velocity (min/max/mean/median/std), duration, density, pitch class histogram, top 5 pitches
+150. `accent_beats` — beat-aware velocity accents: 6 patterns (4/4/backbeat/3-4/6-8/off_beat/four_on_floor), 16th note interpolation
+151. `analyze_melody` — melodic contour analysis: contour profile, interval histogram, step vs leap ratio, direction changes, climax/nadir, contour shape, phrase count, melodic range
+152. `extract_rhythm` — rhythmic pattern extraction: onset grid, rhythm string, syncopation, swing factor, IOI, density. 4 grid resolutions
+153. `apply_rhythm_pattern` — apply rhythmic pattern to notes (inverse of extract_rhythm): rhythm string or onset grid, pattern cycling, 4 velocity modes, 3 duration modes
+154. `detect_scale_from_notes` — scale detection from MIDI: 15 scales × 12 roots via Pearson correlation, returns best match + 5 alternatives + confidence
+155. `analyze_harmonic_rhythm` — chord change rate analysis: chord timeline, harmonic rhythm rate (fast/medium/slow), stable/active sections, modulation detection
+156. `map_velocity_by_pitch` — pitch-based velocity mapping: 4 modes (higher_quieter/lower_quieter/bell_curve/inverse_bell), intensity control, per-octave stats
+157. `balance_track_velocities` — cross-track velocity balance: 5 presets (mix_balanced/drums_forward/vocal_forward/pads_quiet/bass_heavy) + custom mode
+158. `create_midi_echo` — MIDI echo with decaying velocity: 4 feedback modes (linear/exponential/constant/reverse), pitch shift per repeat, dest_track for separate echo
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
