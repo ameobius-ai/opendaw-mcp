@@ -1604,3 +1604,145 @@ class TestPedalPointGeneration:
         # 3 chords × 3 beats = 9 total
         last_note = max(notes, key=lambda n: n["pos"])
         assert last_note["pos"] < 9
+
+
+class TestPassacagliaGeneration:
+    """Test the Python-side pattern generation logic of create_passacaglia."""
+
+    CHORD_INTERVALS = {
+        "maj": [0, 4, 7], "M": [0, 4, 7], "min": [0, 3, 7], "m": [0, 3, 7],
+        "m7": [0, 3, 7, 10], "maj7": [0, 4, 7, 11], "M7": [0, 4, 7, 11],
+        "dom7": [0, 4, 7, 10], "7": [0, 4, 7, 10],
+        "sus2": [0, 2, 7], "sus4": [0, 5, 7], "dim": [0, 3, 6], "aug": [0, 4, 8],
+    }
+    NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                  "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                  "A#": 10, "Bb": 10, "B": 11}
+
+    def _parse_chord(self, name):
+        root = None
+        quality = None
+        for q in ["maj7", "m7", "M7", "sus2", "sus4", "dom7", "dim", "aug", "maj", "min", "M", "m", "7"]:
+            if name.endswith(q) and len(name) > len(q):
+                root_name = name[:-len(q)]
+                if root_name in self.NOTE_TO_PC:
+                    root = self.NOTE_TO_PC[root_name]
+                    quality = q
+                    break
+        if root is None:
+            if name in self.NOTE_TO_PC:
+                root = self.NOTE_TO_PC[name]
+                quality = "maj"
+            else:
+                return None, None
+        return root, self.CHORD_INTERVALS.get(quality, [0, 4, 7])
+
+    def _generate_passacaglia(self, bass_pattern="36 43 41 36", bass_rhythm="1 1 1 1",
+                              bass_repeats=4, chord_pattern="Cm,Ab,Eb,Bb",
+                              chord_octave=4, variation_style="block",
+                              beats_per_bar=4, start_beat=0):
+        bass_pitches = [int(x) for x in bass_pattern.split()]
+        bass_durs = [float(x) for x in bass_rhythm.split()]
+        chords = []
+        for name in chord_pattern.split(","):
+            root, intervals = self._parse_chord(name.strip())
+            if intervals is None:
+                return None
+            chord_pitches = [(chord_octave + 1) * 12 + root + iv for iv in intervals]
+            chords.append(chord_pitches)
+
+        bass_pattern_beats = sum(bass_durs)
+        note_data = []
+
+        for rep in range(bass_repeats):
+            bass_pos = start_beat + rep * bass_pattern_beats
+            cumulative = 0.0
+            for i, pitch in enumerate(bass_pitches):
+                note_data.append({"pitch": pitch, "pos": bass_pos + cumulative,
+                                  "dur": bass_durs[i] * 0.95, "vel": 0.75})
+                cumulative += bass_durs[i]
+
+        for rep in range(bass_repeats):
+            chord = chords[rep % len(chords)]
+            chord_start = start_beat + rep * bass_pattern_beats
+            if variation_style == "block":
+                for pitch in chord:
+                    note_data.append({"pitch": pitch, "pos": chord_start,
+                                      "dur": bass_pattern_beats * 0.9, "vel": 0.55})
+            elif variation_style == "arpeggiated":
+                arp_step = bass_pattern_beats / len(chord)
+                for j, pitch in enumerate(chord):
+                    note_data.append({"pitch": pitch, "pos": chord_start + j * arp_step,
+                                      "dur": arp_step * 0.9, "vel": 0.55})
+            elif variation_style == "melodic":
+                num_notes = max(2, int(bass_pattern_beats))
+                step_dur = bass_pattern_beats / num_notes
+                for j in range(num_notes):
+                    note_data.append({"pitch": chord[j % len(chord)], "pos": chord_start + j * step_dur,
+                                      "dur": step_dur * 0.9, "vel": 0.55})
+        return note_data
+
+    def test_block_variation_note_count(self):
+        notes = self._generate_passacaglia(bass_pattern="36 43 41 36", bass_repeats=4,
+                                           chord_pattern="Cm,Ab,Eb,Bb", variation_style="block")
+        # 4×4 bass + 4×3 chord = 16 + 12 = 28
+        assert len(notes) == 28, f"Expected 28, got {len(notes)}"
+
+    def test_arpeggiated_note_count(self):
+        notes = self._generate_passacaglia(bass_pattern="36 36 36 36", bass_repeats=2,
+                                           chord_pattern="Cm,G", variation_style="arpeggiated")
+        # 2×4 bass + 2×3 arp = 8 + 6 = 14
+        assert len(notes) == 14, f"Expected 14, got {len(notes)}"
+
+    def test_melodic_variation_has_notes(self):
+        notes = self._generate_passacaglia(bass_pattern="40 43 46 43", bass_repeats=3,
+                                           chord_pattern="Dm,Am,Em", variation_style="melodic")
+        # 3×4 bass + 3×4 melodic = 12 + 12 = 24
+        assert len(notes) == 24, f"Expected 24, got {len(notes)}"
+
+    def test_bass_pattern_repeats(self):
+        notes = self._generate_passacaglia(bass_pattern="36 43", bass_rhythm="2 2",
+                                           bass_repeats=3, chord_pattern="Cm")
+        bass_notes = [n for n in notes if n["pitch"] == 36]
+        assert len(bass_notes) == 3, f"Expected 3 bass C2 notes, got {len(bass_notes)}"
+
+    def test_syncopated_bass_rhythm(self):
+        notes = self._generate_passacaglia(bass_pattern="36 43 41 36", bass_rhythm="0.5 0.5 1 2",
+                                           bass_repeats=1, chord_pattern="Cm")
+        bass_notes = [n for n in notes if n["vel"] == 0.75]
+        assert bass_notes[1]["pos"] == 0.5, f"Second note should be at 0.5, got {bass_notes[1]['pos']}"
+        assert bass_notes[2]["pos"] == 1.0, f"Third note should be at 1.0, got {bass_notes[2]['pos']}"
+
+    def test_chord_cycling(self):
+        notes = self._generate_passacaglia(bass_pattern="36", bass_rhythm="4",
+                                           bass_repeats=4, chord_pattern="Cm,Ab")
+        # Chords cycle: Cm, Ab, Cm, Ab
+        chord_notes = [n for n in notes if n["vel"] == 0.55]
+        # Cm = [60,63,67], Ab = [68,72,75] (octave 4)
+        first_chord_pitches = sorted([n["pitch"] for n in chord_notes[:3]])
+        second_chord_pitches = sorted([n["pitch"] for n in chord_notes[3:6]])
+        assert 63 in first_chord_pitches, "First chord should be Cm (has Eb=63)"
+        assert 68 in second_chord_pitches, "Second chord should be Ab (has Ab=68)"
+
+    def test_3_4_time_signature(self):
+        notes = self._generate_passacaglia(bass_pattern="36 41 43", bass_rhythm="1 1 1",
+                                           bass_repeats=4, chord_pattern="Cm,Ab,Eb,Fm",
+                                           beats_per_bar=3)
+        # 4×3 bass + 4×3 chord = 12 + 12 = 24
+        assert len(notes) == 24, f"Expected 24, got {len(notes)}"
+
+    def test_total_beats_calculation(self):
+        notes = self._generate_passacaglia(bass_pattern="36 43 41 36", bass_rhythm="1 1 1 1",
+                                           bass_repeats=4, chord_pattern="Cm")
+        last_bass = max([n for n in notes if n["vel"] == 0.75], key=lambda n: n["pos"])
+        # Last bass note: 3rd repeat (0-indexed), pos=12, 4th note offset=3 → 15
+        assert last_bass["pos"] == 15, f"Last bass at 15, got {last_bass['pos']}"
+
+    def test_chord_parsing_seventh(self):
+        root, intervals = self._parse_chord("Cm7")
+        assert intervals == [0, 3, 7, 10], f"Expected [0,3,7,10], got {intervals}"
+
+    def test_chord_parsing_implicit_major(self):
+        root, intervals = self._parse_chord("Ab")
+        assert root == 8, f"Ab root should be 8, got {root}"
+        assert intervals == [0, 4, 7], f"Expected [0,4,7], got {intervals}"

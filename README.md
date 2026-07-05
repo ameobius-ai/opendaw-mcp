@@ -5,7 +5,7 @@
 [![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-302-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-303-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-51-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-354%20unit%20%2B%20E2E-brightgreen)](tests/)
@@ -16,7 +16,7 @@
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
-**302 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**303 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -26,7 +26,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **302** MCP tools | **79** Python examples (8 genre templates) |
+| **303** MCP tools | **80** Python examples (8 genre templates) |
 | **51** DSP scripts | **10** agent skills |
 | **3** framework wrappers | **354** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.61.0 (2026-07-05)
+
+- **`create_passacaglia` orchestration tool (303 MCP tools)** — repeating bass ostinato with evolving harmonies above. Baroque form (Bach BWV 582) adapted to modern contexts. 3 variation styles: block (sustained chords), arpeggiated (broken), melodic (stepwise counter-melody). Bass pattern as MIDI pitches + custom rhythm, chord cycling, 3/4 and 4/4 time. Distinct from ostinato (single pattern), pedal_point (single note), bordun (drone chord)
+- **46 orchestration tools** total
+- **536 unit tests** (+10 passacaglia), E2E 8/8
+- ruff clean, CI green
 
 ### v1.60.0 (2026-07-05)
 

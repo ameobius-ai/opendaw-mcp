@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.61.0 (2026-07-05)
+
+- **`create_passacaglia` orchestration tool (303 MCP tools)** — repeating bass ostinato with evolving harmonies above. Baroque form (Bach BWV 582) adapted to modern contexts. 3 variation styles: block (sustained chords), arpeggiated (broken), melodic (stepwise counter-melody). Bass pattern as MIDI pitches + custom rhythm, chord cycling, 3/4 and 4/4 time. Distinct from ostinato (single pattern), pedal_point (single note), bordun (drone chord)
+- **46 orchestration tools** total
+- **536 unit tests** (+10 passacaglia), E2E 8/8
+- ruff clean, CI green
+
 ## v1.60.0 (2026-07-05)
 
 - **`werkstatt_formant_filter.js` DSP script** — 3-band parallel formant filter simulating vocal tract resonances. 5 vowel presets (/a/, /i/, /u/, /o/) with smooth interpolation, or manual F1/F2/F3 control. Bandwidth and resonance parameters shape the vocal character. Biquad bandpass filters in parallel. Classic for vocoder-like vocal coloring, talk-box effects, and synth voice synthesis. 9 params: 3 formant freqs, 3 bandwidths, vowel, resonance, mix

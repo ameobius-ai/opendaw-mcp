@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 26 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 46 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation (staccato/legato/tenuto/accent), chord progressions, genre templates, song structure, automation sweeps, mastering chains, mix presets, humanize, reverse/invert/transpose, passacaglia, bordun, hocket, isorhythm, hemiola. Decision tree: which tool for which musical goal. Not theory — concrete tool calls and parameter values."
 ---
 
 # openDAW Composition Patterns
@@ -35,6 +35,7 @@ What do you want to create?
 ├── Hocket (interlock) → create_hocket (melody split between 2-4 voices, alternate/pairs/phrase, medieval/African/gamelan)
 ├── Isorhythm (talea×color) → create_isorhythm (independent rhythm×pitch cycles, phase shift at LCM, Machaut/Messiaen)
 ├── Hemiola (cross-rhythm) → create_hemiola (3:2 rhythmic displacement, Afro-Cuban/jazz/minimalism)
+├── Passacaglia (bass ostinato + harmonies) → create_passacaglia (repeating bass + block/arpeggiated/melodic variations, Bach/film/metal)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 │

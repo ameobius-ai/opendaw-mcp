@@ -18496,6 +18496,250 @@ async def mcp_opendaw_apply_articulation(
             regions: regionStats,
         }};
     }}""")
+
+    return _wrap_eval(result)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_passacaglia(
+    bass_pattern: str = "36 43 41 36",
+    bass_rhythm: str = "1 1 1 1",
+    bass_repeats: int = 4,
+    chord_pattern: str = "Cm,Ab,Eb,Bb",
+    chord_octave: int = 4,
+    variation_style: str = "block",
+    beats_per_bar: int = 4,
+    bass_velocity: float = 0.75,
+    chord_velocity: float = 0.55,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a passacaglia — repeating bass ostinato with evolving harmonies above.
+
+    A foundational Baroque form (Bach BWV 582, Buxtehude) adapted to modern
+    contexts (film scoring, metal, electronic). A short bass pattern (4-8 notes)
+    repeats throughout while chords or arpeggiations evolve above it, creating
+    cumulative tension. Distinct from ostinato (single repeating pattern),
+    pedal_point (single sustained note), and bordun (drone chord).
+
+    bass_pattern: Space-separated MIDI pitches for the bass ostinato
+      (e.g. "36 43 41 36" = C2 G2 F2 C2). Default is a classic descending bass.
+    bass_rhythm: Space-separated durations in beats matching bass_pattern
+      (e.g. "1 1 1 1" = quarter notes, "0.5 0.5 1 2" = syncopated).
+    bass_repeats: How many times the bass pattern repeats (1-16, default 4).
+    chord_pattern: Comma-separated chord names for the upper voices
+      (e.g. "Cm,Ab,Eb,Bb"). Supports: maj, min, m7, maj7, dom7, sus2, sus4, dim, aug.
+      If fewer chords than repeats, chords cycle.
+    chord_octave: Octave for chord notes (1-8, default 4).
+    variation_style: How upper harmonies are voiced — "block" (sustained chords),
+      "arpeggiated" (broken chord pattern), "melodic" (stepwise counter-melody).
+    beats_per_bar: Time signature beats (3/4=3, 4/4=4, 6/8=6, default 4).
+    bass_velocity: Velocity of bass notes (0-1, default 0.75).
+    chord_velocity: Velocity of chord/variation notes (0-1, default 0.55).
+    unit_index: AU index with note track (-1 = find first AU with note tracks).
+    track_index: Note track index within the AU.
+    start_beat: Position in beats where the passacaglia begins.
+
+    Returns notes created, bass pattern length, total bars, variation style.
+    """
+    # Parse bass pattern
+    try:
+        bass_pitches = [int(x) for x in bass_pattern.split()]
+    except ValueError:
+        return "Error: bass_pattern must be space-separated integers (MIDI pitches)"
+    if not bass_pitches or len(bass_pitches) > 16:
+        return "Error: bass_pattern must have 1-16 notes"
+
+    # Parse bass rhythm
+    try:
+        bass_durs = [float(x) for x in bass_rhythm.split()]
+    except ValueError:
+        return "Error: bass_rhythm must be space-separated numbers (beats)"
+    if len(bass_durs) != len(bass_pitches):
+        return f"Error: bass_rhythm has {len(bass_durs)} values but bass_pattern has {len(bass_pitches)}"
+
+    if bass_repeats < 1 or bass_repeats > 16:
+        return "Error: bass_repeats must be 1-16"
+    if chord_octave < 1 or chord_octave > 8:
+        return "Error: chord_octave must be 1-8"
+    if beats_per_bar < 2 or beats_per_bar > 12:
+        return "Error: beats_per_bar must be 2-12"
+    if bass_velocity < 0 or bass_velocity > 1:
+        return "Error: bass_velocity must be 0-1"
+    if chord_velocity < 0 or chord_velocity > 1:
+        return "Error: chord_velocity must be 0-1"
+    if variation_style not in ("block", "arpeggiated", "melodic"):
+        return "Error: variation_style must be 'block', 'arpeggiated', or 'melodic'"
+
+    # Parse chord names
+    CHORD_INTERVALS = {
+        "maj": [0, 4, 7], "M": [0, 4, 7], "min": [0, 3, 7], "m": [0, 3, 7],
+        "m7": [0, 3, 7, 10], "maj7": [0, 4, 7, 11], "M7": [0, 4, 7, 11],
+        "dom7": [0, 4, 7, 10], "7": [0, 4, 7, 10],
+        "sus2": [0, 2, 7], "sus4": [0, 5, 7], "dim": [0, 3, 6], "aug": [0, 4, 8],
+    }
+    NOTE_TO_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                  "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                  "A#": 10, "Bb": 10, "B": 11}
+
+    chords = []
+    for name in chord_pattern.split(","):
+        name = name.strip()
+        root = None
+        quality = None
+        for q in ["maj7", "m7", "M7", "sus2", "sus4", "dom7", "dim", "aug", "maj", "min", "M", "m", "7"]:
+            if name.endswith(q) and len(name) > len(q):
+                root_name = name[:-len(q)]
+                if root_name in NOTE_TO_PC:
+                    root = NOTE_TO_PC[root_name]
+                    quality = q
+                    break
+        if root is None:
+            if name in NOTE_TO_PC:
+                root = NOTE_TO_PC[name]
+                quality = "maj"
+            else:
+                return f"Error: cannot parse chord '{name}'"
+        intervals = CHORD_INTERVALS.get(quality, [0, 4, 7])
+        chord_pitches = [(chord_octave + 1) * 12 + root + iv for iv in intervals]
+        chords.append(chord_pitches)
+
+    # Calculate bass pattern duration in beats
+    bass_pattern_beats = sum(bass_durs)
+    total_beats = bass_pattern_beats * bass_repeats
+    total_bars = total_beats / beats_per_bar
+
+    note_data = []
+
+    # Bass ostinato notes
+    for rep in range(bass_repeats):
+        bass_pos = start_beat + rep * bass_pattern_beats
+        cumulative = 0.0
+        for i, pitch in enumerate(bass_pitches):
+            note_data.append({
+                "pitch": max(0, min(127, pitch)),
+                "pos": bass_pos + cumulative,
+                "dur": bass_durs[i] * 0.95,
+                "vel": bass_velocity,
+            })
+            cumulative += bass_durs[i]
+
+    # Upper voice variations
+    for rep in range(bass_repeats):
+        chord_idx = rep % len(chords)
+        chord = chords[chord_idx]
+        chord_start = start_beat + rep * bass_pattern_beats
+
+        if variation_style == "block":
+            # Sustained chord for the full bass pattern duration
+            for pitch in chord:
+                note_data.append({
+                    "pitch": max(0, min(127, pitch)),
+                    "pos": chord_start,
+                    "dur": bass_pattern_beats * 0.9,
+                    "vel": chord_velocity,
+                })
+
+        elif variation_style == "arpeggiated":
+            # Broken chord — arpeggiate across the bass pattern
+            arp_step = bass_pattern_beats / len(chord)
+            for j, pitch in enumerate(chord):
+                note_data.append({
+                    "pitch": max(0, min(127, pitch)),
+                    "pos": chord_start + j * arp_step,
+                    "dur": arp_step * 0.9,
+                    "vel": chord_velocity,
+                })
+
+        elif variation_style == "melodic":
+            # Stepwise counter-melody from chord tones
+            num_melody_notes = max(2, int(bass_pattern_beats))
+            step_dur = bass_pattern_beats / num_melody_notes
+            for j in range(num_melody_notes):
+                pitch = chord[j % len(chord)]
+                note_data.append({
+                    "pitch": max(0, min(127, pitch)),
+                    "pos": chord_start + j * step_dur,
+                    "dur": step_dur * 0.9,
+                    "vel": chord_velocity,
+                })
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const bg = h.boxGraph;
+        const NoteEventBox = window.DAW_NoteEventBox;
+        const NoteRegionBox = window.DAW_NoteRegionBox;
+        const Quarter = h.ppqn.Quarter;
+
+        const noteData = {json.dumps(note_data)};
+        const totalBeats = {total_beats};
+        const startBeat = {start_beat};
+
+        let noteTracks = [];
+        let targetAU = null;
+        const allUnits = h.allAUBoxes();
+
+        if ({unit_index} >= 0 && {unit_index} < allUnits.length) {{
+            targetAU = allUnits[{unit_index}];
+            noteTracks = h.noteTrackBoxes(targetAU);
+        }} else {{
+            for (const au of allUnits) {{
+                const nt = h.noteTrackBoxes(au);
+                if (nt.length > 0) {{ noteTracks = nt; targetAU = au; break; }}
+            }}
+        }}
+
+        if (noteTracks.length === 0) return {{error: "No note tracks found. Call create_synth_track or create_note_track first."}};
+
+        const trackBox = noteTracks[Math.min({track_index}, noteTracks.length - 1)];
+        let totalNotes = 0;
+
+        h.modify(() => {{
+            const collection = window.DAW_NoteEventCollectionBox.create(bg, h.uuid.generate());
+            const regionDur = Math.round(totalBeats * Quarter);
+            const startPos = Math.round(startBeat * Quarter);
+
+            const regionBox = NoteRegionBox.create(bg, h.uuid.generate(), (box) => {{
+                box.position.setValue(startPos);
+                box.label.setValue("Passacaglia");
+                box.mute.setValue(false);
+                box.duration.setValue(regionDur);
+                box.loopDuration.setValue(regionDur);
+                box.eventOffset.setValue(0);
+                box.events.refer(collection.owners);
+                box.regions.refer(trackBox.regions);
+            }});
+
+            const eventsField = regionBox.events.targetVertex.unwrap();
+            const collBox = eventsField.box;
+
+            for (const nd of noteData) {{
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(startPos + Math.round(nd.pos * Quarter - startBeat * Quarter));
+                    box.duration.setValue(Math.max(1, Math.round(nd.dur * Quarter)));
+                    box.velocity.setValue(Math.max(0.01, Math.min(1, nd.vel)));
+                    box.pitch.setValue(nd.pitch);
+                    box.chance.setValue(100);
+                    box.cent.setValue(0);
+                    box.events.refer(collBox.events);
+                }});
+                totalNotes++;
+            }}
+        }});
+
+        return {{
+            success: true,
+            total_notes: totalNotes,
+            bass_pattern_length: {len(bass_pitches)},
+            bass_repeats: {bass_repeats},
+            total_bars: Math.round({total_bars} * 10) / 10,
+            chord_count: {len(chords)},
+            variation_style: "{variation_style}",
+            length_beats: totalBeats,
+            unit_index: allUnits.indexOf(targetAU),
+        }};
+    }}""")
     return _wrap_eval(result)
 
 
