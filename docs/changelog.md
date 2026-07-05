@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.76.0 (2026-07-05)
+
+- **`werkstatt_rotary_speaker.js` DSP script** — Leslie rotary: dual horn+rotor, Doppler pitch mod, amplitude mod, crossover, acceleration. Hammond organ, guitar, soul vocals
+- **61 DSP scripts** (48 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **722 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.75.0 (2026-07-05)
 
 - **`create_variations` orchestration tool** — thematic variation generator: reads source notes, writes N variations to new regions. 9 transforms (transpose/invert/reverse/augment/diminish/fragment/octave). Bach Goldberg, Beethoven Diabelli, jazz reharmonization. Generative (non-destructive). 50 orchestration tools

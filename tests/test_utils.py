@@ -2748,3 +2748,54 @@ class TestWerkstattMoogLadder:
         code = self._read_script()
         assert "_tanh(" in code
         assert "self._tanh" not in code  # it's a JS method, not Python
+
+
+class TestWerkstattRotarySpeaker:
+    """Unit tests for werkstatt_rotary_speaker.js DSP script structure."""
+
+    def _read_script(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_rotary_speaker.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt rotary_speaker 1 1" in code
+
+    def test_label(self):
+        code = self._read_script()
+        assert "// @label Rotary Speaker (Leslie)" in code
+
+    def test_param_count(self):
+        code = self._read_script()
+        param_lines = [l for l in code.split("\n") if l.strip().startswith("// @param")]
+        assert len(param_lines) == 7
+
+    def test_param_speed(self):
+        code = self._read_script()
+        assert "// @param speed 0.3 0 1 linear" in code
+
+    def test_param_crossover(self):
+        code = self._read_script()
+        assert "// @param crossover 800 200 4000 exp Hz" in code
+
+    def test_param_acceleration(self):
+        code = self._read_script()
+        assert "// @param acceleration 0.3 0 1 linear" in code
+
+    def test_has_processAudio(self):
+        code = self._read_script()
+        assert "processAudio(inputs, outputs, parameters)" in code
+
+    def test_has_doppler(self):
+        code = self._read_script()
+        assert "dopplerL" in code or "dopplerR" in code
+
+    def test_has_rotor_amplitude(self):
+        code = self._read_script()
+        assert "rotorAmpL" in code or "rotorAmpR" in code
+
+    def test_has_crossover_split(self):
+        code = self._read_script()
+        assert "highL" in code
+        assert "lowL" in code

@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **307** MCP tools | **91** Python examples (8 genre templates) |
-| **60** DSP scripts | **11** agent skills |
-| **3** framework wrappers | **712** unit + E2E tests |
+| **307** MCP tools | **93** Python examples (8 genre templates) |
+| **61** DSP scripts | **11** agent skills |
+| **3** framework wrappers | **722** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -507,6 +507,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.76.0 (2026-07-05)
+
+- **`werkstatt_rotary_speaker.js` DSP script** — Leslie rotary speaker emulation. Dual rotor system: horn (high rotor) with Doppler pitch modulation via variable delay + amplitude modulation, and rotor (low rotor) with amplitude modulation only. Crossover split (200-4000 Hz) routes highs to horn, lows to rotor. Speed control (0.8-6.67 Hz = 48-400 RPM), acceleration simulates the mechanical ramp-up/ramp-down of a real Leslie. Stereo widening via opposite-phase rotors. Unlike chorus (constant delay modulation) or tremolo (amplitude only), rotary speaker combines Doppler + amplitude + crossover + acceleration for the authentic Hammond organ / guitar sound. Classic for: Hammond organ, Pink Floyd guitar, Jon Lord Deep Purple, soul vocals, dub reggae. 7 params: speed, depth, crossover, horn_level, rotor_level, acceleration, mix
+- **61 DSP scripts** (48 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **722 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ## v1.75.0 (2026-07-05)
 
