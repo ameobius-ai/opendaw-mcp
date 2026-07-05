@@ -12,7 +12,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 async def main():
     from server import (
         mcp_opendaw_create_synth_track,
-        mcp_opendaw_add_effect,
         mcp_opendaw_set_script_device_code,
         mcp_opendaw_set_script_param,
     )

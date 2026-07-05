@@ -2873,3 +2873,75 @@ class TestWerkstattRotarySpeaker:
         code = self._read_script()
         assert "highL" in code
         assert "lowL" in code
+
+
+class TestScaleQuantizerDSP:
+    """Unit tests for spielwerk_scale_quantizer.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "spielwerk_scale_quantizer.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@spielwerk scale_quantizer" in code, "Missing @spielwerk scale_quantizer header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 3, f"Expected 3 params, got {len(params)}"
+
+    def test_scale_param(self):
+        params = self._parse_params(self._read_script())
+        sc = [p for p in params if p["name"] == "scale"][0]
+        assert sc["min"] == 0 and sc["max"] == 13
+
+    def test_root_param(self):
+        params = self._parse_params(self._read_script())
+        rt = [p for p in params if p["name"] == "root"][0]
+        assert rt["min"] == 0 and rt["max"] == 11
+
+    def test_scale_count(self):
+        code = self._read_script()
+        assert "SCALES" in code, "Missing SCALES array"
+        # 14 scales (major through chromatic)
+        assert code.count("[0,") >= 13, "Expected at least 13 scale definitions"
+
+    def test_quantize_method(self):
+        code = self._read_script()
+        assert "_quantize" in code, "Missing _quantize method"
+        assert "bestDist" in code, "Missing nearest-note search"
+
+    def test_chromatic_passthrough(self):
+        code = self._read_script()
+        assert "13" in code, "Missing chromatic scale index"
+        assert "pass-through" in code.lower() or "chromatic" in code.lower()
+
+    def test_direction_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "direction"][0]
+        assert d["min"] == 0 and d["max"] == 1
+
+    def test_process_generator(self):
+        code = self._read_script()
+        assert "*process" in code, "Missing process generator"
+        assert "yield" in code, "Missing yield in process"
+
+    def test_reset_method(self):
+        code = self._read_script()
+        assert "reset()" in code, "Missing reset method"

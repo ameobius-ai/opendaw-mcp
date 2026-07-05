@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-308-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-63-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-752%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-64-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-762%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Examples](https://img.shields.io/badge/Examples-100-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
@@ -508,6 +508,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+## v1.80.0 (2026-07-05)
+
+- **`spielwerk_scale_quantizer.js` DSP script** — MIDI scale quantizer. Snaps incoming note pitches to the nearest pitch in the selected scale. 14 scales: major, minor, dorian, phrygian, lydian, mixolydian, locrian, minor/major pentatonic, harmonic minor, melodic minor, hungarian minor, double harmonic, chromatic (pass-through). 12 root notes (C-B). Direction: nearest (default) or always-up. Unlike arpeggiator (generates notes) or velocity (scales dynamics), this is a constraint — it forces out-of-scale notes into the scale. The most essential MIDI effect for live playing and generative music — no more wrong notes. 3 params: scale, root, direction
+- **64 DSP scripts** (49 Werkstatt + 8 Apparat + 7 Spielwerk)
+- **762 unit tests** (+10), E2E 7/7
+- ruff clean, CI green
 
 ## v1.79.0 (2026-07-05)
 

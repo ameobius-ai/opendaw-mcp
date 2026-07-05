@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.80.0 (2026-07-05)
+
+- **`spielwerk_scale_quantizer.js` DSP script** — MIDI scale quantizer: 14 scales, 12 roots, snap direction. Forces notes into scale. 64 DSP scripts
+- **762 unit tests** (+10), E2E 7/7
+- ruff clean, CI green
+
 ## v1.79.0 (2026-07-05)
 
 - **`apparat_supersaw.js` DSP script** — JP-8000 supersaw: 7 detuned saws, per-voice stereo pan, resonant lowpass. 9 params. 63 DSP scripts
