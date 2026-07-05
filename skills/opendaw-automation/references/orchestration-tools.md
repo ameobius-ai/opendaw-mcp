@@ -143,6 +143,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 130. `extract_motifs` — melodic analysis: extract repeating motifs (3-8 notes) by interval contour, classify contour type (ascending/descending/arch/V-shape/wave), significance scoring, deduplication
 131. `analyze_song_structure` — structural analysis: segment MIDI into intro/verse/chorus/bridge/outro/breakdown based on per-bar density/energy, return form string
 132. `classify_drum_pattern` — rhythmic analysis: classify drum pattern as four-on-the-floor/boom-bap/trap/breakbeat/shuffle/half-time/amen/march using GM drum map, syncopation, triplet feel, hat density
+133. `create_motif_variations` — motif development: extract motif from existing MIDI, create classical variation (sequence/inversion/retrograde/augmentation/diminution/fragmentation) in target region. Closes analysis→creation loop
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

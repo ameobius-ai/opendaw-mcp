@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.221.0 (2026-07-05)
+
+### Added
+- `create_motif_variations` — Classical motif transformation from existing MIDI material. Extracts a motif (by start_note index + note_count) from a source region and creates a variation in a target region. 6 classical variation techniques: sequence (repeat shifted by N semitones, 3 repetitions), inversion (mirror intervals around first note), retrograde (play backwards), augmentation (stretch durations ×N), diminution (compress durations ×N), fragmentation (first N notes repeated 4×). Closes the analysis→creation loop: extract_motifs finds patterns, this tool develops them. Auto-creates target track/region if not specified. Uses NoteEventBox.create. 12 unit tests. **396 MCP tools**, 2803 unit tests
+
 ## v1.220.0 (2026-07-05)
 
 ### Added

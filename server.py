@@ -19343,6 +19343,282 @@ async def mcp_opendaw_classify_drum_pattern(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_motif_variations(
+    source_unit: int = 0,
+    source_track: int = 0,
+    source_region: int = 0,
+    start_note: int = 0,
+    note_count: int = 4,
+    target_unit: int = -1,
+    target_track: int = -1,
+    target_region: int = -1,
+    variation_type: str = "sequence",
+    sequence_shift: int = 2,
+    augmentation_factor: float = 2.0,
+    fragment_count: int = 2,
+) -> str:
+    """Extract a motif from existing notes and create a variation in a new region.
+
+    Closes the analysis→creation loop: extract_motifs finds repeating patterns,
+    this tool takes a specific motif and transforms it using classical composition
+    techniques. The motif is identified by start_note index and note_count within
+    the source region.
+
+    Variation types:
+    - **sequence**: repeat the motif shifted up/down by N scale steps or semitones.
+      Creates melodic sequences — the backbone of classical and jazz improvisation.
+    - **inversion**: flip the contour upside down. C→E→G (+4, +3) becomes C→A→F
+      (-3, -2). The intervals are mirrored around the first note.
+    - **retrograde**: play the motif backwards. Last note first, first note last.
+      The rhythm and pitches are reversed in time.
+    - **augmentation**: stretch all durations by a factor (2.0 = twice as slow).
+      Creates grand, expansive statements from quick motifs.
+    - **diminution**: compress all durations by a factor (2.0 = twice as fast).
+      Creates urgency and energy from slow motifs.
+    - **fragmentation**: take the first N notes of the motif and repeat them.
+      Creates rhythmic ostinatos from melodic material.
+
+    Essential for: developing melodic material, building variations, creating
+    thematic development, and extending motifs into new sections.
+
+    source_unit/track/region: Location of the source motif.
+    start_note: Index of the first note of the motif within the source region
+      (0-based, sorted by position).
+    note_count: Number of notes in the motif (3-16).
+    target_unit/track/region: Where to write the variation. -1 = create new
+      track/region automatically.
+    variation_type: sequence, inversion, retrograde, augmentation, diminution,
+      fragmentation.
+    sequence_shift: For sequence type — semitones to shift each repetition.
+    augmentation_factor: For augmentation/diminution — duration multiplier.
+    fragment_count: For fragmentation — how many notes to keep from the start.
+
+    Returns the created variation with note details.
+    """
+    if note_count < 2 or note_count > 16:
+        return "Error: note_count must be 2-16"
+    valid_types = {"sequence", "inversion", "retrograde", "augmentation", "diminution", "fragmentation"}
+    if variation_type not in valid_types:
+        return f"Error: variation_type must be one of {valid_types}"
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const srcUnit = {source_unit};
+        const srcTrack = {source_track};
+        const srcRegion = {source_region};
+        const startNote = {start_note};
+        const noteCount = {note_count};
+        const tgtUnit = {target_unit};
+        const tgtTrack = {target_track};
+        const tgtRegion = {target_region};
+        const varType = "{variation_type}";
+        const seqShift = {sequence_shift};
+        const augFactor = {augmentation_factor};
+        const fragCount = {fragment_count};
+        const NoteEventBox = window.DAW_NoteEventBox;
+
+        // Read source motif
+        const allUnits = h.allAUBoxes();
+        if (srcUnit >= allUnits.length) return {{error: "source unit out of range"}};
+        const srcAu = allUnits[srcUnit];
+        const srcTracks = h.trackBoxes(srcAu);
+        if (srcTrack >= srcTracks.length) return {{error: "source track out of range"}};
+        const srcTrackBox = srcTracks[srcTrack];
+        const srcRegions = h.regionBoxes(srcTrackBox);
+        if (srcRegion >= srcRegions.length) return {{error: "source region out of range"}};
+        const srcReg = srcRegions[srcRegion];
+
+        const eventsField = srcReg.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const allNotes = [...collBox.events.pointerHub.incoming()];
+        const sortedNotes = allNotes.map(n => ({{
+            pitch: n.box.pitch.getValue(),
+            position: n.box.position.getValue(),
+            duration: n.box.duration.getValue(),
+            velocity: n.box.velocity.getValue(),
+        }})).sort((a, b) => a.position - b.position);
+
+        if (startNote + noteCount > sortedNotes.length) {{
+            return {{error: `motif extends beyond available notes (${{sortedNotes.length}} notes, need ${{startNote + noteCount}})`}};
+        }}
+
+        let motif = sortedNotes.slice(startNote, startNote + noteCount);
+        // Normalize positions relative to motif start
+        const motifStart = motif[0].position;
+        motif = motif.map(n => ({{...n, localPos: n.position - motifStart}}));
+
+        // Apply variation
+        let variation = [];
+        const description = [];
+
+        if (varType === "sequence") {{
+            // Shift each note by seqShift semitones, keep rhythm
+            // For a sequence, we typically repeat 2-3 times
+            const repetitions = 3;
+            let currentShift = 0;
+            let lastEnd = 0;
+            for (let rep = 0; rep < repetitions; rep++) {{
+                for (let i = 0; i < motif.length; i++) {{
+                    variation.push({{
+                        pitch: motif[i].pitch + currentShift,
+                        localPos: lastEnd + motif[i].localPos,
+                        duration: motif[i].duration,
+                        velocity: motif[i].velocity,
+                    }});
+                }}
+                currentShift += seqShift;
+                lastEnd += motif[motif.length - 1].localPos + motif[motif.length - 1].duration;
+                description.push(`rep ${{rep+1}}: +${{currentShift - seqShift}} st`);
+            }}
+        }} else if (varType === "inversion") {{
+            // Mirror intervals around the first note
+            const axis = motif[0].pitch;
+            const intervals = [];
+            for (let i = 1; i < motif.length; i++) {{
+                intervals.push(motif[i].pitch - motif[i-1].pitch);
+            }}
+            let currentPitch = axis;
+            variation.push({{...motif[0]}});
+            for (let i = 0; i < intervals.length; i++) {{
+                currentPitch -= intervals[i];
+                variation.push({{
+                    pitch: currentPitch,
+                    localPos: motif[i+1].localPos,
+                    duration: motif[i+1].duration,
+                    velocity: motif[i+1].velocity,
+                }});
+            }}
+            description.push("intervals mirrored around first note");
+        }} else if (varType === "retrograde") {{
+            // Reverse the motif
+            const totalDuration = motif[motif.length - 1].localPos + motif[motif.length - 1].duration;
+            for (let i = motif.length - 1; i >= 0; i--) {{
+                const origEnd = motif[i].localPos + motif[i].duration;
+                const newPos = totalDuration - origEnd;
+                variation.push({{
+                    pitch: motif[i].pitch,
+                    localPos: newPos,
+                    duration: motif[i].duration,
+                    velocity: motif[i].velocity,
+                }});
+            }}
+            description.push("motif played backwards");
+        }} else if (varType === "augmentation" || varType === "diminution") {{
+            const factor = varType === "augmentation" ? augFactor : 1.0 / augFactor;
+            for (let i = 0; i < motif.length; i++) {{
+                variation.push({{
+                    pitch: motif[i].pitch,
+                    localPos: Math.round(motif[i].localPos * factor),
+                    duration: Math.round(motif[i].duration * factor),
+                    velocity: motif[i].velocity,
+                }});
+            }}
+            description.push(`durations ${{varType === "augmentation" ? "stretched" : "compressed"}} ×${{factor.toFixed(2)}}`);
+        }} else if (varType === "fragmentation") {{
+            // Take first fragCount notes, repeat
+            const frag = motif.slice(0, Math.min(fragCount, motif.length));
+            const fragDuration = frag[frag.length - 1].localPos + frag[frag.length - 1].duration;
+            const repetitions = 4;
+            for (let rep = 0; rep < repetitions; rep++) {{
+                for (let i = 0; i < frag.length; i++) {{
+                    variation.push({{
+                        pitch: frag[i].pitch,
+                        localPos: rep * fragDuration + frag[i].localPos,
+                        duration: frag[i].duration,
+                        velocity: frag[i].velocity,
+                    }});
+                }}
+            }}
+            description.push(`first ${{fragCount}} notes repeated ${{repetitions}}×`);
+        }}
+
+        // Write variation to target
+        const bg = h.boxGraph;
+
+        // Determine target track
+        let destTrackBox;
+        let destRegionBox;
+        let needCreateTrack = false;
+        let needCreateRegion = false;
+
+        const targetUnits = h.allAUBoxes();
+        if (tgtUnit >= 0 && tgtUnit < targetUnits.length) {{
+            const tgtAu = targetUnits[tgtUnit];
+            const tgtTracks = h.trackBoxes(tgtAu);
+            if (tgtTrack >= 0 && tgtTrack < tgtTracks.length) {{
+                destTrackBox = tgtTracks[tgtTrack];
+                const tgtRegions = h.regionBoxes(destTrackBox);
+                if (tgtRegion >= 0 && tgtRegion < tgtRegions.length) {{
+                    destRegionBox = tgtRegions[tgtRegion];
+                }} else {{
+                    needCreateRegion = true;
+                }}
+            }} else {{
+                needCreateTrack = true;
+            }}
+        }} else {{
+            needCreateTrack = true;
+        }}
+
+        // Create track if needed
+        if (needCreateTrack) {{
+            const createResult = h.api.createNoteTrack();
+            if (!createResult.isSuccess()) return {{error: "failed to create target track"}};
+            destTrackBox = createResult.result();
+        }}
+
+        // Create region if needed
+        if (needCreateRegion || !destRegionBox) {{
+            const trackRegions = h.regionBoxes(destTrackBox);
+            if (trackRegions.length > 0) {{
+                destRegionBox = trackRegions[0];
+            }} else {{
+                // Calculate region length from variation
+                const totalLen = variation[variation.length - 1].localPos + variation[variation.length - 1].duration;
+                const regionResult = h.api.createNoteRegion(destTrackBox, 0, totalLen + 960);
+                if (!regionResult.isSuccess()) return {{error: "failed to create target region"}};
+                destRegionBox = regionResult.result();
+            }}
+        }}
+
+        // Write notes
+        const destEventsField = destRegionBox.events.targetVertex.unwrap();
+        const destCollBox = destEventsField.box;
+        const destStart = destRegionBox.start.getValue();
+
+        let writtenNotes = [];
+        h.modify(() => {{
+            for (const v of variation) {{
+                const absPos = destStart + v.localPos;
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(absPos);
+                    box.duration.setValue(v.duration);
+                    box.pitch.setValue(v.pitch);
+                    box.velocity.setValue(v.velocity);
+                    box.events.refer(destCollBox.events);
+                }});
+                writtenNotes.push({{
+                    pitch: v.pitch,
+                    position: absPos,
+                    duration: v.duration,
+                    velocity: v.velocity,
+                }});
+            }}
+        }});
+
+        return {{
+            success: true,
+            variation_type: varType,
+            source_motif: motif.map(n => ({{pitch: n.pitch, duration: n.duration}})),
+            variation_notes: writtenNotes.length,
+            variation: writtenNotes,
+            description: description.join("; "),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

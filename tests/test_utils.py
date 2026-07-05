@@ -12076,3 +12076,151 @@ class TestClassifyDrumPattern:
                 return
         assert False, "function not found"
 
+
+class TestCreateMotifVariations:
+    """Tests for create_motif_variations — classical motif transformation"""
+
+    def test_tool_signature_exists(self):
+        """create_motif_variations is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_motif_variations" in tool_names
+
+    def test_has_source_and_target_params(self):
+        """Has source_unit, source_track, source_region and target params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                arg_names = [a.arg for a in node.args.args]
+                assert "source_unit" in arg_names
+                assert "source_track" in arg_names
+                assert "source_region" in arg_names
+                assert "target_unit" in arg_names
+                assert "target_track" in arg_names
+                assert "target_region" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_motif_selection_params(self):
+        """Has start_note and note_count params for motif selection"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                arg_names = [a.arg for a in node.args.args]
+                assert "start_note" in arg_names
+                assert "note_count" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_variation_type_param(self):
+        """Has variation_type param"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                arg_names = [a.arg for a in node.args.args]
+                assert "variation_type" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_supports_6_variation_types(self):
+        """Supports all 6 classical variation types"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                source = ast.unparse(node)
+                assert "sequence" in source
+                assert "inversion" in source
+                assert "retrograde" in source
+                assert "augmentation" in source
+                assert "diminution" in source
+                assert "fragmentation" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_note_count(self):
+        """Validates note_count must be 2-16"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                source = ast.unparse(node)
+                assert "note_count must be 2-16" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_variation_type(self):
+        """Validates variation_type against allowed set"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                source = ast.unparse(node)
+                assert "valid_types" in source
+                return
+        assert False, "function not found"
+
+    def test_has_sequence_shift(self):
+        """Has sequence_shift param for sequence type"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                arg_names = [a.arg for a in node.args.args]
+                assert "sequence_shift" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_augmentation_factor(self):
+        """Has augmentation_factor param for aug/dim types"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                arg_names = [a.arg for a in node.args.args]
+                assert "augmentation_factor" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_fragment_count(self):
+        """Has fragment_count param for fragmentation type"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                arg_names = [a.arg for a in node.args.args]
+                assert "fragment_count" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_uses_note_event_box_create(self):
+        """Uses NoteEventBox.create for writing notes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                source = ast.unparse(node)
+                assert "NoteEventBox" in source
+                return
+        assert False, "function not found"
+
+    def test_returns_variation_details(self):
+        """Returns variation_type, source_motif, variation, and description"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_motif_variations":
+                source = ast.unparse(node)
+                assert "variation_type" in source
+                assert "source_motif" in source
+                assert "variation_notes" in source
+                assert "description" in source
+                return
+        assert False, "function not found"
+
