@@ -3105,3 +3105,96 @@ class TestSpielwerkHarmonizerDSP:
     def test_reset_method(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
+class TestMultitapDelayDSP:
+    """Unit tests for werkstatt_multitap_delay.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "scripts", "werkstatt_multitap_delay.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt multitap_delay" in code, "Missing @werkstatt multitap_delay header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 20, f"Expected 20 params, got {len(params)}"
+
+    def test_four_taps(self):
+        code = self._read_script()
+        for t in range(1, 5):
+            assert f"tap{t}_time" in code, f"Missing tap{t}_time"
+            assert f"tap{t}_level" in code, f"Missing tap{t}_level"
+            assert f"tap{t}_pan" in code, f"Missing tap{t}_pan"
+            assert f"tap{t}_fb" in code, f"Missing tap{t}_fb"
+
+    def test_tap_time_range(self):
+        params = self._parse_params(self._read_script())
+        t1 = [p for p in params if p["name"] == "tap1_time"][0]
+        assert t1["min"] == 0.02 and t1["max"] == 1, "tap1_time should be 0.02-1"
+
+    def test_pan_range(self):
+        params = self._parse_params(self._read_script())
+        for p in params:
+            if p["name"].endswith("_pan"):
+                assert p["min"] == -1 and p["max"] == 1, f"{p['name']} should be -1 to 1"
+
+    def test_feedback_range(self):
+        params = self._parse_params(self._read_script())
+        for p in params:
+            if p["name"].endswith("_fb"):
+                assert p["min"] == 0 and p["max"] == 0.9, f"{p['name']} should be 0-0.9"
+
+    def test_single_buffer(self):
+        code = self._read_script()
+        assert "this.buf = new Float32Array" in code, "Should use single delay buffer"
+        assert "writePos" in code, "Missing write position tracking"
+
+    def test_equal_power_pan(self):
+        code = self._read_script()
+        assert "_pan" in code, "Missing pan method"
+        assert "Math.cos" in code and "Math.sin" in code, "Missing equal-power pan (cos/sin)"
+
+    def test_damping(self):
+        code = self._read_script()
+        assert "damping" in code, "Missing damping parameter"
+        assert "_dampLp" in code, "Missing damping lowpass filter"
+        assert "cutoff" in code, "Missing damping cutoff computation"
+
+    def test_spread_modulation(self):
+        code = self._read_script()
+        assert "spread" in code, "Missing spread parameter"
+        assert "spreadPhase" in code, "Missing spread LFO phase"
+
+    def test_process_audio(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_reset_clears_buffer(self):
+        code = self._read_script()
+        assert "buf.fill(0)" in code or "fill(0)" in code, "Reset should clear buffer"
+
+    def test_mix_and_output(self):
+        params = self._parse_params(self._read_script())
+        mix = [p for p in params if p["name"] == "mix"][0]
+        out_p = [p for p in params if p["name"] == "output"][0]
+        assert mix["min"] == 0 and mix["max"] == 1
+        assert out_p["min"] == 0 and out_p["max"] == 1

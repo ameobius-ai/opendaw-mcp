@@ -7,9 +7,9 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-309-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-11-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-66-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-792%20unit%20%2B%20E2E-brightgreen)](tests/)
-[![Examples](https://img.shields.io/badge/Examples-105-blue)](examples/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-67-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-805%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![Examples](https://img.shields.io/badge/Examples-106-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -509,7 +509,12 @@ Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
 
-## v1.83.0 (2026-07-05)
+## v1.84.0 (2026-07-05)
+
+- **`werkstatt_multitap_delay.js` DSP script** — multitap delay: 4 independent taps from single delay buffer, each with time/level/pan/feedback. Equal-power stereo pan per tap, feedback damping, spread modulation. 67 DSP scripts
+- **805 unit tests** (+13), E2E 8/8
+
+### v1.83.0 (2026-07-05)
 
 - **`create_stutter` orchestration tool** — stutter edit: rapid rhythmic repetitions with evolving rate and dynamics. 5 patterns (accelerate, decelerate, ping_pong, constant, random), 5 accent patterns, 5 velocity ramps, gate, pitch jitter. Unlike create_chop (equal segments) — rate evolves over time. 309 MCP tools
 - **792 unit tests** (+10), E2E 8/8
