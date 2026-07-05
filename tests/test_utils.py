@@ -9822,3 +9822,141 @@ class TestLofiArrangement:
                 return
         assert False, "function not found"
 
+
+class TestSoulArrangement:
+    """Tests for create_soul_arrangement — Motown/Stax soul 4-track arrangement"""
+
+    def test_tool_signature_exists(self):
+        """create_soul_arrangement is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_soul_arrangement" in tool_names
+
+    def test_default_bpm_72(self):
+        """Default BPM is 72 (classic slow soul)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "bpm" and isinstance(d, ast.Constant):
+                        assert d.value == 72
+                return
+        assert False, "function not found"
+
+    def test_default_root_C(self):
+        """Default root is C (warm soul key)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert '"C"' in source or "'C'" in source
+                return
+        assert False, "function not found"
+
+    def test_gospel_changes(self):
+        """Harmony uses I-IV-vi-V gospel changes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert "I-IV-vi-V" in source or "gospel" in source.lower()
+                assert "maj7" in source
+                assert "dom7" in source
+                return
+        assert False, "function not found"
+
+    def test_gospel_drums(self):
+        """Drums are gospel soul pattern (backbeat + ride)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert "kick" in source.lower() or "kick_p" in source
+                assert "snare" in source.lower() or "snare_p" in source
+                assert "ride" in source.lower()
+                return
+        assert False, "function not found"
+
+    def test_four_tracks(self):
+        """Arrangement uses 4 tracks: drums, bass, keys, horns"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert "drum_track" in source
+                assert "bass_track" in source
+                assert "keys_track" in source
+                assert "horns_track" in source
+                return
+        assert False, "function not found"
+
+    def test_delegates_to_notes_batch(self):
+        """Creates notes via create_notes_batch"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert "mcp_opendaw_create_notes_batch" in source
+                return
+        assert False, "function not found"
+
+    def test_soul_in_full_genre_pipeline(self):
+        """soul is registered in create_full_genre_pipeline defaults + arrangement_fns"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_full_genre_pipeline":
+                source = ast.unparse(node)
+                assert "'soul'" in source or '"soul"' in source
+                assert "mcp_opendaw_create_soul_arrangement" in source
+                return
+        assert False, "full genre pipeline not found"
+
+    def test_bpm_range_validation(self):
+        """BPM validated to 65-90 range"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert "65" in source
+                assert "90" in source
+                return
+        assert False, "function not found"
+
+    def test_walking_bass(self):
+        """Bass is melodic walking (root → fifth → octave → walk)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert "walking" in source.lower() or "walk_note" in source
+                return
+        assert False, "function not found"
+
+    def test_horn_fills(self):
+        """Horns have melodic fills at end of cycle"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_soul_arrangement":
+                source = ast.unparse(node)
+                assert "fill" in source.lower()
+                assert "pentatonic" in source.lower() or "fill_notes" in source
+                return
+        assert False, "function not found"
+

@@ -26493,6 +26493,270 @@ async def mcp_opendaw_create_funk_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_soul_arrangement(
+    bpm: float = 72,
+    bars: int = 8,
+    root: str = "C",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    keys_track: int = 2,
+    horns_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+) -> str:
+    """Create a full soul arrangement — gospel drums + melodic bass + Rhodes chords + horn stabs across 4 tracks.
+
+    Motown / Stax / Atlantic soul — Otis Redding, Aretha Franklin, Marvin Gaye style:
+    - Track 0: Drums — gospel-influenced: steady kick with ghost notes, backbeat
+                     snare, ride cymbal with triplet feel. Soul groove is laid-back
+                     but deep — the pocket is behind the beat.
+    - Track 1: Bass — melodic walking bass: root → fifth → octave → walk to next
+                     chord tone. Not just root pumping — soul bass sings.
+    - Track 2: Keys — Rhodes/Wurlitzer chord stabs on I-IV-vi-V gospel changes.
+                     Warm, gospel-tinged voicings (maj7, min9). The harmonic
+                     foundation — church-meets-R&B.
+    - Track 3: Horns — Motown horn section: stabs on chord changes, melodic fills
+                     at phrase ends. Tight, arranged, call-and-response with vocals.
+
+    At 72 BPM (default), this creates the classic slow soul groove — deep pocket,
+    gospel changes, warm Rhodes. The I-IV-vi-V progression is the gospel quartet
+    influence that separates soul from funk (which vamps on one chord) and from
+    pop (which uses I-V-vi-IV). Soul is about feel and melody, not rhythm complexity.
+
+    bpm: Tempo (65-90, default 72 = classic slow soul).
+    bars: Arrangement length (4-16, default 8). Must be multiple of 4 for chord changes.
+    root: Root note (C is a warm soul key).
+    octave: MIDI octave for bass (2 = C2=36, standard soul bass register).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / keys_track / horns_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_soul_arrangement(bpm=72, root="C", bars=8)
+      create_soul_arrangement(bpm=80, root="F", bars=16)
+    """
+    if not (65 <= bpm <= 90):
+        return "Error: bpm must be 65-90"
+    if bars < 4 or bars > 16:
+        return "Error: bars must be 4-16"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    keys_base = (octave + 3) * 12 + root_pc
+    horns_base = (octave + 4) * 12 + root_pc
+
+    # I-IV-vi-V gospel changes — 2 bars per chord, 8 bars = one full cycle
+    # Intervals from root for each chord (semitone offset + voicing)
+    chord_changes = [
+        # I (major 7): root, major third, fifth, major seventh
+        (0,  [0, 4, 7, 11], "maj7"),
+        # IV (dominant 7): fourth, major third, fifth, minor seventh
+        (5,  [0, 4, 7, 10], "dom7"),
+        # vi (minor 9): sixth, minor third, fifth, minor seventh
+        (9,  [0, 3, 7, 10], "min9"),
+        # V (dominant 7): fifth, major third, fifth, minor seventh
+        (7,  [0, 4, 7, 10], "dom7"),
+    ]
+    bars_per_chord = 2
+    total_chords = len(chord_changes)
+    cycle_bars = total_chords * bars_per_chord  # 8 bars per cycle
+    cycles = bars // cycle_bars
+    if bars % cycle_bars != 0:
+        cycles += 1  # partial cycle OK
+
+    # --- DRUMS: gospel soul groove (1-bar cycle) ---
+    # Steady kick, backbeat snare, ride with triplet-ish feel
+    # Laid-back — slightly behind the beat (achieved by velocity, not timing)
+    drum_pattern = [
+        # Kick: steady on 1 and 3, ghost on "and" of 2
+        (0.0, "kick", 1.0), (1.0, "kick", 0.5), (2.0, "kick", 0.9), (3.0, "kick", 0.5),
+        (1.5, "ghost_kick", 0.3),
+        # Snare: backbeat on 2 and 4 (the soul pocket)
+        (1.0, "snare", 0.95), (3.0, "snare", 0.95),
+        (0.75, "ghost_snare", 0.2), (2.75, "ghost_snare", 0.25),
+        # Ride: quarter notes with light ghost on "and"
+        (0.0, "ride", 0.7), (0.5, "ride_bell", 0.4), (1.0, "ride", 0.65), (1.5, "ride_bell", 0.35),
+        (2.0, "ride", 0.7), (2.5, "ride_bell", 0.4), (3.0, "ride", 0.65), (3.5, "ride_bell", 0.35),
+        # Hat: sparse — on 16ths between ride for texture
+        (0.25, "hat", 0.25), (1.25, "hat", 0.2), (2.25, "hat", 0.25), (3.25, "hat", 0.2),
+    ]
+    kick_p, snare_p, hat_p, ghost_p, ride_p, ride_bell_p = 36, 38, 42, 37, 51, 53
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "ghost_snare": ghost_p,
+                      "ghost_kick": 35, "ride": ride_p, "ride_bell": ride_bell_p}
+    drum_dur_map = {"kick": 0.2, "snare": 0.15, "hat": 0.05, "ghost_snare": 0.03,
+                    "ghost_kick": 0.05, "ride": 0.3, "ride_bell": 0.15}
+
+    drum_notes = []
+    drum_cycle = 4.0
+    for c in range(bars):
+        off = c * drum_cycle
+        for beat, st, vm in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- BASS: melodic walking bass (2-bar phrase per chord) ---
+    # Root → fifth → octave → walk to next chord root (chromatic or diatonic)
+    # Soul bass sings — melodic, not just root pumping
+    bass_notes = []
+    for cycle_idx in range(cycles):
+        for ci, (chord_offset, _voicing, _label) in enumerate(chord_changes):
+            chord_start_bar = cycle_idx * cycle_bars + ci * bars_per_chord
+            chord_start = chord_start_bar * 4.0
+            chord_root = bass_base + chord_offset
+
+            # Next chord root (for walk)
+            next_ci = (ci + 1) % total_chords
+            next_offset = chord_changes[next_ci][0]
+            next_root = bass_base + next_offset
+            # Walk: approach from half step below or above
+            walk_note = next_root - 1 if next_root > chord_root else next_root + 1
+
+            # 2-bar phrase: root → fifth → octave → root → fifth → walk
+            bass_phrase = [
+                (0.0,  0, 0.4, 1.0),     # bar 1 beat 1: root
+                (1.0,  7, 0.3, 0.8),     # bar 1 beat 2: fifth
+                (2.0,  12, 0.3, 0.85),   # bar 1 beat 3: octave
+                (3.0,  7, 0.25, 0.7),    # bar 1 beat 4: fifth
+                (4.0,  0, 0.4, 0.9),     # bar 2 beat 1: root
+                (5.0,  5, 0.3, 0.75),    # bar 2 beat 2: fifth (major third of chord)
+                (6.0,  7, 0.25, 0.65),   # bar 2 beat 3: fifth
+                (7.0,  walk_note - bass_base - chord_offset, 0.35, 0.85),  # beat 4: walk to next
+            ]
+            for beat, po, dur, vm in bass_phrase:
+                actual_pitch = chord_root + po if beat < 7.0 else walk_note + po
+                if beat >= 7.0:
+                    actual_pitch = walk_note
+                bass_notes.append({
+                    "pitch": actual_pitch,
+                    "start": round(start_beat + chord_start + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm, 3),
+                })
+
+    # --- KEYS: Rhodes chord stabs (2-bar sustain per chord) ---
+    # Warm gospel voicings — held chords with slight rhythmic stabs
+    keys_notes = []
+    for cycle_idx in range(cycles):
+        for ci, (chord_offset, voicing, _label) in enumerate(chord_changes):
+            chord_start_bar = cycle_idx * cycle_bars + ci * bars_per_chord
+            chord_start = chord_start_bar * 4.0
+            chord_len = bars_per_chord * 4.0
+
+            # Chord stab pattern: hit on beat 1, sustain, light re-stab on bar 2 beat 1
+            stab_points = [
+                (0.0, chord_len * 0.9, 0.8),   # main stab — sustain most of the chord
+                (chord_len * 0.5, 0.3, 0.5),   # light re-stab on bar 2
+            ]
+            for stab_off, stab_dur, vm in stab_points:
+                for interval in voicing:
+                    keys_notes.append({
+                        "pitch": keys_base + chord_offset + interval,
+                        "start": round(start_beat + chord_start + stab_off, 4),
+                        "duration": stab_dur,
+                        "velocity": round(velocity * vm * 0.6, 3),  # keys are soft
+                    })
+
+    # --- HORNS: Motown horn stabs + fills (2-bar per chord) ---
+    # Stabs on chord changes, melodic fill at end of 4-chord cycle
+    horn_voicing_trim = [0, 4, 7]  # triad for stabs (tighter than full chord)
+    horns_notes = []
+    for cycle_idx in range(cycles):
+        for ci, (chord_offset, _voicing, _label) in enumerate(chord_changes):
+            chord_start_bar = cycle_idx * cycle_bars + ci * bars_per_chord
+            chord_start = chord_start_bar * 4.0
+
+            # Stab on beat 1 of each chord
+            for interval in horn_voicing_trim:
+                horns_notes.append({
+                    "pitch": horns_base + chord_offset + interval,
+                    "start": round(start_beat + chord_start, 4),
+                    "duration": 0.25,
+                    "velocity": round(velocity * 0.75, 3),
+                })
+            # Light stab on "and" of beat 2
+            for interval in horn_voicing_trim:
+                horns_notes.append({
+                    "pitch": horns_base + chord_offset + interval,
+                    "start": round(start_beat + chord_start + 2.5, 4),
+                    "duration": 0.15,
+                    "velocity": round(velocity * 0.55, 3),
+                })
+
+        # Melodic fill at end of cycle (last 2 beats of last chord)
+        last_chord_start = cycle_idx * cycle_bars + (total_chords - 1) * bars_per_chord
+        fill_start = start_beat + last_chord_start * 4.0 + 6.0  # beat 3 of bar 2
+        # Pentatonic fill: root, major third, fifth, octave
+        fill_notes = [0, 4, 7, 12]
+        for fi, interval in enumerate(fill_notes):
+            horns_notes.append({
+                "pitch": horns_base + chord_changes[total_chords - 1][0] + interval,
+                "start": round(fill_start + fi * 0.5, 4),
+                "duration": 0.2,
+                "velocity": round(velocity * (0.6 + fi * 0.1), 3),
+            })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    keys_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(keys_notes), unit_index, keys_track)
+    horns_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(horns_notes), unit_index, horns_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        keys_data = json.loads(keys_result)
+    except Exception:
+        keys_data = {"raw": keys_result}
+    try:
+        horns_data = json.loads(horns_result)
+    except Exception:
+        horns_data = {"raw": horns_result}
+
+    return json.dumps({
+        "soul_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "keys": {"track": keys_track, "notes": len(keys_notes), "result": keys_data.get("notes_created", len(keys_notes))},
+            "horns": {"track": horns_track, "notes": len(horns_notes), "result": horns_data.get("notes_created", len(horns_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(keys_notes) + len(horns_notes),
+        "drum_pattern": "gospel_soul_backbeat",
+        "bass_pattern": "melodic_walking",
+        "keys_type": "rhodes_gospel_changes",
+        "horn_type": "motown_stabs_fills",
+        "harmony": "I-IV-vi-V_gospel_changes",
+        "chords": [c[2] for c in chord_changes],
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_create_lofi_arrangement(
     bpm: float = 78,
     bars: int = 8,
@@ -28718,6 +28982,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "trance":    {"bpm": 138, "root": "F",  "tracks": 4, "master_style": "loud"},
         "disco":     {"bpm": 120, "root": "G",  "tracks": 4, "master_style": "warm"},
         "lofi":      {"bpm": 78,  "root": "F",  "tracks": 4, "master_style": "warm"},
+        "soul":      {"bpm": 72,  "root": "C",  "tracks": 4, "master_style": "warm"},
     }
 
     if genre not in defaults:
@@ -28785,6 +29050,7 @@ async def mcp_opendaw_create_full_genre_pipeline(
         "trance":    mcp_opendaw_create_trance_arrangement,
         "disco":     mcp_opendaw_create_disco_arrangement,
         "lofi":      mcp_opendaw_create_lofi_arrangement,
+        "soul":      mcp_opendaw_create_soul_arrangement,
     }
 
     try:

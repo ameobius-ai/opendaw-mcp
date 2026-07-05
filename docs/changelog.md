@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.202.0 (2026-07-05)
+
+### Added
+- `create_soul_arrangement` — 17th multi-track genre arrangement. Motown/Stax/Atlantic soul (Otis Redding, Aretha Franklin, Marvin Gaye): gospel drums (steady kick, backbeat snare, ride with bell), melodic walking bass (root→fifth→octave→walk to next chord), Rhodes chord stabs on I-IV-vi-V gospel changes (maj7/dom7/min9 voicings), Motown horn stabs + pentatonic fills. 72 BPM default, C major, 4 tracks, 2 bars per chord. Integrated into create_full_genre_pipeline (17 genres total). 11 unit tests. **379 MCP tools**, 2614 unit tests
+
 ## v1.201.0 (2026-07-05)
 
 ### Added
