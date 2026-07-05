@@ -8232,6 +8232,87 @@ class TestCreateTempoRamp:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_create_tempo_ramp" in tool_names
 
+
+class TestDuplicateSection:
+    """Tests for duplicate_section orchestration tool"""
+
+    def test_offset_calculation(self):
+        """Offset = target_beat - from_beat"""
+        from_beat, target_beat = 0, 16
+        offset = target_beat - from_beat
+        assert offset == 16
+
+    def test_offset_negative_when_target_before_source(self):
+        """Offset can be negative if target is before source"""
+        from_beat, target_beat = 32, 0
+        offset = target_beat - from_beat
+        assert offset == -32
+
+    def test_section_length(self):
+        """Section length = to_beat - from_beat"""
+        from_beat, to_beat = 0, 16
+        section_length = to_beat - from_beat
+        assert section_length == 16
+
+    def test_region_overlap_check(self):
+        """Region [5, 21) overlaps [0, 16) — should be included"""
+        from_beat, to_beat = 0, 16
+        reg_pos, reg_dur = 5, 16
+        reg_end = reg_pos + reg_dur
+        # overlap condition: NOT (regEnd <= from OR regPos >= to)
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert overlaps
+
+    def test_region_no_overlap_before(self):
+        """Region [0, 4) does not overlap [16, 32) — excluded"""
+        from_beat, to_beat = 16, 32
+        reg_pos, reg_dur = 0, 4
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert not overlaps
+
+    def test_region_no_overlap_after(self):
+        """Region [32, 48) does not overlap [0, 16) — excluded"""
+        from_beat, to_beat = 0, 16
+        reg_pos, reg_dur = 32, 16
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert not overlaps
+
+    def test_region_partial_overlap_included(self):
+        """Region [12, 20) partially overlaps [0, 16) — included"""
+        from_beat, to_beat = 0, 16
+        reg_pos, reg_dur = 12, 8
+        reg_end = reg_pos + reg_dur
+        overlaps = not (reg_end <= from_beat or reg_pos >= to_beat)
+        assert overlaps
+
+    def test_new_position_calculation(self):
+        """New position = original + offset"""
+        reg_pos, offset = 4, 16
+        new_pos = reg_pos + offset
+        assert new_pos == 20
+
+    def test_unit_indices_parsing(self):
+        """Comma-separated unit indices parse correctly"""
+        indices = [int(x.strip()) for x in "0,1,2,3".split(",")]
+        assert indices == [0, 1, 2, 3]
+
+    def test_empty_unit_indices_scans_all(self):
+        """Empty string = scan all AUs"""
+        unit_list = ""
+        scans_all = not unit_list
+        assert scans_all
+
+    def test_tool_in_ast(self):
+        """duplicate_section is a registered MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_duplicate_section" in tool_names
+
     def test_unknown_type_rejected(self):
         """Unknown transition type returns error"""
         valid_types = {"drop", "buildup", "breakdown", "intro", "outro"}

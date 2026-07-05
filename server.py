@@ -30358,3 +30358,124 @@ async def mcp_opendaw_create_liquid_dnb_arrangement(
             "soulful pentatonic lead with call-response phrases",
         ],
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_duplicate_section(from_beat: float, to_beat: float, target_beat: float, unit_indices: str = "") -> str:
+    """Duplicate all regions within a beat range to a new position.
+
+    Scans all tracks across all specified audio units, finds every region that
+    overlaps the [from_beat, to_beat) range, and copies each one to target_beat
+    with the same relative offset. This is the arrangement operation producers
+    use constantly: "copy verse 1 to bar 17" or "duplicate this 8-bar section
+    after itself".
+
+    Works with note regions, audio regions, and automation regions. Preserves
+    all content (notes, audio, automation events).
+
+    from_beat: Start of the source section in beats.
+    to_beat: End of the source section in beats (exclusive).
+    target_beat: Where to place the duplicated section (beat 0 = start of project).
+    unit_indices: Comma-separated AU indices to scan (default: all AUs).
+
+    Returns number of regions duplicated, per-track details, and new positions.
+
+    Examples:
+      duplicate_section(from_beat=0, to_beat=16, target_beat=16)
+        -> Copy first 4 bars (0-16 beats) to beat 16 (bars 5-8)
+      duplicate_section(from_beat=0, to_beat=32, target_beat=32, unit_indices="0,1,2")
+        -> Copy first 8 bars from AUs 0,1,2 to beat 32
+    """
+    if to_beat <= from_beat:
+        return "Error: to_beat must be after from_beat"
+    if target_beat < 0:
+        return "Error: target_beat must be >= 0"
+
+    section_length = to_beat - from_beat
+    offset = target_beat - from_beat
+
+    unit_list = unit_indices.strip() if unit_indices else ""
+
+    result = await bridge.evaluate(f"""() => {{
+        const h = window.DAW_HELPERS;
+        const TrackBoxAdapter = window.DAW_TrackBoxAdapter;
+        try {{
+            const fromBeat = {from_beat};
+            const toBeat = {to_beat};
+            const targetBeat = {target_beat};
+            const offset = {offset};
+            const sectionLen = {section_length};
+            const Quarter = h.ppqn.Quarter;
+
+            // Determine which AUs to scan
+            let unitsToScan;
+            const unitList = "{unit_list}";
+            if (unitList) {{
+                const idxs = unitList.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                const allUnits = h.allAUBoxes();
+                unitsToScan = idxs.map(i => allUnits[i]).filter(u => u);
+            }} else {{
+                unitsToScan = h.allAUBoxes();
+            }}
+
+            const duplicated = [];
+            let totalDuplicated = 0;
+
+            for (let uIdx = 0; uIdx < unitsToScan.length; uIdx++) {{
+                const au = unitsToScan[uIdx];
+                const tracks = h.trackBoxes(au);
+
+                for (let tIdx = 0; tIdx < tracks.length; tIdx++) {{
+                    const trackBox = tracks[tIdx];
+                    const trackAdapter = h.project.boxAdapters.adapterFor(trackBox, TrackBoxAdapter);
+                    if (!trackAdapter) continue;
+                    const regionAdapters = trackAdapter.regions.collection.asArray();
+
+                    for (let rIdx = 0; rIdx < regionAdapters.length; rIdx++) {{
+                        const reg = regionAdapters[rIdx];
+                        const regPosBeats = reg.position / Quarter;
+                        const regDurBeats = reg.duration / Quarter;
+                        const regEndBeats = regPosBeats + regDurBeats;
+
+                        // Check if region overlaps [fromBeat, toBeat)
+                        if (regEndBeats <= fromBeat || regPosBeats >= toBeat) continue;
+
+                        // Copy to new position
+                        let newAdapter;
+                        h.modify(() => {{
+                            newAdapter = reg.copyTo({{
+                                target: trackBox.regions,
+                                position: Math.round((regPosBeats + offset) * Quarter),
+                            }});
+                        }});
+
+                        if (newAdapter) {{
+                            totalDuplicated++;
+                            duplicated.push({{
+                                unit: uIdx,
+                                track: tIdx,
+                                original_position_beats: Math.round(regPosBeats * 100) / 100,
+                                new_position_beats: Math.round((regPosBeats + offset) * 100) / 100,
+                                duration_beats: Math.round(regDurBeats * 100) / 100,
+                            }});
+                        }}
+                    }}
+                }}
+            }}
+
+            return {{
+                success: true,
+                from_beat: fromBeat,
+                to_beat: toBeat,
+                target_beat: targetBeat,
+                section_length_beats: sectionLen,
+                offset_beats: offset,
+                regions_duplicated: totalDuplicated,
+                details: duplicated.slice(0, 50),
+                total_affected_units: new Set(duplicated.map(d => d.unit)).size,
+            }};
+        }} catch(e) {{
+            return {{error: e.message}};
+        }}
+    }}""")
+    return _wrap_eval(result)

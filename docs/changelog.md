@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.185.0 (2026-07-05)
+
+### Added
+- `duplicate_section` — duplicate all regions in a beat range to a new position. Scans all tracks across all AUs, finds overlapping regions, copies each with offset. One call replaces N duplicate_region calls. Works with note/audio/automation regions. 365 MCP tools total
+
 ## v1.184.0 (2026-07-05)
 
 ### Added

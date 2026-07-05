@@ -434,8 +434,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apply_mix_preset` — Apply volume/pan/mute/solo to all units from JSON or named preset (lofi/house/balanced/wide). Replaces 10-30 individual mixer calls.
 
 - `create_tempo_ramp` — Smooth tempo ramp (ritardando/accelerando). Series of ValueEventBox on tempo track. 3 curves (linear/exp/log), configurable steps. Auto-detects ramp type.
+- `duplicate_section` — Duplicate all regions in a beat range to a new position. Scans all tracks across all AUs, copies each overlapping region with offset. Replaces N duplicate_region calls with one.
 
-**Total: 364 tools**
+**Total: 365 tools**
 
 ## DSP Scripts (scripts/) — 107 scripts
 
