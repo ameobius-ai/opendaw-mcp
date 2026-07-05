@@ -4600,3 +4600,98 @@ class TestMultibandSaturatorDSP:
     def test_band_summation(self):
         code = self._read_script()
         assert "satLowL + satMidL + satHighL" in code, "Missing band summation"
+
+
+class TestVinylDSP:
+    """Unit tests for werkstatt_vinyl.js — vinyl record simulator"""
+
+    SCRIPT = "werkstatt_vinyl.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt vinyl" in code, "Missing @werkstatt vinyl header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 8, f"Expected 8 params, got {len(params)}"
+
+    def test_dust_param(self):
+        params = self._parse_params(self._read_script())
+        d = [p for p in params if p["name"] == "dust"][0]
+        assert d["min"] == 0 and d["max"] == 1 and d["type"] == "linear"
+
+    def test_wow_flutter_params(self):
+        params = self._parse_params(self._read_script())
+        w = [p for p in params if p["name"] == "wow"][0]
+        f = [p for p in params if p["name"] == "flutter"][0]
+        assert w["max"] == 0.5 and f["max"] == 0.5
+
+    def test_wear_param(self):
+        params = self._parse_params(self._read_script())
+        w = [p for p in params if p["name"] == "wear"][0]
+        assert w["min"] == 0 and w["max"] == 1 and w["type"] == "linear"
+
+    def test_lcg_random(self):
+        code = self._read_script()
+        assert "1103515245" in code, "Missing LCG random implementation"
+        assert "_rand" in code, "Missing _rand method"
+
+    def test_crackle_engine(self):
+        code = self._read_script()
+        assert "crackleEnv" in code, "Missing crackle envelope"
+        assert "_nextPopAt" in code, "Missing pop scheduling"
+        assert "popRate" in code, "Missing pop rate calculation"
+
+    def test_wow_flutter_modulation(self):
+        code = self._read_script()
+        assert "wowPhase" in code, "Missing wow phase"
+        assert "flutterPhase" in code, "Missing flutter phase"
+        assert "Math.sin(this._wowPhase)" in code, "Missing wow sinusoidal modulation"
+        assert "Math.sin(this._flutterPhase)" in code, "Missing flutter sinusoidal modulation"
+
+    def test_fractional_delay(self):
+        code = self._read_script()
+        assert "fractional" in code.lower() or "frac" in code, "Missing fractional delay read"
+        assert "_bufL" in code and "_bufR" in code, "Missing delay buffers"
+        assert "_writePos" in code, "Missing write position"
+
+    def test_surface_noise(self):
+        code = self._read_script()
+        assert "noiseAmp" in code, "Missing noise amplitude"
+        assert "rawNoiseL" in code, "Missing raw noise generation"
+
+    def test_wear_filter(self):
+        code = self._read_script()
+        assert "wearCoeff" in code, "Missing wear filter coefficient"
+        assert "wearZ1L" in code, "Missing wear filter state"
+        assert "one-pole LP" in code, "Missing wear LP filter reference"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "dry" in code and "wet" in code, "Missing dry/wet mix"
+
+    def test_output_gain(self):
+        code = self._read_script()
+        assert "Math.pow(10" in code, "Missing dB-to-linear output gain"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_stereo_processing(self):
+        code = self._read_script()
+        assert "wetL" in code and "wetR" in code, "Missing stereo processing"

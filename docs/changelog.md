@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.104.0 (2026-07-05)
+
+- **`werkstatt_vinyl.js` DSP script (84 DSP, 66 Werkstatt)** — vinyl record simulator: crackle/pops via LCG-triggered exponential envelopes with randomized intervals, continuous surface noise, wow/flutter pitch wobble via fractional delay buffer (0.8Hz wow + 6.5Hz flutter), wear high-frequency rolloff via one-pole LP. 8 params (age/dust/wear/wow/flutter/noise/mix/output). Lo-fi hip-hop, ambient texture, vintage aesthetic. 84 DSP scripts, 66 Werkstatt
+- **1013 unit tests** (+15), E2E 8/8
+
 ## v1.103.0 (2026-07-05)
 
 - **`create_clave` orchestration tool (312 MCP tools)** — Afro-Cuban clave pattern: 5-note rhythmic skeleton across 2 bars that defines the feel. 6 clave types: son 3-2, son 2-3, rumba 3-2, rumba 2-3, bossa nova, 6/8. Clave direction (3-2 forward vs 2-3 reverse) determines where downbeats fall. All other rhythms align to the clave. Cycle repeats for bars > 2. 312 MCP tools, 55 orchestration
