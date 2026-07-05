@@ -14974,6 +14974,131 @@ async def mcp_opendaw_create_mute_automation(unit_index: int, events: str) -> st
 
 
 @mcp.tool()
+async def mcp_opendaw_create_section_transition(transition_type: str, start_beat: float = 0, duration_beats: float = 16, unit_indices: str = "0,1,2,3") -> str:
+    """Create a complete section transition in one call — combines multiple automation tools.
+
+    The most common arrangement technique: moving from one section to another (verse→chorus,
+    breakdown→drop, intro→main). Each preset combines filter sweeps, volume fades, mute
+    automation, and impacts into a single coordinated transition. Replaces 3-5 individual calls.
+
+    transition_type: One of:
+        "drop" — Breakdown→drop: filter close on synths, drums muted, then filter open + unmute + impact
+        "buildup" — Verse→chorus: filter open on lead, volume fade in on pads, snare roll implied
+        "breakdown" — Main→breakdown: filter close on drums, volume fade out on bass, mute synths
+        "intro" — Silence→intro: volume fade in on all, filter open on pads
+        "outro" — Main→outro: volume fade out on all, filter close on lead
+    start_beat: Transition start position in beats.
+    duration_beats: Total transition length in beats (default 16 = 4 bars).
+    unit_indices: Comma-separated AU indices. Convention: drums=0, bass=1, lead/synth=2, pads=3.
+        Adjust to match your arrangement. Default "0,1,2,3".
+
+    Returns summary of all automation created across units.
+
+    Examples:
+      create_section_transition("drop", start_beat=32, duration_beats=16)
+        → 32-48: filter close on synth, drums muted at 32, filter open at 44, unmute+impact at 48
+      create_section_transition("intro", start_beat=0, duration_beats=8)
+        → 0-8: volume fade in on all, filter open on pads
+    """
+    indices = [int(x.strip()) for x in unit_indices.split(",")]
+    results = []
+    mid_beat = start_beat + duration_beats * 0.75  # transition point
+
+    if transition_type == "drop":
+        # Breakdown→drop: close filter on lead, mute drums, then open + unmute + impact
+        # Lead: filter close (duration 75%), then open (last 25%)
+        if len(indices) > 2:
+            r1 = await mcp_opendaw_create_filter_sweep(
+                indices[2], direction="close", start_beat=start_beat,
+                duration_beats=duration_beats * 0.75, resonance_boost=True, steps=24)
+            results.append(f"lead_filter_close: {r1}")
+        # Drums: mute during breakdown, unmute at drop point
+        if len(indices) > 0:
+            mute_events = json.dumps([[start_beat, True], [mid_beat, False]])
+            r2 = await mcp_opendaw_create_mute_automation(indices[0], mute_events)
+            results.append(f"drums_mute: {r2}")
+        # Lead: filter open at drop point
+        if len(indices) > 2:
+            r3 = await mcp_opendaw_create_filter_sweep(
+                indices[2], direction="open", start_beat=mid_beat,
+                duration_beats=duration_beats * 0.25, resonance_boost=True, steps=16)
+            results.append(f"lead_filter_open: {r3}")
+        # Impact at drop point
+        r4 = await mcp_opendaw_create_impact(unit_index=indices[0] if len(indices) > 0 else 0,
+                                              impact_type="sub_boom", start_beat=mid_beat)
+        results.append(f"impact: {r4}")
+
+    elif transition_type == "buildup":
+        # Verse→chorus: filter open on lead, volume fade in on pads
+        if len(indices) > 2:
+            r1 = await mcp_opendaw_create_filter_sweep(
+                indices[2], direction="open", start_beat=start_beat,
+                duration_beats=duration_beats, resonance_boost=False, steps=32)
+            results.append(f"lead_filter_open: {r1}")
+        if len(indices) > 3:
+            r2 = await mcp_opendaw_create_volume_fade(
+                indices[3], direction="in", start_beat=start_beat,
+                duration_beats=duration_beats, end_volume_db=0)
+            results.append(f"pads_fade_in: {r2}")
+
+    elif transition_type == "breakdown":
+        # Main→breakdown: filter close on drums, volume fade on bass, mute synths
+        if len(indices) > 0:
+            r1 = await mcp_opendaw_create_filter_sweep(
+                indices[0], direction="close", start_beat=start_beat,
+                duration_beats=duration_beats * 0.5, resonance_boost=True, steps=24)
+            results.append(f"drums_filter_close: {r1}")
+        if len(indices) > 1:
+            r2 = await mcp_opendaw_create_volume_fade(
+                indices[1], direction="out", start_beat=start_beat,
+                duration_beats=duration_beats, end_volume_db=-24)
+            results.append(f"bass_fade_out: {r2}")
+        if len(indices) > 2:
+            mute_events = json.dumps([[mid_beat, True]])
+            r3 = await mcp_opendaw_create_mute_automation(indices[2], mute_events)
+            results.append(f"synth_mute: {r3}")
+
+    elif transition_type == "intro":
+        # Silence→intro: volume fade in on all, filter open on pads
+        for idx in indices:
+            r = await mcp_opendaw_create_volume_fade(
+                idx, direction="in", start_beat=start_beat,
+                duration_beats=duration_beats, end_volume_db=0)
+            results.append(f"unit{idx}_fade_in: {r}")
+        if len(indices) > 3:
+            r2 = await mcp_opendaw_create_filter_sweep(
+                indices[3], direction="open", start_beat=start_beat,
+                duration_beats=duration_beats, resonance_boost=False, steps=24)
+            results.append(f"pads_filter_open: {r2}")
+
+    elif transition_type == "outro":
+        # Main→outro: volume fade out on all, filter close on lead
+        for idx in indices:
+            r = await mcp_opendaw_create_volume_fade(
+                idx, direction="out", start_beat=start_beat,
+                duration_beats=duration_beats, end_volume_db=-60)
+            results.append(f"unit{idx}_fade_out: {r}")
+        if len(indices) > 2:
+            r2 = await mcp_opendaw_create_filter_sweep(
+                indices[2], direction="close", start_beat=start_beat,
+                duration_beats=duration_beats * 0.75, resonance_boost=False, steps=24)
+            results.append(f"lead_filter_close: {r2}")
+
+    else:
+        return f"Error: unknown transition_type '{transition_type}'. Use: drop, buildup, breakdown, intro, outro"
+
+    return json.dumps({
+        "success": True,
+        "transition_type": transition_type,
+        "start_beat": start_beat,
+        "duration_beats": duration_beats,
+        "units": indices,
+        "operations": len(results),
+        "details": results
+    }, indent=2)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_mix_preset(preset: str) -> str:
     """Apply a mix preset to all audio units in one call — volume, pan, mute, solo.
 

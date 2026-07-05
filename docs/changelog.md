@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.182.0 (2026-07-05)
+
+### Added
+- `create_section_transition` — composite section transition in one call. 5 presets: drop (breakdown→drop: filter close + mute + filter open + impact), buildup (verse→chorus: filter open + fade in), breakdown (main→breakdown: filter close + fade out + mute), intro (silence→intro: fade in all + filter open), outro (main→outro: fade out all + filter close). Replaces 3-5 individual automation calls. 363 MCP tools total
+
 ## v1.181.0 (2026-07-05)
 
 ### Added

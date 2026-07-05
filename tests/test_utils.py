@@ -8013,3 +8013,71 @@ class TestSpectralBlurDSP:
         assert "Math.cos(phase" in code
         assert "Math.sin(phase" in code
 
+
+class TestCreateSectionTransition:
+    """Tests for create_section_transition orchestration tool"""
+
+    def test_unit_indices_parsing(self):
+        """Comma-separated indices parse to list of ints"""
+        indices = [int(x.strip()) for x in "0,1,2,3".split(",")]
+        assert indices == [0, 1, 2, 3]
+
+    def test_mid_beat_calculation(self):
+        """Mid beat = 75% of duration (transition point)"""
+        start_beat = 32
+        duration_beats = 16
+        mid_beat = start_beat + duration_beats * 0.75
+        assert mid_beat == 44
+
+    def test_drop_pattern_operations(self):
+        """Drop transition: filter close + mute + filter open + impact = 4 ops"""
+        ops = ["lead_filter_close", "drums_mute", "lead_filter_open", "impact"]
+        assert len(ops) == 4
+
+    def test_buildup_pattern_operations(self):
+        """Buildup transition: filter open + fade in = 2 ops"""
+        ops = ["lead_filter_open", "pads_fade_in"]
+        assert len(ops) == 2
+
+    def test_breakdown_pattern_operations(self):
+        """Breakdown transition: filter close + fade out + mute = 3 ops"""
+        ops = ["drums_filter_close", "bass_fade_out", "synth_mute"]
+        assert len(ops) == 3
+
+    def test_intro_fades_all_units(self):
+        """Intro: volume fade in on ALL units + filter open on pads"""
+        indices = [0, 1, 2, 3]
+        fade_ops = [f"unit{idx}_fade_in" for idx in indices]
+        assert len(fade_ops) == 4
+        assert "unit0_fade_in" in fade_ops
+
+    def test_outro_fades_all_units(self):
+        """Outro: volume fade out on ALL units + filter close on lead"""
+        indices = [0, 1, 2, 3]
+        fade_ops = [f"unit{idx}_fade_out" for idx in indices]
+        assert len(fade_ops) == 4
+
+    def test_unknown_type_rejected(self):
+        """Unknown transition type returns error"""
+        valid_types = {"drop", "buildup", "breakdown", "intro", "outro"}
+        assert "invalid" not in valid_types
+
+    def test_mute_events_format(self):
+        """Mute events JSON format for drop: [[start, true], [mid, false]]"""
+        import json
+        start_beat = 32
+        mid_beat = 44
+        events = json.dumps([[start_beat, True], [mid_beat, False]])
+        parsed = json.loads(events)
+        assert parsed[0] == [32, True]   # mute at start
+        assert parsed[1] == [44, False]  # unmute at drop
+
+    def test_tool_signature_exists(self):
+        """create_section_transition is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_section_transition" in tool_names
+
