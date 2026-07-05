@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.157.0 (2026-07-05)
+
+- **2 new DSP scripts (100 total)** — `werkstatt_envelope_follower.js`: amplitude tracking DSP, attack/release envelope detection with per-sample coefficients, dry/wet mix. Building block for auto-wah, tremolo depth, ducking, sidechain detection. `werkstatt_auto_wah.js`: envelope-driven resonant filter sweep, biquad bandpass with dynamic frequency mapping (min-max Hz based on input level), per-channel state for stereo. Classic funk/disco quack (Mu-Tron III, Cry Baby, Bootsy Collins). 4+6 params. 81 Werkstatt + 9 Apparat + 10 Spielwerk = 100 DSP scripts.
+- **2099 unit tests** (+26)
+
 ## v1.156.0 (2026-07-05)
 
 - **liquid_dnb genre integration** — added liquid_dnb to apply_genre_mix (smooth comp ratio 4, lush reverb 0.8s on pads, dotted delay on melody, sidechain with gentle threshold -18), apply_genre_humanization (timing 0.05, velocity 0.08, slight behind-beat bias 0.01 — more human than DnB but still tight), and create_full_genre_pipeline (174 BPM, F root, 4 tracks, warm master). Pipeline now supports `create_full_genre_pipeline("liquid_dnb")` end-to-end. 15 genre arrangements fully integrated.

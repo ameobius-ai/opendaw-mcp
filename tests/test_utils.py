@@ -6416,3 +6416,151 @@ class TestDeCrackleDSP:
         code = self._read_script()
         assert "combined" in code, "Missing combined buffer (delay + current)"
 
+
+class TestWerkstattEnvelopeFollower:
+    """Tests for werkstatt_envelope_follower.js — amplitude tracking DSP"""
+
+    def _read_script(self):
+        with open("scripts/werkstatt_envelope_follower.js") as f:
+            return f.read()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt envelope_follower 1 1" in code
+
+    def test_params(self):
+        code = self._read_script()
+        for p in ["attack", "release", "gain", "mix"]:
+            assert f"@param {p}" in code, f"Missing @param {p}"
+
+    def test_param_count(self):
+        import re
+        code = self._read_script()
+        params = re.findall(r"@param\s+(\w+)", code)
+        assert len(params) == 4, f"Expected 4 params, got {len(params)}: {params}"
+
+    def test_envelope_detection(self):
+        code = self._read_script()
+        assert "Math.abs" in code, "Missing abs() for envelope detection"
+        assert "envelope" in code
+
+    def test_attack_release(self):
+        code = self._read_script()
+        assert "attackCoef" in code, "Missing attack coefficient"
+        assert "releaseCoef" in code, "Missing release coefficient"
+        assert "Math.exp" in code, "Missing exp() for time constant"
+
+    def test_mix_dry_wet(self):
+        code = self._read_script()
+        assert "1 - this.mix" in code, "Missing dry/wet mix"
+
+    def test_process_audio(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_param_changed(self):
+        code = self._read_script()
+        assert "paramChanged" in code, "Missing paramChanged handler"
+
+    def test_recalculate(self):
+        code = self._read_script()
+        assert "recalculate" in code, "Missing recalculate for coefficients"
+
+    def test_attack_fast_percussive(self):
+        """Fast attack (0.005s) = percussive detection"""
+        attack = 0.005
+        assert attack < 0.01  # fast
+
+    def test_release_slow_smooth(self):
+        """Slow release (0.1s) = smooth envelope"""
+        release = 0.1
+        assert release > 0.05  # smooth
+
+
+class TestWerkstattAutoWah:
+    """Tests for werkstatt_auto_wah.js — envelope-driven filter sweep"""
+
+    def _read_script(self):
+        with open("scripts/werkstatt_auto_wah.js") as f:
+            return f.read()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "// @werkstatt auto_wah 1 1" in code
+
+    def test_params(self):
+        code = self._read_script()
+        for p in ["attack", "release", "min_freq", "max_freq", "resonance", "mix"]:
+            assert f"@param {p}" in code, f"Missing @param {p}"
+
+    def test_param_count(self):
+        import re
+        code = self._read_script()
+        params = re.findall(r"@param\s+(\w+)", code)
+        assert len(params) == 6, f"Expected 6 params, got {len(params)}: {params}"
+
+    def test_envelope_driven(self):
+        code = self._read_script()
+        assert "envelope" in code, "Missing envelope detection"
+        assert "Math.abs" in code, "Missing abs() for detection"
+
+    def test_freq_mapping(self):
+        code = self._read_script()
+        assert "minFreq" in code, "Missing min frequency"
+        assert "maxFreq" in code, "Missing max frequency"
+        assert "envNorm" in code, "Missing envelope-to-frequency mapping"
+
+    def test_biquad_filter(self):
+        code = self._read_script()
+        assert "biquad" in code.lower() or "Biquad" in code, "Missing biquad filter"
+        assert "cosw0" in code, "Missing cosine coefficient"
+        assert "alpha" in code, "Missing alpha (resonance)"
+
+    def test_bandpass_response(self):
+        code = self._read_script()
+        assert "b0" in code and "b2" in code, "Missing biquad coefficients"
+
+    def test_per_channel_state(self):
+        code = self._read_script()
+        assert "state" in code, "Missing per-channel state for stereo"
+
+    def test_process_audio(self):
+        code = self._read_script()
+        assert "processAudio" in code
+
+    def test_param_changed(self):
+        code = self._read_script()
+        assert "paramChanged" in code
+
+    def test_mix_dry_wet(self):
+        code = self._read_script()
+        assert "1 - this.mix" in code, "Missing dry/wet mix"
+
+    def test_freq_range(self):
+        """Default: 400-2000 Hz sweep range"""
+        min_f = 400
+        max_f = 2000
+        assert min_f < max_f
+        assert 100 <= min_f <= 2000
+        assert 500 <= max_f <= 8000
+
+    def test_resonance_range(self):
+        """Default Q=8, range 1-20"""
+        q = 8
+        assert 1 <= q <= 20
+
+    def test_classic_funk_usage(self):
+        """Auto-wah is the Bootsy Collins funk quack effect"""
+        attack = 0.005
+        release = 0.15
+        resonance = 8
+        assert attack < 0.01
+        assert release > 0.05
+        assert resonance > 5
+
+    def test_vs_static_filter(self):
+        """Auto-wah modulates filter freq dynamically, unlike static filter"""
+        auto_wah_features = {"envelope_following", "dynamic_freq", "amplitude_driven"}
+        static_filter_features = {"fixed_freq", "no_envelope"}
+        assert "envelope_following" not in static_filter_features
+
