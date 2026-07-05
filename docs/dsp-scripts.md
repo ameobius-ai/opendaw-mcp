@@ -1,10 +1,10 @@
 # DSP Scripts
 
-98 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+100 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 79 scripts
+## Werkstatt (Audio Effects) — 81 scripts
 
-### Dynamics (10)
+### Dynamics (11)
 
 | Script | Description |
 |--------|-------------|
@@ -18,6 +18,7 @@
 | `werkstatt_multiband_comp.js` | Multiband Compressor |
 | `werkstatt_bass_enhancer.js` | Bass Enhancer (Psychoacoustic) |
 | `werkstatt_expander.js` | Downward Expander |
+| `werkstatt_envelope_follower.js` | Envelope Follower (amplitude tracking) |
 
 ### Saturation/Distortion (8)
 
@@ -42,7 +43,7 @@
 | `werkstatt_tilt_eq.js` | Tilt EQ |
 | `werkstatt_matching_eq.js` | Matching EQ (Spectral Balance Corrector) |
 
-### Filter (8)
+### Filter (9)
 
 | Script | Description |
 |--------|-------------|
@@ -53,6 +54,7 @@
 | `werkstatt_formant_filter.js` | Formant Filter |
 | `werkstatt_moog_ladder.js` | Moog Ladder Filter |
 | `werkstatt_autowah.js` | Autowah |
+| `werkstatt_auto_wah.js` | Auto-Wah (envelope-driven biquad sweep, Mu-Tron III) |
 | `werkstatt_svf.js` | State Variable Filter (Chamberlin) |
 
 ### Modulation (8)

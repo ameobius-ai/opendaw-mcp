@@ -509,6 +509,7 @@ User wants...
 | Tool | Genre | Tracks | BPM | Key | Key Feature |
 |------|-------|--------|-----|-----|-------------|
 | `create_dnb_arrangement` | DnB | 3 | 140-200 | F | Amen breakbeat + Reese + pad |
+| `create_liquid_dnb_arrangement` | Liquid DnB | 4 | 160-185 | F | Smooth breakbeat + melodic sub-bass + min9/maj9 pads + soulful lead |
 | `create_house_arrangement` | House | 3 | 110-140 | C | Four-on-floor + off-beat bass + stabs |
 | `create_trap_arrangement` | Trap | 3 | 120-170 | F# | Trap rolls + 808 slides + bell |
 | `create_techno_arrangement` | Techno | 3 | 120-150 | C | Four-on-floor + sub drone + Detroit stabs |
@@ -601,6 +602,7 @@ Three capability layers transform raw arrangements into finished tracks:
 | Pop | 0.05 | 0.08 | — | — |
 | Synthwave | 0.04 | 0.06 | — | — |
 | DnB/House/Trap/Dubstep | 0.03 | 0.05 | — | — |
+| Liquid DnB | 0.05 | 0.08 | — | +0.01 (pocket) |
 | Techno/Trance | 0.02 (tightest) | 0.04 | — | — |
 
 Per-track scaling: drums=1.0, melody=0.8, harmony=0.7, bass=0.5 (bass stays tight)
