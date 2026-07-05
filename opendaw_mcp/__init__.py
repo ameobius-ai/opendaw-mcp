@@ -26,6 +26,7 @@ from .utils import (
     _safe_filename,
     _safe_path,
     _clamp_script_param,
+    _detect_bpm,
 )
 from .music_theory import (
     NOTE_TO_PITCH,
@@ -56,6 +57,7 @@ __all__ = [
     "_safe_filename",
     "_safe_path",
     "_clamp_script_param",
+    "_detect_bpm",
     "NOTE_TO_PITCH",
     "CHORD_INTERVALS",
     "SCALE_INTERVALS",

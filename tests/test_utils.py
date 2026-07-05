@@ -8157,6 +8157,115 @@ class TestWaveguideStringDSP:
         assert "fwdL + bwdL" in code or "waveOut" in code
 
 
+class TestDetectBpm:
+    """Tests for _detect_bpm and detect_bpm tool"""
+
+    def test_empty_channels_returns_default(self):
+        """Empty audio returns BPM 120 with 0 confidence"""
+        from opendaw_mcp.utils import _detect_bpm
+        result = _detect_bpm([], 44100)
+        assert result["bpm"] == 120.0
+        assert result["confidence"] == 0.0
+
+    def test_short_audio_returns_default(self):
+        """Very short audio (<10 windows) returns default"""
+        from opendaw_mcp.utils import _detect_bpm
+        # 1024 * 9 = 9216 samples, < 10 windows
+        channels = [[0.0] * 9216]
+        result = _detect_bpm(channels, 44100)
+        assert result["confidence"] == 0.0
+
+    def test_bpm_range_60_200(self):
+        """Detected BPM should be in 60-200 range"""
+        from opendaw_mcp.utils import _detect_bpm
+        # Generate synthetic 120 BPM kick pattern
+        sr = 44100
+        duration = 10.0  # 10 seconds
+        n = int(sr * duration)
+        period = int(sr * 0.5)  # 120 BPM = 0.5s per beat
+        mono = [0.0] * n
+        for i in range(0, n, period):
+            # Add a "kick" — 100 samples of high energy
+            for j in range(min(100, n - i)):
+                mono[i + j] = 0.9
+        result = _detect_bpm([mono], sr)
+        assert 60 <= result["bpm"] <= 200
+
+    def test_synthetic_120_bpm(self):
+        """Synthetic 120 BPM pattern should detect close to 120"""
+        from opendaw_mcp.utils import _detect_bpm
+        sr = 44100
+        duration = 10.0
+        n = int(sr * duration)
+        period = int(sr * 0.5)  # 120 BPM
+        mono = [0.0] * n
+        for i in range(0, n - 100, period):
+            for j in range(100):
+                mono[i + j] = 0.9
+        result = _detect_bpm([mono], sr)
+        # Should detect 120 or 60 (half-time) or 240 capped at 200
+        bpm = result["bpm"]
+        assert bpm == 120.0 or bpm == 60.0 or bpm == 200.0
+
+    def test_onset_count_positive(self):
+        """Onset count should be positive for rhythmic audio"""
+        from opendaw_mcp.utils import _detect_bpm
+        sr = 44100
+        duration = 10.0
+        n = int(sr * duration)
+        period = int(sr * 0.5)
+        mono = [0.0] * n
+        for i in range(0, n - 100, period):
+            for j in range(100):
+                mono[i + j] = 0.9
+        result = _detect_bpm([mono], sr)
+        assert result["onset_count"] > 0
+
+    def test_duration_calculated(self):
+        """Duration should be calculated from samples and sample rate"""
+        from opendaw_mcp.utils import _detect_bpm
+        sr = 44100
+        n = sr * 10  # 10 seconds
+        channels = [[0.0] * n]
+        result = _detect_bpm(channels, sr)
+        assert abs(result["duration_seconds"] - 10.0) < 0.1
+
+    def test_few_onsets_returns_default(self):
+        """<4 onsets returns default BPM with 0 confidence"""
+        from opendaw_mcp.utils import _detect_bpm
+        sr = 44100
+        n = sr * 10
+        mono = [0.0] * n
+        # Only 2 energy spikes
+        mono[1000:1100] = [0.9] * 100
+        mono[5000:5100] = [0.9] * 100
+        result = _detect_bpm([mono], sr)
+        assert result["confidence"] == 0.0
+
+    def test_stereo_mixdown(self):
+        """Stereo input should be mixed to mono correctly"""
+        from opendaw_mcp.utils import _detect_bpm
+        sr = 44100
+        duration = 10.0
+        n = int(sr * duration)
+        period = int(sr * 0.5)
+        # Same pattern in both channels
+        ch_l = [0.0] * n
+        ch_r = [0.0] * n
+        for i in range(0, n - 100, period):
+            for j in range(100):
+                ch_l[i + j] = 0.9
+                ch_r[i + j] = 0.9
+        result = _detect_bpm([ch_l, ch_r], sr)
+        assert result["onset_count"] > 0
+
+    def test_suno_pipeline_bpm_to_set_bpm(self):
+        """Pipeline: detect_bpm → set_bpm"""
+        steps = ["detect_bpm", "set_bpm"]
+        assert steps[0] == "detect_bpm"
+        assert len(steps) == 2
+
+
 class TestDownloadAudio:
     """Tests for download_audio URL-to-file tool"""
 

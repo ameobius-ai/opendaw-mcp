@@ -39,6 +39,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _safe_filename,
     _safe_path,
     _clamp_script_param,
+    _detect_bpm,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -6101,6 +6102,58 @@ async def mcp_opendaw_measure_lufs(filename: str) -> str:
         })
     except Exception as e:
         return _err(f"LUFS measurement error: {e}")
+
+@mcp.tool()
+async def mcp_opendaw_detect_bpm(filename: str) -> str:
+    """Detect BPM (tempo) of an exported WAV file using onset detection + autocorrelation.
+
+    Pure Python implementation (no external dependencies):
+    1. Parse WAV → mono mixdown
+    2. Energy envelope (1024-sample windows)
+    3. Onset detection (energy spikes above local average)
+    4. Autocorrelation of onset train → dominant periodicity → BPM
+
+    Essential for Suno integration: Suno generates at its own BPM, but the
+    openDAW project needs matching tempo. Detect → set_bpm for correct
+    beat alignment when placing stems.
+
+    filename: Name of the WAV file in the exports directory (without path),
+              or absolute path to any WAV file.
+
+    Returns: bpm (60-200), confidence (0-1), onset_count, duration_seconds.
+
+    Examples:
+      # After importing a Suno track
+      result = detect_bpm("suno_track.wav")
+      # → {bpm: 128.0, confidence: 0.85, onset_count: 240, ...}
+      # Then set project BPM
+      set_bpm(128)
+    """
+    import os as _os
+
+    # Try exports dir first, then absolute path
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        bpm_data = _detect_bpm(wav["channels"], wav["sample_rate"])
+        return json.dumps({
+            "success": True,
+            **bpm_data,
+            "sample_rate": wav["sample_rate"],
+            "channels": wav["n_channels"],
+            "file": filepath,
+        })
+    except Exception as e:
+        return _err(f"BPM detection error: {e}")
 
 @mcp.tool()
 async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_mix", sample_rate: int = 48000, max_iterations: int = 3) -> str:

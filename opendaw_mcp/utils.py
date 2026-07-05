@@ -208,3 +208,109 @@ def _clamp_script_param(value: float, mapping: str, min_val: float, max_val: flo
     else:  # unipolar, linear, exp
         result = max(min_val, min(max_val, value))
     return (float(result), result != original)
+
+
+def _detect_bpm(channels: list, sample_rate: int) -> dict:
+    """Detect BPM from audio using energy-based onset detection + autocorrelation.
+
+    Pure Python implementation (no numpy required):
+    1. Mix down to mono
+    2. Compute energy envelope (1024-sample windows)
+    3. Detect onset peaks (energy spikes above local average)
+    4. Compute inter-onset intervals
+    5. Autocorrelation of onset train → dominant periodicity → BPM
+
+    Returns dict with: bpm, confidence, onset_count, duration_seconds.
+    BPM range: 60-200. Confidence: 0-1 based on autocorrelation peak sharpness.
+    """
+    if not channels or not channels[0]:
+        return {"bpm": 120.0, "confidence": 0.0, "onset_count": 0, "duration_seconds": 0.0}
+
+    n_frames = len(channels[0])
+    duration = n_frames / sample_rate
+
+    # 1. Mix to mono
+    n_ch = len(channels)
+    mono = []
+    for i in range(n_frames):
+        s = sum(channels[c][i] for c in range(n_ch)) / n_ch
+        mono.append(s)
+
+    # 2. Energy envelope (1024-sample windows ~23ms at 44.1kHz)
+    win_size = 1024
+    n_windows = n_frames // win_size
+    if n_windows < 10:
+        return {"bpm": 120.0, "confidence": 0.0, "onset_count": 0, "duration_seconds": duration}
+
+    energy = []
+    for w in range(n_windows):
+        start = w * win_size
+        e = sum(mono[start + j] ** 2 for j in range(win_size)) / win_size
+        energy.append(e)
+
+    # 3. Onset detection: energy spike above local average
+    onsets = []
+    local_window = max(4, n_windows // 50)  # ~2s local window
+    for i in range(1, n_windows):
+        lo = max(0, i - local_window)
+        hi = min(n_windows, i + local_window)
+        local_avg = sum(energy[lo:hi]) / max(1, hi - lo)
+        if energy[i] > local_avg * 1.5 and energy[i] > energy[i - 1]:
+            onset_time = i * win_size / sample_rate
+            onsets.append(onset_time)
+
+    if len(onsets) < 4:
+        return {"bpm": 120.0, "confidence": 0.0, "onset_count": len(onsets), "duration_seconds": duration}
+
+    # 4. Autocorrelation of onset train
+    # Build onset density function at 10ms resolution
+    hop = 0.01  # 10ms
+    n_hops = int(duration / hop)
+    onset_signal = [0.0] * n_hops
+    for t in onsets:
+        idx = int(t / hop)
+        if idx < n_hops:
+            onset_signal[idx] = 1.0
+
+    # Test BPM range 60-200 → lag in hops
+    min_bpm = 60
+    max_bpm = 200
+    best_bpm = 120.0
+    best_score = 0.0
+
+    for bpm in range(min_bpm, max_bpm + 1):
+        period = 60.0 / bpm  # seconds per beat
+        lag = int(period / hop)  # lag in hops
+        if lag >= n_hops or lag < 2:
+            continue
+        # Autocorrelation at this lag
+        score = sum(onset_signal[i] * onset_signal[i + lag]
+                     for i in range(n_hops - lag))
+        # Normalize by lag (shorter lags have fewer terms)
+        score = score / (n_hops - lag)
+        # Also test half-time and double-time
+        lag_half = lag // 2
+        lag_double = lag * 2
+        if lag_half >= 2 and lag_half < n_hops:
+            score_half = sum(onset_signal[i] * onset_signal[i + lag_half]
+                              for i in range(n_hops - lag_half)) / (n_hops - lag_half)
+            score = max(score, score_half * 0.8)
+        if lag_double < n_hops:
+            score_double = sum(onset_signal[i] * onset_signal[i + lag_double]
+                                for i in range(n_hops - lag_double)) / (n_hops - lag_double)
+            score = max(score, score_double * 0.8)
+
+        if score > best_score:
+            best_score = score
+            best_bpm = float(bpm)
+
+    # Confidence: peak sharpness relative to average
+    avg_score = best_score / max(1, len(onsets))
+    confidence = min(1.0, avg_score * 10)
+
+    return {
+        "bpm": round(best_bpm, 1),
+        "confidence": round(confidence, 2),
+        "onset_count": len(onsets),
+        "duration_seconds": round(duration, 2),
+    }

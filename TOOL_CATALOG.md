@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-372 MCP tools for headless openDAW control via Playwright bridge.
+373 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -250,6 +250,7 @@
 - `load_audio` — Load an audio file (WAV/MP3/FLAC/OGG) into the DAW project.
 - `download_audio` — Download audio from URL (Suno CDN, any HTTP source) to local disk. Streaming download with timeout, filename sanitization, next_step suggestion pointing to import_audio_to_tracks. Bridges AI generators → DAW pipeline.
 - `measure_lufs` — Measure LUFS (integrated) and true peak of an exported WAV file.
+- `detect_bpm` — Detect BPM (tempo) of a WAV file using onset detection + autocorrelation. Pure Python (no numpy). 60-200 BPM range, confidence score. Essential for Suno integration: detect BPM → set_bpm for correct beat alignment.
 - `render_full` — Render the entire project as a single stereo WAV file (full mixdown).
 - `render_full_format` — Render the entire project and convert to MP3 or FLAC in one step.
 - `render_range` — Render only a portion of the project (e.g. chorus only) for quick A/B comparison.
