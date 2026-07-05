@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.172.0 (2026-07-05)
+
+### Added
+- `werkstatt_glue_comp.js` — SSL-style bus glue compressor. Auto-makeup gain, VCA warmth (even harmonics), parallel mix. SSL defaults: 2:1 ratio, 10ms attack, 100ms release. 104 DSP scripts total
+
 ## v1.171.0 (2026-07-05)
 
 ### Added

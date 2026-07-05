@@ -7269,3 +7269,108 @@ class TestApplyFullMix:
         assert "apply_full_mix" in pipeline
         assert pipeline.index("apply_full_mix") < pipeline.index("render_full_song")
 
+
+class TestGlueCompressor:
+    """Tests for werkstatt_glue_comp.js — SSL-style bus glue compressor"""
+
+    def _read_script(self):
+        return open("scripts/werkstatt_glue_comp.js").read()
+
+    def test_file_exists(self):
+        import os
+        assert os.path.exists("scripts/werkstatt_glue_comp.js")
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt" in code
+        assert "glue_compressor" in code
+
+    def test_has_7_params(self):
+        import re
+        code = self._read_script()
+        params = re.findall(r"// @param (\w+)", code)
+        assert len(params) == 7
+        expected = {"threshold", "ratio", "attack", "release", "mix", "warmth", "output"}
+        assert set(params) == expected
+
+    def test_ratio_is_int_type(self):
+        code = self._read_script()
+        assert "ratio" in code and "int" in code
+
+    def test_ratio_range_1_to_4(self):
+        code = self._read_script()
+        # ratio: 2 1 4 int — min=1, max=4
+        assert "1    4" in code or "1   4" in code
+
+    def test_threshold_is_db(self):
+        code = self._read_script()
+        assert "dB" in code
+        assert "threshold" in code
+
+    def test_default_threshold_minus_10(self):
+        code = self._read_script()
+        assert "threshold  -10" in code  # -10 dB default
+
+    def test_default_attack_10ms(self):
+        code = self._read_script()
+        assert "attack     10" in code  # 10ms SSL default
+
+    def test_default_release_100ms(self):
+        code = self._read_script()
+        assert "release    100" in code  # 100ms SSL default
+
+    def test_has_auto_makeup(self):
+        code = self._read_script()
+        assert "makeupGain" in code
+        assert "makeup" in code.lower()
+
+    def test_has_warmth_saturation(self):
+        code = self._read_script()
+        assert "warmth" in code
+        assert "tanh" in code  # soft clip for even harmonics
+
+    def test_has_parallel_mix(self):
+        code = self._read_script()
+        assert "1 - mix" in code  # dry blend for parallel compression
+
+    def test_has_envelope_follower(self):
+        code = self._read_script()
+        assert "env" in code
+        assert "attackCoef" in code
+        assert "releaseCoef" in code
+
+    def test_has_dB_to_linear_conversion(self):
+        code = self._read_script()
+        assert "log10" in code or "Math.log10" in code
+        assert "pow(10" in code or "Math.pow(10" in code
+
+    def test_has_peak_detect_across_channels(self):
+        code = self._read_script()
+        assert "maxSample" in code
+        assert "numCh" in code
+
+    def test_glue_vs_regular_compressor(self):
+        """Glue comp has warmth + auto makeup; regular comp doesn't"""
+        glue = self._read_script()
+        reg = open("scripts/werkstatt_compressor.js").read()
+        assert "warmth" in glue
+        assert "warmth" not in reg
+        assert "makeupGain" in glue
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_glue_comp.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_ssl_default_values(self):
+        """SSL bus compressor defaults: 2:1 ratio, 10ms attack, 100ms release"""
+        code = self._read_script()
+        assert "ratio       2" in code  # 2:1 = SSL glue
+        assert "attack     10" in code  # 10ms = SSL
+        assert "release    100" in code  # 100ms = SSL
+
+    def test_warmth_default_03(self):
+        code = self._read_script()
+        assert "warmth      0.3" in code  # subtle warmth by default
+
