@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.266.0 (2026-07-06)
+
+### Added
+- `merge_note_tracks` — Merge notes from a source track into a destination track. 6 overlap resolution strategies: keep_higher_velocity, keep_lower_velocity, keep_source, keep_dest, keep_both, shorten_earlier. Optional transpose, delete_source flag. Consolidate doubled melodies, flatten multi-track MIDI, combine counterpoint into harmony track.
+
 ## v1.265.0 (2026-07-06)
 
 ### Added

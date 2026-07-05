@@ -30973,6 +30973,269 @@ async def mcp_opendaw_shuffle_notes(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_merge_note_tracks(
+    source_unit: int,
+    source_track: int,
+    dest_unit: int,
+    dest_track: int,
+    source_region: int = -1,
+    dest_region: int = -1,
+    delete_source: bool = True,
+    resolve_overlaps: str = "keep_higher_velocity",
+    transpose: int = 0,
+) -> str:
+    """Merge notes from a source track into a destination track.
+
+    Combines notes from two tracks into one, optionally deleting the
+    source. Overlapping notes are resolved by the chosen strategy.
+    Unlike copy_notes_to_track (which just copies), merge consolidates
+    two note streams into a single coherent track — the source notes
+    are integrated into the destination region and optionally removed
+    from origin.
+
+    Typical use cases:
+    - Merge a doubled melody into the main melody track
+    - Consolidate counterpoint into the harmony track
+    - Combine left-hand and right-hand piano into one track
+    - Flatten multi-track MIDI into a single instrument
+
+    Args:
+        source_unit: AU index of source track
+        source_track: Note track index within source AU
+        dest_unit: AU index of destination track
+        dest_track: Note track index within destination AU
+        source_region: Source region index (-1 = first region)
+        dest_region: Destination region index (-1 = first region,
+                      or auto-create if none exists)
+        delete_source: If True, delete source notes after merge.
+                      If False, notes remain in both tracks (copy mode).
+        resolve_overlaps: Strategy for overlapping notes —
+            "keep_higher_velocity" = keep louder note at conflict point,
+            "keep_lower_velocity" = keep quieter note,
+            "keep_source" = prefer source notes,
+            "keep_dest" = prefer destination notes,
+            "keep_both" = keep all overlapping notes (no resolution),
+            "shorten_earlier" = truncate the earlier-starting note
+                                to end where the later one begins.
+        transpose: Semitones to transpose source notes (-24 to 24).
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HeadlessBridgeHelper;
+        if (!h) return {{"error": "Bridge helper not available"}};
+        const Quarter = 960;
+
+        const srcUnitIdx = {source_unit};
+        const srcTrackIdx = {source_track};
+        const dstUnitIdx = {dest_unit};
+        const dstTrackIdx = {dest_track};
+        const srcRegIdx = {source_region};
+        const dstRegIdx = {dest_region};
+        const delSource = {delete_source};
+        const overlapMode = "{resolve_overlaps}";
+        const transposeVal = {transpose};
+
+        // Get all note tracks across all AUs
+        const allTracks = h.noteTracks();
+        if (allTracks.length === 0) return {{"error": "No note tracks"}};
+
+        // Helper: get AU and track
+        function getTrack(unitIdx, trackIdx) {{
+            const units = h.audioUnitBoxes();
+            if (unitIdx < 0 || unitIdx >= units.length) return null;
+            const au = units[unitIdx];
+            const tracks = h.noteTrackBoxes(au);
+            if (trackIdx < 0 || trackIdx >= tracks.length) return null;
+            return tracks[trackIdx];
+        }}
+
+        const srcTrack = getTrack(srcUnitIdx, srcTrackIdx);
+        if (!srcTrack) return {{"error": "Source track not found"}};
+        const dstTrack = getTrack(dstUnitIdx, dstTrackIdx);
+        if (!dstTrack) return {{"error": "Destination track not found"}};
+
+        // Get source regions
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (srcRegions.length === 0) return {{"error": "No source regions"}};
+        const srcReg = srcRegIdx < 0 ? srcRegions[0] : srcRegions[srcRegIdx];
+        if (!srcReg) return {{"error": "Source region out of range"}};
+
+        // Get source notes
+        let srcColl = null;
+        try {{
+            const v = srcReg.events.targetVertex.unwrap();
+            srcColl = v.box || v;
+        }} catch(e) {{}}
+        if (!srcColl || !srcColl.events) return {{"error": "No note collection in source region"}};
+        const srcNotes = h.eventBoxes(srcColl);
+        if (srcNotes.length === 0) return {{"error": "No notes in source region"}};
+
+        // Read source note data
+        const srcData = srcNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: Math.max(0, Math.min(127, n.pitch.getValue() + transposeVal)),
+            vel: n.velocity.getValue(),
+        }}));
+
+        // Get or create destination region
+        const dstRegions = h.regionBoxes(dstTrack);
+        let dstReg = null;
+        let dstColl = null;
+        let dstNotes = [];
+
+        if (dstRegions.length > 0) {{
+            const rIdx = dstRegIdx < 0 ? 0 : dstRegIdx;
+            if (rIdx < dstRegions.length) {{
+                dstReg = dstRegions[rIdx];
+                try {{
+                    const v = dstReg.events.targetVertex.unwrap();
+                    dstColl = v.box || v;
+                }} catch(e) {{}}
+                if (dstColl && dstColl.events) {{
+                    dstNotes = h.eventBoxes(dstColl);
+                }}
+            }}
+        }}
+
+        // Read destination note data
+        const dstData = dstNotes.map(n => ({{
+            pos: n.position.getValue(),
+            dur: n.duration.getValue(),
+            pitch: n.pitch.getValue(),
+            vel: n.velocity.getValue(),
+        }}));
+
+        // Merge: combine source and destination notes
+        const merged = [...dstData, ...srcData];
+
+        // Sort by position
+        merged.sort((a, b) => a.pos - b.pos);
+
+        // Resolve overlaps
+        const conflicts = [];
+        const toRemove = new Set(); // indices in merged to skip
+
+        if (overlapMode !== "keep_both") {{
+            for (let i = 0; i < merged.length; i++) {{
+                if (toRemove.has(i)) continue;
+                for (let j = i + 1; j < merged.length; j++) {{
+                    if (toRemove.has(j)) continue;
+                    const a = merged[i];
+                    const b = merged[j];
+                    // Check overlap: a starts before b, but a extends into b
+                    if (a.pos + a.dur > b.pos && a.pos < b.pos + b.dur) {{
+                        const isSrcB = j >= dstData.length; // b is from source
+                        const isSrcA = i >= dstData.length; // a is from source
+
+                        if (overlapMode === "keep_higher_velocity") {{
+                            if (a.vel >= b.vel) {{
+                                toRemove.add(j);
+                            }} else {{
+                                toRemove.add(i);
+                                break;
+                            }}
+                        }} else if (overlapMode === "keep_lower_velocity") {{
+                            if (a.vel <= b.vel) {{
+                                toRemove.add(j);
+                            }} else {{
+                                toRemove.add(i);
+                                break;
+                            }}
+                        }} else if (overlapMode === "keep_source") {{
+                            if (isSrcA && !isSrcB) {{
+                                toRemove.add(j);
+                            }} else if (!isSrcA && isSrcB) {{
+                                toRemove.add(i);
+                                break;
+                            }}
+                        }} else if (overlapMode === "keep_dest") {{
+                            if (!isSrcA && isSrcB) {{
+                                toRemove.add(j);
+                            }} else if (isSrcA && !isSrcB) {{
+                                toRemove.add(i);
+                                break;
+                            }}
+                        }} else if (overlapMode === "shorten_earlier") {{
+                            // Truncate a to end where b starts
+                            a.dur = Math.max(1, b.pos - a.pos);
+                        }}
+                        conflicts.push({{
+                            pos_beat: Math.round(a.pos / Quarter * 100) / 100,
+                            resolved: overlapMode,
+                        }});
+                    }}
+                }}
+            }}
+        }}
+
+        // Filter out removed notes
+        const finalNotes = merged.filter((_, idx) => !toRemove.has(idx));
+
+        // Apply: write all finalNotes to destination, delete source notes if requested
+        const editing = h.editing;
+        let created = 0;
+        let deleted = 0;
+
+        await editing.modify(async () => {{
+            // Delete all existing destination notes
+            for (const n of dstNotes) {{
+                n.delete();
+            }}
+            // Delete source notes if requested
+            if (delSource) {{
+                for (const n of srcNotes) {{
+                    n.delete();
+                    deleted++;
+                }}
+            }}
+            // Create merged notes in destination collection
+            // Use NoteEventBox.create if available, or h.createNote
+            const bg = h.boxGraph;
+            const uuid = h.uuid;
+            const NoteEventBox = h.NoteEventBox;
+
+            for (const nd of finalNotes) {{
+                try {{
+                    if (NoteEventBox && bg && uuid) {{
+                        await NoteEventBox.create(bg, uuid.generate(), (box) => {{
+                            box.position.setValue(nd.pos);
+                            box.duration.setValue(nd.dur);
+                            box.pitch.setValue(nd.pitch);
+                            box.velocity.setValue(nd.vel);
+                            if (dstColl && dstColl.events) {{
+                                box.events.refer(dstColl.events);
+                            }}
+                        }});
+                        created++;
+                    }}
+                }} catch(e) {{
+                    // Fallback: try h.createNote
+                    if (h.createNote) {{
+                        h.createNote(dstColl, nd.pos, nd.dur, nd.pitch, nd.vel);
+                        created++;
+                    }}
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            source_notes: srcData.length,
+            dest_notes_before: dstData.length,
+            merged_notes: finalNotes.length,
+            conflicts_resolved: conflicts.length,
+            overlap_mode: overlapMode,
+            source_deleted: delSource ? deleted : 0,
+            notes_created: created,
+            transpose: transposeVal,
+            conflicts_sample: conflicts.slice(0, 5),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
 
 
 
