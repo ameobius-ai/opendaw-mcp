@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.59.0 (2026-07-05)
+
+- **`werkstatt_comb_filter.js` DSP script** — standalone comb filter with delay-line feedback. Positive/negative polarity selects comb vs inverse comb characteristic. Damping LP in feedback path controls high-frequency decay. Freq 10-8000 Hz (delay time = 1/freq), feedback ±0.99. Classic building block of flangers/chorus, but standalone gives distinctive notched/peaked spectral combing. 5 params: freq, feedback, damping, mix, polarity
+- **50 DSP scripts** (37 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **344 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.58.0 (2026-07-05)
 
 - **`werkstatt_auto_pan.js` DSP script** — auto-pan with LFO-driven stereo positioning. Waveform morph (sine→triangle→square), rate (0.1-20 Hz), depth, phase offset (0-360°), width, and offset. Equal-power pan law. Distinct from stereowidth (which expands existing stereo) — auto-pan moves the signal between channels. Classic for guitars, synths, percussion. 6 params: rate, depth, shape, phase, width, offset

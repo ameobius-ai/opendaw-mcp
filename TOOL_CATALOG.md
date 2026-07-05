@@ -377,9 +377,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 283 tools**
 
-## DSP Scripts (scripts/) — 49 scripts
+## DSP Scripts (scripts/) — 50 scripts
 
-### Werkstatt (Audio Effects) — 24 scripts
+### Werkstatt (Audio Effects) — 25 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_tube_saturator.js` — Tube saturator (even harmonics, asymmetrical bias, warmth, tone, output, mix)
@@ -387,6 +387,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_bitcrusher.js` — Standalone bitcrusher (bits 1-16, rate reduction, drive, DC offset, mix)
 - `werkstatt_graphic_eq.js` — 10-band graphic EQ (ISO freqs 32Hz–16kHz, ±12dB, biquad peaking, master ±6dB)
 - `werkstatt_auto_pan.js` — Auto-pan (LFO stereo positioning, sine→tri→square morph, equal-power, rate/depth/phase/width/offset)
+- `werkstatt_comb_filter.js` — Comb filter (delay-line feedback, ±polarity, damping LP, freq 10-8000Hz)
 - `werkstatt_coldfold.js` — Wavefolding + bitcrush (drive, fold, crush, slew, mix)
 - `werkstatt_chorus.js` — Stereo chorus (rate, depth, delay, feedback)
 - `werkstatt_reverb.js` — Plate reverb (decay, predelay, wet, tone)

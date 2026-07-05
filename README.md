@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-302-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-49-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-334%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-50-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-344%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **302** MCP tools | **77** Python examples (8 genre templates) |
-| **49** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **334** unit + E2E tests |
+| **302** MCP tools | **78** Python examples (8 genre templates) |
+| **50** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **344** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,13 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.59.0 (2026-07-05)
+
+- **`werkstatt_comb_filter.js` DSP script** — standalone comb filter with delay-line feedback. Positive/negative polarity selects comb vs inverse comb characteristic. Damping LP in feedback path controls high-frequency decay. Freq 10-8000 Hz (delay time = 1/freq), feedback ±0.99. Classic building block of flangers/chorus, but standalone gives distinctive notched/peaked spectral combing. 5 params: freq, feedback, damping, mix, polarity
+- **50 DSP scripts** (37 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **344 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
 
 ### v1.58.0 (2026-07-05)
 

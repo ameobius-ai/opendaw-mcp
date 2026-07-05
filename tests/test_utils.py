@@ -2476,3 +2476,86 @@ class TestAutoPanDSP:
         code = self._read_script()
         assert "out[0]" in code and "out[1]" in code, "Missing stereo output"
         assert "stereo" in code, "Missing stereo detection"
+
+
+class TestCombFilterDSP:
+    """Unit tests for werkstatt_comb_filter.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1),
+                "default": float(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_comb_filter.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt comb_filter" in code, "Missing @werkstatt comb_filter header"
+
+    def test_param_count(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        assert len(params) == 5, f"Expected 5 params, got {len(params)}"
+
+    def test_freq_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        freq = [p for p in params if p["name"] == "freq"][0]
+        assert freq["min"] > 0, "Freq min should be > 0"
+        assert freq["max"] >= 8000, "Freq max should reach at least 8000 Hz"
+        assert freq["scale"] == "exp", "Freq should be exponential scale"
+
+    def test_feedback_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        fb = [p for p in params if p["name"] == "feedback"][0]
+        assert fb["min"] <= -0.9, "Feedback should allow strong negative"
+        assert fb["max"] >= 0.9, "Feedback should allow strong positive"
+
+    def test_damping_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        damp = [p for p in params if p["name"] == "damping"][0]
+        assert damp["min"] == 0
+        assert damp["max"] == 1
+
+    def test_polarity_param(self):
+        code = self._read_script()
+        params = self._parse_params(code)
+        pol = [p for p in params if p["name"] == "polarity"][0]
+        assert pol["min"] == 0
+        assert pol["max"] == 1
+
+    def test_delay_buffer(self):
+        code = self._read_script()
+        assert "Float32Array" in code, "Missing delay buffers"
+        assert "this.bufL" in code or "this.bufR" in code, "Missing stereo delay buffers"
+        assert "writePos" in code, "Missing write position"
+
+    def test_damping_lowpass(self):
+        code = self._read_script()
+        assert "dampState" in code, "Missing damping state"
+        assert "dampAlpha" in code, "Missing damping coefficient"
+        assert "Math.exp" in code, "Missing exponential for damping LP"
+
+    def test_polarity_switch(self):
+        code = self._read_script()
+        assert "polarity" in code, "Missing polarity switch"
+        assert "polarity > 0.5" in code or "polarity > 0" in code, "Missing polarity threshold"
+
+    def test_comb_delay_calculation(self):
+        code = self._read_script()
+        assert "delaySamples" in code, "Missing delay sample calculation"
+        assert "sr /" in code or "this.sr /" in code, "Missing freq-to-samples conversion"
