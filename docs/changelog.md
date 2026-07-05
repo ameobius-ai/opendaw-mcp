@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.69.0 (2026-07-05)
+
+- **`werkstatt_spectral_gate.js` DSP script** — multiband spectral gate. 4-16 log-spaced bandpass bank, per-band envelope followers, threshold gating, spectral tilt. 10 params: bands, threshold, reduction, attack, release, min_freq, max_freq, tilt, mix, output
+- **58 DSP scripts** (45 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **605 unit tests** (+10), E2E 8/8
+- ruff clean, CI green
+
 ## v1.68.0 (2026-07-05)
 
 - **`werkstatt_looper.js` DSP script** — live looper with overdub. Records into circular buffer, variable speed (0.25x-4x), 3 play modes (auto/play/overdub), reverse mode, crossfade at loop boundaries. 10 params: loop_length, feedback, overdub, play_mode, speed, reverse_mode, monitor, fade_edges, mix, output

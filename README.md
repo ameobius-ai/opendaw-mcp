@@ -7,8 +7,8 @@
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-304-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-10-blue)](skills/)
-[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-57-orange)](scripts/)
-[![Tests](https://img.shields.io/badge/Tests-595%20unit%20%2B%20E2E-brightgreen)](tests/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-58-orange)](scripts/)
+[![Tests](https://img.shields.io/badge/Tests-605%20unit%20%2B%20E2E-brightgreen)](tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
@@ -26,9 +26,9 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **304** MCP tools | **87** Python examples (8 genre templates) |
-| **57** DSP scripts | **10** agent skills |
-| **3** framework wrappers | **595** unit + E2E tests |
+| **304** MCP tools | **88** Python examples (8 genre templates) |
+| **58** DSP scripts | **10** agent skills |
+| **3** framework wrappers | **605** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
 
 ### 30-second demo
@@ -506,6 +506,12 @@ Platform targets: Spotify/YouTube -14 LUFS, Apple Music -16 LUFS, Tidal -14 LUFS
 Apache-2.0 — see [LICENSE](LICENSE)
 
 ## Changelog
+
+### v1.69.0 (2026-07-05)
+
+- **`werkstatt_spectral_gate.js` DSP script** — multiband spectral gate with per-band envelope followers. 4-16 log-spaced bandpass filter bank, each band has independent envelope detection. Bands below threshold are reduced by adjustable amount. Tilt control shifts spectral balance (boost highs, cut lows or vice versa). Attack/release smoothing per band. Output highpass. Classic for noise reduction, spectral cleaning, creative gating, dub-style frequency manipulation. 10 params: bands, threshold, reduction, attack, release, min_freq, max_freq, tilt, mix, output
+- **58 DSP scripts** (45 Werkstatt + 7 Apparat + 6 Spielwerk)
+- **605 unit tests** (+10), E2E 8/8
 
 ### v1.68.0 (2026-07-05)
 

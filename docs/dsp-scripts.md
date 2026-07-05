@@ -50,6 +50,7 @@
 | `werkstatt_reverse.js` | Real-time reverse (chunked buffer, variable speed, trigger modes) | chunk_size, feedback, speed, smooth, dry_gain, wet_gain, mix, stereo_mode, trigger_mode, output |
 | `werkstatt_scratch.js` | DJ vinyl scratch (turntable physics, wow/flutter, crackle) | depth, rate, pullback, friction, wow, flutter, flutter_rate, crackle, mix, output |
 | `werkstatt_looper.js` | Live looper with overdub (record/play/overdub, reverse, variable speed) | loop_length, feedback, overdub, play_mode, speed, reverse_mode, monitor, fade_edges, mix, output |
+| `werkstatt_spectral_gate.js` | Multiband spectral gate (bandpass bank, per-band envelope gating) | bands, threshold, reduction, attack, release, min_freq, max_freq, tilt, mix, output |
 
 ## Apparat (Instruments) — 7 scripts
 

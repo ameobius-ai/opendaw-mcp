@@ -2281,6 +2281,81 @@ class TestLooperDSP:
         assert mon["min"] == 0 and mon["max"] == 1, "monitor range should be 0-1"
 
 
+class TestSpectralGateDSP:
+    """Unit tests for werkstatt_spectral_gate.js DSP script structure."""
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r'//\s*@param\s+(\w+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+(\w+)', code):
+            params.append({
+                "name": m.group(1), "default": float(m.group(2)),
+                "min": float(m.group(3)), "max": float(m.group(4)),
+                "scale": m.group(5),
+            })
+        return params
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "werkstatt_spectral_gate.js")
+        with open(path) as f:
+            return f.read()
+
+    def test_header_tag(self):
+        code = self._read_script()
+        assert "@werkstatt spectral_gate" in code
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 10, f"Expected 10 params, got {len(params)}"
+
+    def test_bandpass_filter_bank(self):
+        code = self._read_script()
+        assert "_bandpassCoeffs" in code, "Missing bandpass coefficients"
+        assert "MAX_BANDS" in code, "Missing MAX_BANDS"
+        assert "bpStateL" in code and "bpStateR" in code, "Missing per-band filter state"
+
+    def test_envelope_followers(self):
+        code = self._read_script()
+        assert "atkCoeff" in code, "Missing attack coefficient"
+        assert "relCoeff" in code, "Missing release coefficient"
+        assert "this.env" in code, "Missing per-band envelope array"
+
+    def test_spectral_gating(self):
+        code = self._read_script()
+        assert "threshold" in code, "Missing threshold"
+        assert "reduction" in code, "Missing reduction"
+        assert "gain" in code, "Missing gain calculation"
+
+    def test_tilt_param(self):
+        code = self._read_script()
+        assert "tilt" in code, "Missing tilt param"
+        assert "tiltGain" in code, "Missing tilt gain calculation"
+
+    def test_log_spacing(self):
+        code = self._read_script()
+        assert "Math.pow" in code, "Missing logarithmic spacing"
+        assert "min_freq" in code and "max_freq" in code, "Missing freq range params"
+
+    def test_bands_param(self):
+        params = self._parse_params(self._read_script())
+        bands = [p for p in params if p["name"] == "bands"][0]
+        assert bands["min"] >= 2 and bands["max"] >= 8, "bands range too narrow"
+
+    def test_mix_and_output(self):
+        params = self._parse_params(self._read_script())
+        mix = [p for p in params if p["name"] == "mix"][0]
+        out_p = [p for p in params if p["name"] == "output"][0]
+        assert mix["min"] == 0 and mix["max"] == 1
+        assert out_p["min"] == -12 and out_p["max"] == 12
+
+    def test_output_highpass(self):
+        code = self._read_script()
+        assert "hpState" in code, "Missing output highpass state"
+        assert "hpCoeff" in code, "Missing output highpass coefficients"
+        assert "_updateHp" in code, "Missing highpass update function"
+
+
 class TestScratchDSP:
     """Unit tests for werkstatt_scratch.js DSP script structure."""
 
