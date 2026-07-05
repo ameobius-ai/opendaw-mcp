@@ -8087,6 +8087,76 @@ class TestKarplusStrongDSP:
         assert "outGain" in code
 
 
+class TestWaveguideStringDSP:
+    """Tests for werkstatt_waveguide_string.js — bidirectional waveguide string synthesis"""
+
+    def _read_script(self):
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent / "scripts" / "werkstatt_waveguide_string.js"
+        return p.read_text()
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt waveguide_string" in code
+
+    def test_node_syntax_valid(self):
+        import subprocess
+        result = subprocess.run(["node", "-c", "scripts/werkstatt_waveguide_string.js"],
+                              capture_output=True, text=True)
+        assert result.returncode == 0
+
+    def test_seven_params(self):
+        """7 params: frequency, decay, brightness, pick_position, inharmonicity, mix, output"""
+        code = self._read_script()
+        params = code.count("@param")
+        assert params == 7
+
+    def test_bidirectional_delay_lines(self):
+        """Two delay lines per channel: forward and backward"""
+        code = self._read_script()
+        assert "delayFwd" in code
+        assert "delayBwd" in code
+        assert "Float32Array" in code
+
+    def test_bridge_lowpass_filter(self):
+        """Bridge termination uses one-pole lowpass (brightness control)"""
+        code = self._read_script()
+        assert "bridgeFilt" in code
+        assert "bridgeCoeff" in code
+
+    def test_nut_allpass_dispersion(self):
+        """Nut uses allpass for inharmonicity (stiff string)"""
+        code = self._read_script()
+        assert "nutState" in code
+        assert "nutCoeff" in code
+        assert "inharmonicity" in code
+
+    def test_pick_position_splits_excitation(self):
+        """Pick position splits input between forward and backward waves"""
+        code = self._read_script()
+        assert "pick_position" in code
+        assert "pickFwd" in code
+        assert "pickBwd" in code
+
+    def test_stereo_processing(self):
+        """Separate waveguide state per channel"""
+        code = self._read_script()
+        assert "delayFwdR" in code
+        assert "delayBwdR" in code
+        assert "idxL" in code
+        assert "idxR" in code
+
+    def test_decay_clamped(self):
+        """Decay gain clamped (0.99 max)"""
+        code = self._read_script()
+        assert "0.99" in code
+
+    def test_output_is_wave_sum(self):
+        """Output = sum of forward and backward waves"""
+        code = self._read_script()
+        assert "fwdL + bwdL" in code or "waveOut" in code
+
+
 class TestCreateSectionTransition:
     """Tests for create_section_transition orchestration tool"""
 

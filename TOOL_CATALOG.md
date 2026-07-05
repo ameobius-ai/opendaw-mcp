@@ -442,9 +442,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 369 tools**
 
-## DSP Scripts (scripts/) — 107 scripts
+## DSP Scripts (scripts/) — 108 scripts
 
-### Werkstatt (Audio Effects) — 88 scripts
+### Werkstatt (Audio Effects) — 89 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -534,6 +534,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_vowel_morph.js` — Vowel morph (3 cascaded formant biquad bandpass filters F1/F2/F3, A→E→I→O→U interpolation, auto-morph LFO with rate, spectral tilt, mix, output)
 - `werkstatt_spectral_blur.js` — Spectral blur (STFT-based spectral smearing: Cooley-Tukey FFT, Hann window, frequency blur averages magnitude across neighboring bins, temporal blur averages across 4 previous frames, phase randomization for diffuse texture, overlap-add reconstruction, ambient/drone/sound design)
 - `werkstatt_karplus_strong.js` — Karplus-Strong string synthesis (delay-line with one-pole lowpass feedback loop, brightness controls feedback filtering, pluck damping controls excitation gain, stretch parameter for inharmonic/detuned strings, stereo processing)
+- `werkstatt_waveguide_string.js` — Waveguide string synthesis (bidirectional delay lines, bridge one-pole lowpass termination, nut first-order allpass dispersion for inharmonicity, pick position splits excitation between waves, stereo processing)
 
 ### Apparat (Instruments) — 9 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.190.0 (2026-07-05)
+
+### Added
+- `werkstatt_waveguide_string.js` — bidirectional waveguide string synthesis. Two delay lines per channel (forward/backward waves). Bridge termination: one-pole lowpass (brightness). Nut termination: first-order allpass dispersion (inharmonicity for stiff strings). Pick position splits excitation between waves. 7 params. 108 DSP scripts total
+
 ## v1.189.0 (2026-07-05)
 
 ### Added

@@ -1,8 +1,8 @@
 # DSP Scripts
 
-107 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+108 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 88 scripts
+## Werkstatt (Audio Effects) — 89 scripts
 
 ### Dynamics (13)
 
@@ -146,12 +146,13 @@
 | `werkstatt_decrackle.js` | De-Crackle (continuous crackle removal: adaptive crackle modeling, crackle/signal energy tracking, crackle rate estimation, RX De-crackle style) |
 | `werkstatt_de_plosive.js` | De-Plosive (adaptive highpass for vocal plosive removal, one-pole LP envelope follower + threshold, transient-triggered HPF sweep) |
 
-### Physical Modeling (2)
+### Physical Modeling (3)
 
 | Script | Description |
 |--------|-------------|
 | `werkstatt_modal_resonator.js` | Modal Resonator (marimba/bell/plate/string/wine glass) |
 | `werkstatt_karplus_strong.js` | Karplus-Strong String (delay-line + one-pole lowpass feedback, brightness/damping/stretch controls) |
+| `werkstatt_waveguide_string.js` | Waveguide String (bidirectional delay lines, bridge lowpass + nut allpass, pick position, inharmonicity) |
 
 ### Vocoder (1)
 
