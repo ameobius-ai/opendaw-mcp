@@ -12517,3 +12517,157 @@ class TestMetalArrangement:
         source = open("server.py").read()
         assert '"metal"' in source
 
+
+class TestCreateHarmonyLine:
+    """Tests for create_harmony_line — diatonic harmony from existing melody"""
+
+    def test_tool_signature_exists(self):
+        """create_harmony_line is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_create_harmony_line" in tool_names
+
+    def test_has_source_and_target_params(self):
+        """Has source_unit, source_track, source_region and target params"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                arg_names = [a.arg for a in node.args.args]
+                assert "source_unit" in arg_names
+                assert "source_track" in arg_names
+                assert "source_region" in arg_names
+                assert "target_unit" in arg_names
+                assert "target_track" in arg_names
+                assert "target_region" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_interval_param(self):
+        """Has interval param for harmony interval selection"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                arg_names = [a.arg for a in node.args.args]
+                assert "interval" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_supports_5_intervals(self):
+        """Supports 5 harmony intervals: third, sixth, fifth, fourth, octave"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                source = ast.unparse(node)
+                assert "third" in source
+                assert "sixth" in source
+                assert "fifth" in source
+                assert "fourth" in source
+                assert "octave" in source
+                return
+        assert False, "function not found"
+
+    def test_has_direction_param(self):
+        """Has direction param (above/below)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                arg_names = [a.arg for a in node.args.args]
+                assert "direction" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_scale_and_root_params(self):
+        """Has root_note and scale params for diatonic calculation"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                arg_names = [a.arg for a in node.args.args]
+                assert "root_note" in arg_names
+                assert "scale" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_default_interval_is_third(self):
+        """Default interval is 'third' (most common harmony)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "interval" and isinstance(d, ast.Constant):
+                        assert d.value == "third"
+                        return
+        assert False, "default not found"
+
+    def test_default_direction_is_below(self):
+        """Default direction is 'below' (harmony typically below melody)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "direction" and isinstance(d, ast.Constant):
+                        assert d.value == "below"
+                        return
+        assert False, "default not found"
+
+    def test_has_velocity_scale(self):
+        """Has velocity_scale param for harmony loudness control"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                arg_names = [a.arg for a in node.args.args]
+                assert "velocity_scale" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_uses_diatonic_intervals(self):
+        """Uses diatonic intervals (scale steps, not semitones)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                source = ast.unparse(node)
+                assert "SCALE_INTERVALS" in source or "scale_pcs" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_interval(self):
+        """Validates interval against allowed set"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                source = ast.unparse(node)
+                assert "interval_map" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_note_event_box_create(self):
+        """Uses NoteEventBox.create for writing harmony notes"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_create_harmony_line":
+                source = ast.unparse(node)
+                assert "NoteEventBox" in source
+                return
+        assert False, "function not found"
+

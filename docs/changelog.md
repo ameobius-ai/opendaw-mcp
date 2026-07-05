@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.224.0 (2026-07-05)
+
+### Added
+- `create_harmony_line` — Diatonic harmony line from existing melody. Reads notes from a source melody, shifts each by N scale steps to create parallel harmony. 5 intervals: third (+2 steps, most common — Lennon-McCartney/Everly Brothers), sixth (+5, jazzier/airy), fifth (+4, power/organum), fourth (+3, suspended/modal), octave (+7, doubling). Direction above/below. Diatonic — harmony notes guaranteed in key. Auto-creates target track/region. Notes not in scale snap to nearest scale note before shifting. velocity_scale for harmony loudness (default 0.8). 12 unit tests. **399 MCP tools**, 2839 unit tests
+
 ## v1.223.0 (2026-07-05)
 
 ### Added

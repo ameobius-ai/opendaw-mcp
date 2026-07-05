@@ -19619,6 +19619,255 @@ async def mcp_opendaw_create_motif_variations(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_harmony_line(
+    source_unit: int = 0,
+    source_track: int = 0,
+    source_region: int = 0,
+    target_unit: int = -1,
+    target_track: int = -1,
+    target_region: int = -1,
+    interval: str = "third",
+    root_note: str = "C",
+    scale: str = "major",
+    direction: str = "below",
+    velocity_scale: float = 0.8,
+) -> str:
+    """Create a harmony line from an existing melody using diatonic intervals.
+
+    Reads notes from a source melody and creates a parallel harmony line at a
+    specified diatonic interval. The harmony stays in key — each note is shifted
+    by N scale steps (not semitones), producing consonant harmony automatically.
+
+    Harmony intervals (diatonic):
+    - **third**: +2 scale steps — the most common harmony (Lennon-McCartney,
+      Everly Brothers, country duets). Sweet and consonant.
+    - **sixth**: +5 scale steps — wider, jazzier. Creates open, airy harmony.
+    - **fifth**: +4 scale steps — power harmony, medieval/organum sound.
+    - **fourth**: +3 scale steps — suspended, ambiguous. Gregorian/modal.
+    - **octave**: +7 scale steps (or -7) — doubling, not true harmony but useful
+      for layering.
+
+    Essential for: vocal harmonies, string pads behind melody, guitar harmonies,
+    counter-melody foundation, thickening lead lines.
+
+    source_unit/track/region: Location of the source melody.
+    target_unit/track/region: Where to write the harmony. -1 = create new
+      track/region automatically.
+    interval: third, sixth, fifth, fourth, octave.
+    root_note + scale: The key for diatonic interval calculation. The harmony
+      notes are guaranteed to be in this scale.
+    direction: "above" or "below" — place harmony above or below the melody.
+    velocity_scale: Multiply source velocities by this (default 0.8 = harmony
+      slightly quieter than melody).
+
+    Returns the created harmony notes.
+    """
+    interval_map = {"third": 2, "sixth": 5, "fifth": 4, "fourth": 3, "octave": 7}
+    if interval not in interval_map:
+        return f"Error: interval must be one of {list(interval_map.keys())}"
+    if direction not in ("above", "below"):
+        return "Error: direction must be 'above' or 'below'"
+    if root_note not in NOTE_TO_PITCH:
+        return f"Error: unknown root_note '{root_note}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity_scale <= 1.0):
+        return "Error: velocity_scale must be 0-1"
+
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    root_num = NOTE_TO_PITCH[root_note]
+    intervals = SCALE_INTERVALS.get(scale)
+    if intervals is None:
+        return f"Error: unknown scale '{scale}'"
+
+    step_shift = interval_map[interval]
+    if direction == "below":
+        step_shift = -step_shift
+
+    # Build scale pitch classes for diatonic calculation
+    scale_pcs = sorted(set((root_num + iv) % 12 for iv in intervals))
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const srcUnit = {source_unit};
+        const srcTrack = {source_track};
+        const srcRegion = {source_region};
+        const tgtUnit = {target_unit};
+        const tgtTrack = {target_track};
+        const tgtRegion = {target_region};
+        const stepShift = {step_shift};
+        const scalePcs = {json.dumps(scale_pcs)};
+        const velScale = {velocity_scale};
+        const NoteEventBox = window.DAW_NoteEventBox;
+
+        // Read source melody
+        const allUnits = h.allAUBoxes();
+        if (srcUnit >= allUnits.length) return {{error: "source unit out of range"}};
+        const srcAu = allUnits[srcUnit];
+        const srcTracks = h.trackBoxes(srcAu);
+        if (srcTrack >= srcTracks.length) return {{error: "source track out of range"}};
+        const srcTrackBox = srcTracks[srcTrack];
+        const srcRegions = h.regionBoxes(srcTrackBox);
+        if (srcRegion >= srcRegions.length) return {{error: "source region out of range"}};
+        const srcReg = srcRegions[srcRegion];
+
+        const eventsField = srcReg.events.targetVertex.unwrap();
+        const collBox = eventsField.box;
+        const noteEvents = [...collBox.events.pointerHub.incoming()];
+
+        const sourceNotes = noteEvents.map(n => ({{
+            pitch: n.box.pitch.getValue(),
+            position: n.box.position.getValue(),
+            duration: n.box.duration.getValue(),
+            velocity: n.box.velocity.getValue(),
+        }})).sort((a, b) => a.position - b.position);
+
+        if (sourceNotes.length === 0) return {{error: "no notes found in source region"}};
+
+        // Compute harmony for each note
+        const harmonyNotes = [];
+        let skipped = 0;
+
+        for (const note of sourceNotes) {{
+            const origPitch = note.pitch;
+            const pc = origPitch % 12;
+            const octave = Math.floor(origPitch / 12);
+
+            // Find this pitch class in the scale
+            let scaleIdx = scalePcs.indexOf(pc);
+            if (scaleIdx === -1) {{
+                // Note not in scale — snap to nearest scale note, then shift
+                let nearest = scalePcs[0];
+                let minDist = 12;
+                for (const spc of scalePcs) {{
+                    const dist = Math.min(Math.abs(spc - pc), 12 - Math.abs(spc - pc));
+                    if (dist < minDist) {{
+                        minDist = dist;
+                        nearest = spc;
+                    }}
+                }}
+                scaleIdx = scalePcs.indexOf(nearest);
+            }}
+
+            // Shift by stepShift positions in the scale
+            let newScaleIdx = scaleIdx + stepShift;
+            let newOctave = octave;
+
+            while (newScaleIdx >= scalePcs.length) {{
+                newScaleIdx -= scalePcs.length;
+                newOctave++;
+            }}
+            while (newScaleIdx < 0) {{
+                newScaleIdx += scalePcs.length;
+                newOctave--;
+            }}
+
+            const newPc = scalePcs[newScaleIdx];
+            const newPitch = newOctave * 12 + newPc;
+
+            // Clamp to valid MIDI range
+            if (newPitch < 0 || newPitch > 127) {{
+                skipped++;
+                continue;
+            }}
+
+            harmonyNotes.push({{
+                pitch: newPitch,
+                position: note.position,
+                duration: note.duration,
+                velocity: Math.round(note.velocity * velScale * 1000) / 1000,
+                orig_pitch: origPitch,
+                interval_semitones: newPitch - origPitch,
+            }});
+        }}
+
+        // Write harmony to target
+        const bg = h.boxGraph;
+
+        let destTrackBox;
+        let destRegionBox;
+        let needCreateTrack = false;
+        let needCreateRegion = false;
+
+        const targetUnits = h.allAUBoxes();
+        if (tgtUnit >= 0 && tgtUnit < targetUnits.length) {{
+            const tgtAu = targetUnits[tgtUnit];
+            const tgtTracks = h.trackBoxes(tgtAu);
+            if (tgtTrack >= 0 && tgtTrack < tgtTracks.length) {{
+                destTrackBox = tgtTracks[tgtTrack];
+                const tgtRegions = h.regionBoxes(destTrackBox);
+                if (tgtRegion >= 0 && tgtRegion < tgtRegions.length) {{
+                    destRegionBox = tgtRegions[tgtRegion];
+                }} else {{
+                    needCreateRegion = true;
+                }}
+            }} else {{
+                needCreateTrack = true;
+            }}
+        }} else {{
+            needCreateTrack = true;
+        }}
+
+        if (needCreateTrack) {{
+            const createResult = h.api.createNoteTrack();
+            if (!createResult.isSuccess()) return {{error: "failed to create target track"}};
+            destTrackBox = createResult.result();
+        }}
+
+        if (needCreateRegion || !destRegionBox) {{
+            const trackRegions = h.regionBoxes(destTrackBox);
+            if (trackRegions.length > 0) {{
+                destRegionBox = trackRegions[0];
+            }} else {{
+                const totalLen = harmonyNotes.length > 0
+                    ? harmonyNotes[harmonyNotes.length - 1].position + harmonyNotes[harmonyNotes.length - 1].duration
+                    : 3840;
+                const regionResult = h.api.createNoteRegion(destTrackBox, 0, totalLen + 960);
+                if (!regionResult.isSuccess()) return {{error: "failed to create target region"}};
+                destRegionBox = regionResult.result();
+            }}
+        }}
+
+        const destEventsField = destRegionBox.events.targetVertex.unwrap();
+        const destCollBox = destEventsField.box;
+        const destStart = destRegionBox.start.getValue();
+
+        let writtenNotes = [];
+        h.modify(() => {{
+            for (const hn of harmonyNotes) {{
+                const absPos = hn.position;
+                NoteEventBox.create(bg, h.uuid.generate(), (box) => {{
+                    box.position.setValue(absPos);
+                    box.duration.setValue(hn.duration);
+                    box.pitch.setValue(hn.pitch);
+                    box.velocity.setValue(hn.velocity);
+                    box.events.refer(destCollBox.events);
+                }});
+                writtenNotes.push({{
+                    pitch: hn.pitch,
+                    position: absPos,
+                    duration: hn.duration,
+                    velocity: hn.velocity,
+                    interval_from_melody: hn.interval_semitones,
+                }});
+            }}
+        }});
+
+        return {{
+            success: true,
+            interval: "{interval}",
+            direction: "{direction}",
+            scale: "{scale}",
+            root_note: "{root_note}",
+            source_notes: sourceNotes.length,
+            harmony_notes: writtenNotes.length,
+            notes_skipped: skipped,
+            harmony: writtenNotes,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,
