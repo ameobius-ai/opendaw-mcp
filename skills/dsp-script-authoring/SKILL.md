@@ -509,9 +509,9 @@ process(io, block) {
 }
 ```
 
-## Example Scripts (26 in library)
+## Example Scripts (82 in library)
 
-### Werkstatt (16 audio effects)
+### Werkstatt (64 audio effects)
 
 | Script | Pattern | Key technique |
 |--------|---------|---------------|
@@ -527,6 +527,7 @@ process(io, block) {
 | `werkstatt_fuzz.js` | Fuzz (Big Muff) | hard clip + foldback squash + full-wave rect octave-up + Muff tone stack + noise gate |
 | `werkstatt_tape_stop.js` | Tape stop | exponential speed decay to zero + pitch drop + state machine + fractional buffer read |
 | `werkstatt_multiband_imager.js` | Multiband imager | LR4 crossover → 3-band M/S width control, mono bass default, link mode |
+| `werkstatt_modal_resonator.js` | Modal resonator | parallel bandpass biquads at modal frequency ratios, 5 materials, inharmonicity stretch |
 | `werkstatt_gated_reverb.js` | Gated reverb | Schroeder plate + envelope-followed gate on dry input → hard tail cutoff, 80s drum sound |
 | `werkstatt_reverse_delay.js` | Reverse delay | reads delay buffer backwards + fade ramps at boundaries + damped feedback for cascading reverse repeats |
 | `werkstatt_freq_shifter.js` | Frequency shifter (SSB) | Hilbert transform allpass pair + complex carrier oscillator → shifts all frequencies by fixed Hz, breaks harmonic ratios |

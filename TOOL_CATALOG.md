@@ -384,9 +384,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 
 **Total: 311 tools**
 
-## DSP Scripts (scripts/) — 73 scripts
+## DSP Scripts (scripts/) — 82 scripts
 
-### Werkstatt (Audio Effects) — 56 scripts
+### Werkstatt (Audio Effects) — 64 scripts
 - `werkstatt_darksat.js` — Tape saturation (drive, bias, tone, mix, output)
 - `werkstatt_tape_delay.js` — Tape delay (wow/flutter pitch modulation, feedback saturation, fractional read)
 - `werkstatt_multitap_delay.js` — Multitap delay (4 independent taps from single buffer, per-tap time/level/pan/feedback, equal-power pan, spread modulation, feedback damping)
@@ -447,6 +447,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `werkstatt_tilt_eq.js` — Tilt EQ (single-knob spectral balance: low shelf cut + high shelf boost for brighten, reverse for darken, pivot frequency, steepness controls slope, biquad RBJ cookbook, coefficient caching, Ozone/FabFilter/Airwindows style)
 - `werkstatt_svf.js` — State variable filter (Chamberlin topology: simultaneous LP/BP/HP, morph parameter for continuous LP→BP→HP blend, output mode notch/allpass, self-oscillation at high resonance with tanh soft-clip protection, Korg MS-20 / Oberheim SEM style)
 - `werkstatt_dynamic_eq.js` — Dynamic EQ (3 bands, peaking biquad + envelope follower, per-band threshold/range, attack/release, mix, output)
+- `werkstatt_modal_resonator.js` — Modal synthesis resonator bank (5 materials: marimba/bell/plate/string/glass, parallel bandpass biquads at modal frequency ratios, inharmonicity stretch, T60-based Q, brightness rolloff, stereo)
 
 ### Apparat (Instruments) — 8 scripts
 - `apparat_darkbass.js` — Dark bass synth (waveform, cutoff, resonance, envelope)

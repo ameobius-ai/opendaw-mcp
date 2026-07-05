@@ -4412,3 +4412,94 @@ class TestChorderDSP:
     def test_reset(self):
         code = self._read_script()
         assert "reset()" in code, "Missing reset method"
+
+
+class TestModalResonatorDSP:
+    """Unit tests for werkstatt_modal_resonator.js — modal synthesis resonator bank"""
+
+    SCRIPT = "werkstatt_modal_resonator.js"
+
+    def _read_script(self):
+        import os
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", self.SCRIPT)
+        with open(path) as f:
+            return f.read()
+
+    def _parse_params(self, code):
+        import re
+        params = []
+        for m in re.finditer(r"@param\s+(\w+)\s+([\d.]+)\s+([\d.-]+)\s+([\d.-]+)\s+(\w+)", code):
+            params.append({"name": m.group(1), "default": float(m.group(2)),
+                           "min": float(m.group(3)), "max": float(m.group(4)), "type": m.group(5)})
+        return params
+
+    def test_header(self):
+        code = self._read_script()
+        assert "@werkstatt modal_resonator" in code, "Missing @werkstatt modal_resonator header"
+
+    def test_param_count(self):
+        params = self._parse_params(self._read_script())
+        assert len(params) == 7, f"Expected 7 params, got {len(params)}"
+
+    def test_material_param(self):
+        params = self._parse_params(self._read_script())
+        m = [p for p in params if p["name"] == "material"][0]
+        assert m["min"] == 0 and m["max"] == 4 and m["type"] == "int"
+
+    def test_fundamental_param(self):
+        params = self._parse_params(self._read_script())
+        f = [p for p in params if p["name"] == "fundamental"][0]
+        assert f["min"] == 40 and f["max"] == 2000 and f["type"] == "exp"
+
+    def test_inharmonicity_param(self):
+        params = self._parse_params(self._read_script())
+        i = [p for p in params if p["name"] == "inharmonicity"][0]
+        assert i["min"] == 0 and i["max"] == 1 and i["type"] == "linear"
+
+    def test_material_ratios(self):
+        code = self._read_script()
+        assert "3.0, 5.41, 8.93" in code, "Missing marimba bar ratios"
+        assert "1.46, 1.85, 2.31" in code, "Missing circular plate ratios"
+        assert "2.76, 5.05, 7.6" in code, "Missing wine glass ratios"
+
+    def test_biquad_implementation(self):
+        code = self._read_script()
+        assert "_biquadBP" in code, "Missing biquad bandpass method"
+        assert "RBJ cookbook" in code or "bandpass" in code.lower(), "Missing RBJ reference"
+        assert "alpha" in code, "Missing alpha coefficient"
+
+    def test_q_from_decay(self):
+        code = self._read_script()
+        assert "baseT60" in code, "Missing T60 decay calculation"
+        assert "modeT60" in code, "Missing per-mode decay"
+        assert "q = Math.max" in code, "Missing Q calculation from decay"
+
+    def test_inharmonicity_stretch(self):
+        code = self._read_script()
+        assert "stretch" in code, "Missing inharmonicity stretch"
+        assert "i * i" in code, "Missing quadratic stretch factor"
+
+    def test_brightness_rolloff(self):
+        code = self._read_script()
+        assert "Math.pow(bright" in code, "Missing brightness amplitude rolloff"
+
+    def test_dry_wet_mix(self):
+        code = self._read_script()
+        assert "dry" in code and "wet" in code, "Missing dry/wet mix"
+
+    def test_output_gain_db(self):
+        code = self._read_script()
+        assert "Math.pow(10" in code, "Missing dB-to-linear output gain"
+
+    def test_process_method(self):
+        code = self._read_script()
+        assert "processAudio" in code, "Missing processAudio method"
+
+    def test_stereo_processing(self):
+        code = self._read_script()
+        assert "resL" in code and "resR" in code, "Missing stereo processing"
+        assert "_biquadBPR" in code, "Missing right-channel biquad"
+
+    def test_freq_guard(self):
+        code = self._read_script()
+        assert "sr * 0.45" in code, "Missing Nyquist frequency guard"

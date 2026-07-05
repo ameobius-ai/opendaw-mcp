@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.101.0 (2026-07-05)
+
+- **`werkstatt_modal_resonator.js` DSP script (82 DSP, 64 Werkstatt)** — modal synthesis resonator bank: parallel bandpass biquad filters tuned to modal frequency ratios of real materials (marimba bar, bell, circular plate, string, wine glass). 5 material presets with published frequency ratios. Inharmonicity parameter stretches upper modes quadratically (B coefficient). Per-mode Q derived from T60 decay time. Brightness controls high-mode amplitude rolloff. Stereo processing with independent biquad state per channel. 7 params (material/fundamental/decay/brightness/inharmonicity/mix/output). 82 DSP scripts, 64 Werkstatt
+- **971 unit tests** (+15), E2E 8/8
+
 ## v1.100.0 (2026-07-05)
 
 - **`spielwerk_chorder.js` DSP script (81 DSP, 10 Spielwerk)** — chord voicer MIDI effect: 13 chord shapes (major/minor/maj7/min7/dom7/dim/dim7/half-dim/aug/sus2/sus4/add9/m6), 5 voicing modes (close/drop-2/drop-3/open/spread), 4 inversions via rotation, octave shift, spread spacing, strum delay between voices, per-voice velocity attenuation. 7 params (chord/voicing/inversion/octave/spread/strum/velScale). 81 DSP scripts, 10 Spielwerk MIDI effects
