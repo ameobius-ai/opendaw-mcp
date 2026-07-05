@@ -17817,6 +17817,186 @@ async def mcp_opendaw_scale_durations(
 
 
 @mcp.tool()
+async def mcp_opendaw_groove_transfer(
+    source_unit_index: int,
+    source_track_index: int,
+    source_region_index: int = -1,
+    dest_unit_index: int = -1,
+    dest_track_index: int = -1,
+    dest_region_index: int = -1,
+    groove_length: float = 4.0,
+    timing_strength: float = 0.8,
+    velocity_strength: float = 0.7,
+    grid: str = "16th",
+) -> str:
+    """Transfer groove (timing + velocity feel) from a source region to a destination region.
+
+    Extracts the groove template from source notes: for each grid position within
+    the groove cycle (groove_length beats), records the average timing offset from
+    the grid and the average velocity ratio. Then applies this template to destination
+    notes — shifting their timing and scaling velocity to match the source feel.
+
+    This is NOT copying notes — it transfers the *feel*. A 1-bar drum groove can be
+    applied to a 4-bar programmed pattern. The groove cycles every groove_length beats.
+
+    source_unit_index: AU index of the groove source (e.g. a drum track).
+    source_track_index: Note track index on the source AU.
+    source_region_index: Region index on source (-1 = first).
+    dest_unit_index: AU index of destination (-1 = same as source).
+    dest_track_index: Note track index on destination AU (-1 = same as source track).
+    dest_region_index: Region index on destination (-1 = all regions on track).
+    groove_length: Groove cycle length in beats (4 = 1 bar of 4/4, 3 = waltz, 2 = half-bar).
+    timing_strength: 0-1, how much timing offset to apply (0 = no change, 1 = full source groove).
+    velocity_strength: 0-1, how much velocity pattern to apply (0 = no change, 1 = full source groove).
+    grid: Grid for computing timing offsets — "16th" or "8th".
+
+    Returns groove template stats and per-region modification counts.
+    """
+    if not (0.0 <= timing_strength <= 1.0):
+        return "Error: timing_strength must be 0-1"
+    if not (0.0 <= velocity_strength <= 1.0):
+        return "Error: velocity_strength must be 0-1"
+    if groove_length <= 0:
+        return "Error: groove_length must be > 0"
+    grid_map = {"16th": 0.25, "8th": 0.5}
+    grid_val = grid_map.get(grid, 0.25)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const sUnit = {source_unit_index};
+        const sTrack = {source_track_index};
+        const sRegion = {source_region_index};
+        const dUnit = {dest_unit_index};
+        const dTrack = {dest_track_index};
+        const dRegion = {dest_region_index};
+        const grooveLen = {groove_length};
+        const timStr = {timing_strength};
+        const velStr = {velocity_strength};
+        const gridVal = {grid_val};
+        const Quarter = 960;
+
+        const allUnits = h.allAUBoxes();
+        if (sUnit < 0 || sUnit >= allUnits.length) return {{error: "source_unit_index out of range"}};
+
+        // --- Extract groove from source ---
+        const srcAU = allUnits[sUnit];
+        const srcTracks = h.trackBoxes(srcAU);
+        if (sTrack < 0 || sTrack >= srcTracks.length) return {{error: "source_track_index out of range"}};
+        const srcTrack = srcTracks[sTrack];
+        const srcRegions = h.regionBoxes(srcTrack);
+        if (srcRegions.length === 0) return {{error: "No regions on source track"}};
+        const srcRegIdx = sRegion < 0 ? 0 : sRegion;
+        if (srcRegIdx >= srcRegions.length) return {{error: "source_region_index out of range"}};
+        const srcRegion = srcRegions[srcRegIdx];
+
+        const srcEventsField = srcRegion.events.targetVertex.unwrap();
+        const srcCollBox = srcEventsField.box;
+        const srcNotes = [...srcCollBox.events.pointerHub.incoming()];
+        if (srcNotes.length === 0) return {{error: "No notes in source region"}};
+
+        // Build groove template: map from grid-slot index -> {{timingOffset, velocityRatio}}
+        // grid-slot = position within groove cycle, snapped to grid
+        const grooveSlots = new Map();
+        let totalSrcVel = 0;
+        for (const n of srcNotes) {{
+            const posBeats = n.box.position.getValue() / Quarter;
+            const vel = n.box.velocity.getValue();
+            totalSrcVel += vel;
+            // Position within groove cycle
+            const cyclePos = posBeats % grooveLen;
+            // Nearest grid slot
+            const slotIdx = Math.round(cyclePos / gridVal);
+            const gridPos = slotIdx * gridVal;
+            const timingOffset = cyclePos - gridPos; // in beats, can be negative (ahead) or positive (behind)
+            const slotKey = slotIdx % Math.round(grooveLen / gridVal);
+            if (!grooveSlots.has(slotKey)) {{
+                grooveSlots.set(slotKey, {{ offsets: [], velocities: [], gridPos: gridPos }});
+            }}
+            const slot = grooveSlots.get(slotKey);
+            slot.offsets.push(timingOffset);
+            slot.velocities.push(vel);
+        }}
+        const avgSrcVel = totalSrcVel / srcNotes.length;
+
+        // Compute average offset and velocity ratio per slot
+        const template = new Map();
+        for (const [key, slot] of grooveSlots) {{
+            const avgOffset = slot.offsets.reduce((a, b) => a + b, 0) / slot.offsets.length;
+            const avgVel = slot.velocities.reduce((a, b) => a + b, 0) / slot.velocities.length;
+            template.set(key, {{
+                timingOffset: avgOffset,
+                velocityRatio: avgSrcVel > 0 ? avgVel / avgSrcVel : 1.0,
+            }});
+        }}
+
+        if (template.size === 0) return {{error: "Could not build groove template from source"}};
+
+        // --- Apply groove to destination ---
+        const dUnitIdx = dUnit < 0 ? sUnit : dUnit;
+        const dTrackIdx = dTrack < 0 ? sTrack : dTrack;
+        if (dUnitIdx >= allUnits.length) return {{error: "dest_unit_index out of range"}};
+        const dstAU = allUnits[dUnitIdx];
+        const dstTracks = h.trackBoxes(dstAU);
+        if (dTrackIdx < 0 || dTrackIdx >= dstTracks.length) return {{error: "dest_track_index out of range"}};
+        const dstTrack = dstTracks[dTrackIdx];
+        const dstRegions = h.regionBoxes(dstTrack);
+        if (dstRegions.length === 0) return {{error: "No regions on destination track"}};
+
+        const slotsPerCycle = Math.round(grooveLen / gridVal);
+        let totalModified = 0;
+        const regionResults = [];
+
+        const regionsToProcess = dRegion < 0 ? dstRegions : [dstRegions[Math.min(dRegion, dstRegions.length - 1)]];
+
+        h.modify(() => {{
+            for (const dstRegion of regionsToProcess) {{
+                const dstEventsField = dstRegion.events.targetVertex.unwrap();
+                const dstCollBox = dstEventsField.box;
+                const dstNotes = [...dstCollBox.events.pointerHub.incoming()];
+                if (dstNotes.length === 0) continue;
+
+                let modInRegion = 0;
+                for (const n of dstNotes) {{
+                    const posBeats = n.box.position.getValue() / Quarter;
+                    const cyclePos = posBeats % grooveLen;
+                    const slotIdx = Math.round(cyclePos / gridVal) % slotsPerCycle;
+
+                    if (template.has(slotIdx)) {{
+                        const groove = template.get(slotIdx);
+                        // Apply timing offset
+                        const newPos = posBeats + groove.timingOffset * timStr;
+                        n.box.position.setValue(Math.round(newPos * Quarter));
+                        // Apply velocity scaling
+                        const curVel = n.box.velocity.getValue();
+                        const targetVel = curVel * (1.0 - velStr + velStr * groove.velocityRatio);
+                        n.box.velocity.setValue(Math.max(0, Math.min(1, targetVel)));
+                        modInRegion++;
+                    }}
+                }}
+                totalModified += modInRegion;
+                regionResults.push({{ notes_modified: modInRegion, total_notes: dstNotes.length }});
+            }}
+        }});
+
+        return {{
+            success: true,
+            groove_template: {{
+                slots_extracted: template.size,
+                groove_length_beats: grooveLen,
+                grid: "{grid}",
+                source_notes: srcNotes.length,
+            }},
+            timing_strength: timStr,
+            velocity_strength: velStr,
+            total_notes_modified: totalModified,
+            regions_processed: regionResults.length,
+            per_region: regionResults,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_apply_swing(
     unit_index: int = -1,
     track_index: int = -1,

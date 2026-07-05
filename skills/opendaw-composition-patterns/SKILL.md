@@ -42,6 +42,7 @@ What do you want to create?
 ├── Passacaglia (bass ostinato + harmonies) → create_passacaglia (repeating bass + block/arpeggiated/melodic variations, Bach/film/metal)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
+├── Groove transfer (feel cloning) → groove_transfer (source drum groove → destination programmed track, timing + velocity feel)
 │
 ├── Melody → create_melody (scale-based, pattern notation 1-7)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)

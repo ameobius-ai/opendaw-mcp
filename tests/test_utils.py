@@ -10896,3 +10896,114 @@ class TestScaleDurations:
                 return
         assert False, "function not found"
 
+
+class TestGrooveTransfer:
+    """Tests for groove_transfer — groove feel transfer between regions"""
+
+    def test_tool_signature_exists(self):
+        """groove_transfer is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_groove_transfer" in tool_names
+
+    def test_has_source_and_dest_params(self):
+        """Has source_unit_index, source_track_index, dest_unit_index, dest_track_index"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                arg_names = [a.arg for a in node.args.args]
+                assert "source_unit_index" in arg_names
+                assert "source_track_index" in arg_names
+                assert "dest_unit_index" in arg_names
+                assert "dest_track_index" in arg_names
+                assert "source_region_index" in arg_names
+                assert "dest_region_index" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_strength_params(self):
+        """Has timing_strength and velocity_strength params (0-1)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                arg_names = [a.arg for a in node.args.args]
+                assert "timing_strength" in arg_names
+                assert "velocity_strength" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_groove_length_param(self):
+        """Has groove_length param for cycle length in beats"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                arg_names = [a.arg for a in node.args.args]
+                assert "groove_length" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_grid_param(self):
+        """Has grid param for timing offset computation"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                arg_names = [a.arg for a in node.args.args]
+                assert "grid" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_validates_strength_range(self):
+        """Validates timing_strength and velocity_strength are 0-1"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                source = ast.unparse(node)
+                assert "timing_strength must be 0-1" in source
+                assert "velocity_strength must be 0-1" in source
+                return
+        assert False, "function not found"
+
+    def test_builds_groove_template(self):
+        """Builds a groove template with timing offsets and velocity ratios"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                source = ast.unparse(node)
+                assert "grooveSlots" in source or "groove_template" in source
+                assert "timingOffset" in source
+                assert "velocityRatio" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_modify_for_mutations(self):
+        """Uses h.modify() for box mutations"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                source = ast.unparse(node)
+                assert "h.modify" in source
+                return
+        assert False, "function not found"
+
+    def test_cycles_groove_by_modulo(self):
+        """Groove cycles every groove_length beats (modulo arithmetic)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_groove_transfer":
+                source = ast.unparse(node)
+                assert "grooveLen" in source or "groove_length" in source
+                assert "%" in source  # modulo for cycle position
+                return
+        assert False, "function not found"
+

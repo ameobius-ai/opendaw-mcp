@@ -134,6 +134,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 121. `scale_velocity` — MIDI dynamics scaling: multiply/add/set/normalize/compress velocity of all notes in region
 122. `copy_notes_to_track` — MIDI layering/doubling: copy notes between tracks with optional transpose + time_offset + velocity_scale
 123. `scale_durations` — MIDI note duration scaling: multiply/add/set/quantize/legato durations of all notes in region
+124. `groove_transfer` — groove feel transfer: extract timing + velocity groove template from source region, apply to destination region(s). Cycles every groove_length beats
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

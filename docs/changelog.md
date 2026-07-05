@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.211.0 (2026-07-05)
+
+### Added
+- `groove_transfer` — Groove feel transfer between regions. Extracts groove template (per-grid-slot timing offsets + velocity ratios) from a source region's notes, then applies to destination region(s). Groove cycles every groove_length beats (4=1 bar of 4/4, 3=waltz, 2=half-bar). timing_strength and velocity_strength (0-1) control how much of the source feel to apply. 16th or 8th grid. This is NOT copying notes — it transfers the *feel*, so a 1-bar drum groove can be applied to a 4-bar programmed pattern. 9 unit tests. **387 MCP tools**, 2705 unit tests
+
 ## v1.210.0 (2026-07-05)
 
 ### Added
