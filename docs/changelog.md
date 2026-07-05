@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.189.0 (2026-07-05)
+
+### Added
+- `clear_region_notes` — erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation. Different from delete_note_region (removes entire region) and delete_note (removes single note). Supports all regions on track (region_index=-1). 369 MCP tools total
+
 ## v1.188.0 (2026-07-05)
 
 ### Added

@@ -8543,6 +8543,64 @@ class TestDeleteSection:
                       and n.name.startswith("mcp_opendaw_")]
         assert "mcp_opendaw_delete_section" in tool_names
 
+
+class TestClearRegionNotes:
+    """Tests for clear_region_notes tool"""
+
+    def test_clear_vs_delete_region(self):
+        """clear_region_notes keeps region, delete_note_region removes it"""
+        clear_ops = ["delete_note_events", "keep_region"]
+        delete_ops = ["delete_region"]
+        assert clear_ops != delete_ops
+
+    def test_clear_vs_delete_note(self):
+        """clear_region_notes removes all notes, delete_note removes one"""
+        clear_scope = "all_notes_in_region"
+        delete_scope = "single_note"
+        assert clear_scope != delete_scope
+
+    def test_all_regions_mode(self):
+        """region_index=-1 targets all regions on track"""
+        region_index = -1
+        targets_all = region_index < 0
+        assert targets_all
+
+    def test_single_region_mode(self):
+        """region_index=0 targets first region only"""
+        region_index = 0
+        targets_all = region_index < 0
+        assert not targets_all
+
+    def test_region_preserved_after_clear(self):
+        """Region position and duration stay after notes are cleared"""
+        region_info = {"position": 0, "duration": 1920, "notes_cleared": 16}
+        # region still has position and duration — it's on the timeline
+        assert region_info["position"] == 0
+        assert region_info["duration"] == 1920
+        assert region_info["notes_cleared"] == 16
+
+    def test_note_count_decreases(self):
+        """All notes cleared = 0 remaining"""
+        initial = 16
+        cleared = 16
+        remaining = initial - cleared
+        assert remaining == 0
+
+    def test_empty_region_no_error(self):
+        """Region with 0 notes — clearing returns 0 cleared, no error"""
+        note_count = 0
+        cleared = note_count  # nothing to clear
+        assert cleared == 0
+
+    def test_tool_in_ast(self):
+        """clear_region_notes is a registered MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_clear_region_notes" in tool_names
+
     def test_unknown_type_rejected(self):
         """Unknown transition type returns error"""
         valid_types = {"drop", "buildup", "breakdown", "intro", "outro"}

@@ -30807,3 +30807,84 @@ async def mcp_opendaw_delete_section(from_beat: float, to_beat: float, unit_indi
         }}
     }}""")
     return _wrap_eval(result)
+
+
+
+@mcp.tool()
+async def mcp_opendaw_clear_region_notes(unit_index: int, track_index: int, region_index: int = -1) -> str:
+    """Clear all notes from a region while keeping the region on the timeline.
+
+    Removes every note event from the specified region(s) but preserves the region
+    itself — its position, duration, and track placement stay intact. This is the
+    "erase and rewrite" operation: the producer wants to clear a region to start
+    fresh, without deleting and recreating the region container.
+
+    Different from delete_note_region (which removes the entire region from the
+    timeline) and delete_note (which removes one note at a time).
+
+    unit_index: AU index.
+    track_index: Note track index.
+    region_index: Region index (-1 = all note regions on the track).
+
+    Returns notes cleared and remaining region info.
+
+    Examples:
+      clear_region_notes(unit_index=0, track_index=0, region_index=0)
+        -> Erase all notes in region 0, region stays on timeline
+      clear_region_notes(unit_index=0, track_index=0, region_index=-1)
+        -> Erase all notes in ALL regions on track 0
+    """
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx >= allUnits.length) return {{error: "No AU at index " + unitIdx}};
+        const noteTracks = h.trackBoxes(allUnits[unitIdx])
+            .filter(box => box.type?.getValue?.() === 1);
+        if (trackIdx >= noteTracks.length) return {{error: "Track " + trackIdx + " out of range"}};
+
+        const regions = h.regionBoxes(noteTracks[trackIdx]);
+        const targetRegions = regionIdx < 0 ? regions : (regionIdx < regions.length ? [regions[regionIdx]] : []);
+
+        let totalCleared = 0;
+        const regionInfo = [];
+
+        h.modify(() => {{
+            for (let r = 0; r < targetRegions.length; r++) {{
+                const region = targetRegions[r];
+                try {{
+                    const vertex = region.events.targetVertex.unwrap();
+                    const collBox = vertex.box || vertex;
+                    if (!collBox || !collBox.events) continue;
+
+                    const noteEvents = h.eventBoxes(collBox);
+                    const noteCount = noteEvents.length;
+
+                    for (const evt of noteEvents) {{
+                        evt.box.delete();
+                        totalCleared++;
+                    }}
+
+                    regionInfo.push({{
+                        region_index: regionIdx < 0 ? r : regionIdx,
+                        notes_cleared: noteCount,
+                        region_position: region.position?.getValue?.() ?? 0,
+                        region_duration: region.duration?.getValue?.() ?? 0,
+                    }});
+                }} catch(e) {{
+                    regionInfo.push({{region_index: r, error: e.message}});
+                }}
+            }}
+        }});
+
+        return {{
+            success: true,
+            notes_cleared: totalCleared,
+            regions_affected: regionInfo.length,
+            region_details: regionInfo,
+        }};
+    }}""")
+    return _wrap_eval(result)

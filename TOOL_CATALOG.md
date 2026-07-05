@@ -438,8 +438,9 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `apply_velocity_pattern` — Cyclic velocity accent pattern on existing notes. JSON array of multipliers cycled across notes. 2 modes: cycle (repeat) and stretch (distribute). The groove tool — replaces manual per-note velocity editing.
 - `move_section` — Move all regions in a beat range to a new position. Cut-and-paste for arrangement restructuring. Collect-then-move pattern avoids index invalidation. Pairs with duplicate_section.
 - `delete_section` — Delete all regions in a beat range. Completes section CRUD trilogy: duplicate (copy), move (cut-paste), delete (remove). Collect-then-delete pattern.
+- `clear_region_notes` — Erase all notes inside a region while keeping the region on the timeline. The "erase and rewrite" operation — different from delete_note_region (removes entire region) and delete_note (removes single note).
 
-**Total: 368 tools**
+**Total: 369 tools**
 
 ## DSP Scripts (scripts/) — 107 scripts
 
