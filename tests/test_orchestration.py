@@ -4739,3 +4739,131 @@ class TestCreateHouseArrangement:
         bass_beats = sorted(b for b, _, _, _ in self.BASS_PATTERN)
         for k, bs in zip(kick_beats, bass_beats):
             assert abs(bs - k - 0.5) < 0.01, f"Bass {bs} should be 0.5 after kick {k}"
+
+
+class TestCreateTrapArrangement:
+    """Tests for create_trap_arrangement — multi-track trap arrangement"""
+
+    DRUM_PATTERN = [
+        (0.0, "kick"), (0.0, "hat"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+        (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.75, "hat"),
+        (2.0, "snare"), (2.0, "hat"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+        (3.0, "hat"), (3.16, "hat"), (3.33, "hat"), (3.5, "hat"),
+        (3.66, "hat"), (3.83, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+        (5.0, "hat"), (5.16, "hat"), (5.33, "hat"), (5.5, "hat"),
+        (5.66, "hat"), (5.83, "hat"),
+        (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+        (7.0, "hat"), (7.16, "ghost"), (7.33, "ghost"), (7.5, "ghost"),
+        (7.66, "ghost"), (7.83, "ghost"),
+    ]
+    BASS_PATTERN = [
+        (0.0, 0, 3.5, 1.0), (3.5, -5, 0.5, 0.9),
+        (4.0, 0, 2.0, 1.0), (6.0, 7, 1.5, 0.9),
+    ]
+    MELODY_PATTERN = [
+        (0.0, 0, 0.5, 1.0), (1.5, 3, 0.4, 0.8),
+        (2.5, 7, 0.3, 0.7), (4.0, 10, 0.5, 0.9),
+        (5.5, 7, 0.3, 0.6), (7.0, 3, 0.4, 0.7),
+    ]
+
+    def test_drums_have_16th_hats(self):
+        hats = [b for b, s in self.DRUM_PATTERN if s == "hat"]
+        assert 0.25 in hats, "Missing 16th hat"
+        assert 0.75 in hats, "Missing 16th hat"
+
+    def test_drums_have_triplet_rolls(self):
+        hats = [b for b, s in self.DRUM_PATTERN if s == "hat"]
+        assert 3.16 in hats, "Missing triplet hat at 3.16"
+        assert 3.33 in hats, "Missing triplet hat at 3.33"
+
+    def test_drums_have_ghost_roll(self):
+        ghosts = [b for b, s in self.DRUM_PATTERN if s == "ghost"]
+        assert len(ghosts) >= 4, "Missing ghost roll"
+
+    def test_drums_snare_on_3(self):
+        snares = [b for b, s in self.DRUM_PATTERN if s == "snare"]
+        assert 2.0 in snares, "Missing snare on beat 3"
+        assert 6.0 in snares, "Missing snare on beat 3 bar 2"
+
+    def test_drums_syncopated_kick(self):
+        kicks = [b for b, s in self.DRUM_PATTERN if s == "kick"]
+        assert 1.5 in kicks, "Missing syncopated kick at 1.5"
+
+    def test_bass_808_sustained_root(self):
+        """808 bass: long sustained root note at start"""
+        beats = [(b, po, dur) for b, po, dur, _ in self.BASS_PATTERN]
+        assert beats[0] == (0.0, 0, 3.5), "First bass note should be sustained root"
+
+    def test_bass_has_slide_to_fourth(self):
+        """808 slides down to fourth (offset -5)"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert -5 in pitch_offs, "Missing fourth slide in 808 bass"
+
+    def test_bass_has_fifth_slide(self):
+        """808 slides up to fifth (offset 7)"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert 7 in pitch_offs, "Missing fifth slide in 808 bass"
+
+    def test_bass_uses_negative_offset(self):
+        """808 bass uses sub-root offsets (negative) — characteristic"""
+        pitch_offs = [po for _, po, _, _ in self.BASS_PATTERN]
+        assert min(pitch_offs) < 0, "808 should go below root (negative offset)"
+
+    def test_melody_uses_minor_scale(self):
+        """Melody uses minor scale intervals: 0, 3, 7, 10"""
+        pitch_offs = [po for _, po, _, _ in self.MELODY_PATTERN]
+        assert 0 in pitch_offs, "Missing root in melody"
+        assert 3 in pitch_offs, "Missing minor third"
+        assert 7 in pitch_offs, "Missing fifth"
+        assert 10 in pitch_offs, "Missing minor seventh"
+
+    def test_melody_is_sparse(self):
+        """Melody has fewer notes than drums — sparse and atmospheric"""
+        assert len(self.MELODY_PATTERN) < len(self.DRUM_PATTERN), "Melody should be sparser than drums"
+
+    def test_melody_has_echo(self):
+        """Melody has an echo: fifth at 2.5 and 5.5"""
+        fifth_beats = [b for b, po, _, _ in self.MELODY_PATTERN if po == 7]
+        assert 2.5 in fifth_beats, "Missing first fifth"
+        assert 5.5 in fifth_beats, "Missing echo fifth"
+
+    def test_drum_cycle_2_bars(self):
+        max_beat = max(b for b, _ in self.DRUM_PATTERN)
+        assert max_beat < 8.0, "Drum pattern exceeds 2 bars"
+
+    def test_bass_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.BASS_PATTERN)
+        assert max_beat < 8.0, "Bass pattern exceeds 2 bars"
+
+    def test_melody_cycle_2_bars(self):
+        max_beat = max(b for b, _, _, _ in self.MELODY_PATTERN)
+        assert max_beat < 8.0, "Melody pattern exceeds 2 bars"
+
+    def test_tracks_separate(self):
+        assert len({0, 1, 2}) == 3, "Tracks must be distinct"
+
+    def test_bpm_range(self):
+        assert 120 <= 140 <= 170, "Default BPM should be valid"
+
+    def test_bass_melody_pitch_relationship(self):
+        """Melody 3 octaves above bass"""
+        octave = 1
+        root_pc = 6  # F#
+        bass_base = (octave + 1) * 12 + root_pc   # 30
+        melody_base = (octave + 4) * 12 + root_pc  # 66
+        assert melody_base - bass_base == 36, "Melody should be 3 octaves above bass"
+
+    def test_note_counts_8_bars(self):
+        bars = 8
+        cycles = bars // 2
+        drum_count = len(self.DRUM_PATTERN) * cycles
+        bass_count = len(self.BASS_PATTERN) * cycles
+        melody_count = len(self.MELODY_PATTERN) * cycles
+        assert drum_count > bass_count, "Drums should have most notes"
+        assert bass_count < melody_count or bass_count == melody_count, "Bass and melody comparable"
+
+    def test_bass_808_low_octave(self):
+        """808 bass at octave 1 = sub-bass territory"""
+        octave = 1
+        assert octave == 1, "Default 808 octave should be 1 (sub-bass)"

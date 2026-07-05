@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.131.0 (2026-07-05)
+
+- **`create_trap_arrangement` orchestration tool (324 MCP tools)** — third multi-track genre arrangement. Complete trap section across 3 tracks: drums (trap hi-hat rolls with triplet bursts, syncopated kick, snare on 3, ghost roll), bass (808 sub-bass slides — long sustained root with slides to fourth/fifth, negative pitch offsets, octave 1 sub-bass territory), melody (bell plucks in minor key — root/minor3/fifth/minor7 with echo). 808 slides are the signature — long glides between root notes creating dark low-end. Melody 3 octaves above bass. F# minor default (most common trap key). Tempo-aware 120-170 BPM, default 140. 4-32 bars. 67 orchestration tools. 324 MCP tools
+- **1517 unit tests** (+20)
+
 ## v1.130.0 (2026-07-05)
 
 - **`create_house_arrangement` orchestration tool (323 MCP tools)** — second multi-track genre arrangement. Complete house music section across 3 tracks: drums (four-on-the-floor kick, open hats on off-beats, clap on 2+4), bass (off-beat sustained between kicks — the "untz-untz" groove), stabs (minor triad on beats 1+3 with off-beant variant). Kick and bass perfectly interleaved — never overlap. Stabs 2 octaves above bass. Tempo-aware 110-140 BPM, default 124. 4-32 bars. 66 orchestration tools. 323 MCP tools

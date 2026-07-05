@@ -22295,3 +22295,177 @@ async def mcp_opendaw_create_house_arrangement(
         "bass_pattern": "offbeat",
         "stab_type": "minor_triad",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_trap_arrangement(
+    bpm: float = 140,
+    bars: int = 8,
+    root: str = "F#",
+    octave: int = 1,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    melody_track: int = 2,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full trap arrangement — drums + 808 bass + bell melody across 3 tracks in one call.
+
+    Trap arrangement with all elements locked together:
+    - Track 0: Drums — trap hi-hat rolls with triplet bursts, syncopated kick, snare on 3
+    - Track 1: Bass — 808 sub-bass slides: long sustained notes with pitch slides,
+                     characteristic trap bass that glides between root notes
+    - Track 2: Melody — bell/glockenspiel plucks in minor key, sparse and atmospheric
+
+    At 140 BPM (default), this creates the modern trap sound. The 808 bass slides
+    are the signature — long glides between root notes that create the dark,
+    menacing low-end. The bell melody floats above with sparse minor-key phrases.
+
+    bpm: Tempo (130-160, default 140 = modern trap).
+    bars: Arrangement length (4-32, default 8).
+    root: Root note (F# minor is the most common trap key).
+    octave: MIDI octave for 808 bass (1 = C1=24, sub-bass territory).
+    unit_index: AU index with note tracks.
+    drum_track / bass_track / melody_track: Track indices.
+
+    Returns notes created per track and total.
+
+    Example:
+      create_trap_arrangement(bpm=140, root="F#", bars=8)
+      create_trap_arrangement(bpm=150, root="A", bars=16)
+    """
+    if not (120 <= bpm <= 170):
+        return "Error: bpm must be 120-170"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 4):
+        return "Error: octave must be 0-4"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc  # 808 sub-bass, very low
+    melody_base = (octave + 4) * 12 + root_pc  # melody 3 octaves above bass
+
+    # --- DRUMS: Trap rolls (2-bar cycle) ---
+    drum_pattern = [
+        (0.0, "kick"), (0.0, "hat"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+        (1.0, "hat"), (1.25, "hat"), (1.5, "kick"), (1.75, "hat"),
+        (2.0, "snare"), (2.0, "hat"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+        (3.0, "hat"), (3.16, "hat"), (3.33, "hat"), (3.5, "hat"),
+        (3.66, "hat"), (3.83, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+        (5.0, "hat"), (5.16, "hat"), (5.33, "hat"), (5.5, "hat"),
+        (5.66, "hat"), (5.83, "hat"),
+        (6.0, "snare"), (6.0, "hat"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+        (7.0, "hat"), (7.16, "ghost"), (7.33, "ghost"), (7.5, "ghost"),
+        (7.66, "ghost"), (7.83, "ghost"),
+    ]
+    kick_p, snare_p, hat_p, ghost_p = 36, 38, 42, 37
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "ghost": ghost_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": max(0.0, velocity - 0.05),
+        "hat": max(0.0, velocity - 0.15),
+        "ghost": max(0.0, velocity - 0.3),
+    }
+    drum_dur_map = {"kick": 0.2, "snare": 0.12, "hat": 0.04, "ghost": 0.03}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- BASS: 808 sub-bass slides (2-bar cycle) ---
+    # Long sustained notes with pitch offsets: 0=root, 7=fifth, -5=fourth, 3=minor third
+    # The 808 glides between notes — we represent this as overlapping notes at different pitches
+    bass_pattern = [
+        (0.0, 0, 3.5, 1.0),       # root, sustained 3.5 beats
+        (3.5, -5, 0.5, 0.9),      # slide down to fourth
+        (4.0, 0, 2.0, 1.0),       # back to root
+        (6.0, 7, 1.5, 0.9),       # slide up to fifth
+    ]
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for beat, po, dur, vm in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- MELODY: Bell plucks, minor key (2-bar cycle) ---
+    # Minor scale intervals: 0, 2, 3, 5, 7, 8, 10
+    # Sparse atmospheric pattern
+    melody_pattern = [
+        (0.0, 0, 0.5, 1.0),       # root
+        (1.5, 3, 0.4, 0.8),       # minor third
+        (2.5, 7, 0.3, 0.7),       # fifth
+        (4.0, 10, 0.5, 0.9),      # minor seventh
+        (5.5, 7, 0.3, 0.6),       # fifth (echo)
+        (7.0, 3, 0.4, 0.7),       # minor third (resolution)
+    ]
+    melody_notes = []
+    melody_cycle = 8.0
+    melody_cycles = bars // 2
+    for c in range(melody_cycles):
+        off = c * melody_cycle
+        for beat, po, dur, vm in melody_pattern:
+            melody_notes.append({
+                "pitch": melody_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm * 0.5, 3),
+            })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    melody_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(melody_notes), unit_index, melody_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        melody_data = json.loads(melody_result)
+    except Exception:
+        melody_data = {"raw": melody_result}
+
+    return json.dumps({
+        "trap_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "result": drum_data.get("notes_created", len(drum_notes))},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "result": bass_data.get("notes_created", len(bass_notes))},
+            "melody": {"track": melody_track, "notes": len(melody_notes), "result": melody_data.get("notes_created", len(melody_notes))},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(melody_notes),
+        "drum_pattern": "trap_rolls",
+        "bass_pattern": "808_slides",
+        "melody_type": "minor_bell",
+    }, indent=2)
