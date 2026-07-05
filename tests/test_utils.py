@@ -13568,3 +13568,167 @@ class TestThinNotes:
                 return
         assert False, "function not found"
 
+
+class TestStrumNotes:
+    """Tests for strum_notes — guitar-style strumming of simultaneous notes"""
+
+    def test_tool_signature_exists(self):
+        """strum_notes is a valid MCP tool"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        tool_names = [n.name for n in ast.walk(tree)
+                      if isinstance(n, ast.AsyncFunctionDef)
+                      and n.name.startswith("mcp_opendaw_")]
+        assert "mcp_opendaw_strum_notes" in tool_names
+
+    def test_has_direction_param(self):
+        """Has direction param (down/up/random)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "direction" in arg_names
+                source = ast.unparse(node)
+                assert "down" in source
+                assert "up" in source
+                assert "random" in source
+                return
+        assert False, "function not found"
+
+    def test_has_speed_param(self):
+        """Has speed param (time between strings in beats)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "speed" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_has_jitter_param(self):
+        """Has jitter param for humanization"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                arg_names = [a.arg for a in node.args.args]
+                assert "jitter" in arg_names
+                return
+        assert False, "function not found"
+
+    def test_validates_direction(self):
+        """Validates direction against allowed set"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                source = ast.unparse(node)
+                assert "Error" in source
+                assert '"down", "up", "random"' in source or "'down', 'up', 'random'" in source
+                return
+        assert False, "function not found"
+
+    def test_validates_speed_range(self):
+        """Validates speed is 0.005-0.5 beats"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                source = ast.unparse(node)
+                assert "0.005" in source
+                assert "0.5" in source
+                return
+        assert False, "function not found"
+
+    def test_default_direction_is_down(self):
+        """Default direction is 'down' (most natural for guitar)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "direction" and isinstance(d, ast.Constant):
+                        assert d.value == "down"
+                        return
+        assert False, "default not found"
+
+    def test_default_speed_is_thirty_second(self):
+        """Default speed is 0.03125 (1/32 note — fast strum)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                args = node.args.args
+                defaults = node.args.defaults
+                n_defaults = len(defaults)
+                for i, d in enumerate(defaults):
+                    arg_name = args[len(args) - n_defaults + i].arg
+                    if arg_name == "speed" and isinstance(d, ast.Constant):
+                        assert d.value == 0.03125
+                        return
+        assert False, "default not found"
+
+    def test_groups_simultaneous_notes(self):
+        """Groups notes by position tolerance for chord detection"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                source = ast.unparse(node)
+                assert "tolerance" in source
+                assert "groups" in source
+                return
+        assert False, "function not found"
+
+    def test_reports_chord_groups_and_strummed(self):
+        """Reports chord_groups and notes_strummed per track"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                source = ast.unparse(node)
+                assert "chord_groups" in source
+                assert "notes_strummed" in source
+                return
+        assert False, "function not found"
+
+    def test_uses_bridge_evaluate(self):
+        """Uses bridge.evaluate for DAW interaction"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                source = ast.unparse(node)
+                assert "bridge.evaluate" in source
+                return
+        assert False, "function not found"
+
+    def test_converts_speed_to_ppqn(self):
+        """Converts speed (beats) to PPQN (× 960)"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                source = ast.unparse(node)
+                assert "960" in source
+                assert "speed_ppqn" in source
+                return
+        assert False, "function not found"
+
+    def test_random_uses_fisher_yates(self):
+        """Random direction uses Fisher-Yates shuffle"""
+        import ast
+        tree = ast.parse(open("server.py").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "mcp_opendaw_strum_notes":
+                source = ast.unparse(node)
+                assert "Fisher-Yates" in source or "shuffle" in source
+                return
+        assert False, "function not found"
+

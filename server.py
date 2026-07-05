@@ -18444,6 +18444,176 @@ async def mcp_opendaw_thin_notes(
 
 
 @mcp.tool()
+async def mcp_opendaw_strum_notes(
+    unit_index: int = -1,
+    track_index: int = -1,
+    region_index: int = -1,
+    direction: str = "down",
+    speed: float = 0.03125,
+    jitter: float = 0.0,
+) -> str:
+    """Strum simultaneous notes — convert block chords into guitar-style strums.
+
+    Finds groups of notes that start at the same position (within a small
+    tolerance) and offsets them in time to simulate a pick or strum crossing
+    the strings. This transforms static chord pads into lifelike guitar parts.
+
+    direction: Strum direction:
+    - "down" — low to high (bass strings first, treble last). Default for
+      downstrokes. Most natural for guitar.
+    - "up" — high to low (treble first, bass last). Upstroke feel.
+    - "random" — random order per chord. Banjo/ukulele feel.
+
+    speed: Time between consecutive strings in beats. 0.03125 = 1/32 note
+      (fast shred), 0.0625 = 1/16 (standard strum), 0.125 = 1/8 (slow
+      arpeggiated strum), 0.25 = 1/4 (very slow, harp-like).
+      Range 0.005 to 0.5.
+
+    jitter: Random timing variation per string (0.0 = exact, 0.02 = ±2% of
+      speed as humanization). Adds realism. Range 0.0-0.1.
+
+    Notes are sorted by pitch within each chord group, then offset by
+    speed × index from the original start position. The first note stays
+    at the original position; subsequent notes are delayed.
+
+    unit_index: AU index (-1 = all AUs).
+    track_index: Note track index (-1 = all note tracks on the AU).
+    region_index: Region index (-1 = all regions on the track).
+
+    Returns per-track chord groups found, notes strummed.
+
+    Example:
+      # Standard downstroke — 1/16 between strings
+      strum_notes(unit_index=0, track_index=2, direction="down", speed=0.0625)
+
+      # Slow harp-like arpeggiation
+      strum_notes(unit_index=0, track_index=2, direction="down", speed=0.25)
+
+      # Upstroke with humanization
+      strum_notes(unit_index=0, track_index=2, direction="up", speed=0.0625, jitter=0.03)
+    """
+    if direction not in ("down", "up", "random"):
+        return f"Error: direction must be 'down', 'up', or 'random', got '{direction}'"
+    if not (0.005 <= speed <= 0.5):
+        return "Error: speed must be 0.005-0.5 beats"
+    if not (0.0 <= jitter <= 0.1):
+        return "Error: jitter must be 0.0-0.1"
+
+    speed_ppqn = round(speed * 960)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const regionIdx = {region_index};
+        const dir = "{direction}";
+        const speedPpqn = {speed_ppqn};
+        const jitterAmt = {jitter};
+        const tolerance = 10; // PPQN tolerance for "simultaneous"
+
+        const allUnits = h.allAUBoxes();
+        const trackResults = [];
+
+        const unitsToProcess = unitIdx < 0 ? allUnits : [allUnits[unitIdx]];
+        if (unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+
+        for (let u = 0; u < unitsToProcess.length; u++) {{
+            const au = unitsToProcess[u];
+            const tracks = h.trackBoxes(au);
+            const tracksToProcess = trackIdx < 0 ? tracks : [tracks[trackIdx]];
+            if (trackIdx >= tracks.length) return {{error: "track_index out of range"}};
+
+            for (let t = 0; t < tracksToProcess.length; t++) {{
+                const track = tracksToProcess[t];
+                const regions = h.regionBoxes(track);
+                if (regions.length === 0) continue;
+                const regionsToProcess = regionIdx < 0 ? regions : [regions[Math.min(regionIdx, regions.length - 1)]];
+
+                for (const region of regionsToProcess) {{
+                    const eventsField = region.events.targetVertex.unwrap();
+                    const collBox = eventsField.box;
+                    const noteEvents = [...collBox.events.pointerHub.incoming()];
+                    if (noteEvents.length === 0) continue;
+
+                    // Group notes by position (simultaneous = same position within tolerance)
+                    const groups = new Map();
+                    for (const n of noteEvents) {{
+                        const pos = n.box.position.getValue();
+                        let groupKey = -1;
+                        for (const [key] of groups) {{
+                            if (Math.abs(pos - key) <= tolerance) {{
+                                groupKey = key;
+                                break;
+                            }}
+                        }}
+                        if (groupKey === -1) {{
+                            groupKey = pos;
+                            groups.set(groupKey, []);
+                        }}
+                        groups.get(groupKey).push(n);
+                    }}
+
+                    let strummedCount = 0;
+                    let chordGroups = 0;
+
+                    h.modify(() => {{
+                        for (const [origPos, notes] of groups) {{
+                            if (notes.length < 2) continue; // solo note, no strum needed
+                            chordGroups++;
+
+                            // Sort by pitch
+                            let sorted = notes.slice().sort((a, b) => {{
+                                return a.box.pitch.getValue() - b.box.pitch.getValue();
+                            }});
+
+                            if (dir === "up") {{
+                                sorted = sorted.reverse();
+                            }} else if (dir === "random") {{
+                                // Fisher-Yates shuffle
+                                for (let i = sorted.length - 1; i > 0; i--) {{
+                                    const j = Math.floor(Math.random() * (i + 1));
+                                    [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
+                                }}
+                            }}
+
+                            // Offset each note by speed * index
+                            for (let i = 0; i < sorted.length; i++) {{
+                                let offset = i * speedPpqn;
+                                if (jitterAmt > 0) {{
+                                    offset += Math.round((Math.random() - 0.5) * 2 * jitterAmt * speedPpqn);
+                                }}
+                                const newPos = Math.max(0, origPos + offset);
+                                sorted[i].box.position.setValue(newPos);
+                                strummedCount++;
+                            }}
+                        }}
+                    }});
+
+                    trackResults.push({{
+                        unit: u,
+                        track: t,
+                        chord_groups: chordGroups,
+                        notes_strummed: strummedCount,
+                        direction: dir,
+                        speed_beats: {speed},
+                    }});
+                }}
+            }}
+        }}
+
+        return {{
+            success: true,
+            direction: dir,
+            speed_beats: {speed},
+            jitter: {jitter},
+            tracks_processed: trackResults.length,
+            per_track: trackResults,
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+@mcp.tool()
 async def mcp_opendaw_force_scale_notes(
     unit_index: int = -1,
     track_index: int = -1,

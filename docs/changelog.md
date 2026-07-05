@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.229.0 (2026-07-05)
+
+### Added
+- `strum_notes` — Guitar-style strumming: converts simultaneous chord notes into time-offset strums. Groups notes by position (tolerance 10 PPQN), sorts by pitch, offsets each by speed × index. 3 directions: down (low→high, default), up (high→low), random (Fisher-Yates shuffle, banjo/ukulele feel). Speed: 0.03125 (1/32, fast shred) to 0.5 (1/2, harp-like). jitter for humanization (±% of speed per string). Reports chord_groups found, notes_strummed per track. 13 unit tests. **404 MCP tools**, 2904 unit tests
+
 ## v1.228.0 (2026-07-05)
 
 ### Added
