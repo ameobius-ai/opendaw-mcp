@@ -219,6 +219,33 @@ await mcp_opendaw_remix_track(
 await mcp_opendaw_render_full(filename="remix_final")
 ```
 
+### Audio-to-MIDI transcription (new)
+
+Three tools convert audio into editable MIDI — extract drums, melody, or both:
+
+```python
+# 1. Drum transcription — kick/snare/hat from any audio
+result = await mcp_opendaw_transcribe_drums("/tmp/suno_track.wav", bpm=120)
+# → {notes_created: 42, band_counts: {kick: 12, snare: 8, hat: 22}}
+
+# 2. Melody transcription — pitched notes (bass, vocal, lead)
+result = await mcp_opendaw_transcribe_melody("/tmp/suno_track.wav", bpm=120)
+# → {notes_created: 15, avg_clarity: 0.78}
+
+# 3. Composite — drums + melody in one call on 2 tracks
+result = await mcp_opendaw_transcribe_audio("/tmp/suno_track.wav", bpm=0)
+# → bpm auto-detected, drums on track 0, melody on track 1
+
+# Full Suno-to-MIDI-remix pipeline:
+# 1. Generate track with Suno (chirp_generate)
+# 2. Download audio
+# 3. Transcribe to MIDI
+# 4. Replace instruments, quantize, rearrange
+# 5. Render
+await mcp_opendaw_transcribe_audio("/tmp/suno_track.wav")
+# → full MIDI reconstruction on 2 tracks, ready to edit
+```
+
 ### Region operations
 
 ```python
@@ -467,7 +494,7 @@ async def suno_to_opendaw_full(suno_url: str):
 - `opendaw-track-architecture` — tracks, regions, clips, notes, tempo
 - `opendaw-sound-design` — instruments + scriptable DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain, render
-- `opendaw-automation` — 377 MCP tools full API reference
+- `opendaw-automation` — 382 MCP tools full API reference
 
 ## Tooling
 
@@ -480,7 +507,7 @@ async def suno_to_opendaw_full(suno_url: str):
 - **Remix**: `mcp_opendaw_remix_track` (7-step pipeline in one call)
 - **Import**: `mcp_opendaw_import_audio_to_tracks` (file → stems → tracks, one call)
 - **Stem splitter**: `mcp_opendaw_split_stems` (7 modes, GPU local)
-- **openDAW MCP**: 377 tools (v1.198.0)
+- **openDAW MCP**: 382 tools (v1.206.0)
 - **DSP scripts**: 108 scripts (88 Werkstatt + 9 Apparat + 10 Spielwerk)
 - **Mix**: `apply_genre_mix` (15 genres), `apply_full_mix` (one-call chains+mastering)
 - **Master**: `add_mastering_chain` (EQ + comp + maximizer, LUFS targeting)

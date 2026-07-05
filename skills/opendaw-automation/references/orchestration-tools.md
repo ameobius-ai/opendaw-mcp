@@ -8,7 +8,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 
 ## Tools Added (v1.10.0, 255 total → v1.198.0, 377 total)
 
-85+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+120+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
 ### Full orchestration tool list (v1.198.0)
 1. `create_notes_batch` — batch note creation from JSON
@@ -125,6 +125,11 @@ Orchestration tools solve this by combining multiple low-level operations into a
 112. `create_progression_from_key` — diatonic auto-progression from key+mode (6 styles, 12 templates)
 113. `analyze_track` — composite analysis: BPM + key + LUFS + duration + dynamic range (one call)
 114. `remix_track` — full Suno remix pipeline: analyze → set_bpm → import → progression → harmony → mix → master (7 steps, one call)
+115. `create_lofi_arrangement` — lofi hip-hop 4-track (boom-bap + jazzy ii-V-I + sleepy pentatonic, 78 BPM)
+116. `create_soul_arrangement` — Motown/Stax soul 4-track (gospel drums + walking bass + Rhodes I-IV-vi-V + Motown horns, 72 BPM)
+117. `transcribe_drums` — audio-to-MIDI drum transcription (band-split onset detection: kick/snare/hat, pure Python)
+118. `transcribe_melody` — audio-to-MIDI melody transcription (autocorrelation pitch detection, cents + clarity, pure Python)
+119. `transcribe_audio` — composite drum + melody transcription in one call (2 tracks, auto-BPM)
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

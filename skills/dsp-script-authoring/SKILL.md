@@ -539,6 +539,8 @@ process(io, block) {
 | `werkstatt_svf.js` | State variable filter | Chamberlin topology: HP=input-LP-q*BP, BP+=f*HP, LP+=f*BP, morph blend LP→BP→HP, notch/allpass modes, tanh soft-clip |
 | `werkstatt_chorus.js` | Modulated delay | LFO + fractional read |
 | `werkstatt_phaser.js` | Allpass cascade | 6-stage allpass + quadrature LFO |
+| `werkstatt_spectral_enhancer.js` | Spectral enhancer | STFT radix-2 FFT, Hann window, high-freq air boost above crossover, spectral peak emphasis, transient enhancement, stereo widening |
+| `werkstatt_formant_shifter.js` | Formant shifter | LPC Levinson-Durbin, lattice filter, formant frequency scaling independent of pitch, gender/age morphing |
 | `werkstatt_lookahead.js` | Compressor | envelope follower + lookahead buffer |
 | `werkstatt_shimmer.js` | Pitch-shift delay | delay buffer + pitch shift + feedback |
 | `werkstatt_paulstretch.js` | Extreme stretch | FFT phase randomization |
@@ -598,6 +600,6 @@ await mcp_opendaw_save_effect_preset(unit_index, effect_index, "My Preset", "Des
 ## Related Skills
 
 - `opendaw-sound-design` — using existing instruments + DSP scripts (this skill is about WRITING new ones)
-- `opendaw-automation` — 377 MCP tools, ScriptCompiler internals, bridge API
+- `opendaw-automation` — 382 MCP tools, ScriptCompiler internals, bridge API
 - `adaptive-mix-mastering` — where custom DSP fits in the mix pipeline
 - `suno-to-opendaw` — full Suno→openDAW workflow
