@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 526 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riff"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 527 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riff"
 ---
 
 # openDAW Composition Patterns
@@ -78,6 +78,7 @@ What do you want to create?
 ├── Adaptive mastering → auto_master (meta-tool: analyze → mastering chain → auto-gain, 6 platforms, 4 styles, LUFS targeting)
 ├── Ultimate pipeline → produce_and_master (7 steps: BPM → arrange → drums → bass → genre FX → master → render, ONE CALL = complete mastered track)
 ├── Verse (storytelling) → create_verse (5 types: narrative/sparse/driving/conversational/build, lower energy, lyrics lead)
+├── Chorus (emotional peak) → create_chorus (5 types: anthemic/hooky/driving/soaring/call_response, higher energy, the hook)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)
 ├── Bassline (walking jazz) → create_walking_bass (chord progression input)
 ├── Arpeggio → create_arpeggio (up/down/updown/random, octaves)

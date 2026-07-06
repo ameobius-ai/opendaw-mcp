@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.363.0 (2026-07-06)
+
+- **`create_chorus`** — Chorus section generator: the emotional peak, the hook, the memorable part. 5 types: anthemic (big wide sustained notes, octave jumps, I-V-vi-IV, stadium), hooky (short catchy 2-bar phrase repeated, earworm), driving (relentless 16th notes), soaring (melody climbs higher, peak note near end, crescendo), call_response (antecedent-consequent, question then answer). 3 scales, 4-16 bars. Seeded PRNG. 25 unit tests. 527 MCP tools. Section generators now COMPLETE — all 10 song sections have standalone generators.
+
 ## v1.362.0 (2026-07-06)
 
 - **`create_verse`** — Verse section generator: the storytelling section of a song. 5 types: narrative (steady stepwise melody, beats 1&3, passing tones), sparse (minimal chord tones, space for vocals), driving (continuous 8th notes, forward momentum), conversational (short phrases with speech-like rests, call-response), build (gradually increasing density and velocity toward chorus). 3 scales, 4-16 bars. Seeded PRNG. 26 unit tests. 526 MCP tools. Fills the gap in section generators — verse was the missing piece.

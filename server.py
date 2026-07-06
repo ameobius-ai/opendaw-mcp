@@ -62926,3 +62926,230 @@ async def mcp_opendaw_create_verse(
     }.get(verse_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_chorus(
+    chorus_type: str = "anthemic",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 8,
+    velocity: float = 0.8,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a chorus — the emotional peak, the hook, the memorable part.
+
+    The chorus is what listeners remember. Unlike verses (which advance the
+    story), the chorus repeats — same melody, same lyrics, same hook.
+    Musically, choruses are:
+    - Higher energy than verse (higher velocity, denser notes)
+    - Melody reaches higher registers (often the highest notes of the song)
+    - Rhythm is more propulsive, driving
+    - Chord progression resolves to tonic (sense of arrival)
+    - Often doubles the melodic density of the verse
+
+    Chorus types:
+    - **anthemic**: Big, wide, stadium-filling. Long sustained notes on
+      beats 1 and 3, octave jumps, full harmonic support. The "everyone
+      sings along" chorus. Good for rock, pop, worship, stadium EDM.
+    - **hooky**: Short, catchy, repetitive melodic motif that sticks.
+      2-bar phrase repeated with slight variations. The "earworm" chorus.
+      Good for pop, dance, commercial music.
+    - **driving**: Relentless rhythmic energy. 16th note melodic pattern,
+      no letup. The chorus that makes you move. Good for EDM, punk, rock.
+    - **soaring**: Melody climbs higher and higher, reaching the peak note
+      near the end. Emotional, cinematic. Good for ballads, film scores,
+      power ballads, EDM drops.
+    - **call_response**: Antecedent-consequent phrasing — a melodic
+      question followed by an answer. Two phrases per bar, conversational.
+      Good for pop, R&B, gospel, funk.
+
+    chorus_type: anthemic | hooky | driving | soaring | call_response
+    key_root: Root note (C, C#, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (4-16)
+    velocity: Base velocity 0-1 (chorus is typically 0.75-0.9)
+    seed: PRNG seed
+
+    Example:
+      create_chorus(chorus_type="anthemic", key_root="G", scale_type="major", bars=8)
+      create_chorus(chorus_type="hooky", key_root="A", scale_type="minor", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["anthemic", "hooky", "driving", "soaring", "call_response"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if chorus_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid chorus_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (2 <= octave <= 6):
+        return json.dumps({"error": "octave must be 2-6"})
+    if not (4 <= bars <= 16):
+        return json.dumps({"error": "bars must be 4-16"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+
+    if chorus_type == "anthemic":
+        # Big wide sustained notes, octave jumps, stadium feel
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.85 + 0.15 * next(rng))
+            # I-V-vi-IV progression (the "pop progression")
+            prog = [0, 4, 5, 3]
+            deg = prog[bar % len(prog)]
+            # Big sustained note on beat 1
+            notes.append({"pitch": deg_to_pitch(deg, 1), "start": round(start_beat + bar_start, 4),
+                          "duration": 2.0, "velocity": round(v, 3)})
+            # Octave jump on beat 3
+            notes.append({"pitch": deg_to_pitch(deg, 2), "start": round(start_beat + bar_start + 2, 4),
+                          "duration": 1.5, "velocity": round(v * 0.95, 3)})
+            # Harmonic support: 3rd above
+            notes.append({"pitch": deg_to_pitch(deg + 2, 1), "start": round(start_beat + bar_start, 4),
+                          "duration": 2.0, "velocity": round(v * 0.7, 3)})
+
+    elif chorus_type == "hooky":
+        # Short catchy 2-bar phrase repeated with slight variations
+        hook_pattern = [
+            (0, 0.0, 0.5), (2, 0.5, 0.25), (4, 0.75, 0.25),
+            (0, 1.0, 0.5), (7, 1.5, 0.25), (4, 1.75, 0.25),
+            (2, 2.0, 0.5), (0, 2.5, 0.5),
+            (4, 3.0, 0.25), (2, 3.25, 0.25), (0, 3.5, 0.5),
+        ]
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.8 + 0.2 * next(rng))
+            # Repeat hook every 2 bars with slight variation
+            for deg, beat, dur in hook_pattern:
+                # Variation: shift octave on odd repeats
+                oct_shift = 1 if bar % 2 == 1 else 0
+                pitch = deg_to_pitch(deg, oct_shift)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+    elif chorus_type == "driving":
+        # Relentless 16th note pattern, no letup
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity
+            for beat_idx in range(16):
+                beat = beat_idx * 0.25
+                # Ascending/descending scale pattern
+                deg = (bar * 4 + beat_idx) % ns
+                # Accent on downbeats
+                v_adj = v * (1.0 if beat_idx % 4 == 0 else 0.65)
+                dur = 0.2
+                notes.append({"pitch": deg_to_pitch(deg, 1), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": dur, "velocity": round(v_adj, 3)})
+
+    elif chorus_type == "soaring":
+        # Melody climbs higher, reaching peak near end
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            progress = bar / max(bars - 1, 1)
+            v = velocity * (0.7 + 0.3 * progress)  # crescendo
+            # Start on 3rd, climb to 5th, octave, then highest near end
+            degree_map = [2, 4, 0, 4]
+            deg = degree_map[bar % len(degree_map)]
+            oct_shift = int(progress * 2)  # climb up to 2 octaves
+            # Long sustained note climbing
+            notes.append({"pitch": deg_to_pitch(deg, oct_shift), "start": round(start_beat + bar_start, 4),
+                          "duration": 3.0, "velocity": round(v, 3)})
+            # Passing note on beat 4
+            pass_deg = (deg + 1) % ns
+            notes.append({"pitch": deg_to_pitch(pass_deg, oct_shift), "start": round(start_beat + bar_start + 3, 4),
+                          "duration": 0.5, "velocity": round(v * 0.6, 3)})
+            # Peak note on last bar
+            if bar == bars - 1:
+                peak_deg = 4  # 5th (highest common note)
+                notes.append({"pitch": deg_to_pitch(peak_deg, oct_shift + 1), "start": round(start_beat + bar_start + 3.5, 4),
+                              "duration": 0.5, "velocity": round(v, 3)})
+
+    elif chorus_type == "call_response":
+        # Antecedent-consequent: question then answer
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.8 + 0.2 * next(rng))
+            # Question phrase: beats 0-1.5 (ascending)
+            q_degrees = [0, 2, 4]
+            for i, deg in enumerate(q_degrees):
+                beat = i * 0.5
+                notes.append({"pitch": deg_to_pitch(deg, 1), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": 0.4, "velocity": round(v, 3)})
+            # Rest on beat 1.5-2
+            # Answer phrase: beats 2-3.5 (descending, resolving)
+            a_degrees = [4, 2, 0]
+            for i, deg in enumerate(a_degrees):
+                beat = 2 + i * 0.5
+                dur = 0.5 if i == len(a_degrees) - 1 else 0.4
+                notes.append({"pitch": deg_to_pitch(deg, 1), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": dur, "velocity": round(v * 0.9, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["chorus"] = True
+    data["chorus_type"] = chorus_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["octave"] = octave
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "anthemic": "big wide sustained notes, octave jumps, stadium-filling, everyone sings along",
+        "hooky": "short catchy repetitive motif, earworm, 2-bar phrase with variations",
+        "driving": "relentless 16th note pattern, no letup, makes you move",
+        "soaring": "melody climbs higher and higher, peak note near end, emotional cinematic",
+        "call_response": "antecedent-consequent phrasing, melodic question then answer, conversational",
+    }.get(chorus_type, "")
+
+    return json.dumps(data, indent=2)
