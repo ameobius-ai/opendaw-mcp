@@ -63148,3 +63148,195 @@ async def mcp_opendaw_create_chorus(
     }.get(chorus_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_kpop_arrangement(
+    key_root: str = "C",
+    bpm: int = 128,
+    bars: int = 16,
+    velocity: float = 0.8,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a K-pop arrangement — 128 BPM high-energy commercial pop.
+
+    K-pop (BTS, Blackpink, Stray Kids, TWICE, EXO, Red Velvet):
+    - Polished, maximalist production with multiple sections
+    - 4-on-floor kick with crisp modern snare
+    - Driving bassline that follows root with octave jumps
+    - Catchy melodic lead with wide intervals and syncopation
+    - Bright chord stabs on offbeats (positive, uplifting harmony)
+    - 120-135 BPM, 4/4 time
+    - High energy, polished, commercial — designed to be earworm
+
+    Creates 4 tracks:
+    1. Drums (track_index): 4-on-floor kick, snare on 2&4, crisp hats
+       on 16ths with velocity variation, occasional open hat on offbeat
+    2. Bass (track_index+1): Driving bassline — root on beat 1, octave
+       on beat 3, passing tones on offbeats, follows chord progression
+    3. Lead (track_index+2): Catchy melodic lead with wide intervals,
+       syncopated phrasing, call-response pattern, bright major scale
+    4. Chords (track_index+3): Bright chord stabs on offbeats 1.5 and 3.5,
+       I-V-vi-IV progression (the pop progression), positive uplifting
+
+    Default key: C major (bright, commercial, K-pop standard).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    # MIDI pitches (GM)
+    KICK = 36
+    SNARE = 38
+    CLOSED_HAT = 42
+    OPEN_HAT = 46
+    CLAP = 39  # K-pop uses claps layered with snare
+
+    # C major scale
+    major_scale = [0, 2, 4, 5, 7, 9, 11]
+    bass_oct = (2 + 1) * 12 + root_pc
+    lead_oct = (4 + 1) * 12 + root_pc
+    chord_oct = (3 + 1) * 12 + root_pc
+
+    # I-V-vi-IV progression (K-pop standard, the "pop progression")
+    # In C major: C, G, Am, F
+    prog_degrees = [0, 4, 5, 3]  # I, V, vi, IV
+
+    notes = []
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+        prog_idx = bar % len(prog_degrees)
+        deg = prog_degrees[prog_idx]
+
+        # === DRUMS (track_index) ===
+        # 4-on-floor
+        for beat in range(4):
+            notes.append({"pitch": KICK, "start": round(bar_start + beat, 4),
+                          "duration": 0.5, "velocity": velocity,
+                          "track": track_index})
+        # Snare + clap on 2 & 4 (K-pop layers claps)
+        for beat in [1, 3]:
+            notes.append({"pitch": SNARE, "start": round(bar_start + beat, 4),
+                          "duration": 0.3, "velocity": velocity * 0.9,
+                          "track": track_index})
+            notes.append({"pitch": CLAP, "start": round(bar_start + beat, 4),
+                          "duration": 0.2, "velocity": velocity * 0.6,
+                          "track": track_index})
+        # Crisp 16th hats with velocity variation
+        for h in range(16):
+            beat = h * 0.25
+            v = velocity * (0.25 + 0.15 * (h % 2) + 0.1 * (1 if h % 4 == 0 else 0))
+            if h % 4 == 2:
+                notes.append({"pitch": OPEN_HAT, "start": round(bar_start + beat, 4),
+                              "duration": 0.15, "velocity": round(v * 0.7, 3),
+                              "track": track_index})
+            else:
+                notes.append({"pitch": CLOSED_HAT, "start": round(bar_start + beat, 4),
+                              "duration": 0.08, "velocity": round(v, 3),
+                              "track": track_index})
+
+        # === BASS (track_index + 1) ===
+        # Driving bassline: root on 1, octave on 3, passing tones on offbeats
+        bass_pattern = [
+            (deg, 0.0, 0.5),       # root on 1
+            (deg, 0.5, 0.25),      # root 16th
+            (deg + 2, 0.75, 0.25), # 3rd passing
+            (deg, 1.0, 0.5),       # root on 2
+            (deg + 7, 1.5, 0.25),  # octave
+            (deg, 1.75, 0.25),     # root
+            (deg, 2.0, 0.5),       # root on 3
+            (deg + 4, 2.5, 0.25),  # 5th
+            (deg, 2.75, 0.25),     # root
+            (deg, 3.0, 0.5),       # root on 4
+            (deg + 2, 3.5, 0.25),  # 3rd passing
+            (deg, 3.75, 0.25),     # root
+        ]
+        for b_deg, beat, dur in bass_pattern:
+            pitch = bass_oct + major_scale[b_deg % 7]
+            notes.append({"pitch": pitch, "start": round(bar_start + beat, 4),
+                          "duration": dur, "velocity": velocity * 0.85,
+                          "track": track_index + 1})
+
+        # === LEAD (track_index + 2) ===
+        # Catchy melodic lead with wide intervals and syncopation
+        lead_pattern = [
+            (deg, 0.0, 0.5),        # root
+            (deg + 4, 0.5, 0.25),   # 5th (wide interval)
+            (deg + 2, 0.75, 0.25),  # 3rd
+            (deg, 1.0, 0.5),        # root
+            (deg + 7, 1.5, 0.25),   # octave (wide jump)
+            (deg + 4, 1.75, 0.25),  # 5th
+            # Rest on beat 2-2.5 (call-response gap)
+            (deg + 2, 2.5, 0.25),   # 3rd
+            (deg, 2.75, 0.25),      # root
+            (deg + 4, 3.0, 0.5),    # 5th
+            (deg + 7, 3.5, 0.25),   # octave
+            (deg + 9, 3.75, 0.25),  # 6th (syncopation)
+        ]
+        for l_deg, beat, dur in lead_pattern:
+            pitch = lead_oct + major_scale[l_deg % 7]
+            v = velocity * (0.7 + 0.1 * (l_deg % 3))
+            notes.append({"pitch": pitch, "start": round(bar_start + beat, 4),
+                          "duration": dur, "velocity": round(v, 3),
+                          "track": track_index + 2})
+
+        # === CHORDS (track_index + 3) ===
+        # Bright chord stabs on offbeats 1.5 and 3.5
+        chord_intervals = [0, 2, 4]  # root, 3rd, 5th (triad)
+        for beat in [1.5, 3.5]:
+            for interval in chord_intervals:
+                pitch = chord_oct + major_scale[(deg + interval) % 7]
+                notes.append({"pitch": pitch, "start": round(bar_start + beat, 4),
+                              "duration": 0.2, "velocity": velocity * 0.55,
+                              "track": track_index + 3})
+        # Extra stab on beat 4 of every 4th bar (build tension)
+        if bar % 4 == 3:
+            for interval in [0, 4, 7]:
+                pitch = chord_oct + major_scale[(deg + interval) % 7]
+                notes.append({"pitch": pitch, "start": round(bar_start + 3.75, 4),
+                              "duration": 0.15, "velocity": velocity * 0.6,
+                              "track": track_index + 3})
+
+    # Sort by start time
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    # Batch create notes per track
+    results_per_track = {}
+    for track_idx in range(track_index, track_index + 4):
+        track_notes = [n for n in notes if n["track"] == track_idx]
+        if track_notes:
+            clean_notes = [{k: v for k, v in n.items() if k != "track"} for n in track_notes]
+            r = await mcp_opendaw_create_notes_batch(
+                json.dumps(clean_notes), unit_index, track_idx)
+            try:
+                d = json.loads(r)
+                results_per_track[track_idx] = d.get("notes_created", len(clean_notes))
+            except Exception:
+                results_per_track[track_idx] = len(clean_notes)
+
+    return json.dumps({
+        "kpop_arrangement": True,
+        "key_root": key_root,
+        "scale": "major",
+        "bpm": bpm,
+        "bars": n_bars,
+        "tracks_created": 4,
+        "notes_created": len(notes),
+        "track_notes": results_per_track,
+        "progression": "I-V-vi-IV (C-G-Am-F in C major)",
+        "characteristics": "polished maximalist pop, 4-on-floor, clap+snare, catchy wide-interval lead, bright chord stabs, earworm",
+        "references": "BTS, Blackpink, Stray Kids, TWICE, EXO, Red Velvet",
+        "next_steps": [
+            "Use add_genre_effects('pop') for compression + reverb chain",
+            "Use auto_master for final mastering",
+            "Use render_full to render the arrangement",
+        ],
+    }, indent=2)

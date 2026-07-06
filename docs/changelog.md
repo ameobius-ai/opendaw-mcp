@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.365.0 (2026-07-06)
+
+- **`create_kpop_arrangement`** — K-pop arrangement (BTS/Blackpink/Stray Kids/TWICE/EXO style). Polished maximalist pop: 4-on-floor with clap+snare layering, driving bassline with octave jumps, catchy wide-interval lead with call-response phrasing, bright I-V-vi-IV chord stabs. C major, 128 BPM, 16 bars, 4 tracks. 21 unit tests. 528 MCP tools. 38 genre arrangements.
+- **`arrange_full_song` upgraded (v1.364.0)** — Now uses dedicated `create_verse` and `create_chorus` generators instead of `create_arpeggio`. All 10 song sections use proper standalone generators.
+
 ## v1.364.0 (2026-07-06)
 
 - **`arrange_full_song` upgraded** — Now uses dedicated `create_verse` and `create_chorus` generators instead of `create_arpeggio`. All 10 song sections now use their proper standalone generators with type variants. Verse = narrative type, chorus = anthemic type, with automatic velocity scaling (chorus 1.15x, verse 0.85x).
