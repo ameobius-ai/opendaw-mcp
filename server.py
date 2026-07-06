@@ -36197,6 +36197,278 @@ async def mcp_opendaw_create_l_system_melody(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_montuno(
+    root: str = "C",
+    scale: str = "major",
+    bars: int = 2,
+    octave: int = 4,
+    chord_prog: str = "",
+    pattern: str = "2-3",
+    rhythm: str = "8th",
+    velocity: float = 0.65,
+    accent_beats: str = "1,3",
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a montuno — a repeating Latin/jazz piano ostinato pattern.
+
+    A montuno is a 2-bar (or 4-bar) repeating piano figure central to son,
+    salsa, Latin jazz, and mambo. It consists of syncopated chord stabs and
+    single-note passages that lock with the clave, creating a driving,
+    danceable groove.
+
+    Unlike arpeggiators (which cycle through chord tones mechanically) or
+    ostinato patterns (which repeat a fixed melodic cell), a montuno combines:
+    - Harmonic movement through a chord progression
+    - Syncopated rhythm locked to the clave
+    - Alternation between chord stabs and melodic passage notes
+    - Call-and-response phrasing within each bar
+
+    Pattern types:
+      2-3     — Classic 2-3 clave montuno (2-side in bar 1, 3-side in bar 2)
+      3-2     — Reverse clave (3-side first, 2-side second)
+      guajira  — Cuban guajira montuno (gentler, dotted rhythm feel)
+      charanga — Charanga-style (more melodic, flowing passages)
+
+    Rhythm:
+      8th     — Eighth-note based (standard salsa)
+      16th    — Sixteenth-note based (faster, busier)
+      quarter — Quarter-note based (simpler, mambo style)
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, dorian, mixolydian, harmonic_minor).
+        bars: Number of bars (2 or 4). Montunos are typically 2-bar cycles.
+        octave: Starting MIDI octave (2-6).
+        chord_prog: Comma-separated chord progression (e.g., "C,Am,Dm,G").
+            If empty, generates a I-vi-IV-V progression in the key.
+        pattern: Pattern type (2-3, 3-2, guajira, charanga).
+        rhythm: Rhythm subdivision (8th, 16th, quarter).
+        velocity: Base velocity 0-1.
+        accent_beats: Comma-separated beat numbers to accent (1-indexed).
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, chord progression, and pattern info.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS, CHORD_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["major"])
+
+    if not (2 <= bars <= 4):
+        return f"Error: bars must be 2 or 4, got {bars}"
+    if not (2 <= octave <= 6):
+        return f"Error: octave must be 2-6, got {octave}"
+    if pattern not in ("2-3", "3-2", "guajira", "charanga"):
+        return f"Error: pattern must be 2-3, 3-2, guajira, or charanga, got {pattern}"
+    if rhythm not in ("8th", "16th", "quarter"):
+        return f"Error: rhythm must be 8th, 16th, or quarter, got {rhythm}"
+
+    # Parse accent beats
+    try:
+        accent_set = set()
+        if accent_beats:
+            for b in accent_beats.split(","):
+                accent_set.add(int(b.strip()))
+    except (ValueError, TypeError):
+        accent_set = {1, 3}
+
+    # Build chord progression
+    if chord_prog:
+        chords = [c.strip() for c in chord_prog.split(",")]
+    else:
+        # Default: I-vi-IV-V in the key
+        # Map scale degrees to chord qualities
+        degree_chords = []
+        for i, iv in enumerate(intervals):
+            chord_root = (root_num + iv) % 12
+            # Determine chord quality from scale
+            if i == 0 or i == 3 or i == 4:  # I, IV, V = major
+                quality = "maj"
+            elif i == 1 or i == 2 or i == 5:  # ii, iii, vi = minor
+                quality = "min"
+            else:  # vii = dim
+                quality = "dim"
+            degree_chords.append((chord_root, quality))
+        # I-vi-IV-V (degrees 0, 5, 3, 4)
+        default_prog = [degree_chords[0], degree_chords[5 % len(degree_chords)],
+                        degree_chords[3 % len(degree_chords)], degree_chords[4 % len(degree_chords)]]
+        chords = []
+        for cr, q in default_prog[:bars]:
+            name = [k for k, v in NOTE_NAMES.items() if v == cr][0]
+            if q == "min":
+                name += "m"
+            elif q == "dim":
+                name += "dim"
+            chords.append(name)
+
+    # Rhythm subdivision
+    if rhythm == "8th":
+        subdiv = 0.5
+    elif rhythm == "16th":
+        subdiv = 0.25
+    else:  # quarter
+        subdiv = 1.0
+
+    # Montuno rhythm patterns per bar (which slots to play)
+    # 2-3 clave: bar 1 has 2 syncopated hits, bar 2 has 3
+    if pattern == "2-3":
+        bar1_slots = [0, 3]  # beat 1, and-of-2
+        bar2_slots = [0, 2, 4] if rhythm != "quarter" else [0, 1, 2]  # beat 1, and-of-1, beat 2
+    elif pattern == "3-2":
+        bar1_slots = [0, 2, 4] if rhythm != "quarter" else [0, 1, 2]
+        bar2_slots = [0, 3]
+    elif pattern == "guajira":
+        # Dotted rhythm feel: longer-shorter pairs
+        bar1_slots = [0, 3, 6] if rhythm != "quarter" else [0, 2]
+        bar2_slots = [0, 3, 5] if rhythm != "quarter" else [0, 1, 3]
+    else:  # charanga
+        # More flowing, melodic passages
+        bar1_slots = [0, 1, 3, 5, 7] if rhythm == "8th" else [0, 2, 4, 6, 8, 10, 12, 14]
+        bar2_slots = [0, 2, 4, 6] if rhythm == "8th" else [0, 4, 8, 12]
+
+    # Helper: get chord pitches for a given chord name
+    def get_chord_pitches(chord_name):
+        if chord_name.endswith("m") and not chord_name.endswith("dim"):
+            base = chord_name[:-1]
+            quality = "min"
+        elif chord_name.endswith("dim"):
+            base = chord_name[:-3]
+            quality = "dim"
+        elif chord_name.endswith("maj7") or chord_name.endswith("7"):
+            base = chord_name[:-2] if chord_name.endswith("7") and not chord_name.endswith("maj7") else chord_name[:-3]
+            quality = "7"
+        else:
+            base = chord_name
+            quality = "maj"
+        base_num = NOTE_NAMES.get(base, 0)
+        chord_intervals = CHORD_INTERVALS.get(quality, CHORD_INTERVALS.get("maj", [0, 4, 7]))
+        pitches = []
+        for ci in chord_intervals:
+            pitches.append((octave + 1) * 12 + (base_num + ci) % 12)
+        return pitches, base_num, quality
+
+    # Generate montuno notes
+    notes = []
+
+    for bar_idx in range(bars):
+        chord = chords[bar_idx % len(chords)]
+        chord_pitches, chord_root, chord_quality = get_chord_pitches(chord)
+
+        # Select slots for this bar
+        if bar_idx % 2 == 0:
+            slots = bar1_slots
+        else:
+            slots = bar2_slots
+
+        for slot in slots:
+            beat_pos = bar_idx * 4 + slot * subdiv
+            beat_num = int(beat_pos) + 1
+
+            # Accent: first note of each chord and accent beats
+            is_accent = beat_num in accent_set or slot == 0
+            vel = velocity * (1.15 if is_accent else 0.85)
+            vel = max(0.0, min(1.0, vel))
+
+            # Determine what to play: chord stab or melodic passage note
+            if slot == 0 or (slot == slots[-1]):
+                # Chord stab: play 2-3 chord tones
+                for pi, p in enumerate(chord_pitches[:3]):
+                    notes.append({
+                        "pitch": p,
+                        "pos": round(beat_pos, 4),
+                        "dur": subdiv * 0.9,
+                        "vel": vel * (1.0 if pi == 0 else 0.85),
+                    })
+            else:
+                # Melodic passage: single chord tone, rotate through chord
+                note_idx = slot % len(chord_pitches)
+                notes.append({
+                    "pitch": chord_pitches[note_idx],
+                    "pos": round(beat_pos, 4),
+                    "dur": subdiv * 0.85,
+                    "vel": vel,
+                })
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            bars: {bars},
+            pattern: "{pattern}",
+            rhythm: "{rhythm}",
+            chord_progression: {json.dumps(chords)},
+            notes_created: created,
+            note_preview: noteEvents.slice(0, 12),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 

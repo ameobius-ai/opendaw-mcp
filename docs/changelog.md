@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.284.0 (2026-07-06)
+
+### Added
+- `create_montuno` — Latin/jazz piano montuno ostinato. 2-bar or 4-bar repeating figure with syncopated chord stabs and melodic passages. 4 patterns: 2-3 clave, 3-2 clave, guajira (dotted rhythm), charanga (flowing passages). 3 rhythms (8th/16th/quarter). Custom chord progression or auto I-vi-IV-V. Accent beats with velocity boost. Unlike arpeggiator (mechanical cycling), combines harmonic movement + syncopated rhythm + call-and-response phrasing.
+
 ## v1.283.0 (2026-07-06)
 
 ### Added
