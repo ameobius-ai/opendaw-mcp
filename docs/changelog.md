@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.309.0 (2026-07-06)
+
+- **`create_soli`** — Ensemble unison passage with octave doublings. All voices play the same melodic line in rhythmic unison at different octaves. 2-5 voices, adjustable octave spread (1-4). 14 scales (major through whole_tone). Scale degree input (0=root, 2=2nd, -1=7th below). Jazz big band soli (Basie/Ellington), orchestral tutti, rock/metal unison riffs. Outer voices full velocity, inner voices slightly reduced (0.85×). Unlike fugue (polyphonic imitation) or canon (delayed entry) — soli is simultaneous and homorhythmic. 32 unit tests. 484 MCP tools.
+
 ## v1.308.0 (2026-07-06)
 
 - **`create_reggae_percussion`** — Jamaican reggae drum patterns across 6 styles: one_drop (roots reggae, kick+snare on beat 3 "the drop"), rockers (kick 1+3, snare 2+4), steppers (four-on-the-floor, dub/roots), ska (fast upbeat, Skatalites), rocksteady (laid-back, behind-beat hats), dancehall (syncopated, programmed). GM percussion pitches. Swing parameter for ska. 13th world rhythm tradition. 37 unit tests. 483 MCP tools.

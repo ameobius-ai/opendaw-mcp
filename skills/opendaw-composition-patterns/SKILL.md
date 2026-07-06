@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 176 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.308.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 176 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.309.0"
 ---
 
 # openDAW Composition Patterns
@@ -42,6 +42,7 @@ What do you want to create?
 ├── Passacaglia (bass ostinato + harmonies) → create_passacaglia (repeating bass + block/arpeggiated/melodic variations, Bach/film/metal)
 ├── Ground bass (basso ostinato) → create_ground_bass (repeating bass + developing melody, 5 styles: baroque/modal/minimalist/film_tension/folk)
 ├── Chaconne (bass + chords + variations) → create_chaconne (repeating bass AND chord progression + variation melody, 5 styles: baroque/romantic/jazz/minimalist/contemporary)
+├── Soli (ensemble unison) → create_soli (all voices same melody in rhythmic unison, 2-5 voices, octave doublings, 14 scales, jazz big band/orchestral tutti/rock riffs)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 ├── Groove transfer (feel cloning) → groove_transfer (source drum groove → destination programmed track, timing + velocity feel)

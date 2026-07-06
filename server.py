@@ -29379,6 +29379,159 @@ async def mcp_opendaw_create_reggae_percussion(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_soli(
+    melody_pattern: str = "0 2 4 2 0 -1 0 3",
+    rhythm_pattern: str = "0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5",
+    key_root: str = "C",
+    scale_name: str = "major",
+    voices: int = 3,
+    octave_spread: int = 2,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a soli — ensemble unison passage with octave doublings.
+
+    A soli is a section where all instruments play the same melodic line
+    in rhythmic unison, typically at different octaves. Common in jazz
+    big band (Basie, Ellington, Herman), orchestral tutti passages, and
+    rock/metal unison riffs. Unlike a fugue (polyphonic imitation) or
+    canon (delayed entry), a soli is simultaneous and homorhythmic.
+
+    Melody pattern: space-separated scale degrees (0=root, 2=2nd, 4=3rd,
+    -1=7th below, etc.). Negative = below root.
+    Rhythm pattern: space-separated durations in beats.
+    Key root: C, C#, Db, D, ... B.
+    Scale: major, minor, dorian, phrygian, lydian, mixolydian, aeolian,
+    locrian, harmonic_minor, melodic_minor, pentatonic_major, pentatonic_minor,
+    blues, whole_tone.
+    Voices: 2-5 (e.g. 3 = root octave + 1 octave up + 2 octaves up).
+    Octave spread: how many octaves between lowest and highest voice.
+
+    Creates voices on track_index, track_index+1, ... track_index+voices-1.
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALE_INTERVALS = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],
+        "lydian": [0, 2, 4, 6, 7, 9, 11],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "aeolian": [0, 2, 3, 5, 7, 8, 10],
+        "locrian": [0, 1, 3, 5, 6, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+        "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+        "blues": [0, 3, 5, 6, 7, 10],
+        "whole_tone": [0, 2, 4, 6, 8, 10],
+    }
+
+    if scale_name not in SCALE_INTERVALS:
+        return json.dumps({"error": f"Invalid scale '{scale_name}'. Valid: {list(SCALE_INTERVALS.keys())}"})
+    if voices < 2 or voices > 5:
+        return json.dumps({"error": "voices must be 2-5"})
+    if octave_spread < 1 or octave_spread > 4:
+        return json.dumps({"error": "octave_spread must be 1-4"})
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    scale = SCALE_INTERVALS[scale_name]
+    # Root pitch at octave 3 (C3 = 48)
+    root_pitch = (3 + 1) * 12 + root_pc
+
+    # Parse melody and rhythm
+    degrees = [int(d) for d in melody_pattern.split()]
+    durations = [float(d) for d in rhythm_pattern.split()]
+    if len(durations) < len(degrees):
+        durations.extend([0.5] * (len(degrees) - len(durations)))
+    n_notes = len(degrees)
+
+    # Convert scale degree to pitch offset
+    def degree_to_pitch(degree):
+        """Convert scale degree to semitone offset from root."""
+        n_intervals = len(scale)
+        octave = degree // n_intervals
+        index = degree % n_intervals
+        if index < 0:
+            index += n_intervals
+            octave -= 1
+        return octave * 12 + scale[index]
+
+    # Generate notes for each voice
+    all_voice_notes = []
+    # Octave spacing between voices
+    if voices == 2:
+        octave_offsets = [0, 12 * octave_spread]
+    elif voices == 3:
+        octave_offsets = [0, 12 * (octave_spread // 2), 12 * octave_spread]
+    elif voices == 4:
+        octave_offsets = [0, 12 * (octave_spread // 3), 12 * (2 * octave_spread // 3), 12 * octave_spread]
+    else:  # 5
+        octave_offsets = [0, 12 * (octave_spread // 4), 12 * (octave_spread // 2), 12 * (3 * octave_spread // 4), 12 * octave_spread]
+
+    for v in range(voices):
+        voice_notes = []
+        beat = start_beat
+        octave_offset = octave_offsets[v]
+        # Velocity varies slightly per voice (inner voices slightly lower)
+        voice_vel = velocity * (1.0 if v == 0 or v == voices - 1 else 0.85)
+        for i in range(n_notes):
+            pitch = root_pitch + degree_to_pitch(degrees[i]) + octave_offset
+            dur = durations[i] if i < len(durations) else 0.5
+            voice_notes.append({
+                "pitch": pitch,
+                "start": round(beat, 4),
+                "duration": round(dur * 0.95, 4),
+                "velocity": round(max(0.0, min(1.0, voice_vel)), 3),
+            })
+            beat += dur
+        all_voice_notes.append(voice_notes)
+
+    # Create notes on separate tracks
+    results = []
+    for v in range(voices):
+        notes_json = json.dumps(all_voice_notes[v])
+        result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index + v)
+        results.append(result)
+
+    try:
+        data = json.loads(results[0])
+        data["soli"] = True
+        data["voices"] = voices
+        data["octave_spread"] = octave_spread
+        data["key_root"] = key_root
+        data["scale_name"] = scale_name
+        data["melody_pattern"] = melody_pattern
+        data["rhythm_pattern"] = rhythm_pattern
+        data["notes_per_voice"] = n_notes
+        data["total_notes"] = n_notes * voices
+        data["tracks_used"] = list(range(track_index, track_index + voices))
+        data["octave_offsets"] = octave_offsets
+        data["voice_results"] = []
+        for v, r in enumerate(results):
+            try:
+                data["voice_results"].append({
+                    "voice": v,
+                    "track": track_index + v,
+                    "status": json.loads(r).get("success", False)
+                })
+            except Exception:
+                data["voice_results"].append({"voice": v, "track": track_index + v, "status": False})
+        return json.dumps(data, indent=2)
+    except Exception:
+        return results[0]
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""
