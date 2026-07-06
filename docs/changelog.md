@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.343.0 (2026-07-06)
+
+- **`werkstatt_tank_reverb.js`** — Spring tank reverb (Accutronics Type 9). 4 dispersive delay lines, allpass dispersion for metallic "boing" character, damping lowpass, drive saturation into tank, stereo spread, predelay, DC blocker. 5 params: decay, damp, spread, drive, mix. 123 DSP scripts. Surf rock, dub, reggae, guitar amp reverb.
+
 ## v1.342.0 (2026-07-06)
 
 - **`create_coda`** — Coda section generator. 5 types: theme (final statement, fermata on last note), vamp (I-IV-V-I repeat with velocity fade), codetta (2-bar tag, scale run into tonic fermata), postlude (instrumental winding down after vocals), fanfare (ascending arpeggios + tutti hits, triumphant). 3 scales, 2-8 bars. Seeded PRNG. 34 unit tests. 515 MCP tools. Formal closing — concludes rather than fades.

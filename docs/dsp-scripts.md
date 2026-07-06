@@ -1,8 +1,8 @@
 # DSP Scripts
 
-110 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+104 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 91 scripts
+## Werkstatt (Audio Effects) — 104 scripts
 
 ### Dynamics (13)
 
@@ -23,6 +23,7 @@
 | `werkstatt_cassette_sim.js` | Cassette Tape Simulator (RC-20/SketchCassette style: wow 0.5-2Hz + flutter 13-33Hz pitch modulation via delay-line interpolation, asymmetric tape saturation, 80Hz head bump, HF loss from head gap, tape hiss, DC blocker, age control) |
 | `werkstatt_analog_delay.js` | Analog BBD Delay (bucket-brigade device: clock-rate reduction for BBD aliasing, analog reconstruction filter, tanh saturation warmth, LFO modulation, tone control, stereo offset, 10-1000ms delay range) |
 | `werkstatt_distortion_pedal.js` | Distortion Pedal (DS-1/Rat style: pre-distortion highpass, hard clipping with soft knee, active tone stack with bass/mid/treble bands, character control: mid scoop DS-1 vs mid hump Rat, level control, DC blocker) |
+| `werkstatt_tank_reverb.js` | Tank Reverb (Accutronics Type 9 spring tank: 4 dispersive delay lines, allpass dispersion for metallic character, damping lowpass, drive saturation into tank, stereo spread, predelay, DC blocker) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |
