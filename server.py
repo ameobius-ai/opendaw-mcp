@@ -39220,6 +39220,291 @@ async def mcp_opendaw_create_songo_pattern(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_samba_pattern(
+    bars: int = 2,
+    style: str = "batucada",
+    velocity: float = 0.8,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    surdo_pitch: int = 36,
+    caixa_pitch: int = 38,
+    tamborim_pitch: int = 42,
+    chocalho_pitch: int = 46,
+    repique_pitch: int = 50,
+) -> str:
+    """Create a Brazilian samba percussion ensemble pattern — multi-instrument layered groove.
+
+    Samba is the heartbeat of Brazilian music — a multi-instrument percussion ensemble
+    where each drum has its own pattern, and the layers interlock to create a dense,
+    driving groove. Unlike songo (a single drum-kit pattern), samba is an ensemble:
+    each instrument plays independently, and the combination creates the full sound.
+    Batucada (the carnival samba style) can have 300+ percussionists, each on one drum.
+
+    The 5 core instruments:
+
+    1. SURDO — The bass drum. Plays on beats 1 and 3 (the "floor"). Low, resonant,
+       the heartbeat. Surdo marcado (marked) = steady, surdo virado (turned) = syncopated.
+    2. CAIXA — The snare drum. Plays continuous 16th notes with a backbeat accent
+       on beats 2 and 4. The "glue" of the ensemble, filling the middle register.
+    3. TAMBORIM — Small handheld drum. Plays a syncopated 16th pattern with rim
+       taps, the "conversation" layer. Often uses "virada" (turn) fills.
+    4. CHOCALHO — Shaker. Plays continuous 16th notes, the "wash" that keeps
+       the time steady. Always present, rarely varied.
+    5. REPIQUE — Lead drum. Plays calls, fills, and syncopated accents that
+       cue the ensemble. The "conductor" of the bateria.
+
+    styles:
+      "batucada"    — Carnival samba (Rio de Janeiro). Dense, fast, all 5
+                       instruments. Surdo on 1+3, caixa 16ths, tamborim
+                       syncopated, chocalho 16ths, repique accents.
+      "samba_enredo" — Samba school parade style. More structured, surdo
+                       patterns more varied, repique has call-and-response.
+      "pagode"      — Backyard samba (informal). Lighter, no repique,
+                       tamborim simpler. More swing, less density.
+      "samba_funk"  — Samba-funk fusion. Surdo pattern funkier, caixa
+                       with ghost notes, tamborim 16ths, chocalho offbeats.
+
+    bars: Pattern length (2-16, even for 2-bar cycle).
+    velocity: Base velocity (0-1).
+    surdo_pitch: Surdo (bass drum) MIDI pitch (36 = C1).
+    caixa_pitch: Caixa (snare) MIDI pitch (38 = D1).
+    tamborim_pitch: Tamborim MIDI pitch (42 = F#1).
+    chocalho_pitch: Chocalho (shaker) MIDI pitch (46 = A#1).
+    repique_pitch: Repique (lead drum) MIDI pitch (50 = D2).
+
+    Args:
+        bars: Pattern length in bars (2-16, even).
+        style: Samba style (batucada, samba_enredo, pagode, samba_funk).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        surdo_pitch: Surdo MIDI pitch.
+        caixa_pitch: Caixa MIDI pitch.
+        tamborim_pitch: Tamborim MIDI pitch.
+        chocalho_pitch: Chocalho MIDI pitch.
+        repique_pitch: Repique MIDI pitch.
+
+    Returns notes created, instrument breakdown, and pattern info.
+    """
+    if not (2 <= bars <= 16) or bars % 2 != 0:
+        return f"Error: bars must be even and 2-16, got {bars}"
+    if style not in ("batucada", "samba_enredo", "pagode", "samba_funk"):
+        return f"Error: style must be batucada, samba_enredo, pagode, or samba_funk, got {style}"
+
+    # Generate patterns per instrument for one 2-bar cycle (16 beats)
+    # Each instrument: list of (beat, velocity_multiplier, duration)
+    STYLES = {
+        "batucada": {
+            "surdo": [
+                (0.0, 1.0, 0.5), (2.0, 0.85, 0.5), (4.0, 1.0, 0.5), (6.0, 0.85, 0.5),
+                (8.0, 1.0, 0.5), (10.0, 0.85, 0.5), (12.0, 1.0, 0.5), (14.0, 0.85, 0.5),
+            ],
+            "caixa": [
+                (0.0, 0.6, 0.12), (0.5, 0.5, 0.12), (1.0, 0.6, 0.12), (1.5, 0.5, 0.12),
+                (2.0, 0.9, 0.12), (2.5, 0.5, 0.12), (3.0, 0.6, 0.12), (3.5, 0.5, 0.12),
+                (4.0, 0.6, 0.12), (4.5, 0.5, 0.12), (5.0, 0.6, 0.12), (5.5, 0.5, 0.12),
+                (6.0, 0.9, 0.12), (6.5, 0.5, 0.12), (7.0, 0.6, 0.12), (7.5, 0.5, 0.12),
+                (8.0, 0.6, 0.12), (8.5, 0.5, 0.12), (9.0, 0.6, 0.12), (9.5, 0.5, 0.12),
+                (10.0, 0.9, 0.12), (10.5, 0.5, 0.12), (11.0, 0.6, 0.12), (11.5, 0.5, 0.12),
+                (12.0, 0.6, 0.12), (12.5, 0.5, 0.12), (13.0, 0.6, 0.12), (13.5, 0.5, 0.12),
+                (14.0, 0.9, 0.12), (14.5, 0.5, 0.12), (15.0, 0.6, 0.12), (15.5, 0.5, 0.12),
+            ],
+            "tamborim": [
+                (0.5, 0.7, 0.08), (1.0, 0.7, 0.08), (1.5, 0.8, 0.08),
+                (2.5, 0.7, 0.08), (3.0, 0.7, 0.08), (3.5, 0.8, 0.08),
+                (4.5, 0.7, 0.08), (5.0, 0.7, 0.08), (5.5, 0.8, 0.08),
+                (6.5, 0.7, 0.08), (7.0, 0.7, 0.08), (7.5, 0.8, 0.08),
+                (8.5, 0.7, 0.08), (9.0, 0.7, 0.08), (9.5, 0.8, 0.08),
+                (10.5, 0.7, 0.08), (11.0, 0.7, 0.08), (11.5, 0.8, 0.08),
+                (12.5, 0.7, 0.08), (13.0, 0.7, 0.08), (13.5, 0.8, 0.08),
+                (14.5, 0.7, 0.08), (15.0, 0.7, 0.08), (15.5, 0.8, 0.08),
+            ],
+            "chocalho": [
+                (0.0, 0.5, 0.06), (0.25, 0.4, 0.06), (0.5, 0.5, 0.06), (0.75, 0.4, 0.06),
+                (1.0, 0.5, 0.06), (1.25, 0.4, 0.06), (1.5, 0.5, 0.06), (1.75, 0.4, 0.06),
+                (2.0, 0.5, 0.06), (2.25, 0.4, 0.06), (2.5, 0.5, 0.06), (2.75, 0.4, 0.06),
+                (3.0, 0.5, 0.06), (3.25, 0.4, 0.06), (3.5, 0.5, 0.06), (3.75, 0.4, 0.06),
+                (4.0, 0.5, 0.06), (4.25, 0.4, 0.06), (4.5, 0.5, 0.06), (4.75, 0.4, 0.06),
+                (5.0, 0.5, 0.06), (5.25, 0.4, 0.06), (5.5, 0.5, 0.06), (5.75, 0.4, 0.06),
+                (6.0, 0.5, 0.06), (6.25, 0.4, 0.06), (6.5, 0.5, 0.06), (6.75, 0.4, 0.06),
+                (7.0, 0.5, 0.06), (7.25, 0.4, 0.06), (7.5, 0.5, 0.06), (7.75, 0.4, 0.06),
+                (8.0, 0.5, 0.06), (8.25, 0.4, 0.06), (8.5, 0.5, 0.06), (8.75, 0.4, 0.06),
+                (9.0, 0.5, 0.06), (9.25, 0.4, 0.06), (9.5, 0.5, 0.06), (9.75, 0.4, 0.06),
+                (10.0, 0.5, 0.06), (10.25, 0.4, 0.06), (10.5, 0.5, 0.06), (10.75, 0.4, 0.06),
+                (11.0, 0.5, 0.06), (11.25, 0.4, 0.06), (11.5, 0.5, 0.06), (11.75, 0.4, 0.06),
+                (12.0, 0.5, 0.06), (12.25, 0.4, 0.06), (12.5, 0.5, 0.06), (12.75, 0.4, 0.06),
+                (13.0, 0.5, 0.06), (13.25, 0.4, 0.06), (13.5, 0.5, 0.06), (13.75, 0.4, 0.06),
+                (14.0, 0.5, 0.06), (14.25, 0.4, 0.06), (14.5, 0.5, 0.06), (14.75, 0.4, 0.06),
+                (15.0, 0.5, 0.06), (15.25, 0.4, 0.06), (15.5, 0.5, 0.06), (15.75, 0.4, 0.06),
+            ],
+            "repique": [
+                (0.0, 0.9, 0.15), (1.5, 0.7, 0.1), (3.5, 0.8, 0.1),
+                (4.0, 0.85, 0.15), (5.5, 0.7, 0.1), (7.5, 0.8, 0.1),
+                (8.0, 0.9, 0.15), (9.5, 0.7, 0.1), (11.5, 0.8, 0.1),
+                (12.0, 0.85, 0.15), (13.5, 0.7, 0.1), (15.0, 0.95, 0.2),
+                (15.5, 0.9, 0.15),
+            ],
+        },
+        "samba_enredo": {
+            "surdo": [
+                (0.0, 1.0, 0.5), (2.0, 0.8, 0.5), (3.5, 0.7, 0.3),
+                (4.0, 1.0, 0.5), (6.0, 0.8, 0.5), (7.5, 0.7, 0.3),
+                (8.0, 1.0, 0.5), (10.0, 0.8, 0.5), (11.5, 0.7, 0.3),
+                (12.0, 1.0, 0.5), (14.0, 0.8, 0.5), (15.5, 0.7, 0.3),
+            ],
+            "caixa": [
+                (0.0, 0.7, 0.12), (0.5, 0.5, 0.12), (1.0, 0.7, 0.12), (1.5, 0.5, 0.12),
+                (2.0, 0.9, 0.12), (2.5, 0.5, 0.12), (3.0, 0.7, 0.12), (3.5, 0.6, 0.12),
+                (4.0, 0.7, 0.12), (4.5, 0.5, 0.12), (5.0, 0.7, 0.12), (5.5, 0.5, 0.12),
+                (6.0, 0.9, 0.12), (6.5, 0.5, 0.12), (7.0, 0.7, 0.12), (7.5, 0.6, 0.12),
+                (8.0, 0.7, 0.12), (8.5, 0.5, 0.12), (9.0, 0.7, 0.12), (9.5, 0.5, 0.12),
+                (10.0, 0.9, 0.12), (10.5, 0.5, 0.12), (11.0, 0.7, 0.12), (11.5, 0.6, 0.12),
+                (12.0, 0.7, 0.12), (12.5, 0.5, 0.12), (13.0, 0.7, 0.12), (13.5, 0.5, 0.12),
+                (14.0, 0.9, 0.12), (14.5, 0.5, 0.12), (15.0, 0.7, 0.12), (15.5, 0.6, 0.12),
+            ],
+            "tamborim": [
+                (0.5, 0.7, 0.08), (1.0, 0.7, 0.08), (1.5, 0.7, 0.08), (2.0, 0.8, 0.08),
+                (2.5, 0.7, 0.08), (3.0, 0.7, 0.08), (3.5, 0.7, 0.08), (4.0, 0.8, 0.08),
+                (4.5, 0.7, 0.08), (5.0, 0.7, 0.08), (5.5, 0.7, 0.08), (6.0, 0.8, 0.08),
+                (6.5, 0.7, 0.08), (7.0, 0.7, 0.08), (7.5, 0.8, 0.08),
+                (8.5, 0.7, 0.08), (9.0, 0.7, 0.08), (9.5, 0.7, 0.08), (10.0, 0.8, 0.08),
+                (10.5, 0.7, 0.08), (11.0, 0.7, 0.08), (11.5, 0.7, 0.08), (12.0, 0.8, 0.08),
+                (12.5, 0.7, 0.08), (13.0, 0.7, 0.08), (13.5, 0.7, 0.08), (14.0, 0.8, 0.08),
+                (14.5, 0.7, 0.08), (15.0, 0.7, 0.08), (15.5, 0.8, 0.08),
+            ],
+            "chocalho": [
+                (i * 0.25, 0.5 if i % 2 == 0 else 0.4, 0.06)
+                for i in range(64)
+            ],
+            "repique": [
+                (0.0, 0.9, 0.15), (1.0, 0.8, 0.1), (2.0, 0.7, 0.1), (3.5, 0.85, 0.12),
+                (4.0, 0.9, 0.15), (5.0, 0.8, 0.1), (6.0, 0.7, 0.1), (7.5, 0.85, 0.12),
+                (8.0, 0.9, 0.15), (9.0, 0.8, 0.1), (10.0, 0.7, 0.1), (11.5, 0.85, 0.12),
+                (12.0, 0.9, 0.15), (13.0, 0.8, 0.1), (14.0, 0.7, 0.1), (15.5, 0.95, 0.2),
+            ],
+        },
+        "pagode": {
+            "surdo": [
+                (0.0, 1.0, 0.6), (3.0, 0.8, 0.5), (4.0, 0.9, 0.5), (7.0, 0.7, 0.4),
+                (8.0, 1.0, 0.6), (11.0, 0.8, 0.5), (12.0, 0.9, 0.5), (15.0, 0.7, 0.4),
+            ],
+            "caixa": [
+                (0.0, 0.6, 0.12), (0.5, 0.5, 0.12), (1.0, 0.7, 0.12), (1.5, 0.5, 0.12),
+                (2.0, 0.6, 0.12), (2.5, 0.5, 0.12), (3.0, 0.8, 0.12), (3.5, 0.5, 0.12),
+                (4.0, 0.6, 0.12), (4.5, 0.5, 0.12), (5.0, 0.7, 0.12), (5.5, 0.5, 0.12),
+                (6.0, 0.6, 0.12), (6.5, 0.5, 0.12), (7.0, 0.8, 0.12), (7.5, 0.5, 0.12),
+                (8.0, 0.6, 0.12), (8.5, 0.5, 0.12), (9.0, 0.7, 0.12), (9.5, 0.5, 0.12),
+                (10.0, 0.6, 0.12), (10.5, 0.5, 0.12), (11.0, 0.8, 0.12), (11.5, 0.5, 0.12),
+                (12.0, 0.6, 0.12), (12.5, 0.5, 0.12), (13.0, 0.7, 0.12), (13.5, 0.5, 0.12),
+                (14.0, 0.6, 0.12), (14.5, 0.5, 0.12), (15.0, 0.8, 0.12), (15.5, 0.5, 0.12),
+            ],
+            "tamborim": [
+                (0.5, 0.7, 0.08), (1.5, 0.7, 0.08), (2.5, 0.7, 0.08), (3.5, 0.7, 0.08),
+                (4.5, 0.7, 0.08), (5.5, 0.7, 0.08), (6.5, 0.7, 0.08), (7.5, 0.7, 0.08),
+                (8.5, 0.7, 0.08), (9.5, 0.7, 0.08), (10.5, 0.7, 0.08), (11.5, 0.7, 0.08),
+                (12.5, 0.7, 0.08), (13.5, 0.7, 0.08), (14.5, 0.7, 0.08), (15.5, 0.7, 0.08),
+            ],
+            "chocalho": [
+                (i * 0.5, 0.5, 0.08) for i in range(32)
+            ],
+        },
+        "samba_funk": {
+            "surdo": [
+                (0.0, 1.0, 0.5), (1.75, 0.75, 0.3), (2.5, 0.85, 0.4), (3.5, 0.7, 0.3),
+                (4.0, 1.0, 0.5), (5.75, 0.75, 0.3), (6.5, 0.85, 0.4), (7.5, 0.7, 0.3),
+                (8.0, 1.0, 0.5), (9.75, 0.75, 0.3), (10.5, 0.85, 0.4), (11.5, 0.7, 0.3),
+                (12.0, 1.0, 0.5), (13.75, 0.75, 0.3), (14.5, 0.85, 0.4), (15.5, 0.7, 0.3),
+            ],
+            "caixa": [
+                (0.0, 0.7, 0.12), (0.25, 0.4, 0.08), (0.5, 0.5, 0.12), (0.75, 0.4, 0.08),
+                (1.0, 0.7, 0.12), (1.25, 0.4, 0.08), (1.5, 0.5, 0.12), (1.75, 0.4, 0.08),
+                (2.0, 0.9, 0.12), (2.25, 0.4, 0.08), (2.5, 0.5, 0.12), (2.75, 0.4, 0.08),
+                (3.0, 0.7, 0.12), (3.25, 0.4, 0.08), (3.5, 0.5, 0.12), (3.75, 0.4, 0.08),
+                (4.0, 0.7, 0.12), (4.25, 0.4, 0.08), (4.5, 0.5, 0.12), (4.75, 0.4, 0.08),
+                (5.0, 0.7, 0.12), (5.25, 0.4, 0.08), (5.5, 0.5, 0.12), (5.75, 0.4, 0.08),
+                (6.0, 0.9, 0.12), (6.25, 0.4, 0.08), (6.5, 0.5, 0.12), (6.75, 0.4, 0.08),
+                (7.0, 0.7, 0.12), (7.25, 0.4, 0.08), (7.5, 0.5, 0.12), (7.75, 0.4, 0.08),
+                (8.0, 0.7, 0.12), (8.25, 0.4, 0.08), (8.5, 0.5, 0.12), (8.75, 0.4, 0.08),
+                (9.0, 0.7, 0.12), (9.25, 0.4, 0.08), (9.5, 0.5, 0.12), (9.75, 0.4, 0.08),
+                (10.0, 0.9, 0.12), (10.25, 0.4, 0.08), (10.5, 0.5, 0.12), (10.75, 0.4, 0.08),
+                (11.0, 0.7, 0.12), (11.25, 0.4, 0.08), (11.5, 0.5, 0.12), (11.75, 0.4, 0.08),
+                (12.0, 0.7, 0.12), (12.25, 0.4, 0.08), (12.5, 0.5, 0.12), (12.75, 0.4, 0.08),
+                (13.0, 0.7, 0.12), (13.25, 0.4, 0.08), (13.5, 0.5, 0.12), (13.75, 0.4, 0.08),
+                (14.0, 0.9, 0.12), (14.25, 0.4, 0.08), (14.5, 0.5, 0.12), (14.75, 0.4, 0.08),
+                (15.0, 0.7, 0.12), (15.25, 0.4, 0.08), (15.5, 0.5, 0.12), (15.75, 0.4, 0.08),
+            ],
+            "tamborim": [
+                (0.0, 0.7, 0.08), (0.5, 0.7, 0.08), (1.0, 0.7, 0.08), (1.5, 0.8, 0.08),
+                (2.0, 0.7, 0.08), (2.5, 0.7, 0.08), (3.0, 0.7, 0.08), (3.5, 0.8, 0.08),
+                (4.0, 0.7, 0.08), (4.5, 0.7, 0.08), (5.0, 0.7, 0.08), (5.5, 0.8, 0.08),
+                (6.0, 0.7, 0.08), (6.5, 0.7, 0.08), (7.0, 0.7, 0.08), (7.5, 0.8, 0.08),
+                (8.0, 0.7, 0.08), (8.5, 0.7, 0.08), (9.0, 0.7, 0.08), (9.5, 0.8, 0.08),
+                (10.0, 0.7, 0.08), (10.5, 0.7, 0.08), (11.0, 0.7, 0.08), (11.5, 0.8, 0.08),
+                (12.0, 0.7, 0.08), (12.5, 0.7, 0.08), (13.0, 0.7, 0.08), (13.5, 0.8, 0.08),
+                (14.0, 0.7, 0.08), (14.5, 0.7, 0.08), (15.0, 0.7, 0.08), (15.5, 0.8, 0.08),
+            ],
+            "chocalho": [
+                (i * 0.25, 0.5 if int(i * 4) % 2 == 0 else 0.45, 0.06)
+                for i in range(64)
+            ],
+            "repique": [
+                (0.0, 0.85, 0.15), (2.0, 0.7, 0.1), (3.5, 0.8, 0.12),
+                (4.0, 0.85, 0.15), (6.0, 0.7, 0.1), (7.5, 0.8, 0.12),
+                (8.0, 0.85, 0.15), (10.0, 0.7, 0.1), (11.5, 0.8, 0.12),
+                (12.0, 0.85, 0.15), (14.0, 0.7, 0.1), (15.5, 0.9, 0.18),
+            ],
+        },
+    }
+
+    pitch_map = {
+        "surdo": surdo_pitch, "caixa": caixa_pitch, "tamborim": tamborim_pitch,
+        "chocalho": chocalho_pitch, "repique": repique_pitch,
+    }
+
+    pattern_data = STYLES[style]
+    instruments = list(pattern_data.keys())
+    cycle_len = 16.0  # 2-bar cycle
+    cycles = bars // 2
+
+    all_notes = []
+    inst_counts = {}
+
+    for inst in instruments:
+        inst_counts[inst] = 0
+        strokes = pattern_data[inst]
+        for c in range(cycles):
+            offset = c * cycle_len
+            for beat, vel_mult, dur in strokes:
+                pos = round(start_beat + offset + beat, 4)
+                vel = round(max(0.0, min(1.0, velocity * vel_mult)), 3)
+                all_notes.append({
+                    "pitch": pitch_map[inst],
+                    "start": pos,
+                    "duration": dur,
+                    "velocity": vel,
+                })
+                inst_counts[inst] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["samba"] = True
+        data["style"] = style
+        data["bars"] = bars
+        data["cycles"] = cycles
+        data["instruments"] = instruments
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.293.0 (2026-07-06)
+
+- **`create_samba_pattern`** — Brazilian samba percussion ensemble: multi-instrument layered groove with 5 independent drums (surdo, caixa, tamborim, chocalho, repique). Unlike songo (drum kit), samba is a bateria ensemble — each instrument has its own pattern, layered independently. 4 styles: batucada (carnival), samba_enredo (parade), pagode (backyard informal), samba_funk (fusion). Surdo = bass heartbeat, caixa = 16th snare glue, tamborim = syncopated conversation, chocalho = 16th shaker wash, repique = lead drum with calls/fills. Brazilian music tradition.
+
 ## v1.292.0 (2026-07-06)
 
 - **`create_songo_pattern`** — Cuban songo drum-kit pattern: the fusion that revolutionized Latin music (Los Van Van, Changuito, 1970s). 4 variations: classic (original songo), modern (timba-era with ghost notes + tom fills), fusion (jazz-influenced ride pattern), songo_funk (funk-inflected backbeat). 4 drum-kit voices: kick (syncopated bombo), snare (rim + open + ghost), hi-hat (continuous 8ths with accents), tom (tonal fills). 2-bar cycle in 4/4. Unlike clave (timeline), tumbao (congas), or cascara (timbale shell), songo is a complete drum-kit groove. Afro-Cuban / Latin jazz.
