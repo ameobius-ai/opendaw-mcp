@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.322.1 (2026-07-06)
+
+- **3 new DSP scripts**: `werkstatt_cabinet_sim.js` (guitar cabinet speaker sim: 4x12/open-back/tweed, resonance, speaker rolloff, cone soft clip), `werkstatt_valve_preamp.js` (12AX7 triode preamp: asymmetric waveshaper, even-order harmonics, Miller capacitance, output transformer), `werkstatt_synthetic_ir_reverb.js` (synthetic IR reverb: algorithmic impulse response generation, exponential decay × filtered noise, early reflections, truncated convolution). 114 DSP scripts total.
+
 ## v1.322.0 (2026-07-06)
 
 - **`create_psytrance_arrangement`** — Psytrance: 145 BPM hypnotic Goa/psychedelic. 4 tracks: 909 drums (kick 4-on-floor, snare 2&4, 16th hats, shaker, snare rolls at phrase ends), rolling 16th bassline (kick-aligned with offbeat gallop), hypnotic 16th lead motif (filter sweep velocity curve), sustained sci-fi atmosphere pad (minor 3rd + minor 7th). F minor default. Astrix, Vini Vici, Infected Mushroom. 23 unit tests. 497 MCP tools.

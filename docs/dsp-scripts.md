@@ -12,6 +12,9 @@
 | `werkstatt_lookahead.js` | Lookahead Compressor |
 | `werkstatt_limiter.js` | Brickwall Limiter |
 | `werkstatt_maximizer.js` | Loudness Maximizer (lookahead limiting, ISP detection, TPDF dither, ceiling, stereo link) |
+| `werkstatt_cabinet_sim.js` | Guitar Cabinet Speaker Simulator (4x12/open-back/tweed, resonance peak, speaker rolloff, cone soft clip) |
+| `werkstatt_valve_preamp.js` | Valve/Tube Preamp (12AX7 triode, asymmetric waveshaper, even-order harmonics, Miller capacitance, output transformer) |
+| `werkstatt_synthetic_ir_reverb.js` | Synthetic IR Reverb (algorithmic impulse response generation, exponential decay × filtered noise, early reflections, truncated convolution) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |
