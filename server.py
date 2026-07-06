@@ -62708,3 +62708,221 @@ async def mcp_opendaw_create_breakbeat_arrangement(
             "Use render_full to render the arrangement",
         ],
     }, indent=2)
+
+
+async def mcp_opendaw_create_verse(
+    verse_type: str = "narrative",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 8,
+    velocity: float = 0.6,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a verse — the storytelling section of a song.
+
+    The verse is where the narrative lives. Unlike the chorus (which repeats
+    with the same lyrics/melody), verses advance the story — each one moves
+    the song forward. Musically, verses are typically:
+    - Lower energy than chorus (lower velocity, sparser notes)
+    - Melody stays in a comfortable range (not too high)
+    - Rhythm is steady, supportive of vocal delivery
+    - Chord progression is simpler than chorus
+
+    Verse types:
+    - **narrative**: Steady melody with stepwise motion, telling a story.
+      Notes on beats 1 and 3 with passing tones. Moderate density.
+      Good for pop, rock, folk — any song where lyrics lead.
+    - **sparse**: Minimal notes — just chord tones on beat 1 of each bar,
+      with occasional ornamentation. Creates space for vocals to breathe.
+      Good for ballads, R&B, intimate tracks.
+    - **driving**: Continuous 8th or 16th note pattern with rhythmic
+      momentum. The verse pushes forward energetically. Good for rock,
+      punk, EDM verses that build intensity.
+    - **conversational**: Short melodic phrases with rests between them,
+      mimicking speech rhythm. Call-response feel within the verse.
+      Good for hip-hop, pop, modern R&B.
+    - **build**: Verse that gradually increases in density and velocity
+      across bars — starts sparse, ends busy. Creates forward motion
+      toward the chorus. Good for pop, EDM, cinematic.
+
+    verse_type: narrative | sparse | driving | conversational | build
+    key_root: Root note (C, C#, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60, verse is usually octave 4)
+    bars: Number of bars (4-16)
+    velocity: Base velocity 0-1 (verses are typically 0.5-0.65)
+    seed: PRNG seed
+
+    Example:
+      create_verse(verse_type="narrative", key_root="G", scale_type="major", bars=8)
+      create_verse(verse_type="sparse", key_root="A", scale_type="minor", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["narrative", "sparse", "driving", "conversational", "build"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if verse_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid verse_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (2 <= octave <= 6):
+        return json.dumps({"error": "octave must be 2-6"})
+    if not (4 <= bars <= 16):
+        return json.dumps({"error": "bars must be 4-16"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+
+    if verse_type == "narrative":
+        # Steady melody with stepwise motion, notes on beats 1 and 3
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # Chord tones on beat 1 and 3
+            degree_map = [0, 4, 2, 4]  # I, V, iii, V (common verse progression)
+            deg = degree_map[bar % len(degree_map)]
+            v = velocity * (0.8 + 0.2 * next(rng))
+            # Beat 1: chord tone
+            notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start, 4),
+                          "duration": 2.0, "velocity": round(v, 3)})
+            # Beat 3: passing tone (stepwise)
+            pass_deg = (deg + 1) % ns
+            notes.append({"pitch": deg_to_pitch(pass_deg), "start": round(start_beat + bar_start + 2, 4),
+                          "duration": 1.5, "velocity": round(v * 0.7, 3)})
+            # Occasional ornament on beat 4.5
+            if next(rng) > 0.6:
+                orn_deg = (deg + 2) % ns
+                notes.append({"pitch": deg_to_pitch(orn_deg), "start": round(start_beat + bar_start + 3.5, 4),
+                              "duration": 0.5, "velocity": round(v * 0.5, 3)})
+
+    elif verse_type == "sparse":
+        # Minimal notes — chord tones on beat 1, occasional ornament
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * 0.7
+            # Just root or 3rd on beat 1
+            deg = 0 if bar % 2 == 0 else 2
+            notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start, 4),
+                          "duration": 3.0, "velocity": round(v, 3)})
+            # Very occasional ornament
+            if next(rng) > 0.75:
+                orn_deg = (deg + 4) % ns
+                notes.append({"pitch": deg_to_pitch(orn_deg), "start": round(start_beat + bar_start + 3, 4),
+                              "duration": 0.5, "velocity": round(v * 0.4, 3)})
+
+    elif verse_type == "driving":
+        # Continuous 8th note pattern with rhythmic momentum
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # 8th note pattern across the bar
+            for beat_idx in range(8):
+                beat = beat_idx * 0.5
+                # Walk up/down the scale
+                deg = (bar * 2 + beat_idx) % ns
+                v = velocity * (0.6 + 0.2 * (beat_idx % 2))
+                dur = 0.4 if beat_idx % 2 == 0 else 0.3
+                notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+    elif verse_type == "conversational":
+        # Short melodic phrases with rests, mimicking speech
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # Phrase 1: beats 0-1.5
+            phrase1_len = 3
+            for n in range(phrase1_len):
+                deg = (bar + n) % ns
+                beat = n * 0.5
+                v = velocity * (0.7 + 0.1 * next(rng))
+                notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": 0.4, "velocity": round(v, 3)})
+            # Rest on beats 1.5-2.5 (speech pause)
+            # Phrase 2: beats 2.5-3.5
+            for n in range(2):
+                deg = (bar + 4 + n) % ns
+                beat = 2.5 + n * 0.5
+                v = velocity * (0.6 + 0.1 * next(rng))
+                notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": 0.4, "velocity": round(v, 3)})
+
+    elif verse_type == "build":
+        # Gradually increase density and velocity across bars
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            progress = bar / max(bars - 1, 1)
+            v = velocity * (0.5 + 0.4 * progress)  # 0.5x to 0.9x
+            # Number of notes increases with progress
+            num_notes = 2 + int(progress * 4)  # 2 to 6 notes per bar
+            for n in range(num_notes):
+                deg = (bar + n * 2) % ns
+                beat = n * (bar_len / max(num_notes, 1))
+                dur = bar_len / max(num_notes, 1) * 0.8
+                notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": round(dur, 3), "velocity": round(v, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["verse"] = True
+    data["verse_type"] = verse_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["octave"] = octave
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "narrative": "steady stepwise melody on beats 1 and 3, passing tones, storytelling",
+        "sparse": "minimal chord tones on beat 1, space for vocals to breathe",
+        "driving": "continuous 8th note pattern with rhythmic momentum, pushing forward",
+        "conversational": "short phrases with speech-like rests, call-response within verse",
+        "build": "gradually increasing density and velocity, forward motion toward chorus",
+    }.get(verse_type, "")
+
+    return json.dumps(data, indent=2)

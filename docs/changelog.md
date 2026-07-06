@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.362.0 (2026-07-06)
+
+- **`create_verse`** — Verse section generator: the storytelling section of a song. 5 types: narrative (steady stepwise melody, beats 1&3, passing tones), sparse (minimal chord tones, space for vocals), driving (continuous 8th notes, forward momentum), conversational (short phrases with speech-like rests, call-response), build (gradually increasing density and velocity toward chorus). 3 scales, 4-16 bars. Seeded PRNG. 26 unit tests. 526 MCP tools. Fills the gap in section generators — verse was the missing piece.
+
 ## v1.361.0 (2026-07-06)
 
 - **`create_breakbeat_arrangement`** — Breakbeat/big beat arrangement (Prodigy/Chemical Brothers/Fatboy Slim style). Syncopated Amen-style broken beat with ghost notes, rolling bassline with octave jumps, acid riff with call-response phrasing, vocal chop stabs on offbeats. E minor, 130 BPM, 16 bars, 4 tracks. 20 unit tests. 525 MCP tools. 37 genre arrangements.
