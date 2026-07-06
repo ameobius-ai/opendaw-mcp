@@ -268,27 +268,41 @@ def main():
     # ═══ Step 3: Per-band processing ═══
     print("\n=== Step 3: Per-band processing ===")
 
-    # Sub band (<200Hz): psychoacoustic bass + gentle comp
-    print("  sub: psychoacoustic bass + comp 2:1")
+    # Sub band (<200Hz): psychoacoustic bass + parallel comp for density
+    print("  sub: psychoacoustic bass + parallel comp (dense sub)")
     bands[0] = psychoacoustic_bass(bands[0], sr, freq=60, amount=0.15, mix=0.2)
-    bands[0] = compressor(bands[0], threshold=0.4, ratio=2.0, attack=0.01, release=0.15, sr=sr, mix=0.5)
+    # Parallel compression: dry + heavily compressed for density without losing punch
+    sub_compressed = compressor(bands[0], threshold=0.2, ratio=4.0, attack=0.005, release=0.2, sr=sr, mix=1.0)
+    bands[0] = bands[0] * 0.6 + sub_compressed * 0.4
+    # Mono collapse (bass should be centered — pro standard)
+    mono_sub = (bands[0][0] + bands[0][1]) * 0.5
+    bands[0] = np.stack([mono_sub, mono_sub], axis=0)
 
     # Bass band (200-2k): mud cut + lowmid fill + tape sat
     print("  bass: mud cut -2dB @ 250 + lowmid +3dB @ 350 + tape sat")
     bands[1] = bell_eq(bands[1], sr, 250, -2.0, q=1.2)
     bands[1] = bell_eq(bands[1], sr, 350, 3.0, q=1.0)
     bands[1] = tape_saturation(bands[1], drive=0.15, mix=0.25)
+    # Partial mono collapse (keep some stereo on bass, but centered)
+    mid_b = (bands[1][0] + bands[1][1]) * 0.5
+    side_b = (bands[1][0] - bands[1][1]) * 0.5
+    bands[1] = np.stack([mid_b + side_b * 0.3, mid_b - side_b * 0.3], axis=0)
 
-    # Mid band (2k-8k): presence boost only — NO comp (preserves presence)
-    print("  mid: presence +2dB @ 3k + +1dB @ 5k")
-    bands[2] = bell_eq(bands[2], sr, 3000, 2.0, q=1.0)
-    bands[2] = bell_eq(bands[2], sr, 5000, 1.0, q=1.0)
+    # Mid band (2k-8k): presence boost + parallel comp for density
+    print("  mid: presence +3dB @ 3k + +2dB @ 5k + parallel comp")
+    bands[2] = bell_eq(bands[2], sr, 3000, 3.0, q=1.0)
+    bands[2] = bell_eq(bands[2], sr, 5000, 2.0, q=1.0)
+    # Parallel compression on mid — brings presence forward
+    mid_compressed = compressor(bands[2], threshold=0.3, ratio=3.0, attack=0.005, release=0.15, sr=sr, mix=1.0)
+    bands[2] = bands[2] * 0.5 + mid_compressed * 0.5
 
     # High band (>8k): air boost + harmonic exciter — NO limiter here!
     print("  high: high-shelf +4dB @ 8k + exciter + bell +3dB @ 12k")
     bands[3] = high_shelf(bands[3], sr, 8000, 4.0)
     bands[3] = harmonic_exciter(bands[3], sr, freq=8000, amount=0.25, mix=0.4)
     bands[3] = bell_eq(bands[3], sr, 12000, 3.0, q=0.7)
+    # Widen ONLY high band (air in stereo, bass in mono)
+    bands[3] = stereo_widen(bands[3], amount=0.5)
 
     # ═══ Step 4: Recombine + glue comp on full mix ═══
     print("\n=== Step 4: Recombine bands + glue comp ===")
@@ -298,9 +312,9 @@ def main():
     lufs_recomb = meter.integrated_loudness(data.T)
     print(f"  LUFS after recombine + glue: {lufs_recomb:.2f}")
 
-    # ═══ Step 5: Stereo widen (M/S +60%) ═══
-    print("\n=== Step 5: Stereo widen (M/S +60%) ===")
-    data = stereo_widen(data, amount=0.6)
+    # ═══ Step 5: Stereo widen (M/S +30% — high band already widened) ═══
+    print("\n=== Step 5: Stereo widen (M/S +30%) ===")
+    data = stereo_widen(data, amount=0.3)
 
     # ═══ Step 6: Re-normalize to -14 LUFS ═══
     print("\n=== Step 6: Re-normalize to -14 LUFS ===")
