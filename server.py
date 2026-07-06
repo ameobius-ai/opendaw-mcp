@@ -61106,3 +61106,252 @@ async def mcp_opendaw_create_transition(
     }.get(transition_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_prechorus(
+    prechorus_type: str = "build",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 4,
+    velocity: float = 0.6,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a pre-chorus — the tension builder before the chorus hits.
+
+    The pre-chorus (aka pre-chorus, climb, build) sits between verse and
+    chorus. Its job is to raise energy and anticipation so the chorus
+    lands with maximum impact. Unlike a bridge (which provides contrast)
+    or a transition (which moves between states), the pre-chorus *amplifies*
+    — it takes the verse energy and pushes it upward toward the chorus.
+
+    - **build**: Gradual crescendo — velocity and density increase across
+      bars. Starts sparse, ends full. Chord progression moves toward
+      dominant (V) to create expectation of resolution. Good for pop, rock.
+    - **pedal**: Sustained dominant pedal — V chord sustained throughout,
+      melodic line builds over it. Tension from the unresolved dominant.
+      Good for EDM, dance, pop.
+    - **stall**: Rhythmic stasis — repeated rhythmic pattern on a single
+      chord or two, creating tension through repetition. Drums build.
+      Good for hip-hop, R&B, modern pop.
+    - **lift**: Melodic ascent — melody climbs scale degrees bar by bar,
+      reaching toward the chorus register. Good for pop, country, ballads.
+    - **suspending**: Suspended chord resolve — repeated sus4 → sus2 →
+      resolve patterns, delaying resolution to build maximum tension before
+      the chorus tonic hits. Good for worship, ballads, cinematic pop.
+
+    prechorus_type: build | pedal | stall | lift | suspending
+    key_root: Root note name (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (2-4)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_prechorus(prechorus_type="build", key_root="G", scale_type="major", bars=4)
+      create_prechorus(prechorus_type="pedal", key_root="A", scale_type="minor", bars=2)
+      create_prechorus(prechorus_type="lift", key_root="D", scale_type="major", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["build", "pedal", "stall", "lift", "suspending"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if prechorus_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid prechorus_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+    if not (2 <= bars <= 4):
+        return json.dumps({"error": "bars must be 2-4"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+    # Dominant degree (V) = scale degree 4
+    dom_deg = 4
+
+    if prechorus_type == "build":
+        # Gradual crescendo: sparse → full, velocity increases
+        chord_prog = [1, 3, 4, 4]  # ii → IV → V → V (building to dominant)
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            progress = bar / max(bars - 1, 1)  # 0 to 1
+            v = velocity * (0.4 + 0.6 * progress)
+            chord_deg = chord_prog[bar % len(chord_prog)]
+            # Chord
+            for deg in [chord_deg, chord_deg + 2, chord_deg + 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.6, 3)})
+            # Bass root
+            bass_pitch = deg_to_pitch(chord_deg, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+            # Melodic line: density increases
+            num_notes = int(2 + 4 * progress)
+            for i in range(num_notes):
+                deg = (chord_deg + i) % ns
+                pitch = deg_to_pitch(deg)
+                beat = i * (bar_len / max(num_notes, 1))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": round(bar_len / max(num_notes, 1) * 0.8, 3),
+                              "velocity": round(v * 0.7, 3)})
+
+    elif prechorus_type == "pedal":
+        # Sustained V chord throughout, melodic line builds
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.4 + 0.4 * bar / max(bars - 1, 1))
+            # Sustained dominant chord
+            for deg in [dom_deg, dom_deg + 2, dom_deg + 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.5, 3)})
+            # Bass pedal on dominant
+            bass_pitch = deg_to_pitch(dom_deg, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.8, 3)})
+            # Building melodic line: ascending
+            for i in range(2 + bar):
+                deg = (dom_deg + i) % ns
+                pitch = deg_to_pitch(deg)
+                beat = i * (bar_len / max(2 + bar, 1))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": 0.5, "velocity": round(v * 0.7, 3)})
+
+    elif prechorus_type == "stall":
+        # Rhythmic stasis: repeated pattern on 1-2 chords, drums build
+        stall_chords = [1, 4]  # ii and V alternating
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.5 + 0.3 * bar / max(bars - 1, 1))
+            chord_deg = stall_chords[bar % len(stall_chords)]
+            # Sustained chord
+            for deg in [chord_deg, chord_deg + 2]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.5, 3)})
+            # Repeated rhythmic pattern (same every bar)
+            for beat in range(4):
+                pitch = deg_to_pitch(chord_deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": 0.25, "velocity": round(v * 0.6, 3)})
+            # Bass
+            bass_pitch = deg_to_pitch(chord_deg, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+
+    elif prechorus_type == "lift":
+        # Melodic ascent: melody climbs scale degrees each bar
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.5 + 0.5 * bar / max(bars - 1, 1))
+            start_deg = bar * 2  # climb 2 degrees per bar
+            # Chord follows melody
+            chord_deg = start_deg % ns
+            for deg in [chord_deg, chord_deg + 2, chord_deg + 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.5, 3)})
+            # Ascending melody
+            for i in range(4):
+                deg = (start_deg + i) % ns
+                oct_s = (start_deg + i) // ns
+                pitch = base + oct_s * 12 + scale[deg]
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i, 4),
+                              "duration": 0.8, "velocity": round(v, 3)})
+            # Bass
+            bass_pitch = deg_to_pitch(chord_deg, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.7, 3)})
+
+    elif prechorus_type == "suspending":
+        # Suspended chord resolve: sus4 → sus2 → resolve, repeated
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.4 + 0.4 * bar / max(bars - 1, 1))
+            # sus4 (root, 4th, 5th) for 2 beats
+            for deg in [0, 3, 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": 2.0, "velocity": round(v * 0.5, 3)})
+            # sus2 (root, 2nd, 5th) for 1 beat
+            for deg in [0, 1, 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + 2.0, 4),
+                              "duration": 1.0, "velocity": round(v * 0.6, 3)})
+            # Resolve to root chord (root, 3rd, 5th) for 1 beat
+            for deg in [0, 2, 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + 3.0, 4),
+                              "duration": 1.0, "velocity": round(v * 0.7, 3)})
+            # Bass root sustained
+            bass_pitch = deg_to_pitch(0, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.6, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["prechorus"] = True
+    data["prechorus_type"] = prechorus_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "build": "gradual crescendo, ii-IV-V-V progression, velocity and density increase, energy rises toward chorus",
+        "pedal": "sustained V chord pedal, melodic line builds over dominant, tension from unresolved harmony",
+        "stall": "rhythmic stasis on ii-V, repeated pattern, drums build, tension through repetition",
+        "lift": "melodic ascent climbing scale degrees each bar, register rises toward chorus, uplifting",
+        "suspending": "sus4-sus2-resolve pattern repeated, delays tonic resolution, maximum tension before chorus hit",
+    }.get(prechorus_type, "")
+
+    return json.dumps(data, indent=2)

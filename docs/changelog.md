@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.349.0 (2026-07-06)
+
+- **`create_prechorus`** — Pre-chorus section generator. 5 types: build (crescendo ii-IV-V-V, velocity and density increase), pedal (sustained V chord, melodic build over dominant), stall (rhythmic stasis on ii-V, repetition), lift (melodic ascent climbing scale degrees), suspending (sus4→sus2→resolve repeated, delays tonic). 3 scales, 2-4 bars. Seeded PRNG. 29 unit tests. 517 MCP tools. Tension builder before chorus — amplifies verse energy toward chorus impact.
+
 ## v1.348.0 (2026-07-06)
 
 - **`create_transition`** — Transition section generator. 5 types: key_shift (modulation via pivot chord, up/down 1-7 semitones), tempo_ramp (accel/ritardando via duration scaling), texture_build (sparse→dense, voices added), texture_thin (dense→sparse, voices removed), drop (full→silence→re-entry). 3 scales, 2-8 bars. Direction + interval params. Seeded PRNG. 32 unit tests. 516 MCP tools. Active movement between sections — unlike interlude (passive connective tissue).
