@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-531 MCP tools for headless openDAW control via Playwright bridge.
+532 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -429,6 +429,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_trade_solos` — Trade solos: two soloists trading phrases back and forth ("trading fours/eights"). Jazz/rock convention — each builds on the previous, intensity increases, second responds higher/denser. Bluesy chromatic passing tones. 2-16 bars per trade, seeded PRNG. Coltrane & Miles, blues battles, rock guitar battles.
 - `create_jpop_arrangement` — J-pop arrangement (One Ok Rock/BABYMETAL/YOASOBI/LiSA style): fast energetic 140 BPM, melody-driven lead with wide intervals and fast runs, octave-jumping bass with 16th runs, double-time hats, IV-V-vi-iv with modal mixture (minor iv), syncopated chord stabs + arpeggiated picks. C major, 16 bars, 4 tracks.
 - `create_counter_melody` — Counter-melody: secondary melody that complements the main one. 5 types: contrary (opposite direction, species counterpoint), oblique (one voice sustained while other moves), parallel (thirds/sixths below, sweet consonant), rhythmic (offbeat entries, fills gaps, polyrhythmic), pedal (sustained drone at chord changes, atmospheric). 3 scales, octave 3 (below melody), 4-16 bars. Seeded PRNG. Quieter than melody (0.55 vs 0.75).
+- `read_meter` — Read parameter values from a Werkstatt meter device (LUFS/correlation/spectrum). After auto_master places a LUFS meter on output, use this to read the measured integrated LUFS, correlation coefficient, spectral centroid, band levels, etc. Identifies meter type from code header. Closes the verification feedback loop: auto_master → lufs_meter → read_meter → verify target.
 - `create_cross_rhythm` — Cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar into n+m parts), cross-rhythm gives each voice its own period in beats. Voices cycle independently, only realign at LCM of all periods. 2-6 voices, velocity attenuation. African cross-rhythms, Steve Reich, Talking Heads.
 - `create_clave` — Afro-Cuban clave pattern: 5-note rhythmic skeleton across 2 bars. 6 clave types (son 3-2, son 2-3, rumba 3-2, rumba 2-3, bossa nova, 6/8). Direction (3-2 or 2-3) determines feel. All other rhythms align to clave.
 - `create_euclidean_rhythm` — Euclidean rhythm: distributes k onsets across n steps maximally evenly via Björklund's algorithm. Generates world rhythms: E(3,8)=tresillo, E(5,8)=cinquillo, E(7,16)=samba, E(7,12)=bembé, E(4,9)=Aksak. Rotation shifts pattern.

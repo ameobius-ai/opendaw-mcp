@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.377.0 (2026-07-06)
+
+- **`read_meter`** — Read parameter values from Werkstatt meter devices. After auto_master places a LUFS meter on output, this tool reads the measured values — integrated LUFS, correlation coefficient, spectral centroid, band levels, etc. Identifies meter type from code header (lufs_meter/correlation_meter/spectrum_analyzer). Closes the verification feedback loop: auto_master → lufs_meter → read_meter → verify target LUFS. 19 unit tests. 532 MCP tools.
+
 ## v1.376.0 (2026-07-06)
 
 - **`auto_master` upgraded** — Now places LUFS meter on output automatically (Step 4: verification). After mastering chain + auto_gain, a Werkstatt LUFS meter is added to the output bus for post-mastering loudness verification. Closes the feedback loop: master → measure → verify. `meters_available` field lists all three metering DSP scripts available for verification.

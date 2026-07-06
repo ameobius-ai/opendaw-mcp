@@ -64096,3 +64096,97 @@ async def mcp_opendaw_create_counter_melody(
     }.get(counter_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_read_meter(
+    unit_index: int = -1,
+    device_index: int = -1,
+) -> str:
+    """Read parameter values from a Werkstatt meter device (LUFS/correlation/spectrum).
+
+    After auto_master places a LUFS meter on output, or after manually adding
+    a correlation_meter or spectrum_analyzer, use this tool to read the current
+    measured values. The meter must be a Werkstatt script device with @param
+    declarations.
+
+    Returns all parameter values with their labels — integrated LUFS, correlation,
+    spectral centroid, band levels, etc. depending on which meter is loaded.
+
+    unit_index: Audio unit index (-1 = output/master bus)
+    device_index: Device index within the unit (-1 = last device)
+
+    Example:
+      read_meter()  # read LUFS meter on output after auto_master
+      read_meter(unit_index=0, device_index=2)  # read specific meter
+    """
+    js_code = """(async () => {
+        const h = window.DAW_project;
+        if (!h) return JSON.stringify({error: "No project"});
+
+        const project = h;
+        const units = [...project.units.pointerHub.incoming()];
+
+        // Find target unit (-1 = last/output)
+        let targetUnit = null;
+        if (arguments[0] === -1) {
+            targetUnit = units[units.length - 1];
+        } else {
+            targetUnit = units[arguments[0]];
+        }
+        if (!targetUnit) return JSON.stringify({error: "Unit not found"});
+
+        const auBox = targetUnit.box;
+        const audioEffects = auBox.audioEffects;
+        const effects = [...audioEffects.pointerHub.incoming()];
+
+        // Find target device (-1 = last)
+        let targetDevice = null;
+        if (arguments[1] === -1) {
+            targetDevice = effects[effects.length - 1];
+        } else {
+            targetDevice = effects[arguments[1]];
+        }
+        if (!targetDevice) return JSON.stringify({error: "Device not found"});
+
+        const deviceBox = targetDevice.box;
+
+        // Check if it's a Werkstatt device
+        if (!deviceBox.parameters) {
+            return JSON.stringify({error: "Not a Werkstatt device (no parameters)"});
+        }
+
+        // Read all parameters
+        const params = [...deviceBox.parameters.pointerHub.incoming()];
+        const paramValues = [];
+
+        for (const param of params) {
+            const paramBox = param.box;
+            const label = paramBox.label ? paramBox.label.getValue() : "unknown";
+            const value = paramBox.value ? paramBox.value.getValue() : 0;
+            paramValues.push({label: label, value: value});
+        }
+
+        // Try to read the code header to identify meter type
+        let meterType = "unknown";
+        if (deviceBox.code) {
+            const code = deviceBox.code.getValue();
+            if (code.includes("lufs_meter")) meterType = "lufs_meter";
+            else if (code.includes("correlation_meter")) meterType = "correlation_meter";
+            else if (code.includes("spectrum_analyzer")) meterType = "spectrum_analyzer";
+            else if (code.includes("@werkstatt")) meterType = "werkstatt_custom";
+        }
+
+        return JSON.stringify({
+            meter_type: meterType,
+            unit_index: arguments[0],
+            device_index: arguments[1],
+            parameters: paramValues,
+            param_count: paramValues.length,
+        });
+    })(""" + str(unit_index) + ", " + str(device_index) + ")"
+
+    try:
+        result = await bridge.evaluate(js_code)
+        return result if isinstance(result, str) else json.dumps({"result": str(result)})
+    except Exception as e:
+        return json.dumps({"error": str(e)[:200]})
