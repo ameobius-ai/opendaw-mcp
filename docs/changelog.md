@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.364.0 (2026-07-06)
+
+- **`arrange_full_song` upgraded** — Now uses dedicated `create_verse` and `create_chorus` generators instead of `create_arpeggio`. All 10 song sections now use their proper standalone generators with type variants. Verse = narrative type, chorus = anthemic type, with automatic velocity scaling (chorus 1.15x, verse 0.85x).
+
 ## v1.363.0 (2026-07-06)
 
 - **`create_chorus`** — Chorus section generator: the emotional peak, the hook, the memorable part. 5 types: anthemic (big wide sustained notes, octave jumps, I-V-vi-IV, stadium), hooky (short catchy 2-bar phrase repeated, earworm), driving (relentless 16th notes), soaring (melody climbs higher, peak note near end, crescendo), call_response (antecedent-consequent, question then answer). 3 scales, 4-16 bars. Seeded PRNG. 25 unit tests. 527 MCP tools. Section generators now COMPLETE — all 10 song sections have standalone generators.

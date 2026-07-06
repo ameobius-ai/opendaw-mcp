@@ -61375,15 +61375,14 @@ async def mcp_opendaw_arrange_full_song(
     """Arrange a complete song from structural sections in one call.
 
     This is a meta-tool that calls section generators (create_intro,
-    create_prechorus, create_bridge, create_outro, etc.) in sequence,
-    automatically tracking start_beat so each section begins where
-    the previous one ends. Eliminates the need for 8+ separate calls
-    with manual beat offset calculation.
+    create_verse, create_prechorus, create_chorus, create_bridge,
+    create_outro, etc.) in sequence, automatically tracking start_beat
+    so each section begins where the previous one ends. Eliminates the
+    need for 8+ separate calls with manual beat offset calculation.
 
-    The "chorus" and "verse" sections use create_arpeggio for melodic
-    content (since there are no dedicated verse/chorus generators —
-    those are genre-specific). All other sections use their dedicated
-    generators with the specified type variants.
+    All 10 song sections use dedicated generators:
+    intro, verse, prechorus, chorus, bridge, interlude, transition,
+    outro, coda — each with their own type variants.
 
     structure: Comma-separated list of section:bars pairs.
                Valid sections: intro, prechorus, chorus, verse, bridge,
@@ -61445,19 +61444,15 @@ async def mcp_opendaw_arrange_full_song(
                 prechorus_type, key_root, scale_type, octave, bars,
                 velocity, -1, 0, start_beat, seed)
         elif name == "chorus":
-            # Chorus: full arpeggio with higher velocity
-            chord_name = key_root + ("min7" if scale_type in ("minor", "harmonic_minor") else "maj7")
-            r = await mcp_opendaw_create_arpeggio(
-                chord_name, "up", "8", octave,
-                bars * 4, 0, 0, round(start_beat, 4),
-                round(min(velocity * 1.1, 1.0), 3))
+            # Chorus: dedicated chorus generator with higher velocity
+            r = await mcp_opendaw_create_chorus(
+                "anthemic", key_root, scale_type, octave, bars,
+                round(min(velocity * 1.15, 1.0), 3), -1, 0, start_beat, seed)
         elif name == "verse":
-            # Verse: sparse arpeggio with lower velocity
-            chord_name = key_root + ("min7" if scale_type in ("minor", "harmonic_minor") else "maj7")
-            r = await mcp_opendaw_create_arpeggio(
-                chord_name, "updown", "4", octave,
-                bars * 4, 0, 0, round(start_beat, 4),
-                round(velocity * 0.8, 3))
+            # Verse: dedicated verse generator with lower velocity
+            r = await mcp_opendaw_create_verse(
+                "narrative", key_root, scale_type, octave, bars,
+                round(velocity * 0.85, 3), -1, 0, start_beat, seed)
         elif name == "bridge":
             r = await mcp_opendaw_create_bridge(
                 bridge_type, key_root, scale_type, octave, bars,
