@@ -15,6 +15,9 @@
 | `werkstatt_cabinet_sim.js` | Guitar Cabinet Speaker Simulator (4x12/open-back/tweed, resonance peak, speaker rolloff, cone soft clip) |
 | `werkstatt_valve_preamp.js` | Valve/Tube Preamp (12AX7 triode, asymmetric waveshaper, even-order harmonics, Miller capacitance, output transformer) |
 | `werkstatt_synthetic_ir_reverb.js` | Synthetic IR Reverb (algorithmic impulse response generation, exponential decay × filtered noise, early reflections, truncated convolution) |
+| `werkstatt_sidechain_comp.js` | Sidechain Compressor (pump effect, envelope follower, gain smoothing, kick→bass ducking, 8 params) |
+| `werkstatt_ott.js` | OTT Multiband Compressor (Xfer-style 3-band upward/downward, LR crossover 200/2000Hz, depth/time/per-band+master gain) |
+| `werkstatt_soft_clipper.js` | Soft Clipper (tanh+cubic curves, ceiling/drive/curve, drum bus/mix bus/808 loudness without harshness) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |

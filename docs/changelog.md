@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.328.0 (2026-07-06)
+
+- **3 new DSP scripts**: `werkstatt_sidechain_comp.js` (sidechain compressor with pump effect, 8 params: threshold/ratio/attack/release/makeup/mix/srcSelect/listenDuck, envelope follower, gain smoothing, kick→bass ducking), `werkstatt_ott.js` (Xfer-style OTT multiband upward/downward compressor, 3-band LR crossover at 200/2000Hz, per-band upward+downward compression, depth/time/per-band+master gain, the signature EDM sound), `werkstatt_soft_clipper.js` (soft clipper with tanh+cubic curves, ceiling/drive/curve/mix/out, drum bus/mix bus/808 loudness). 117 DSP scripts total.
+
 ## v1.327.0 (2026-07-06)
 
 - **`create_future_bass_arrangement`** — Future bass: 150 BPM melodic electronic. 4 tracks: punchy drums with pitching snare roll (ascending velocity crescendo), sub-bass following I-V-vi-IV chord roots, big supersaw chords (maj7/add9/min7 wide voicings, 2 bars per chord), vocal-chop style lead (major scale melodic fragments, starts bar 5). C major default. Flume, San Holo, Illenium, ODESZA. 22 unit tests. 502 MCP tools.
