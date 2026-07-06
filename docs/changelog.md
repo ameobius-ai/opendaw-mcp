@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.324.0 (2026-07-06)
+
+- **`create_ambient_arrangement`** — Ambient: 70 BPM atmospheric soundscape. 4 tracks: sustained pad (open voicings: root/fifth/octave/third, 8 bars per chord), sparse drifting melody (2-4 bar notes, starts bar 9), subliminal drums (kick every 8 bars, shaker every 4), sub-bass drone (root only, 8 bars per note). I-vi-IV-V harmony. C major default. Brian Eno, Stars of the Lid, Aphex Twin SAW. 21 unit tests. 499 MCP tools.
+
 ## v1.323.0 (2026-07-06)
 
 - **`create_downtempo_arrangement`** — Downtempo/trip-hop: 85 BPM Bristol sound. 5 tracks: boom-bap drums (heavy swing, ghost notes, vinyl aesthetic), deep sub-bass (sustained melodic, octave 1), minor 7th/9th chords (sparse every 2 bars, Rhodes-style), sparse melancholic melody (starts bar 5, wide intervals), sustained atmosphere pad (root+fifth, cinematic). D minor default. Massive Attack, Portishead, DJ Shadow. 24 unit tests. 498 MCP tools.

@@ -56770,3 +56770,172 @@ async def mcp_opendaw_create_downtempo_arrangement(
         return json.dumps(data, indent=2)
     except Exception:
         return results[0]
+
+
+@mcp.tool()
+async def mcp_opendaw_create_ambient_arrangement(
+    key_root: str = "C",
+    bpm: int = 70,
+    bars: int = 32,
+    velocity: float = 0.5,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create an ambient arrangement — 70 BPM atmospheric soundscape.
+
+    Ambient music (Brian Eno, Stars of the Lid, Aphex Twin Selected
+    Ambient Works) focuses on atmosphere, texture, and sustained sound
+    over rhythm and melody. Key characteristics:
+    - 60-80 BPM (or no clear pulse), 4/4 time
+    - Long sustained pad notes with slow evolution
+    - Sparse, minimal percussion (or none)
+    - Drifting melodic fragments, no clear phrase structure
+    - Reverb-drenched, wide stereo, cinematic
+    - Modal harmony (sustained chords, slow changes)
+
+    Creates 4 tracks:
+    1. Pad (track_index): Long sustained chord notes (8 bars each),
+       mode-based (major/minor/dorian/lydian), very slow harmonic
+       rhythm. Root, fifth, octave — open voicings.
+    2. Melody (track_index+1): Sparse, drifting melodic fragments —
+       long notes (2-4 bars), wide intervals, lots of space. Starts
+       after 8 bars.
+    3. Drums (track_index+2): Extremely sparse — single kick on bar 1
+       of every 8 bars, occasional shaker. Almost subliminal pulse.
+    4. Bass (track_index+3): Sustained sub-bass drone, root note
+       only, changes with pad harmony. Very low octave.
+
+    Default key: C major (most common ambient key). Default 32 bars
+    for proper ambient evolution length.
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(8, bars)
+
+    KICK = 36
+    SHAKER = 64
+
+    major_scale = [0, 2, 4, 5, 7, 9, 11]
+    pad_oct = (3 + 1) * 12 + root_pc
+    mel_oct = (4 + 1) * 12 + root_pc
+    bass_oct = (1 + 1) * 12 + root_pc
+
+    def deg_to_pitch(degree, root_note, sc):
+        ns = len(sc)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return root_note + oct_shift * 12 + sc[idx]
+
+    pad = []
+    melody = []
+    drums = []
+    bass = []
+
+    # Slow harmonic progression: I - vi - IV - V (C - Am - F - G)
+    # Each chord lasts 8 bars → 32 bars total
+    chord_roots = [0, 5, 3, 7]  # scale degrees: I, vi, IV, V
+    chord_duration = 8  # bars per chord
+
+    # Pad voicings: root, fifth, octave (open, ambient)
+    pad_intervals = [0, 7, 12, 16]  # root, fifth, octave, third
+
+    # Melody: sparse drifting fragments
+    mel_degrees = [0, 4, 7, 11, 9, 7, 4, 2, 0, 5, 9, 7, 4, 2, 0]
+    mel_durations = [4.0, 2.0, 4.0, 2.0, 4.0, 2.0, 4.0, 2.0, 4.0, 2.0, 4.0, 2.0, 4.0, 2.0, 4.0]
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+
+        # --- Pad (sustained chords, 8 bars each) ---
+        if bar % chord_duration == 0:
+            chord_idx = (bar // chord_duration) % len(chord_roots)
+            croot = chord_roots[chord_idx]
+            for ci in pad_intervals:
+                pad.append({
+                    "pitch": deg_to_pitch(croot + ci, pad_oct, major_scale),
+                    "start": round(bar_start, 4),
+                    "duration": chord_duration * 4.0,  # 8 bars = 32 beats
+                    "velocity": round(velocity * 0.5, 3),
+                })
+
+        # --- Bass drone (changes with pad) ---
+        if bar % chord_duration == 0:
+            chord_idx = (bar // chord_duration) % len(chord_roots)
+            croot = chord_roots[chord_idx]
+            bass.append({
+                "pitch": deg_to_pitch(croot, bass_oct, major_scale),
+                "start": round(bar_start, 4),
+                "duration": chord_duration * 4.0,
+                "velocity": round(velocity * 0.6, 3),
+            })
+
+        # --- Melody (starts after 8 bars, very sparse) ---
+        if bar >= 8 and bar % 2 == 0:
+            mel_idx = ((bar - 8) // 2) % len(mel_degrees)
+            mel_deg = mel_degrees[mel_idx]
+            mel_dur = mel_durations[mel_idx % len(mel_durations)]
+            melody.append({
+                "pitch": deg_to_pitch(mel_deg, mel_oct, major_scale),
+                "start": round(bar_start + 1.0, 4),  # slight offset
+                "duration": round(mel_dur * 0.95, 4),
+                "velocity": round(velocity * 0.65, 3),
+            })
+
+        # --- Drums (subliminal pulse) ---
+        if bar % 8 == 0:
+            drums.append({
+                "pitch": KICK, "start": round(bar_start, 4),
+                "duration": 1.0, "velocity": round(velocity * 0.4, 3),
+            })
+        if bar % 4 == 2:
+            drums.append({
+                "pitch": SHAKER, "start": round(bar_start + 2.0, 4),
+                "duration": 0.3, "velocity": round(velocity * 0.2, 3),
+            })
+
+    pad.sort(key=lambda n: (n["start"], n["pitch"]))
+    melody.sort(key=lambda n: (n["start"], n["pitch"]))
+    drums.sort(key=lambda n: (n["start"], n["pitch"]))
+    bass.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    results = []
+    for i, (notes, label) in enumerate([
+        (pad, "pad"), (melody, "melody"), (drums, "drums"), (bass, "bass")
+    ]):
+        notes_json = json.dumps(notes)
+        result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index + i)
+        results.append(result)
+
+    try:
+        data = json.loads(results[0])
+        data["ambient_arrangement"] = True
+        data["bpm"] = bpm
+        data["bars"] = n_bars
+        data["key_root"] = key_root
+        data["tracks"] = {
+            "pad": {"track": track_index, "notes": len(pad),
+                    "style": "sustained open voicings (root/fifth/octave/third), 8 bars per chord"},
+            "melody": {"track": track_index + 1, "notes": len(melody),
+                        "style": "sparse drifting fragments, 2-4 bar notes, starts bar 9"},
+            "drums": {"track": track_index + 2, "notes": len(drums),
+                      "style": "subliminal pulse: kick every 8 bars, shaker every 4"},
+            "bass": {"track": track_index + 3, "notes": len(bass),
+                      "style": "sub-bass drone, root only, 8 bars per note"},
+        }
+        data["total_notes"] = len(pad) + len(melody) + len(drums) + len(bass)
+        data["all_tracks_created"] = all(
+            json.loads(r).get("success", False) if r else False for r in results
+        )
+        return json.dumps(data, indent=2)
+    except Exception:
+        return results[0]
