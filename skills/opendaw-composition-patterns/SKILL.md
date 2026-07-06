@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 91 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.284.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 91 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.285.0"
 ---
 
 # openDAW Composition Patterns
@@ -130,6 +130,7 @@ What do you want to create?
 ├── Markov Melody → create_markov_melody (Markov chain interval transitions, order 1/2, custom weights, regression to mean, stylistic memory)
 ├── L-system Melody → create_l_system_melody (deterministic rewriting system, 5 presets: fibonacci/cantor/dragon/koch/sierpinski, fractal self-similar structure, custom rules)
 ├── Montuno → create_montuno (Latin/jazz piano ostinato, 2-3/3-2 clave + guajira + charanga patterns, syncopated chord stabs + melodic passages, I-vi-IV-V auto or custom chords)
+├── Voice Exchange → create_voice_exchange (imitative counterpoint, 6 modes: imitation/inversion/retrograde/retrograde-inversion/augmentation/diminution, optional swap for voice crossing)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

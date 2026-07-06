@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.285.0 (2026-07-06)
+
+### Added
+- `create_voice_exchange` — Imitative counterpoint: pass motifs between voices with 6 transformation modes (imitation, inversion, retrograde, retrograde-inversion, augmentation, diminution). Optional swap mode for true voice crossing. Time offset for response entry. Foundation of fugue, canon, and Renaissance polyphony. Unlike clone_track (exact copy), transforms material as it passes between voices.
+
 ## v1.284.0 (2026-07-06)
 
 ### Added

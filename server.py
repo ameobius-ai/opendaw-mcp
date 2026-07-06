@@ -36469,6 +36469,268 @@ async def mcp_opendaw_create_montuno(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_voice_exchange(
+    unit_index: int,
+    source_track: int = 0,
+    source_region: int = 0,
+    target_track: int = 1,
+    target_region: int = 0,
+    exchange_mode: str = "imitation",
+    interval: int = 7,
+    transpose: int = 0,
+    time_offset: float = 2.0,
+    duration_factor: float = 1.0,
+    velocity_factor: float = 0.85,
+    swap: bool = False,
+) -> str:
+    """Create a voice exchange — imitative counterpoint where motifs pass between voices.
+
+    A voice exchange is a contrapuntal technique where melodic material is
+    passed between two or more voices. Voice A states a motif, Voice B
+    responds with the same motif (transposed, inverted, or retrograded),
+    creating a dialogic texture. This is the foundation of fugue, canon,
+    and Renaissance polyphony.
+
+    Unlike clone_track (exact copy) or copy_notes_to_track (direct clone),
+    voice exchange transforms the material as it passes between voices:
+    - Imitation: same motif at a different pitch level
+    - Inversion: motif inverted (intervals flipped)
+    - Retrograde: motif reversed in time
+    - Retrograde-inversion: both reversed and inverted
+    - Augmentation: motif stretched in time
+    - Diminution: motif compressed in time
+
+    With swap=True, the source notes are also moved to the target register,
+    creating a true voice exchange where the voices cross.
+
+    Args:
+        unit_index: AU index.
+        source_track: Source note track index (contains the original motif).
+        source_region: Source region index (0 = first region).
+        target_track: Target note track index (where the response goes).
+        target_region: Target region index (0 = first region).
+        exchange_mode: Transformation mode (imitation, inversion, retrograde,
+            retrograde_inversion, augmentation, diminution).
+        interval: Pitch interval for imitation (semitones). Default 7 = perfect fifth.
+        transpose: Additional semitone transpose on top of interval.
+        time_offset: Time offset in beats before the response starts.
+            Default 2.0 = response begins 2 beats after source starts.
+        duration_factor: Duration multiplier (1.0 = same, 2.0 = augmentation,
+            0.5 = diminution). Overrides augmentation/diminution modes.
+        velocity_factor: Velocity multiplier for the response voice.
+        swap: If True, also swap source notes to target register (true exchange).
+
+    Returns notes created, transformation mode, and exchange statistics.
+    """
+    if exchange_mode not in ("imitation", "inversion", "retrograde",
+                             "retrograde_inversion", "augmentation", "diminution"):
+        return f"Error: exchange_mode must be imitation, inversion, retrograde, retrograde_inversion, augmentation, or diminution, got {exchange_mode}"
+    if not (0 <= time_offset <= 64):
+        return f"Error: time_offset must be 0-64, got {time_offset}"
+    if not (0.0625 <= duration_factor <= 8.0):
+        return f"Error: duration_factor must be 0.0625-8.0, got {duration_factor}"
+
+    # Determine duration factor from mode if not explicitly set
+    effective_dur_factor = duration_factor
+    if exchange_mode == "augmentation" and duration_factor == 1.0:
+        effective_dur_factor = 2.0
+    elif exchange_mode == "diminution" and duration_factor == 1.0:
+        effective_dur_factor = 0.5
+
+    total_transpose = interval + transpose
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const srcTrackIdx = {source_track};
+        const srcRegionIdx = {source_region};
+        const tgtTrackIdx = {target_track};
+        const tgtRegionIdx = {target_region};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (srcTrackIdx < 0 || srcTrackIdx >= noteTracks.length) return {{error: "source_track out of range"}};
+        if (tgtTrackIdx < 0 || tgtTrackIdx >= noteTracks.length) return {{error: "target_track out of range"}};
+
+        // Get source region notes
+        const srcTrackBox = noteTracks[srcTrackIdx];
+        const srcRegions = h.regionBoxes(srcTrackBox);
+        if (srcRegionIdx < 0 || srcRegionIdx >= srcRegions.length) return {{error: "source_region out of range"}};
+
+        let srcCollection = null;
+        try {{
+            const vertex = srcRegions[srcRegionIdx].events.targetVertex.unwrap();
+            srcCollection = vertex.box || vertex;
+        }} catch(e) {{}}
+        if (!srcCollection) return {{error: "No source collection"}};
+
+        // Get target region notes
+        const tgtTrackBox = noteTracks[tgtTrackIdx];
+        const tgtRegions = h.regionBoxes(tgtTrackBox);
+        let tgtCollection = null;
+        if (tgtRegionIdx >= 0 && tgtRegionIdx < tgtRegions.length) {{
+            try {{
+                const vertex = tgtRegions[tgtRegionIdx].events.targetVertex.unwrap();
+                tgtCollection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!tgtCollection) return {{error: "No target collection"}};
+
+        // Extract source notes
+        const srcNotes = [];
+        const srcNoteBoxes = srcCollection.events.pointerHub.incoming();
+        for (const noteBox of srcNoteBoxes) {{
+            const box = noteBox.box || noteBox;
+            srcNotes.push({{
+                pitch: box.pitch.getValue(),
+                position: box.position.getValue(),
+                duration: box.duration.getValue(),
+                velocity: box.velocity.getValue(),
+            }});
+        }}
+
+        if (srcNotes.length === 0) return {{error: "No source notes to exchange", notes_created: 0}};
+
+        // Sort by position
+        srcNotes.sort((a, b) => a.position - b.position);
+
+        // Get source start position
+        const srcStart = srcNotes[0].position;
+        const offsetTicks = Math.round({time_offset} * Quarter);
+
+        // Transform notes based on exchange_mode
+        const mode = "{exchange_mode}";
+        const transposeSemi = {total_transpose};
+        const durFactor = {effective_dur_factor};
+        const velFactor = {velocity_factor};
+        const doSwap = {str(swap).lower()};
+
+        let transformedNotes = [];
+        let pitches = srcNotes.map(n => n.pitch);
+        let positions = srcNotes.map(n => n.position);
+        let durations = srcNotes.map(n => n.duration);
+        let velocities = srcNotes.map(n => n.velocity);
+
+        if (mode === "retrograde" || mode === "retrograde_inversion") {{
+            // Reverse time order
+            positions = positions.slice().reverse();
+            durations = durations.slice().reverse();
+            velocities = velocities.slice().reverse();
+            // Recalculate positions to maintain contiguous sequence
+            let pos = srcStart + offsetTicks;
+            for (let i = 0; i < positions.length; i++) {{
+                positions[i] = pos;
+                pos += durations[i];
+            }}
+        }}
+
+        if (mode === "inversion" || mode === "retrograde_inversion") {{
+            // Invert intervals around first pitch
+            const axis = pitches[0];
+            for (let i = 0; i < pitches.length; i++) {{
+                pitches[i] = axis - (pitches[i] - axis);
+            }}
+        }}
+
+        // Apply transpose
+        for (let i = 0; i < pitches.length; i++) {{
+            pitches[i] += transposeSemi;
+        }}
+
+        // Apply duration factor
+        if (durFactor !== 1.0) {{
+            for (let i = 0; i < durations.length; i++) {{
+                durations[i] = Math.round(durations[i] * durFactor);
+            }}
+            // Recalculate positions
+            let pos = srcStart + offsetTicks;
+            for (let i = 0; i < positions.length; i++) {{
+                positions[i] = pos;
+                pos += durations[i];
+            }}
+        }}
+
+        // If not retrograde, shift all positions by offset
+        if (mode === "imitation" || mode === "inversion" ||
+            mode === "augmentation" || mode === "diminution") {{
+            for (let i = 0; i < positions.length; i++) {{
+                positions[i] = positions[i] - srcStart + offsetTicks;
+            }}
+        }}
+
+        // Apply velocity factor
+        for (let i = 0; i < velocities.length; i++) {{
+            velocities[i] = Math.max(0, Math.min(1, velocities[i] * velFactor));
+        }}
+
+        // Prepare transformed notes
+        for (let i = 0; i < pitches.length; i++) {{
+            transformedNotes.push({{
+                pitch: pitches[i],
+                position: positions[i],
+                duration: durations[i],
+                velocity: velocities[i],
+            }});
+        }}
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < transformedNotes.length; i++) {{
+                const tn = transformedNotes[i];
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(tn.position);
+                    box.duration.setValue(tn.duration);
+                    box.pitch.setValue(tn.pitch);
+                    box.velocity.setValue(tn.velocity);
+                    box.events.refer(tgtCollection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: tn.pitch, pos: Math.round(tn.position / Quarter * 100) / 100}});
+            }}
+        }});
+
+        // If swap, also transpose source notes
+        let swapped = 0;
+        if (doSwap) {{
+            h.modify(() => {{
+                const srcNoteBoxes2 = srcCollection.events.pointerHub.incoming();
+                for (const noteBox of srcNoteBoxes2) {{
+                    const box = noteBox.box || noteBox;
+                    const curPitch = box.pitch.getValue();
+                    box.pitch.setValue(curPitch + transposeSemi);
+                    swapped++;
+                }}
+            }});
+        }}
+
+        return {{
+            success: true,
+            exchange_mode: mode,
+            interval: {interval},
+            transpose: {transpose},
+            time_offset: {time_offset},
+            duration_factor: durFactor,
+            velocity_factor: velFactor,
+            swap: doSwap,
+            source_notes: srcNotes.length,
+            notes_created: created,
+            swapped: swapped,
+            note_preview: noteEvents.slice(0, 10),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 
