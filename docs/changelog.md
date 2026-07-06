@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.368.0 (2026-07-06)
+
+- **`create_trade_solos`** — Trade solos: two soloists trading phrases back and forth. "Trading fours" or "trading eights" jazz/rock convention. Each soloist builds on the previous, intensity increases with each trade, second responds higher/denser. Bluesy chromatic passing tones. 2-16 bars per trade, configurable trade length, seeded PRNG. 23 unit tests. 529 MCP tools. References: Coltrane & Miles, blues battles, rock guitar battles.
+
 ## v1.367.0 (2026-07-06)
 
 - **`werkstatt_lufs_meter.js`** — LUFS Meter (ITU-R BS.1770-4). K-weighting filter (shelving + highpass) + RMS + gating. Reports integrated, short-term (3s), and momentary (400ms) LUFS. True peak tracking. Read-only meter — no audio modification. Closes the mastering verification gap: `auto_master` targets LUFS, now you can verify it. 132 DSP scripts.

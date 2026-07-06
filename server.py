@@ -63470,3 +63470,170 @@ async def mcp_opendaw_create_kpop_arrangement(
             "Use render_full to render the arrangement",
         ],
     }, indent=2)
+
+
+async def mcp_opendaw_create_trade_solos(
+    key_root: str = "C",
+    scale_type: str = "minor",
+    octave: int = 4,
+    bars: int = 16,
+    trade_length: int = 4,
+    velocity: float = 0.75,
+    unit_index: int = -1,
+    track_index_a: int = 0,
+    track_index_b: int = 1,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create trade solos — two instruments trading phrases back and forth.
+
+    "Trading fours" or "trading eights" is a jazz/rock convention where two
+    soloists alternate — one plays 4 bars, the other responds with 4 bars.
+    Each soloist builds on what the previous one played, creating a musical
+    conversation. Used in jazz (Coltrane & Miles), rock (guitar solos),
+    blues (harmonica & guitar), and hip-hop (producer battles).
+
+    The tool creates two interleaved solos on separate tracks:
+    - Track A plays bars 0 to trade_length-1, trade_length*2 to trade_length*3, etc.
+    - Track B plays bars trade_length to trade_length*2-1, etc.
+    - Each phrase responds to the previous one (higher, denser, or varied)
+
+    trade_length: Bars per trade (4 = "trading fours", 8 = "trading eights", 2 = "trading twos")
+    bars: Total bars (must be divisible by trade_length * 2)
+    track_index_a: First soloist's track
+    track_index_b: Second soloist's track
+
+    Example:
+      create_trade_solos(key_root="Bb", scale_type="minor", trade_length=4, bars=16)
+      create_trade_solos(key_root="E", scale_type="minor", trade_length=8, bars=32)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if not (2 <= octave <= 6):
+        return json.dumps({"error": "octave must be 2-6"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (2 <= trade_length <= 16):
+        return json.dumps({"error": "trade_length must be 2-16"})
+    if bars % (trade_length * 2) != 0:
+        return json.dumps({"error": f"bars ({bars}) must be divisible by trade_length*2 ({trade_length * 2})"})
+    if not (4 <= bars <= 64):
+        return json.dumps({"error": "bars must be 4-64"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+    num_trades = bars // trade_length
+
+    for trade_idx in range(num_trades):
+        bar_start_global = trade_idx * trade_length * bar_len
+        # Alternate: even trades = A, odd trades = B
+        is_a = trade_idx % 2 == 0
+        track = track_index_a if is_a else track_index_b
+
+        # Intensity increases with each trade (conversation heats up)
+        intensity = 0.5 + 0.4 * (trade_idx / max(num_trades - 1, 1))
+        v = velocity * (0.7 + 0.3 * intensity)
+
+        # Each trade: generate a phrase that responds to the previous
+        for bar_in_trade in range(trade_length):
+            bar_start = bar_start_global + bar_in_trade * bar_len
+
+            # Phrase density increases with intensity
+            notes_per_bar = 4 + int(intensity * 4)  # 4 to 8 notes
+
+            for n in range(notes_per_bar):
+                # Scale degrees with bluesy chromatic passing tones
+                deg = int(next(rng) * ns * 2) % ns
+                # Occasionally add chromatic passing tone
+                if next(rng) > 0.8:
+                    deg = (deg + 1) % ns  # half-step up (blue note feel)
+
+                beat = n * (bar_len / notes_per_bar)
+                dur = bar_len / notes_per_bar * 0.7
+                v_adj = v * (0.6 + 0.4 * next(rng))
+
+                # Second soloist plays slightly higher (responding)
+                oct_shift = 1 if not is_a and bar_in_trade == 0 else 0
+
+                notes.append({
+                    "pitch": deg_to_pitch(deg, oct_shift),
+                    "start": round(start_beat + bar_start + beat, 4),
+                    "duration": round(dur, 3),
+                    "velocity": round(v_adj, 3),
+                    "track": track,
+                })
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    # Create notes per track
+    results_per_track = {}
+    for track_idx in [track_index_a, track_index_b]:
+        track_notes = [n for n in notes if n["track"] == track_idx]
+        if track_notes:
+            clean = [{k: v for k, v in n.items() if k != "track"} for n in track_notes]
+            r = await mcp_opendaw_create_notes_batch(
+                json.dumps(clean), unit_index, track_idx)
+            try:
+                d = json.loads(r)
+                results_per_track[track_idx] = d.get("notes_created", len(clean))
+            except Exception:
+                results_per_track[track_idx] = len(clean)
+
+    return json.dumps({
+        "trade_solos": True,
+        "key_root": key_root,
+        "scale_type": scale_type,
+        "octave": octave,
+        "bars": bars,
+        "trade_length": trade_length,
+        "trade_type": f"trading_{trade_length}s",
+        "num_trades": num_trades,
+        "track_a": track_index_a,
+        "track_b": track_index_b,
+        "notes_created": len(notes),
+        "track_notes": results_per_track,
+        "characteristics": "two soloists trading phrases, intensity builds, second responds higher/denser, musical conversation",
+        "references": "Coltrane & Miles, blues harmonica & guitar, rock guitar battles, hip-hop producer battles",
+        "next_steps": [
+            "Use add_genre_effects for instrument-appropriate effects",
+            "Use auto_master for final mastering",
+        ],
+    }, indent=2)
