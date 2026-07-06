@@ -62333,9 +62333,10 @@ async def mcp_opendaw_produce_and_master(
     2. arrange_full_song (MIDI skeleton)
     3. create_drum_pattern (genre drums)
     4. create_bassline (genre bass)
-    5. add_genre_effects (genre-specific effect chains)
-    6. auto_master (analyze → mastering chain → LUFS targeting)
-    7. render_full (if render=True)
+    5. create_melody (lead melody)
+    6. add_genre_effects (genre-specific effect chains)
+    7. auto_master (analyze → mastering chain → LUFS targeting)
+    8. render_full (if render=True)
 
     One call = a fully produced and mastered track ready for streaming.
     Replaces 30-40 individual tool calls.
@@ -62400,7 +62401,17 @@ async def mcp_opendaw_produce_and_master(
     except Exception as e:
         results["bass_error"] = str(e)[:100]
 
-    # Step 5: Genre effects
+    # Step 5: Lead melody
+    try:
+        melody_pattern = "1 2 3 4 5 4 3 2 1 7 6 5 4 3 2 1"
+        r = await mcp_opendaw_create_melody(
+            scale_type, key_root, melody_pattern, -1, 0, 0, octave + 1, velocity * 0.85)
+        d = json.loads(r)
+        results["melody"] = d.get("notes_created", d.get("notes_generated", 0))
+    except Exception as e:
+        results["melody_error"] = str(e)[:100]
+
+    # Step 6: Genre effects
     try:
         r = await mcp_opendaw_add_genre_effects(genre, -1)
         d = json.loads(r)
@@ -62411,7 +62422,7 @@ async def mcp_opendaw_produce_and_master(
     except Exception as e:
         results["genre_fx_error"] = str(e)[:100]
 
-    # Step 6: Auto-master
+    # Step 7: Auto-master
     try:
         r = await mcp_opendaw_auto_master(-14.0, platform, master_style, -1.0)
         d = json.loads(r)
@@ -62423,7 +62434,7 @@ async def mcp_opendaw_produce_and_master(
     except Exception as e:
         results["master_error"] = str(e)[:100]
 
-    # Step 7: Render
+    # Step 8: Render
     if render:
         try:
             r = await mcp_opendaw_render_full()
@@ -62455,9 +62466,9 @@ async def mcp_opendaw_produce_and_master(
     results["master_style"] = master_style
     results["total_notes"] = total_notes
     results["rendered"] = render
-    results["steps_completed"] = sum(1 for k in ["bpm", "arrangement", "drums", "bass", "genre_effects", "mastering", "render"] if k in results)
-    results["steps_total"] = 7
-    results["pipeline"] = "set_bpm → arrange → drums → bass → genre_effects → auto_master → render"
+    results["steps_completed"] = sum(1 for k in ["bpm", "arrangement", "drums", "bass", "melody", "genre_effects", "mastering", "render"] if k in results)
+    results["steps_total"] = 8
+    results["pipeline"] = "set_bpm → arrange → drums → bass → melody → genre_effects → auto_master → render"
 
     return json.dumps(results, indent=2)
 

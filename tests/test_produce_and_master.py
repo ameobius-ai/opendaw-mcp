@@ -24,9 +24,9 @@ def test_pipeline_exists():
     assert "async def mcp_opendaw_produce_and_master" in src
 
 
-def test_pipeline_has_7_steps():
+def test_pipeline_has_8_steps():
     src = _get_source()
-    for i in range(1, 8):
+    for i in range(1, 9):
         assert f"Step {i}" in src
 
 
@@ -107,10 +107,9 @@ def test_pipeline_has_total_notes():
     assert "total_notes" in src
 
 
-def test_pipeline_has_steps_count():
+def test_pipeline_calls_melody():
     src = _get_source()
-    assert "steps_completed" in src
-    assert "steps_total" in src
+    assert "mcp_opendaw_create_melody" in src
 
 
 def test_pipeline_has_pipeline_string():

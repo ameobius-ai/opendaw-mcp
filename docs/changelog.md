@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.369.0 (2026-07-06)
+
+- **`produce_and_master` upgraded** — Now includes lead melody step (Step 5: create_melody). Pipeline is now 8 steps: BPM → arrange → drums → bass → melody → genre effects → mastering → render. Previously produced tracks had no lead melody — just drums, bass, and effects. Now every track has a melodic lead.
+
 ## v1.368.0 (2026-07-06)
 
 - **`create_trade_solos`** — Trade solos: two soloists trading phrases back and forth. "Trading fours" or "trading eights" jazz/rock convention. Each soloist builds on the previous, intensity increases with each trade, second responds higher/denser. Bluesy chromatic passing tones. 2-16 bars per trade, configurable trade length, seeded PRNG. 23 unit tests. 529 MCP tools. References: Coltrane & Miles, blues battles, rock guitar battles.
