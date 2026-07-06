@@ -37230,6 +37230,388 @@ async def mcp_opendaw_create_tuplet_group(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_cadenza(
+    root: str = "C",
+    scale: str = "minor",
+    duration_beats: float = 8.0,
+    octave: int = 4,
+    style: str = "classical",
+    virtuosic: bool = True,
+    breath_marks: str = "",
+    velocity: float = 0.7,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a cadenza — an unmeasured virtuosic solo passage with rubato.
+
+    A cadenza is a solo passage where the performer has rhythmic freedom.
+    Unlike all other tools that use quantized beat grids, cadenzas use
+    irregular, speech-like rhythm — accelerando, rallentando, fermatas,
+    and dramatic pauses. The notes follow a virtuosic contour: rapid runs,
+    wide leaps, trills, and dramatic peaks.
+
+    Styles:
+      classical  — Mozart/Beethoven style: balanced phrases, cadential trills
+      romantic   — Liszt/Chopin style: dramatic octaves, cascading runs
+      jazz       — Coltrane/Parker style: bebop lines, chromatic turns
+      modern     — Ligeti/Berio style: extreme registers, clusters
+
+    The cadenza is built from segments, each with its own tempo character:
+    - Flourish: rapid ascending/descending run
+    - Leap: dramatic wide interval jump
+    - Trill: alternating two pitches rapidly
+    - Fermata: held note with pause after
+    - Cascade: descending arpeggio pattern
+    - Climb: gradual ascending with crescendo
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, harmonic_minor, etc.).
+        duration_beats: Approximate total duration in beats (4-64).
+        octave: Starting MIDI octave (2-6).
+        style: Cadenza style (classical, romantic, jazz, modern).
+        virtuosic: If True, more rapid passages and wider leaps.
+        breath_marks: Comma-separated beat positions for pauses/breaths.
+        velocity: Base velocity 0-1 (cadenzas have wide dynamic range).
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, segment breakdown, and cadenza statistics.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["minor"])
+
+    if not (4 <= duration_beats <= 64):
+        return f"Error: duration_beats must be 4-64, got {duration_beats}"
+    if not (2 <= octave <= 6):
+        return f"Error: octave must be 2-6, got {octave}"
+    if style not in ("classical", "romantic", "jazz", "modern"):
+        return f"Error: style must be classical, romantic, jazz, or modern, got {style}"
+
+    # Parse breath marks
+    breath_set = set()
+    if breath_marks:
+        try:
+            for b in breath_marks.split(","):
+                breath_set.add(float(b.strip()))
+        except (ValueError, TypeError):
+            breath_set = set()
+
+    # Build scale pitches spanning 4 octaves for wide range
+    scale_pitches = []
+    for oct_shift in range(-1, 3):
+        for iv in intervals:
+            pitch = (octave + 1 + oct_shift) * 12 + (root_num + iv) % 12
+            scale_pitches.append(pitch)
+    scale_pitches = sorted(set(scale_pitches))
+
+    # Seeded PRNG for reproducibility
+    prng_state = 42 & 0xFFFFFFFF
+
+    def next_random():
+        nonlocal prng_state
+        prng_state = (prng_state + 0x6D2B79F5) & 0xFFFFFFFF
+        t = prng_state
+        t = ((t ^ (t >> 15)) * t | 1) & 0xFFFFFFFF
+        t = (t ^ (t >> 14)) & 0xFFFFFFFF
+        return t / 0xFFFFFFFF
+
+    # Style parameters
+    style_params = {
+        "classical": {"run_density": 6, "leap_max": 12, "trill_count": 4, "fermata_prob": 0.15},
+        "romantic": {"run_density": 8, "leap_max": 19, "trill_count": 6, "fermata_prob": 0.1},
+        "jazz": {"run_density": 7, "leap_max": 14, "trill_count": 3, "fermata_prob": 0.05},
+        "modern": {"run_density": 5, "leap_max": 24, "trill_count": 2, "fermata_prob": 0.2},
+    }
+    params = style_params.get(style, style_params["classical"])
+
+    if virtuosic:
+        params["run_density"] = int(params["run_density"] * 1.5)
+        params["leap_max"] = int(params["leap_max"] * 1.3)
+
+    # Style-weighted segment selection
+    style_weights = {
+        "classical": {"flourish": 3, "leap": 2, "trill": 3, "fermata": 2, "cascade": 2, "climb": 2},
+        "romantic": {"flourish": 4, "leap": 3, "trill": 2, "fermata": 1, "cascade": 3, "climb": 3},
+        "jazz": {"flourish": 4, "leap": 2, "trill": 1, "fermata": 1, "cascade": 2, "climb": 2},
+        "modern": {"flourish": 2, "leap": 4, "trill": 1, "fermata": 3, "cascade": 2, "climb": 1},
+    }
+    weights = style_weights.get(style, style_weights["classical"])
+
+    # Build weighted segment list
+    weighted_segments = []
+    for seg_type, weight in weights.items():
+        weighted_segments.extend([seg_type] * weight)
+
+    # Generate cadenza
+    notes = []
+    current_beat = 0.0
+    current_idx = len(scale_pitches) // 2
+    segment_log = []
+
+    while current_beat < duration_beats:
+        # Pick a segment type
+        seg_type = weighted_segments[int(next_random() * len(weighted_segments))]
+
+        # Check for breath mark
+        for breath_pos in breath_set:
+            if abs(current_beat - breath_pos) < 0.5:
+                current_beat += 0.5  # pause
+                segment_log.append({"type": "breath", "beat": round(current_beat, 2)})
+                break
+
+        remaining = duration_beats - current_beat
+        if remaining < 0.5:
+            break
+
+        if seg_type == "flourish":
+            # Rapid run: ascending or descending
+            run_len = min(params["run_density"], int(remaining / 0.15))
+            if run_len < 2:
+                run_len = 2
+            direction = 1 if next_random() > 0.5 else -1
+            run_dur = 0.1 + next_random() * 0.08  # irregular durations
+
+            for i in range(run_len):
+                if current_beat >= duration_beats:
+                    break
+                new_idx = current_idx + direction
+                new_idx = max(0, min(len(scale_pitches) - 1, new_idx))
+                pitch = scale_pitches[new_idx]
+
+                # Accelerando: notes get slightly shorter
+                accel_factor = 1.0 - (i / run_len) * 0.3
+                dur = run_dur * accel_factor
+                vel = velocity * (0.6 + next_random() * 0.3)
+
+                notes.append({
+                    "pitch": pitch,
+                    "pos": round(current_beat, 4),
+                    "dur": round(dur, 4),
+                    "vel": round(vel, 3),
+                })
+                current_beat += dur
+                current_idx = new_idx
+
+            segment_log.append({"type": "flourish", "notes": run_len, "beat": round(current_beat, 2)})
+
+        elif seg_type == "leap":
+            # Dramatic wide jump
+            leap_size = int(3 + next_random() * params["leap_max"])
+            direction = 1 if next_random() > 0.5 else -1
+            new_idx = current_idx + direction * leap_size
+            # Reflect at boundaries
+            if new_idx < 0:
+                new_idx = abs(new_idx)
+            elif new_idx >= len(scale_pitches):
+                new_idx = 2 * len(scale_pitches) - new_idx - 2
+            new_idx = max(0, min(len(scale_pitches) - 1, new_idx))
+
+            pitch = scale_pitches[new_idx]
+            dur = 0.3 + next_random() * 0.4  # longer note after leap
+            vel = velocity * (0.8 + next_random() * 0.2)  # louder
+
+            notes.append({
+                "pitch": pitch,
+                "pos": round(current_beat, 4),
+                "dur": round(dur, 4),
+                "vel": round(min(1.0, vel), 3),
+            })
+            current_beat += dur
+            current_idx = new_idx
+            segment_log.append({"type": "leap", "interval": abs(new_idx - current_idx), "beat": round(current_beat, 2)})
+
+        elif seg_type == "trill":
+            # Alternating two pitches
+            trill_count = params["trill_count"]
+            trill_dur = 0.08 + next_random() * 0.04
+            upper_idx = min(current_idx + 1, len(scale_pitches) - 1)
+            lower_pitch = scale_pitches[current_idx]
+            upper_pitch = scale_pitches[upper_idx]
+
+            for i in range(trill_count * 2):
+                if current_beat >= duration_beats:
+                    break
+                pitch = upper_pitch if i % 2 == 0 else lower_pitch
+                vel = velocity * (0.5 + next_random() * 0.2)
+                notes.append({
+                    "pitch": pitch,
+                    "pos": round(current_beat, 4),
+                    "dur": round(trill_dur, 4),
+                    "vel": round(vel, 3),
+                })
+                current_beat += trill_dur
+
+            segment_log.append({"type": "trill", "oscillations": trill_count, "beat": round(current_beat, 2)})
+
+        elif seg_type == "fermata":
+            # Held note with pause
+            pitch = scale_pitches[current_idx]
+            hold_dur = 0.8 + next_random() * 1.2  # long hold
+            vel = velocity * (0.4 + next_random() * 0.2)  # soft
+
+            notes.append({
+                "pitch": pitch,
+                "pos": round(current_beat, 4),
+                "dur": round(hold_dur, 4),
+                "vel": round(vel, 3),
+            })
+            current_beat += hold_dur
+            # Pause after fermata
+            pause = 0.3 + next_random() * 0.5
+            current_beat += pause
+            segment_log.append({"type": "fermata", "hold": round(hold_dur, 2), "pause": round(pause, 2), "beat": round(current_beat, 2)})
+
+        elif seg_type == "cascade":
+            # Descending arpeggio
+            cascade_len = min(5, int(remaining / 0.15))
+            if cascade_len < 2:
+                cascade_len = 2
+            cascade_dur = 0.1 + next_random() * 0.05
+
+            for i in range(cascade_len):
+                if current_beat >= duration_beats:
+                    break
+                # Descend by thirds
+                new_idx = current_idx - 2
+                new_idx = max(0, new_idx)
+                pitch = scale_pitches[new_idx]
+                vel = velocity * (0.7 - i * 0.05)  # diminuendo
+
+                notes.append({
+                    "pitch": pitch,
+                    "pos": round(current_beat, 4),
+                    "dur": round(cascade_dur, 4),
+                    "vel": round(max(0.1, vel), 3),
+                })
+                current_beat += cascade_dur
+                current_idx = new_idx
+
+            segment_log.append({"type": "cascade", "notes": cascade_len, "beat": round(current_beat, 2)})
+
+        else:  # climb
+            # Gradual ascending with crescendo
+            climb_len = min(5, int(remaining / 0.2))
+            if climb_len < 2:
+                climb_len = 2
+            climb_dur = 0.15 + next_random() * 0.1
+
+            for i in range(climb_len):
+                if current_beat >= duration_beats:
+                    break
+                new_idx = current_idx + 1
+                new_idx = min(len(scale_pitches) - 1, new_idx)
+                pitch = scale_pitches[new_idx]
+                vel = velocity * (0.5 + i * 0.08)  # crescendo
+
+                notes.append({
+                    "pitch": pitch,
+                    "pos": round(current_beat, 4),
+                    "dur": round(climb_dur, 4),
+                    "vel": round(min(1.0, vel), 3),
+                })
+                current_beat += climb_dur
+                current_idx = new_idx
+
+            segment_log.append({"type": "climb", "notes": climb_len, "beat": round(current_beat, 2)})
+
+    # Statistics
+    if notes:
+        pitch_range = max(n["pitch"] for n in notes) - min(n["pitch"] for n in notes)
+        avg_dur = sum(n["dur"] for n in notes) / len(notes)
+        vel_range = (min(n["vel"] for n in notes), max(n["vel"] for n in notes))
+        segment_counts = {}
+        for seg in segment_log:
+            segment_counts[seg["type"]] = segment_counts.get(seg["type"], 0) + 1
+    else:
+        pitch_range = 0
+        avg_dur = 0
+        vel_range = (0, 0)
+        segment_counts = {}
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            style: "{style}",
+            virtuosic: {str(virtuosic).lower()},
+            notes_created: created,
+            pitch_range: {pitch_range},
+            avg_note_duration: Math.round({avg_dur} * 1000) / 1000,
+            velocity_range: [{vel_range[0]}, {vel_range[1]}],
+            segment_counts: {json.dumps(segment_counts)},
+            segment_count: {len(segment_log)},
+            note_preview: noteEvents.slice(0, 12),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 

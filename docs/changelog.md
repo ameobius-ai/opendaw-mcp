@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.288.0 (2026-07-06)
+
+### Added
+- `create_cadenza` — Unmeasured virtuosic solo passage with rubato. Irregular rhythm, accelerando, fermatas, dramatic pauses. 6 segment types: flourish (rapid runs with accelerando), leap (wide jumps), trill (oscillation), fermata (held note + pause), cascade (descending arpeggio with diminuendo), climb (ascending with crescendo). 4 styles: classical, romantic, jazz, modern. Virtuosic mode. Breath marks. Seeded PRNG for reproducibility. Unlike all other tools (quantized grid), cadenzas use speech-like unmeasured rhythm.
+
 ## v1.287.0 (2026-07-06)
 
 ### Added
