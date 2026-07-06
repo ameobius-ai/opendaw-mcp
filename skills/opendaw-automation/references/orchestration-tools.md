@@ -6,7 +6,7 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.361.0, 525 total)
+## Tools Added (v1.10.0, 255 total → v1.376.0, 531 total)
 
 250+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
@@ -499,6 +499,51 @@ EQ → multiband_comp → SSL bus comp → true_peak_limiter → aire (air+width
 **One-call pipeline:**
 ```
 produce_and_master → 7 steps → rendered mastered WAV (-14 LUFS, -1 dBTP)
+```
+
+## Tools Added v1.362.0–v1.376.0 (cycles 382–392, 6 new tools + 3 DSP, v1.361.0/525 → v1.376.0/531)
+
+| Version | Tool | Description |
+|---------|------|-------------|
+| v1.362.0 | `create_verse` | Verse section generator: 5 types (narrative/sparse/driving/conversational/build). Lower energy, lyrics lead. |
+| v1.363.0 | `create_chorus` | Chorus section generator: 5 types (anthemic/hooky/driving/soaring/call_response). Emotional peak, the hook. |
+| v1.364.0 | `arrange_full_song` fix | Now calls create_verse/create_chorus instead of create_arpeggio fallback. |
+| v1.365.0 | `create_kpop_arrangement` | K-pop (BTS/Blackpink): polished maximalist pop, 4-on-floor, I-V-vi-IV. 128 BPM. |
+| v1.366.0 | `add_genre_effects` expanded | 15→35 genres. Critical fix — all arrangement genres now have matching chains. |
+| v1.367.0 | `werkstatt_lufs_meter.js` | LUFS meter (ITU-R BS.1770-4): K-weighting, integrated/short-term/momentary, true peak. |
+| v1.368.0 | `create_trade_solos` | Trade solos: two soloists trading phrases ("trading fours/eights"). Jazz/rock convention. |
+| v1.369.0 | `produce_and_master` fix | 7→8 steps: added lead melody step (create_melody). |
+| v1.370.0 | `produce_full_track` fix | 6→7 steps: added lead melody step. Both meta-tools now have melody. |
+| v1.371.0 | `create_jpop_arrangement` | J-pop (One Ok Rock/YOASOBI): 140 BPM, modal mixture (minor iv), double-time hats. |
+| v1.372.0 | `add_genre_effects` expanded | 35→37 genres. jpop + harmonic. 100% coverage: 37/37. |
+| v1.373.0 | `create_counter_melody` | Counter-melody: 5 types (contrary/oblique/parallel/rhythmic/pedal). Below melody, quieter. |
+| v1.374.0 | `werkstatt_correlation_meter.js` | Stereo correlation meter: -1 to +1, width, mono compat, L/R balance. |
+| v1.375.0 | `werkstatt_spectrum_analyzer.js` | FFT spectrum analyzer: peak freq, centroid, rolloff, band levels, crest factor. |
+| v1.376.0 | `auto_master` fix | Now places LUFS meter on output (Step 4: verification). Closed feedback loop. |
+
+**Key additions v1.362–v1.376:**
+- **Section generators (2 new):** verse, chorus (total: 10 sections + arrange_full_song)
+- **Genre arrangements (2 new):** kpop, jpop (total: 39)
+- **Melodic vocabulary (2 new):** trade_solos, counter_melody (total: 11)
+- **DSP metering trio (3 new):** lufs_meter, correlation_meter, spectrum_analyzer (total: 134)
+- **Genre effects expanded:** 15→37 genres (100% coverage)
+- **Meta-tool upgrades:** produce_and_master 7→8 steps (+melody), produce_full_track 6→7 steps (+melody), auto_master 3→4 steps (+verification)
+
+**Metering trio complete:**
+```
+auto_master → lufs_meter (loudness) → correlation_meter (phase) → spectrum_analyzer (frequency)
+```
+
+**Contrapuntal texture complete:**
+```
+create_melody (main, octave 4, 0.75)
+  ├─ create_descant (above, octave 5, 0.65) — soaring/weaving/pedal/call/ornamental
+  └─ create_counter_melody (below, octave 3, 0.55) — contrary/oblique/parallel/rhythmic/pedal
+```
+
+**One-call pipeline (updated):**
+```
+produce_and_master → 8 steps → rendered mastered WAV (-14 LUFS, -1 dBTP, LUFS meter verified)
 ```
 
 ## PyPI Publishing Workflow
