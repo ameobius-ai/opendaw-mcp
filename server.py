@@ -58204,3 +58204,211 @@ async def mcp_opendaw_create_drum_solo(
     }.get(solo_type, "")
 
     return json.dumps(data, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_riff(
+    riff_type: str = "rock",
+    key_root: str = "E",
+    scale_type: str = "minor_pentatonic",
+    bars: int = 2,
+    octave: int = 3,
+    velocity: float = 0.85,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a genre-specific riff — catchy repeated melodic fragment.
+
+    A riff is a short, memorable, repeated musical phrase that defines
+    a song's identity. Unlike a melody (which develops through a section)
+    or an ostinato (which repeats a scale pattern), a riff is a
+    self-contained hook with rhythmic character and pitch content that
+    immediately identifies the song.
+
+    - **rock**: Power chord-based riffs, palm-mute aesthetic, bluesy
+      bends, syncopated rests. Deep Purple, Led Zeppelin, Black Sabbath.
+    - **funk**: Sixteenth-note syncopation, ghost notes, staccato stabs,
+      octave jumps, tight pocket. James Brown, Funkadelic, Tower of Power.
+    - **metal**: Galloping rhythms, palm-muted low strings, tritone
+      intervals, fast alternate picking. Iron Maiden, Metallica, Slayer.
+    - **blues**: Shuffle feel, pentatonic bending, call-response phrases,
+      turnaround aesthetic. B.B. King, Freddie King, Albert King.
+    - **hip_hop**: Sample-chop aesthetic, short repeating loop, melodic
+      minor pentatonic, sparse placement. Dr. Dre, RZA, J Dilla.
+
+    riff_type: rock | funk | metal | blues | hip_hop
+    key_root: Root note
+    scale_type: minor_pentatonic | major_pentatonic | blues | minor | phrygian
+    bars: Riff length (1-4, default 2)
+    octave: MIDI octave (3 = C3=48, good for guitar range)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_riff(riff_type="rock", key_root="E", bars=2)
+      create_riff(riff_type="funk", key_root="D", scale_type="minor_pentatonic", bars=1)
+      create_riff(riff_type="metal", key_root="E", scale_type="phrygian", bars=2)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "minor_pentatonic": [0, 3, 5, 7, 10],
+        "major_pentatonic": [0, 2, 4, 7, 9],
+        "blues": [0, 3, 5, 6, 7, 10],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],
+    }
+
+    VALID_RIFF_TYPES = ["rock", "funk", "metal", "blues", "hip_hop"]
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type '{scale_type}'. Valid: {list(SCALES.keys())}"})
+    if riff_type not in VALID_RIFF_TYPES:
+        return json.dumps({"error": f"Invalid riff_type '{riff_type}'. Valid: {VALID_RIFF_TYPES}"})
+    if bars < 1 or bars > 4:
+        return json.dumps({"error": "bars must be 1-4"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+    bar_beats = 4.0
+
+    # Helper: scale degree to pitch
+    def deg_to_pitch(degree):
+        ns = len(scale)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return base + oct_shift * 12 + scale[idx]
+
+    for bar in range(bars):
+        bar_start = start_beat + bar * bar_beats
+
+        if riff_type == "rock":
+            # Rock riff: power chord roots, bluesy bends, syncopated rests
+            # Pattern: root-root-rest-root-fifth-root-rest-octave
+            positions = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+            degrees = [0, 0, -1, 0, 2, 0, -1, 4]  # -1 = rest
+            durs = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+            for i, (pos, deg, dur) in enumerate(zip(positions, degrees, durs)):
+                if deg == -1:
+                    continue  # rest
+                pitch = deg_to_pitch(deg)
+                # Power chord: root + fifth
+                notes.append({"pitch": pitch, "start": round(bar_start + pos, 4),
+                              "duration": dur, "velocity": round(velocity * 0.9, 3)})
+                notes.append({"pitch": pitch + 7, "start": round(bar_start + pos, 4),
+                              "duration": dur, "velocity": round(velocity * 0.7, 3)})
+                # Occasional octave
+                if i == 4 and next(rng) < 0.4:
+                    notes.append({"pitch": pitch + 12, "start": round(bar_start + pos, 4),
+                                  "duration": dur * 0.5, "velocity": round(velocity * 0.6, 3)})
+
+        elif riff_type == "funk":
+            # Funk riff: 16th syncopation, ghost notes, staccato stabs
+            # 16 positions per bar, sparse placement
+            positions = [i * 0.25 for i in range(16)]
+            # Funk accent pattern: strong on 1, syncopated off-beats
+            accent_map = [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0]
+            deg_sequence = [0, -1, -1, 3, -1, 2, 0, -1, -1, 4, -1, 2, 0, -1, 3, -1]
+            for i, (pos, deg, acc) in enumerate(zip(positions, deg_sequence, accent_map)):
+                if deg == -1:
+                    continue
+                pitch = deg_to_pitch(deg)
+                dur = 0.12 if not acc else 0.2
+                v = velocity * (0.95 if acc else 0.55)
+                notes.append({"pitch": pitch, "start": round(bar_start + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+        elif riff_type == "metal":
+            # Metal riff: galloping rhythm, palm-mute, tritone
+            # Gallop: 16th-16th-8th pattern (0.0, 0.25, 0.5) then rest
+            gallop_positions = [0.0, 0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 2.25, 2.5, 3.0, 3.25, 3.5]
+            gallop_degrees = [0, 0, 0, 0, 0, 0, 6, 6, 6, 0, 0, 0]  # tritone (b5) accent
+            for pos, deg in zip(gallop_positions, gallop_degrees):
+                pitch = deg_to_pitch(deg)
+                dur = 0.12 if pos % 0.5 != 0 else 0.25
+                notes.append({"pitch": pitch, "start": round(bar_start + pos, 4),
+                              "duration": dur, "velocity": round(velocity * 0.9, 3)})
+                # Power chord root
+                notes.append({"pitch": pitch, "start": round(bar_start + pos, 4),
+                              "duration": dur, "velocity": round(velocity * 0.8, 3)})
+
+        elif riff_type == "blues":
+            # Blues riff: shuffle feel, pentatonic bending, call-response
+            # Shuffle: long-short (0.75, 0.25) on 8th notes
+            positions = [0.0, 0.75, 1.0, 1.75, 2.0, 2.75, 3.0, 3.75]
+            degrees = [0, 2, 3, 2, 0, -1, 5, 3]  # -1 = rest
+            durs = [0.75, 0.25, 0.75, 0.25, 0.75, 0.25, 0.75, 0.25]
+            for pos, deg, dur in zip(positions, degrees, durs):
+                if deg == -1:
+                    continue
+                pitch = deg_to_pitch(deg)
+                # Bent note: add cents (simulated by slightly higher pitch)
+                v = velocity * (0.85 + next(rng) * 0.15)
+                notes.append({"pitch": pitch, "start": round(bar_start + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+        elif riff_type == "hip_hop":
+            # Hip hop riff: sparse, melodic minor pentatonic, loop aesthetic
+            # Short phrase with space, repeated
+            positions = [0.0, 0.5, 1.5, 2.0, 3.0, 3.5]
+            degrees = [0, 2, 3, 2, 0, -1]  # -1 = rest
+            durs = [0.5, 0.25, 0.5, 0.25, 0.5, 0.5]
+            for pos, deg, dur in zip(positions, degrees, durs):
+                if deg == -1:
+                    continue
+                pitch = deg_to_pitch(deg)
+                v = velocity * (0.7 + next(rng) * 0.2)
+                notes.append({"pitch": pitch, "start": round(bar_start + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["riff"] = True
+    data["riff_type"] = riff_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "rock": "power chord roots + fifths, bluesy bends, syncopated rests, octave accents",
+        "funk": "16th syncopation, ghost notes, staccato stabs, octave jumps, tight pocket",
+        "metal": "galloping rhythm (16-16-8), palm-mute aesthetic, tritone intervals, fast picking",
+        "blues": "shuffle feel (long-short 8ths), pentatonic bending, call-response, turnaround",
+        "hip_hop": "sparse loop aesthetic, melodic minor pentatonic, space between notes",
+    }.get(riff_type, "")
+
+    return json.dumps(data, indent=2)

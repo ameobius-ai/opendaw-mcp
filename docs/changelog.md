@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.332.0 (2026-07-06)
+
+- **`create_riff`** — Genre-specific riff generator. 5 styles: rock (power chord roots+fifths, bluesy bends, syncopated rests, octave accents), funk (16th syncopation, ghost notes, staccato stabs, accent map), metal (galloping rhythm 16-16-8, palm-mute, tritone b5 intervals), blues (shuffle feel long-short 8ths, pentatonic bending, call-response), hip_hop (sparse loop aesthetic, melodic minor pentatonic, space between notes). 5 scales (minor_pentatonic/major_pentatonic/blues/minor/phrygian). Seeded PRNG. 25 unit tests. 505 MCP tools.
+
 ## v1.331.0 (2026-07-06)
 
 - **`create_drum_solo`** — Genre-specific drum solo generator with rudimental vocabulary. 5 styles: rock (double kick 16ths, crash accents, tom descent fills, intensity build), jazz (swing ride pattern, comping, press rolls, hi-hat feathering), funk (ghost-note 16ths, hi-hat splashes, syncopated kick, pocket fills), latin (cascara, mambo bell, timbale fills, 2-3 clave), marching (paradiddles, flams, drags, open rolls, DCI vocabulary). Rudiment helpers: paradiddle (RLRR LRLL), flam (grace+main), drag (2 grace+main), open roll. Seeded PRNG. 29 unit tests. 504 MCP tools.
