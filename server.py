@@ -60576,3 +60576,257 @@ async def mcp_opendaw_create_interlude(
     }.get(interlude_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_coda(
+    coda_type: str = "theme",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 4,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a coda — the definitive ending after the main material is done.
+
+    A coda is not just an outro. It is a formal closing statement that
+    resolves the piece. Where an outro fades or thins out, a coda *concludes*.
+    It can restate the theme one last time (theme), repeat a vamp to fade
+    (vamp), offer a brief codetta after a climactic ending (codetta), play
+    an instrumental postlude after vocals end (postlude), or deliver a
+    triumphant fanfare (fanfare).
+
+    - **theme**: Short final statement — restates the main melody with
+      conclusive phrasing. Last note lands on tonic, fermata-like long
+      duration. Good for classical, jazz, through-composed.
+    - **vamp**: Repeat a I-IV-V-I or ii-V-I chord pattern, gradually fading
+      velocity. The groove continues but the song is clearly ending.
+      Good for pop, R&B, gospel, jazz.
+    - **codetta**: Brief close — 2 bars max, a tiny tag after a big ending.
+      Just the tonic chord, a short scale run into it, done. Good for
+      symphonies, sonatas, large-scale works.
+    - **postlude**: Instrumental after vocals — melody continues without
+      voice, winding down over 4-8 bars. Good for pop, rock, folk —
+      the song keeps breathing after the singer stops.
+    - **fanfare**: Triumphant flourish — rapid ascending arpeggios, high
+      velocity, tutti hits on tonic. Good for classical finales, epic film
+      scores, ceremonial music.
+
+    coda_type: theme | vamp | codetta | postlude | fanfare
+    key_root: Root note name (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (2-8, codetta always 2)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_coda(coda_type="theme", key_root="C", scale_type="major", bars=4)
+      create_coda(coda_type="vamp", key_root="F", scale_type="major", bars=8)
+      create_coda(coda_type="fanfare", key_root="D", scale_type="major", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["theme", "vamp", "codetta", "postlude", "fanfare"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if coda_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid coda_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+    if not (2 <= bars <= 8):
+        return json.dumps({"error": "bars must be 2-8"})
+
+    # codetta always 2 bars regardless of input
+    if coda_type == "codetta":
+        actual_bars = 2
+    else:
+        actual_bars = bars
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+
+    if coda_type == "theme":
+        # Final statement: main melody with conclusive ending
+        melody_degrees = [0, 1, 2, 1, 0, 4, 2, 0]  # simple theme
+        for bar in range(actual_bars):
+            bar_start = bar * bar_len
+            is_last = bar == actual_bars - 1
+            for i, deg in enumerate(melody_degrees):
+                pitch = deg_to_pitch(deg)
+                beat = i * 0.5
+                if is_last and i == len(melody_degrees) - 1:
+                    # Fermata on last note
+                    dur = bar_len * 1.5
+                    v = velocity
+                else:
+                    dur = 0.5
+                    v = velocity * (0.7 + 0.3 * bar / max(actual_bars - 1, 1))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": round(dur, 3), "velocity": round(v, 3)})
+            # Bass root on beat 1
+            bass_pitch = deg_to_pitch(0, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(velocity * 0.5, 3)})
+
+    elif coda_type == "vamp":
+        # Repeat chord pattern, fading velocity
+        chord_roots = [0, 3, 4, 0]  # I-IV-V-I
+        for bar in range(actual_bars):
+            bar_start = bar * bar_len
+            fade = 1.0 - 0.6 * bar / max(actual_bars - 1, 1)  # 1.0 → 0.4
+            chord_deg = chord_roots[bar % len(chord_roots)]
+            for deg in [chord_deg, chord_deg + 2, chord_deg + 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(velocity * fade * 0.6, 3)})
+            # Bass on beat 1 and 3
+            bass_pitch = deg_to_pitch(chord_deg, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": 2.0, "velocity": round(velocity * fade, 3)})
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start + 2.0, 4),
+                          "duration": 2.0, "velocity": round(velocity * fade * 0.8, 3)})
+
+    elif coda_type == "codetta":
+        # Brief 2-bar tag: scale run into tonic chord
+        for bar in range(2):
+            bar_start = bar * bar_len
+            if bar == 0:
+                # Ascending scale run
+                for i in range(8):
+                    deg = i % ns
+                    oct_s = i // ns
+                    pitch = base + oct_s * 12 + scale[deg]
+                    v = velocity * (0.5 + 0.5 * i / 7)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 0.5, 4),
+                                  "duration": 0.4, "velocity": round(v, 3)})
+            else:
+                # Tonic chord fermata
+                for deg in [0, 2, 4]:
+                    pitch = deg_to_pitch(deg)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                                  "duration": bar_len * 2, "velocity": round(velocity, 3)})
+                # Low octave root
+                notes.append({"pitch": deg_to_pitch(0, -2), "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len * 2, "velocity": round(velocity * 0.8, 3)})
+
+    elif coda_type == "postlude":
+        # Instrumental after vocals: melody winding down
+        for bar in range(actual_bars):
+            bar_start = bar * bar_len
+            wind_down = 1.0 - 0.3 * bar / max(actual_bars - 1, 1)
+            num_notes = max(2, int(4 * wind_down))
+            prev_deg = 0
+            for i in range(num_notes):
+                if next(rng) > 0.6:
+                    deg = prev_deg + (2 if next(rng) > 0.5 else -1)
+                else:
+                    deg = prev_deg + 1
+                deg = max(0, min(deg, ns * 2 - 1))
+                pitch = deg_to_pitch(deg)
+                beat = i * (bar_len / max(num_notes, 1))
+                dur = bar_len / max(num_notes, 1) * (1.0 + 0.5 * bar / max(actual_bars - 1, 1))
+                v = velocity * wind_down * (0.6 + 0.4 * next(rng))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": round(dur, 3), "velocity": round(v, 3)})
+                prev_deg = deg
+            # Sustained bass
+            bass_pitch = deg_to_pitch(0, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(velocity * wind_down * 0.4, 3)})
+
+    elif coda_type == "fanfare":
+        # Triumphant: rapid ascending arpeggios + tutti tonic hits
+        for bar in range(actual_bars):
+            bar_start = bar * bar_len
+            is_last = bar == actual_bars - 1
+            # Ascending arpeggio (I chord)
+            for i in range(8):
+                deg = (i % 3) * 2  # root, third, fifth
+                oct_s = i // 3
+                pitch = base + oct_s * 12 + scale[deg % ns]
+                v = velocity * (0.7 + 0.3 * i / 7)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 0.25, 4),
+                              "duration": 0.25, "velocity": round(v, 3)})
+            # Tutti hit on beat 2
+            for deg in [0, 2, 4]:
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + 2.0, 4),
+                              "duration": 2.0, "velocity": round(velocity, 3)})
+            # Final fermata on last bar
+            if is_last:
+                for deg in [0, 2, 4, 0]:
+                    oct_s = 1 if deg == 0 and deg == 0 else 0
+                    pitch = deg_to_pitch(deg, oct_s)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start + bar_len, 4),
+                                  "duration": bar_len * 2, "velocity": round(velocity, 3)})
+                # Low root
+                notes.append({"pitch": deg_to_pitch(0, -2), "start": round(start_beat + bar_start + bar_len, 4),
+                              "duration": bar_len * 2, "velocity": round(velocity, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["coda"] = True
+    data["coda_type"] = coda_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = actual_bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "theme": "final statement of main melody, fermata on last note, conclusive tonic landing",
+        "vamp": "I-IV-V-I repeat with velocity fade, groove continues then fades, pop/gospel",
+        "codetta": "2-bar tag, scale run into tonic fermata chord, brief close after big ending",
+        "postlude": "instrumental melody winding down, fewer notes per bar, sustained bass, post-vocal",
+        "fanfare": "rapid ascending arpeggios + tutti tonic hits, triumphant, high velocity, ceremonial",
+    }.get(coda_type, "")
+
+    return json.dumps(data, indent=2)

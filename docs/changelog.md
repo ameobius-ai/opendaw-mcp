@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.342.0 (2026-07-06)
+
+- **`create_coda`** — Coda section generator. 5 types: theme (final statement, fermata on last note), vamp (I-IV-V-I repeat with velocity fade), codetta (2-bar tag, scale run into tonic fermata), postlude (instrumental winding down after vocals), fanfare (ascending arpeggios + tutti hits, triumphant). 3 scales, 2-8 bars. Seeded PRNG. 34 unit tests. 515 MCP tools. Formal closing — concludes rather than fades.
+
 ## v1.341.0 (2026-07-06)
 
 - **`create_interlude`** — Interlude section generator. 5 types: instrumental (solo melodic break over sparse bass), atmospheric (sustained I-IV-V-I pad chords), breakdown (single root → add fifth → add stabs, layer build), reprise (callback motif at different octave), contrapuntal (2-3 independent lines, contrary motion). 3 scales, 2-4 bars. Seeded PRNG. 31 unit tests. 514 MCP tools. Connective tissue between sections — shorter and more textural than bridge.
