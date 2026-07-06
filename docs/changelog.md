@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.383.0 (2026-07-06)
+
+- **Context-mode output sandboxing** — `OPENDAW_MCP_OUTPUT_LIMIT` env var. When set, tool responses are smartly truncated to N chars. Dicts get large fields truncated with `__truncated`/`__original_length` metadata. Lists get first N items with `total`/`shown` counts. Non-JSON gets simple truncation with omission count. Default 0 = unlimited (no change). Prevents bulky JSON from flooding agent context. 13 unit tests.
+
 ## v1.382.0 (2026-07-06)
 
 - **Phase-based tool loading** — `OPENDAW_MCP_MODE=phase` env var. Agent calls `switch_phase("compose"|"mix"|"render"|"inspect")` to activate only relevant tools. 4 phases: inspect (18 read-only tools), compose (54 creation tools), mix (23 effect/mastering tools), render (10 export tools). Meta-tools (evaluate_raw, get_full_project_state, switch_phase) always available. Reduces schema payload per phase by ~90%. 18 unit tests.

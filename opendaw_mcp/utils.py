@@ -156,7 +156,56 @@ def _err(msg: str) -> str:
 def _wrap_eval(result) -> str:
     if isinstance(result, dict) and "error" in result:
         return json.dumps(result)
-    return json.dumps(result)
+    return _limit_output(json.dumps(result))
+
+
+# Context-mode output sandboxing
+# When OPENDAW_MCP_OUTPUT_LIMIT is set, tool responses are truncated to N chars
+# with a summary footer. This prevents bulky JSON from flooding the agent's context.
+_OUTPUT_LIMIT = int(os.environ.get("OPENDAW_MCP_OUTPUT_LIMIT", "0"))  # 0 = unlimited
+
+
+def _limit_output(s: str) -> str:
+    """Truncate tool output to OPENDAW_MCP_OUTPUT_LIMIT chars if set.
+
+    Preserves valid JSON by truncating arrays/objects and adding a summary.
+    When limit is 0 (default), no truncation — full output returned.
+    """
+    if _OUTPUT_LIMIT <= 0 or len(s) <= _OUTPUT_LIMIT:
+        return s
+
+    # Try to parse as JSON for smart truncation
+    try:
+        data = json.loads(s)
+    except (json.JSONDecodeError, ValueError):
+        # Not JSON — simple truncation
+        return s[:_OUTPUT_LIMIT] + f"\n... [truncated, {len(s) - _OUTPUT_LIMIT} chars omitted]"
+
+    # Smart JSON truncation
+    if isinstance(data, dict):
+        # Keep error fields, truncate large value fields
+        truncated = {}
+        for k, v in data.items():
+            v_str = json.dumps(v) if not isinstance(v, str) else v
+            if len(v_str) > _OUTPUT_LIMIT // 4:
+                truncated[k] = v_str[:_OUTPUT_LIMIT // 4] + "..."
+            else:
+                truncated[k] = v
+        truncated["__truncated"] = True
+        truncated["__original_length"] = len(s)
+        return json.dumps(truncated, indent=2)
+    elif isinstance(data, list):
+        # Keep first N items
+        keep_n = max(1, _OUTPUT_LIMIT // max(len(json.dumps(data[0])) if data else 1, 1))
+        truncated = data[:keep_n]
+        return json.dumps({
+            "items": truncated,
+            "total": len(data),
+            "shown": len(truncated),
+            "__truncated": True,
+        }, indent=2)
+
+    return s[:_OUTPUT_LIMIT] + f"\n... [truncated, {len(s) - _OUTPUT_LIMIT} chars omitted]"
 
 
 def _unwrap_eval(s) -> any:
