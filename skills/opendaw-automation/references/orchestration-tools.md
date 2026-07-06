@@ -227,6 +227,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 214. `create_fugato` — fugal passage: subject entries + answer (real/tonal) + countersubject + episode, 2-4 voices, custom or auto subject, voice 3 octave lower
 215. `create_colotomic` — gamelan colotomic structure: 4 gong layers (gong/kenong/kempul/kethuk), 4 structures (slendro/pelog/lancaran/ketawang), 3 densities (sparse/medium/dense), hierarchical cyclic grid
 216. `create_tala` — Indian classical tala: cyclic rhythm with vibhag sections, tali/khali markings, tabla bols, 6 talas (teental/ektal/jhaptal/rupak/dadra/kehartwa), 3 laya tempos (vilambit/madhya/drut), bol-to-pitch mapping
+217. `create_songo_pattern` — Cuban songo drum-kit fusion: 4 variations (classic/modern/fusion/songo_funk), 4 voices (kick/snare/hh/tom), Los Van Van style, complete drum-kit groove
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

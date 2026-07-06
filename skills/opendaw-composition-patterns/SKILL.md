@@ -137,6 +137,7 @@ What do you want to create?
 ├── Fugato → create_fugato (fugal passage, subject + answer + countersubject + episode, 2-4 voices, real/tonal answer, custom or auto subject)
 ├── Colotomic → create_colotomic (gamelan gong layers, 4 structures: slendro/pelog/lancaran/ketawang, 3 densities, hierarchical cyclic grid, non-European tradition)
 ├── Tala → create_tala (Indian cyclic rhythm, 6 talas: teental/ektal/jhaptal/rupak/dadra/kehartwa, vibhag sections, tali/khali, tabla bols, 3 laya tempos, non-European tradition)
+├── Songo → create_songo_pattern (Cuban drum-kit fusion, 4 variations: classic/modern/fusion/songo_funk, 4 voices: kick/snare/hh/tom, Los Van Van style)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

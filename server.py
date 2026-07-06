@@ -38979,6 +38979,247 @@ async def mcp_opendaw_create_cascara(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_songo_pattern(
+    bars: int = 2,
+    variation: str = "classic",
+    velocity: float = 0.8,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kick_pitch: int = 36,
+    snare_pitch: int = 38,
+    hh_pitch: int = 42,
+    tom_pitch: int = 45,
+) -> str:
+    """Create a songo drum pattern — the Cuban drum-kit fusion that revolutionized Latin music.
+
+    Songo emerged in the 1970s with Los Van Van (drummer Changuito). It fused son
+    montuno, rumba, jazz, and rock drumming into a single drum-kit pattern — the
+    first time Cuban percussion was adapted to a Western kit. Unlike clave (a
+    timeline), tumbao (congas), or cascara (timbale shell), songo is a complete
+    drum-kit groove: kick + snare + hi-hat + tom accents working together as one
+    synchronized engine. It became the foundation of modern salsa, timba, and
+    Latin jazz drumming.
+
+    The pattern is 2 bars in 4/4. Kick plays syncopated bombo notes, snare
+    alternates between rim clicks and open hits, hi-hat plays a continuous
+    8th-note pattern with accents, and toms fill rhythmic gaps with tonal
+    accents. The feel is loose but locked — every stroke relates to the 3-2
+    clave without explicitly playing it.
+
+    variations:
+      "classic"  — Original Los Van Van songo. Kick on 1, 2.5, 4, 6.5.
+                    Snare rim clicks on 3, 7. Open snare on 4.5. HH 8ths.
+      "modern"   — Timba-era songo (1990s+). Denser kick, ghost snare notes,
+                    tom fills on bar 2. More aggressive, busier.
+      "fusion"   — Jazz-influenced. Ride-like HH pattern, syncopated kick
+                    displacements, brush snare. Los Hermanos approach.
+      "songo_funk" — Songo with funk inflection. Kick on 1, 1.75, 3.5, 4.75.
+                    Ghost snare 16ths. Backbeat on 2 and 4. Groove-oriented.
+
+    bars: Pattern length (2-16, must be even for 2-bar cycle).
+    velocity: Base velocity (0-1).
+    kick_pitch: MIDI pitch for kick drum (36 = C1).
+    snare_pitch: MIDI pitch for snare (38 = D1).
+    hh_pitch: MIDI pitch for hi-hat (42 = F#1).
+    tom_pitch: MIDI pitch for tom accents (45 = A1).
+
+    Args:
+        bars: Pattern length in bars (2-16, even).
+        variation: Pattern variation (classic, modern, fusion, songo_funk).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        kick_pitch: Kick MIDI pitch.
+        snare_pitch: Snare MIDI pitch.
+        hh_pitch: Hi-hat MIDI pitch.
+        tom_pitch: Tom MIDI pitch.
+
+    Returns notes created, stroke breakdown, and pattern info.
+    """
+    if not (2 <= bars <= 16) or bars % 2 != 0:
+        return f"Error: bars must be even and 2-16, got {bars}"
+    if variation not in ("classic", "modern", "fusion", "songo_funk"):
+        return f"Error: variation must be classic, modern, fusion, or songo_funk, got {variation}"
+
+    # 2-bar patterns: list of (beat, instrument, stroke_type)
+    # stroke_type: "normal", "accent", "ghost", "open", "rim"
+    PATTERNS = {
+        "classic": [
+            # Bar 1
+            (0.0, "kick", "normal"), (0.0, "hh", "accent"),
+            (0.5, "hh", "normal"), (1.0, "hh", "normal"), (1.5, "hh", "normal"),
+            (2.5, "kick", "normal"), (2.5, "hh", "normal"),
+            (3.0, "snare", "rim"), (3.0, "hh", "normal"),
+            (3.5, "hh", "normal"),
+            (4.0, "kick", "normal"), (4.0, "hh", "accent"),
+            (4.5, "snare", "open"), (4.5, "hh", "normal"),
+            (5.0, "hh", "normal"), (5.5, "hh", "normal"),
+            (6.5, "kick", "normal"), (6.5, "hh", "normal"),
+            (7.0, "snare", "rim"), (7.0, "hh", "normal"),
+            (7.5, "hh", "normal"),
+            # Bar 2
+            (8.0, "kick", "normal"), (8.0, "hh", "accent"),
+            (8.5, "hh", "normal"), (9.0, "hh", "normal"), (9.5, "hh", "normal"),
+            (10.5, "kick", "normal"), (10.5, "hh", "normal"),
+            (11.0, "snare", "rim"), (11.0, "hh", "normal"),
+            (11.5, "tom", "normal"), (11.5, "hh", "normal"),
+            (12.0, "kick", "normal"), (12.0, "hh", "accent"),
+            (12.5, "snare", "open"), (12.5, "hh", "normal"),
+            (13.0, "tom", "normal"), (13.0, "hh", "normal"),
+            (13.5, "tom", "normal"), (13.5, "hh", "normal"),
+            (14.0, "snare", "rim"), (14.0, "hh", "normal"),
+            (14.5, "kick", "normal"), (14.5, "hh", "normal"),
+            (15.0, "tom", "normal"), (15.0, "hh", "normal"),
+            (15.5, "hh", "normal"),
+        ],
+        "modern": [
+            (0.0, "kick", "accent"), (0.0, "hh", "accent"),
+            (0.25, "snare", "ghost"), (0.5, "hh", "normal"),
+            (0.75, "snare", "ghost"), (1.0, "hh", "normal"),
+            (1.5, "kick", "normal"), (1.5, "hh", "normal"),
+            (2.0, "snare", "rim"), (2.0, "hh", "normal"),
+            (2.5, "kick", "normal"), (2.5, "hh", "normal"),
+            (3.0, "hh", "normal"), (3.5, "snare", "open"),
+            (3.5, "hh", "normal"),
+            (4.0, "kick", "accent"), (4.0, "hh", "accent"),
+            (4.25, "snare", "ghost"), (4.5, "hh", "normal"),
+            (5.0, "hh", "normal"), (5.5, "kick", "normal"),
+            (5.5, "hh", "normal"),
+            (6.0, "snare", "rim"), (6.0, "hh", "normal"),
+            (6.5, "kick", "normal"), (6.5, "hh", "normal"),
+            (7.0, "tom", "normal"), (7.0, "hh", "normal"),
+            (7.5, "tom", "normal"), (7.5, "hh", "normal"),
+            # Bar 2 with tom fill
+            (8.0, "kick", "accent"), (8.0, "hh", "accent"),
+            (8.5, "hh", "normal"), (9.0, "snare", "ghost"),
+            (9.0, "hh", "normal"), (9.5, "hh", "normal"),
+            (10.0, "kick", "normal"), (10.0, "hh", "normal"),
+            (10.5, "snare", "rim"), (10.5, "hh", "normal"),
+            (11.0, "tom", "normal"), (11.5, "tom", "normal"),
+            (12.0, "tom", "normal"), (12.5, "tom", "normal"),
+            (13.0, "kick", "accent"), (13.0, "hh", "accent"),
+            (13.5, "snare", "open"), (13.5, "hh", "normal"),
+            (14.0, "hh", "normal"), (14.5, "kick", "normal"),
+            (14.5, "hh", "normal"),
+            (15.0, "snare", "rim"), (15.0, "hh", "normal"),
+            (15.5, "hh", "normal"),
+        ],
+        "fusion": [
+            (0.0, "kick", "normal"), (0.0, "hh", "accent"),
+            (0.5, "hh", "normal"), (1.0, "hh", "normal"),
+            (1.5, "kick", "normal"), (1.5, "hh", "normal"),
+            (2.0, "hh", "normal"), (2.5, "hh", "normal"),
+            (3.0, "snare", "rim"), (3.0, "hh", "normal"),
+            (3.5, "kick", "normal"), (3.5, "hh", "normal"),
+            (4.0, "hh", "accent"), (4.5, "hh", "normal"),
+            (5.0, "kick", "normal"), (5.0, "hh", "normal"),
+            (5.5, "snare", "open"), (5.5, "hh", "normal"),
+            (6.0, "hh", "normal"), (6.5, "kick", "normal"),
+            (6.5, "hh", "normal"),
+            (7.0, "snare", "rim"), (7.0, "hh", "normal"),
+            (7.5, "hh", "normal"),
+            # Bar 2
+            (8.0, "kick", "normal"), (8.0, "hh", "accent"),
+            (8.5, "hh", "normal"), (9.0, "kick", "normal"),
+            (9.0, "hh", "normal"), (9.5, "hh", "normal"),
+            (10.0, "snare", "rim"), (10.0, "hh", "normal"),
+            (10.5, "hh", "normal"), (11.0, "kick", "normal"),
+            (11.0, "hh", "normal"), (11.5, "snare", "open"),
+            (11.5, "hh", "normal"),
+            (12.0, "hh", "accent"), (12.5, "hh", "normal"),
+            (13.0, "kick", "normal"), (13.0, "hh", "normal"),
+            (13.5, "hh", "normal"), (14.0, "snare", "rim"),
+            (14.0, "hh", "normal"), (14.5, "kick", "normal"),
+            (14.5, "hh", "normal"), (15.0, "hh", "normal"),
+            (15.5, "tom", "normal"), (15.5, "hh", "normal"),
+        ],
+        "songo_funk": [
+            (0.0, "kick", "accent"), (0.0, "hh", "accent"),
+            (0.5, "snare", "ghost"), (0.75, "kick", "normal"),
+            (1.0, "hh", "normal"), (1.5, "snare", "ghost"),
+            (1.5, "hh", "normal"),
+            (2.0, "snare", "normal"), (2.0, "hh", "accent"),
+            (2.5, "kick", "normal"), (2.5, "hh", "normal"),
+            (3.0, "hh", "normal"), (3.5, "kick", "normal"),
+            (3.5, "hh", "normal"), (3.75, "snare", "ghost"),
+            (4.0, "snare", "normal"), (4.0, "hh", "accent"),
+            (4.5, "kick", "normal"), (4.5, "hh", "normal"),
+            (5.0, "snare", "ghost"), (5.0, "hh", "normal"),
+            (5.5, "hh", "normal"),
+            (6.0, "snare", "normal"), (6.0, "hh", "accent"),
+            (6.5, "kick", "normal"), (6.5, "hh", "normal"),
+            (7.0, "hh", "normal"), (7.5, "tom", "normal"),
+            (7.5, "hh", "normal"),
+            # Bar 2
+            (8.0, "kick", "accent"), (8.0, "hh", "accent"),
+            (8.5, "snare", "ghost"), (9.0, "hh", "normal"),
+            (9.5, "kick", "normal"), (9.5, "hh", "normal"),
+            (10.0, "snare", "normal"), (10.0, "hh", "accent"),
+            (10.5, "snare", "ghost"), (10.5, "hh", "normal"),
+            (11.0, "kick", "normal"), (11.0, "hh", "normal"),
+            (11.5, "hh", "normal"),
+            (12.0, "snare", "normal"), (12.0, "hh", "accent"),
+            (12.5, "kick", "normal"), (12.5, "hh", "normal"),
+            (13.0, "snare", "ghost"), (13.0, "hh", "normal"),
+            (13.5, "hh", "normal"),
+            (14.0, "snare", "normal"), (14.0, "hh", "accent"),
+            (14.5, "kick", "normal"), (14.5, "hh", "normal"),
+            (15.0, "tom", "normal"), (15.0, "hh", "normal"),
+            (15.5, "tom", "normal"), (15.5, "hh", "normal"),
+        ],
+    }
+
+    pitch_map = {"kick": kick_pitch, "snare": snare_pitch, "hh": hh_pitch, "tom": tom_pitch}
+    vel_map = {
+        "accent": min(1.0, velocity + 0.15),
+        "normal": velocity,
+        "ghost": max(0.05, velocity - 0.3),
+        "open": min(1.0, velocity + 0.1),
+        "rim": max(0.0, velocity - 0.1),
+    }
+    dur_map = {
+        "accent": 0.15, "normal": 0.12, "ghost": 0.06,
+        "open": 0.2, "rim": 0.1,
+    }
+
+    pattern = PATTERNS[variation]
+    cycle_len = 16.0  # pattern spans 0-15.5 (4 bars of 4/4 = one songo cycle)
+    cycles = bars // 2
+
+    all_notes = []
+    stroke_counts = {"kick": 0, "snare": 0, "hh": 0, "tom": 0}
+
+    for c in range(cycles):
+        offset = c * cycle_len
+        for beat, instrument, stroke_type in pattern:
+            pos = round(start_beat + offset + beat, 4)
+            all_notes.append({
+                "pitch": pitch_map[instrument],
+                "start": pos,
+                "duration": dur_map[stroke_type],
+                "velocity": round(vel_map[stroke_type], 3),
+            })
+            stroke_counts[instrument] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["songo"] = True
+        data["variation"] = variation
+        data["bars"] = bars
+        data["cycles"] = cycles
+        data["stroke_counts"] = stroke_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.292.0 (2026-07-06)
+
+- **`create_songo_pattern`** — Cuban songo drum-kit pattern: the fusion that revolutionized Latin music (Los Van Van, Changuito, 1970s). 4 variations: classic (original songo), modern (timba-era with ghost notes + tom fills), fusion (jazz-influenced ride pattern), songo_funk (funk-inflected backbeat). 4 drum-kit voices: kick (syncopated bombo), snare (rim + open + ghost), hi-hat (continuous 8ths with accents), tom (tonal fills). 2-bar cycle in 4/4. Unlike clave (timeline), tumbao (congas), or cascara (timbale shell), songo is a complete drum-kit groove. Afro-Cuban / Latin jazz.
+
 ## v1.291.0 (2026-07-06)
 
 - **`create_tala`** — Indian classical tala: cyclic rhythmic structure with vibhag sections (unequal-length groupings), tali (clap) and khali (wave) markings, and theka (tabla bols sequence). 6 talas: teental (16), ektal (12), jhaptal (10), rupak (7), dadra (6), kehartwa (8). 3 laya tempos: vilambit, madhya, drut. Bol-to-pitch mapping: bayan strokes (Dha/Dhin) in lower register, dayan strokes (Ti/Na/Ta/Tin) in higher register. Velocity: tali beats emphasized, khali beats soft. Second non-European tradition after gamelan colotomic. Indian classical music.

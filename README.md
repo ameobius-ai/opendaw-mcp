@@ -17,7 +17,7 @@
 [![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
-**466 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**467 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -27,7 +27,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **466** MCP tools | **175** Python examples (21 genre templates) |
+| **467** MCP tools | **175** Python examples (21 genre templates) |
 | **111** DSP scripts | **12** agent skills |
 | **3** framework wrappers | **4128** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -59,7 +59,7 @@ await server.mcp_opendaw_render_full(output_path="beat.wav")
 
 | Feature | opendaw-mcp | Other audio MCPs |
 |---------|-------------|-------------------|
-| Full DAW control (466 tools) | ✅ | ❌ (1-10 tools) |
+| Full DAW control (467 tools) | ✅ | ❌ (1-10 tools) |
 | Scriptable DSP (write custom JS effects) | ✅ | ❌ |
 | SOTA stem separation (7 models, GPU local) | ✅ | ❌ |
 | Suno → DAW E2E pipeline | ✅ | ❌ |
@@ -454,7 +454,7 @@ See [`examples/crewai_integration.py`](examples/crewai_integration.py) for a ful
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 466 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 467 tools with parameters and descriptions.
 
 ### Orchestration Tools
 
