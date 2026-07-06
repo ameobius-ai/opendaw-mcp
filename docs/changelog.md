@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.313.0 (2026-07-06)
+
+- **`create_konokol`** — Indian Carnatic konokol (solkattu): vocal percussion as MIDI. 6 tala structures: adi_tala (8-beat cycle, most common), roopaka_tala (6-beat 3/4), khanda_chapu (5-beat asymmetric), mishra_chapu (7-beat lyrical), triputa_tala (7-beat variant), jhampa_tala (10-beat). Syllable-to-pitch mapping (ta/ka→hat 42, dhi/nam→snare 38, mi→tom 43, thom/ghu→bass 36, khatam→tom 45). Subdivision emphasis — first syllable of each group = full velocity, others 0.65×. 14th world rhythm tradition. India. 26 unit tests. 488 MCP tools.
+
 ## v1.312.0 (2026-07-06)
 
 - **`create_edm_arrangement`** — Festival/mainstage EDM across 4 tracks: 4-on-the-floor kick + claps on 2+4 + 16th closed hats + open hats on offbeats, offbeat sub bass, supersaw chord stabs on beats 1+3, arpeggiated lead hook. Snare roll buildup crescendo at end of phrases. i-VI-III-VII progression (Fm-Db-Ab-Eb). F minor default (most common EDM key). 128 BPM. 23rd multi-track arrangement. 22 unit tests. 487 MCP tools.

@@ -29718,6 +29718,172 @@ async def mcp_opendaw_create_rondo(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_konokol(
+    style: str = "adi_tala",
+    cycles: int = 2,
+    tempo_bpm: float = 100.0,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create Indian Carnatic konokol (solkattu) — vocal percussion as MIDI.
+
+    Konokol (also spelled konnakkol) is the South Indian art of vocal
+    percussion. Syllables represent rhythmic patterns: ta, ka, di, mi,
+    thom, nam, ghu, dhi, khatam. Each syllable maps to a specific drum
+    sound. This is the rhythmic foundation of all Carnatic music.
+
+    Styles (tala structures):
+      - adi_tala: 8-beat cycle (most common). Structure: 4+2+2.
+        Syllables: ta-ka-dhi-mi ta-ka-dhi-mi ta-ka-ta-ka.
+        The foundational tala of Carnatic music.
+      - roopaka_tala: 6-beat cycle (3/4). Structure: 3+3.
+        Syllables: ta-ka-dhi ta-ka-dhi-mi.
+        Used in lighter compositions, varnams.
+      - khanda_chapu: 5-beat cycle. Structure: 2+3.
+        Syllables: ta-ka ta-ka-ta.
+        Asymmetric, flowing feel. Common in kritis.
+      - mishra_chapu: 7-beat cycle. Structure: 3+2+2.
+        Syllables: ta-ki-ta ta-ka ta-ka.
+        Lyrical, song-like rhythm. Used in padams.
+      - triputa_tala: 7-beat cycle (3+2+2 variant).
+        Syllables: ta-ka-dhi-mi ta-ka ta.
+        Alternative 7-beat structure.
+      - jhampa_tala: 10-beat cycle. Structure: 4+2+4.
+        Syllables: ta-ka-dhi-mi ta-ka ta-ka-dhi-mi.
+        Used in javalis and tillanas.
+
+    GM percussion mapping (Indian fusion approach):
+    36 (kick) → thom, ghu (bass drum — low/open tones)
+    38 (snare) → nam, dhi (sharp, crisp)
+    42 (closed hat) → ta, ka (high, crisp)
+    43 (high floor tom) → mi (mid)
+    45 (low tom) → khatam (rolled)
+
+    Creates konokol notes on track_index. Includes syllable text in
+    the result for reference.
+    """
+    valid_styles = ["adi_tala", "roopaka_tala", "khanda_chapu",
+                    "mishra_chapu", "triputa_tala", "jhampa_tala"]
+    if style not in valid_styles:
+        return json.dumps({"error": f"Invalid style '{style}'. Valid: {valid_styles}"})
+
+    # GM percussion pitches for Indian fusion
+    THOM = 36     # bass drum (low/open)
+    NAM = 38      # snare (sharp)
+    TA = 42       # closed hat (high crisp)
+    MI = 43       # high floor tom (mid)
+    KHA = 45      # low tom (rolled)
+
+    # Syllable → pitch mapping
+    SYLLABLE_MAP = {
+        "ta": TA, "ka": TA, "dhi": NAM, "mi": MI,
+        "thom": THOM, "nam": NAM, "ghu": THOM,
+        "khatam": KHA, "dham": NAM, "num": THOM,
+        "ta-ka": TA, "ta-ki": TA, "ta-dhi": NAM,
+    }
+
+    # Tala definitions: (beats, syllable sequence)
+    TALAS = {
+        "adi_tala": {
+            "beats": 8,
+            "syllables": ["ta", "ka", "dhi", "mi", "ta", "ka", "dhi", "mi",
+                          "ta", "ka", "ta", "ka"],
+            "subdivisions": [4, 4, 4],  # 4+4+4 sixteenth notes = 8 beats at 8th note level
+        },
+        "roopaka_tala": {
+            "beats": 6,
+            "syllables": ["ta", "ka", "dhi", "ta", "ka", "dhi", "mi"],
+            "subdivisions": [3, 4],
+        },
+        "khanda_chapu": {
+            "beats": 5,
+            "syllables": ["ta", "ka", "ta", "ka", "ta", "dhi", "mi"],
+            "subdivisions": [2, 5],
+        },
+        "mishra_chapu": {
+            "beats": 7,
+            "syllables": ["ta", "ki", "ta", "ta", "ka", "ta", "ka"],
+            "subdivisions": [3, 2, 2],
+        },
+        "triputa_tala": {
+            "beats": 7,
+            "syllables": ["ta", "ka", "dhi", "mi", "ta", "ka", "ta"],
+            "subdivisions": [4, 2, 1],
+        },
+        "jhampa_tala": {
+            "beats": 10,
+            "syllables": ["ta", "ka", "dhi", "mi", "ta", "ka", "ta", "ka", "dhi", "mi"],
+            "subdivisions": [4, 2, 4],
+        },
+    }
+
+    tala = TALAS[style]
+    cycle_beats = tala["beats"]
+    syllables = tala["syllables"]
+    subdivisions = tala["subdivisions"]
+
+    # Calculate note durations from subdivisions
+    # Total subdivisions = cycle_beats, each subdivision = 1 beat
+    # But syllables can be more than beats (e.g., 8 beats, 12 syllables → 16th notes)
+    n_syllables = len(syllables)
+    # Each syllable gets equal time within the cycle
+    beat_per_syllable = cycle_beats / n_syllables
+
+    notes = []
+
+    for c in range(cycles):
+        cycle_start = start_beat + c * cycle_beats
+
+        for i, syl in enumerate(syllables):
+            pitch = SYLLABLE_MAP.get(syl, TA)
+            beat_pos = cycle_start + i * beat_per_syllable
+            # Velocity varies by syllable emphasis
+            # First syllable of each subdivision group is emphasized
+            emph = 1.0
+            pos_in_cycle = i
+            for sd in subdivisions:
+                if pos_in_cycle == 0:
+                    emph = 1.0
+                    break
+                pos_in_cycle -= sd
+                if pos_in_cycle < 0:
+                    emph = 0.65
+                    break
+            notes.append({
+                "pitch": pitch,
+                "start": round(beat_pos, 4),
+                "duration": round(beat_per_syllable * 0.9, 4),
+                "velocity": round(max(0.0, min(1.0, velocity * emph)), 3),
+            })
+
+    notes_json = json.dumps(notes)
+    result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+        data["konokol"] = True
+        data["style"] = style
+        data["cycles"] = cycles
+        data["tempo_bpm"] = tempo_bpm
+        data["cycle_beats"] = cycle_beats
+        data["syllables"] = syllables
+        data["syllable_count"] = n_syllables
+        data["subdivisions"] = subdivisions
+        data["total_notes"] = len(notes)
+        data["syllable_sequence"] = " ".join(syllables)
+        data["instruments"] = {
+            "thom_bass": THOM, "nam_snare": NAM, "ta_hat": TA,
+            "mi_tom": MI, "khatam_tom": KHA
+        }
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""
