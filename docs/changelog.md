@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.301.0 (2026-07-06)
+
+- **`create_second_line`** — New Orleans second line percussion: street parade groove, the root of funk/R&B. 5 instruments: bass drum (syncopated "street beat"), snare (backbeat + ghost notes), hi-hat (Charleston or 8ths), tom (fills), cymbal (phrase accents). 5 styles: traditional (parade, Charleston hi-hat), brass_band (modern, 8th-note hats + tom rolls), mardi_gras_indian (tribal, call-and-response tom/snare), jazz_funeral (dirge→celebration dynamic shift), bounce (NOLA hip-hop, double-time "Triggerman" bass + 16th hats). North American tradition.
+
 ## v1.300.0 (2026-07-06)
 
 - **`create_korean_percussion`** — Korean traditional percussion: nongak (farmers' music) and samul nori. 5 instruments: janggu (hourglass drum with two heads: chwe/low + kyeong/high), buk (barrel drum), kkwaenggwari (small gong, lead), jing (large gong). 5 styles: nongak (rural), samul_nori (modern stage), binari (ritual/shaman), utdari_pungnyu (court), yeongnam_folk (Gyeongsang). Four instruments = weather elements (rain/clouds/thunder/wind). Korean tradition.

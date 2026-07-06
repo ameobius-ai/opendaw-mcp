@@ -398,6 +398,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_irish_trad` — Irish traditional music: bodhrán + feet stomp for session tunes. 6 tune types: reel (4/4 straight), jig (6/8 triplet), hornpipe (4/4 swung), slip jig (9/8), polka (2/4), slide (12/8). Hornpipe is the only swung type. Ireland / Celtic.
 - `create_taiko_ensemble` — Japanese taiko: kumi-daiko group drumming. 4 instruments: odaiko (bass), chu-daiko (mid), shime-daiko (high), atarigane (gong). 5 styles: miyake, yatai, edo, hachijo, omega. Dynamic contrast from silence to thunder. Japan.
 - `create_korean_percussion` — Korean nongak/samul nori: 5 instruments (janggu chwe+kyong, buk, kkwaenggwari, jing). 5 styles: nongak, samul_nori, binari, utdari_pungnyu, yeongnam_folk. Weather element symbolism. Korea.
+- `create_second_line` — New Orleans second line: street parade groove, root of funk/R&B. 5 instruments: bass drum, snare, hi-hat, tom, cymbal. 5 styles: traditional (parade), brass_band (modern), mardi_gras_indian (tribal), jazz_funeral (dirge→celebration), bounce (NOLA hip-hop). USA.
 - `create_dembow` — Reggaeton/dancehall dembow rhythm: the 3-3-2 syncopated gallop that drives all reggaeton. 5 variants (classic, dancehall, trap_latino, perreo, urbano). Kick + snare + ghost strokes. From Bobby Dixon's riddim to Daddy Yankee to Bad Bunny.
 - `create_boom_bap` — Boom-bap hip-hop drum pattern: the foundational beat of hip-hop. "boom"=kick, "bap"=snare. 5 variants (classic, old_school, trap, lofi, drill). Kick on 1/3, snare on 2/4, hi-hats fill. From Run-DMC to Nas to Kendrick. J Dilla laid-back, UK drill aggression.
 - `create_four_on_floor` — Four-on-the-floor: the foundational beat of house, techno, and disco. Kick on every quarter (beats 1-2-3-4). 5 variants (classic_house, deep_house, techno, disco, tech_house). Open hats on off-beats, clap on 2+4, 16th hats. From Moroder to Frankie Knuckles to Jeff Mills.
@@ -546,7 +547,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `spread_voicing` — Chord voicing spread/compact. 4 modes: open (widen spacing), close (collapse to one octave), drop2 (jazz piano comping), drop3 (wider jazz voicing). spread_octaves 1-3.
 - `randomize_note_chance` — Randomize note playback probability (chance 0-100%). 5 distribution modes: uniform, decreasing, increasing, sparse, binary. Seeded PRNG. Generative MIDI — patterns that evolve per iteration.
 - `add_chord_tension` — Add jazz extension note to existing chord. 7 extensions: 9, b9, #9, 11, #11, 13, b13. Calculates pitch from chord root. Triad → Cmaj9, G7 → G7b13.
-**Total: 438 tools**
+**Total: 439 tools**
 
 ## DSP Scripts (scripts/) — 110 scripts
 

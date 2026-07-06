@@ -146,6 +146,7 @@ What do you want to create?
 ├── Irish Trad → create_irish_trad (bodhrán+feet, 6 tune types: reel/jig/hornpipe/slip_jig/polka/slide, hornpipe swung, Ireland/Celtic)
 ├── Taiko Ensemble → create_taiko_ensemble (Japanese kumi-daiko, 4 instruments: odaiko/chu-daiko/shime/atarigane, 5 styles: miyake/yatai/edo/hachijo/omega, dramatic dynamics)
 ├── Korean Percussion → create_korean_percussion (nongak/samul nori, 5 instruments: janggu chwe+kyong/buk/kkwaenggwari/jing, 5 styles: nongak/samul_nori/binari/utdari_pungnyu/yeongnam_folk)
+├── Second Line → create_second_line (New Orleans street parade, 5 instruments: bass/snare/hi-hat/tom/cymbal, 5 styles: traditional/brass_band/mardi_gras_indian/jazz_funeral/bounce)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

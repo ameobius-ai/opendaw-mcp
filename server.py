@@ -52239,3 +52239,225 @@ async def mcp_opendaw_remix_track(
         "ready_for_export": all(s.get("status") == "ok" for s in pipeline_steps),
         "next_step": "call render_full or render_full_format to export the remix",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_second_line(
+    bars: int = 4,
+    style: str = "traditional",
+    velocity: float = 0.78,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    bass_pitch: int = 36,
+    snare_pitch: int = 38,
+    hi_hat_pitch: int = 42,
+    tom_pitch: int = 45,
+    cymbal_pitch: int = 49,
+) -> str:
+    """Create a New Orleans second line percussion ensemble — street parade groove.
+
+    The New Orleans second line beat is one of the foundational rhythms of American
+    music — the root of funk, R&B, and rock drumming. Born from jazz funeral parades
+    and brass band street processions, it combines African rhythmic sensibility with
+    European march tradition.
+
+    Instruments:
+    1. BASS DRUM — Deep boom. Plays the "street beat": downbeat + syncopated "and"
+       of 2 and 4. The backbone that drives the parade forward.
+    2. SNARE DRUM — Backbeat on 2 and 4 with ghost notes on the "e" and "a" of
+       beats. Loose, funky, slightly behind the beat feel.
+    3. HI-HAT — Charleston rhythm (beat 1, "and" of 2, beat 3, "and" of 4) or
+       straight 8ths depending on style. The pulse-keeper.
+    4. TOM-TOM — Fills at phrase ends, rhythmic calls in Indian style. Adds
+       melodic colour to the percussion arrangement.
+    5. CYMBAL — Crash accents on phrase starts. Sparse, ceremonial.
+
+    styles:
+      "traditional"       — Classic street parade (early 20th century). Steady
+                            Charleston hi-hat, backbeat snare, syncopated bass.
+                            The original second line groove.
+      "brass_band"        — Modern brass band style (Dirty Dozen, Rebirth). Denser,
+                            funkier. More ghost notes, tom rolls, 8th-note hi-hat.
+      "mardi_gras_indian" — Mardi Gras Indian style (Wild Tchoupitoulas). Call-and-
+                            response between tom and snare. Ritualistic, tribal.
+                            Sparse bass, tom-driven.
+      "jazz_funeral"      — Dirge to celebration. Bar 1: slow, sparse (dirge on
+                            the way to the cemetery). Bar 2: upbeat, driving
+                            (celebration on the way back). Dramatic dynamic shift.
+      "bounce"            — New Orleans bounce (1980s+, DJ Jimi, Magnolia Shorty).
+                            "Triggerman" double-time bass drum, 16th-note hi-hat,
+                            backbeat snare. The foundation of NOLA hip-hop.
+
+    Args:
+        bars: Pattern length (4-16, even).
+        style: Style name.
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        bass_pitch: Bass drum MIDI pitch (36 = C1).
+        snare_pitch: Snare drum MIDI pitch (38 = D1).
+        hi_hat_pitch: Hi-hat MIDI pitch (42 = F#1).
+        tom_pitch: Tom-tom MIDI pitch (45 = A1).
+        cymbal_pitch: Crash cymbal MIDI pitch (49 = C#2).
+
+    Returns notes created, instrument breakdown, and style info.
+    """
+    if not (4 <= bars <= 16) or bars % 2 != 0:
+        return f"Error: bars must be even and 4-16, got {bars}"
+    if style not in ("traditional", "brass_band", "mardi_gras_indian", "jazz_funeral", "bounce"):
+        return f"Error: style must be traditional, brass_band, mardi_gras_indian, jazz_funeral, or bounce, got {style}"
+    if not (0.0 <= velocity <= 1.0):
+        return f"Error: velocity must be 0-1, got {velocity}"
+
+    STYLES = {
+        "traditional": {
+            "bass": [
+                (0.0, 0.9, 0.25), (1.5, 0.7, 0.2), (2.0, 0.85, 0.25), (3.5, 0.65, 0.15),
+                (4.0, 0.9, 0.25), (5.5, 0.7, 0.2), (6.0, 0.85, 0.25), (7.5, 0.65, 0.15),
+            ],
+            "snare": [
+                (1.0, 0.85, 0.1), (3.0, 0.9, 0.1), (5.0, 0.85, 0.1), (7.0, 0.9, 0.1),
+                (0.75, 0.3, 0.05), (2.75, 0.3, 0.05), (4.75, 0.3, 0.05), (6.75, 0.35, 0.05),
+            ],
+            "hi_hat": [
+                (0.0, 0.5, 0.08), (1.5, 0.6, 0.1), (2.0, 0.5, 0.08), (3.5, 0.6, 0.1),
+                (4.0, 0.5, 0.08), (5.5, 0.6, 0.1), (6.0, 0.5, 0.08), (7.5, 0.6, 0.1),
+            ],
+            "tom": [
+                (7.25, 0.5, 0.1), (7.5, 0.6, 0.1), (7.75, 0.7, 0.08),
+            ],
+            "cymbal": [
+                (0.0, 0.6, 0.15),
+            ],
+        },
+        "brass_band": {
+            "bass": [
+                (0.0, 0.9, 0.2), (1.5, 0.75, 0.18), (2.0, 0.85, 0.2), (2.5, 0.65, 0.12),
+                (3.5, 0.7, 0.15), (4.0, 0.9, 0.2), (5.5, 0.75, 0.18), (6.0, 0.85, 0.2),
+                (6.5, 0.65, 0.12), (7.5, 0.7, 0.15),
+            ],
+            "snare": [
+                (1.0, 0.85, 0.1), (1.75, 0.35, 0.04), (3.0, 0.9, 0.1), (3.25, 0.35, 0.04),
+                (3.75, 0.4, 0.05), (5.0, 0.85, 0.1), (5.75, 0.35, 0.04), (7.0, 0.9, 0.1),
+                (7.25, 0.35, 0.04), (7.75, 0.45, 0.06),
+            ],
+            "hi_hat": [
+                (i * 0.5, 0.5 if i % 2 == 0 else 0.4, 0.06 if i % 2 == 0 else 0.05)
+                for i in range(16)
+            ],
+            "tom": [
+                (6.5, 0.5, 0.08), (6.75, 0.55, 0.08), (7.0, 0.6, 0.08),
+                (7.25, 0.65, 0.06), (7.5, 0.7, 0.06), (7.75, 0.75, 0.05),
+            ],
+            "cymbal": [
+                (0.0, 0.65, 0.2), (4.0, 0.55, 0.15),
+            ],
+        },
+        "mardi_gras_indian": {
+            "bass": [
+                (0.0, 0.85, 0.3), (3.0, 0.7, 0.2), (3.5, 0.65, 0.15),
+                (4.0, 0.8, 0.25), (7.0, 0.75, 0.2), (7.5, 0.6, 0.12),
+            ],
+            "snare": [
+                (1.0, 0.7, 0.1), (2.0, 0.75, 0.1), (3.5, 0.8, 0.12),
+                (5.0, 0.7, 0.1), (6.0, 0.75, 0.1), (7.5, 0.8, 0.12),
+            ],
+            "hi_hat": [
+                (0.5, 0.5, 0.06), (1.5, 0.5, 0.06), (2.5, 0.5, 0.06), (3.5, 0.55, 0.08),
+                (4.5, 0.5, 0.06), (5.5, 0.5, 0.06), (6.5, 0.5, 0.06), (7.5, 0.55, 0.08),
+            ],
+            "tom": [
+                (0.0, 0.6, 0.15), (2.0, 0.55, 0.12), (4.0, 0.6, 0.15), (6.0, 0.55, 0.12),
+            ],
+            "cymbal": [
+                (0.0, 0.7, 0.2),
+            ],
+        },
+        "jazz_funeral": {
+            "bass": [
+                (0.0, 0.8, 0.4), (2.0, 0.65, 0.3),
+                (4.0, 0.9, 0.2), (5.5, 0.75, 0.18), (6.0, 0.85, 0.2), (7.5, 0.7, 0.15),
+            ],
+            "snare": [
+                (3.0, 0.6, 0.15),
+                (5.0, 0.85, 0.1), (7.0, 0.9, 0.1), (7.75, 0.4, 0.05),
+            ],
+            "hi_hat": [
+                (0.0, 0.5, 0.1), (2.0, 0.45, 0.08),
+                (4.0, 0.5, 0.06), (4.5, 0.4, 0.05), (5.0, 0.5, 0.06), (5.5, 0.4, 0.05),
+                (6.0, 0.5, 0.06), (6.5, 0.4, 0.05), (7.0, 0.5, 0.06), (7.5, 0.4, 0.05),
+            ],
+            "tom": [
+                (3.0, 0.5, 0.12), (3.5, 0.45, 0.1),
+            ],
+            "cymbal": [
+                (0.0, 0.7, 0.3), (4.0, 0.6, 0.2),
+            ],
+        },
+        "bounce": {
+            "bass": [
+                (0.0, 0.9, 0.15), (0.5, 0.8, 0.12), (2.0, 0.9, 0.15), (2.5, 0.8, 0.12),
+                (4.0, 0.9, 0.15), (4.5, 0.8, 0.12), (6.0, 0.9, 0.15), (6.5, 0.8, 0.12),
+            ],
+            "snare": [
+                (1.0, 0.85, 0.08), (3.0, 0.9, 0.08), (5.0, 0.85, 0.08), (7.0, 0.9, 0.08),
+            ],
+            "hi_hat": [
+                (i * 0.25, 0.45 if i % 2 == 0 else 0.3, 0.03 if i % 2 == 0 else 0.025)
+                for i in range(32)
+            ],
+            "tom": [],
+            "cymbal": [
+                (0.0, 0.6, 0.15),
+            ],
+        },
+    }
+
+    pitch_map = {
+        "bass": bass_pitch, "snare": snare_pitch,
+        "hi_hat": hi_hat_pitch, "tom": tom_pitch, "cymbal": cymbal_pitch,
+    }
+
+    style_data = STYLES[style]
+    instruments = list(style_data.keys())
+    cycle_len = 8.0
+    cycles = bars // 2
+
+    all_notes = []
+    inst_counts = {}
+
+    for inst in instruments:
+        inst_counts[inst] = 0
+        strokes = style_data[inst]
+        for c in range(cycles):
+            offset = c * cycle_len
+            for beat, vel_mult, dur in strokes:
+                pos = round(start_beat + offset + beat, 4)
+                vel = round(max(0.0, min(1.0, velocity * vel_mult)), 3)
+                all_notes.append({
+                    "pitch": pitch_map[inst],
+                    "start": pos,
+                    "duration": dur,
+                    "velocity": vel,
+                })
+                inst_counts[inst] += 1
+
+    all_notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["second_line"] = True
+        data["style"] = style
+        data["bars"] = bars
+        data["cycles"] = cycles
+        data["instruments"] = instruments
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
