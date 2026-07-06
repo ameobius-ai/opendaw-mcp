@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.307.0 (2026-07-06)
+
+- **`create_chaconne`** — Chaconne: repeating bass + chord progression + developing variations. Unlike ground bass (bass only) or passacaglia (bass + melodic variations), chaconne repeats both bass AND chords as fixed harmonic framework, with variation melody on top. 5 variation styles: baroque (descending stepwise with grace notes accumulating), romantic (wide intervals, rubato-like timing), jazz (syncopated, chromatic passing tones, descending chromatic runs), minimalist (repeating cells with phase shift), contemporary (dissonant clusters, pointillistic). Bass on track_index, chords on track_index+1, variation on track_index+2. Chord parsing supports major/minor/dim/aug/maj7/m7/7/sus4/sus2/m7b5. 37 unit tests. 482 MCP tools.
+
 ## v1.306.0 (2026-07-06)
 
 - **`create_ground_bass`** — Ground bass (basso ostinato): repeating bass pattern with developing melody above. 5 melody styles: baroque (descending stepwise, Purcell/Bach), modal (sparse sustained, Miles Davis), minimalist (phase-shifted cells, Reich/Glass), film_tension (dissonant crescendo), folk (pentatonic variation). Bass on track_index, melody on track_index+1. Fixed __init__.py exports for analysis functions. 23 unit tests. 481 MCP tools.

@@ -28897,6 +28897,299 @@ async def mcp_opendaw_create_ground_bass(
         return bass_result
 
 
+@mcp.tool()
+async def mcp_opendaw_create_chaconne(
+    bass_pattern: str = "C2 G2 A2 E2",
+    bass_rhythm: str = "1 1 1 1",
+    chord_pattern: str = "C,Em,Am,G",
+    variation_style: str = "baroque",
+    repeats: int = 4,
+    velocity: float = 0.65,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a chaconne — repeating bass + chord progression + developing variations.
+
+    A chaconne is a set of variations over a repeating bass line and harmonic
+    progression. Unlike ground bass (bass only) or passacaglia (bass + variations),
+    a chaconne explicitly repeats both the bass AND the chord progression, building
+    variations on top of this fixed harmonic framework.
+
+    Bass pattern: space-separated note names (e.g. "C2 G2 A2 E2").
+    Bass rhythm: space-separated durations in beats (e.g. "1 1 1 1").
+    Chord pattern: comma-separated chord names aligned with bass notes
+    (e.g. "C,Em,Am,G"). Supports major, minor, dim, aug, maj7, m7, 7.
+    Variation styles:
+      - baroque: descending stepwise lines with suspensions, ornaments accumulate
+      - romantic: wide intervals, expressive phrases, rubato-like timing
+      - jazz: syncopated, chromatic passing tones, swing-like rhythm
+      - minimalist: repeating cells with gradual phase shift
+      - contemporary: dissonant clusters, intervallic leaps, pointillistic
+
+    Creates bass on track_index, chord pads on track_index+1, variation on track_index+2.
+    """
+    # Parse bass pattern
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+    CHORD_TRIADS = {
+        "": [0, 4, 7], "m": [0, 3, 7], "dim": [0, 3, 6], "aug": [0, 4, 8],
+        "maj7": [0, 4, 7, 11], "m7": [0, 3, 7, 10], "7": [0, 4, 7, 10],
+        "sus4": [0, 5, 7], "sus2": [0, 2, 7], "m7b5": [0, 3, 6, 10],
+    }
+
+    def _parse_note(note_name):
+        """Parse note name like C2, A#3, Bb1 to MIDI pitch."""
+        note_name = note_name.strip()
+        if not note_name:
+            return None
+        # Try longest match for note part
+        for nlen in (2, 1):
+            note_part = note_name[:nlen]
+            if note_part in NOTE_MAP:
+                oct_str = note_name[nlen:]
+                octave = int(oct_str) if oct_str else 3
+                return (octave + 1) * 12 + NOTE_MAP[note_part]
+        return None
+
+    def _parse_chord(chord_name):
+        """Parse chord name like C, Am, Fmaj7, G7 to root pitch + intervals."""
+        chord_name = chord_name.strip()
+        if not chord_name:
+            return None, None
+        # Root
+        root = None
+        root_str = ""
+        for nlen in (2, 1):
+            part = chord_name[:nlen]
+            if part in NOTE_MAP:
+                root_str = part
+                root = NOTE_MAP[part]
+                break
+        if root is None:
+            return None, None
+        suffix = chord_name[len(root_str):]
+        # Map suffix
+        intervals = CHORD_TRIADS.get(suffix)
+        if intervals is None:
+            # Try case-insensitive for 'm'
+            for key in CHORD_TRIADS:
+                if key.lower() == suffix.lower():
+                    intervals = CHORD_TRIADS[key]
+                    break
+        if intervals is None:
+            intervals = CHORD_TRIADS[""]  # default major
+        # Root pitch at octave 3
+        root_pitch = (3 + 1) * 12 + root
+        return root_pitch, intervals
+
+    # Parse inputs
+    bass_notes_names = bass_pattern.split()
+    bass_durations = [float(x) for x in bass_rhythm.split()]
+    if len(bass_durations) < len(bass_notes_names):
+        bass_durations.extend([1.0] * (len(bass_notes_names) - len(bass_durations)))
+    chord_names = [c.strip() for c in chord_pattern.split(",") if c.strip()]
+
+    bass_pitches = [_parse_note(n) for n in bass_notes_names]
+    bass_pitches = [p for p in bass_pitches if p is not None]
+    cycle_len = sum(bass_durations[:len(bass_pitches)])
+
+    # Parse chords
+    chord_data = []
+    for i, cn in enumerate(chord_names):
+        rp, iv = _parse_chord(cn)
+        if rp is not None and iv is not None:
+            chord_data.append((rp, iv, cn))
+
+    # Align chords to bass (if fewer chords than bass notes, cycle)
+    import random as _rng
+    rng = _rng.Random(42)
+
+    # --- Generate bass (repeated) ---
+    all_bass_notes = []
+    for r in range(repeats):
+        beat = start_beat + r * cycle_len
+        for i, pitch in enumerate(bass_pitches):
+            dur = bass_durations[i] if i < len(bass_durations) else 1.0
+            all_bass_notes.append({
+                "pitch": pitch,
+                "start": round(beat, 4),
+                "duration": round(dur * 0.95, 4),
+                "velocity": velocity,
+            })
+            beat += dur
+
+    # --- Generate chord pads (repeated) ---
+    all_chord_notes = []
+    for r in range(repeats):
+        beat = start_beat + r * cycle_len
+        for i in range(len(bass_pitches)):
+            dur = bass_durations[i] if i < len(bass_durations) else 1.0
+            ci = i % max(1, len(chord_data))
+            if ci < len(chord_data):
+                rp, iv, _ = chord_data[ci]
+                for interval in iv:
+                    all_chord_notes.append({
+                        "pitch": rp + interval,
+                        "start": round(beat, 4),
+                        "duration": round(dur * 0.9, 4),
+                        "velocity": round(velocity * 0.45, 3),
+                    })
+            beat += dur
+
+    # --- Generate variation melody ---
+    all_var_notes = []
+    bass_root = bass_pitches[0] if bass_pitches else 60
+
+    # Scale from first chord
+    if chord_data:
+        first_root, first_iv, _ = chord_data[0]
+        is_minor = 3 in first_iv
+        scale = [0, 2, 3, 5, 7, 8, 10, 12] if is_minor else [0, 2, 4, 5, 7, 9, 11, 12]
+    else:
+        scale = [0, 2, 4, 5, 7, 9, 11, 12]
+
+    var_octave = 24  # two octaves above bass
+
+    for r in range(repeats):
+        cycle_start = start_beat + r * cycle_len
+
+        if variation_style == "baroque":
+            # Descending stepwise with suspensions, ornaments accumulate
+            n_notes = int(cycle_len / 0.5)
+            for m in range(n_notes):
+                deg = max(0, len(scale) - 1 - m // 2 - r)
+                if deg >= len(scale):
+                    deg = len(scale) - 1
+                pitch = bass_root + var_octave + scale[deg]
+                # Add grace note on downbeats after repeat 1
+                if r >= 1 and m % 4 == 0:
+                    grace_pitch = bass_root + var_octave + scale[max(0, deg - 1)]
+                    all_var_notes.append({
+                        "pitch": grace_pitch,
+                        "start": round(cycle_start + m * 0.5, 4),
+                        "duration": 0.15,
+                        "velocity": round(velocity * 0.5, 3),
+                    })
+                all_var_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 0.5 + (0.15 if (r >= 1 and m % 4 == 0) else 0), 4),
+                    "duration": 0.45,
+                    "velocity": round(velocity * 0.6 * (0.85 + 0.03 * r), 3),
+                })
+
+        elif variation_style == "romantic":
+            # Wide intervals, expressive phrases
+            intervals_romantic = [7, 12, 9, 5, 7, 12, 4, 3]
+            n_notes = int(cycle_len / 1.0)
+            for m in range(n_notes):
+                interval = intervals_romantic[(m + r) % len(intervals_romantic)]
+                base_deg = rng.randint(0, min(4, len(scale) - 1))
+                pitch = bass_root + var_octave + scale[base_deg] + interval
+                # Rubato-like timing offset
+                time_offset = rng.uniform(-0.1, 0.1)
+                all_var_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 1.0 + time_offset, 4),
+                    "duration": round(0.85 + rng.uniform(-0.1, 0.15), 4),
+                    "velocity": round(velocity * (0.5 + 0.05 * r), 3),
+                })
+
+        elif variation_style == "jazz":
+            # Syncopated, chromatic passing tones
+            pattern = [0, 0.5, 1.5, 2, 2.5, 3.5]
+            chromatic_offsets = [0, 0, 1, 0, 1, 0]
+            for m, (offset, chrom) in enumerate(zip(pattern, chromatic_offsets)):
+                deg = (m + r * 2) % len(scale)
+                pitch = bass_root + var_octave + scale[deg] + chrom
+                all_var_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + offset, 4),
+                    "duration": 0.4,
+                    "velocity": round(velocity * (0.55 + 0.04 * r), 3),
+                })
+            # Add descending chromatic run at end of cycle after repeat 1
+            if r >= 1:
+                run_start = cycle_start + cycle_len - 1.0
+                for m in range(4):
+                    all_var_notes.append({
+                        "pitch": bass_root + var_octave + 12 - m,
+                        "start": round(run_start + m * 0.25, 4),
+                        "duration": 0.22,
+                        "velocity": round(velocity * 0.5, 3),
+                    })
+
+        elif variation_style == "minimalist":
+            # Repeating cells with gradual phase shift
+            cell = [0, 1, 2, 1, 3, 2]
+            n_cells = int(cycle_len / 0.5)
+            for m in range(n_cells):
+                deg = cell[m % len(cell)]
+                if deg >= len(scale):
+                    deg = 0
+                pitch = bass_root + var_octave + scale[deg]
+                phase_shift = (r * 0.125) % 1.0
+                all_var_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 0.5 + phase_shift, 4),
+                    "duration": 0.45,
+                    "velocity": round(velocity * 0.55, 3),
+                })
+
+        else:  # contemporary
+            # Dissonant clusters, intervallic leaps, pointillistic
+            dissonant_intervals = [1, 6, 11, 13, 7, 2, 10, 4]
+            n_notes = int(cycle_len / 0.75)
+            for m in range(n_notes):
+                interval = dissonant_intervals[(m + r * 3) % len(dissonant_intervals)]
+                deg = rng.randint(0, min(3, len(scale) - 1))
+                pitch = bass_root + var_octave + scale[deg] + interval
+                # Pointillistic: some notes are very short, some long
+                dur = 0.15 if m % 3 == 0 else 0.6
+                all_var_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 0.75 + rng.uniform(-0.15, 0.15), 4),
+                    "duration": dur,
+                    "velocity": round(velocity * rng.uniform(0.4, 0.8), 3),
+                })
+
+    # Create notes on three tracks
+    bass_json = json.dumps(all_bass_notes)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, track_index)
+
+    chord_json = json.dumps(all_chord_notes)
+    chord_result = await mcp_opendaw_create_notes_batch(chord_json, unit_index, track_index + 1)
+
+    var_json = json.dumps(all_var_notes)
+    var_result = await mcp_opendaw_create_notes_batch(var_json, unit_index, track_index + 2)
+
+    try:
+        data = json.loads(bass_result)
+        data["chaconne"] = True
+        data["variation_style"] = variation_style
+        data["repeats"] = repeats
+        data["cycle_len_beats"] = cycle_len
+        data["bass_pattern"] = bass_pattern
+        data["chord_pattern"] = chord_pattern
+        data["bass_notes_created"] = len(all_bass_notes)
+        data["chord_notes_created"] = len(all_chord_notes)
+        data["variation_notes_created"] = len(all_var_notes)
+        data["bass_track"] = track_index
+        data["chord_track"] = track_index + 1
+        data["variation_track"] = track_index + 2
+        try:
+            data["chord_result_status"] = json.loads(chord_result).get("success", False) if chord_result else False
+            data["variation_result_status"] = json.loads(var_result).get("success", False) if var_result else False
+        except Exception:
+            data["chord_result_status"] = False
+            data["variation_result_status"] = False
+        return json.dumps(data, indent=2)
+    except Exception:
+        return bass_result
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""
