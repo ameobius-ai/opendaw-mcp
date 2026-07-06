@@ -26,9 +26,9 @@ graph LR
 
 The agent talks MCP. The server translates to JavaScript that runs in openDAW's V8 context via Playwright. No API, no REST — direct DOM-level control of a real DAW engine.
 
-## One call = full track
+## One call = full track, produced AND mastered
 
-The killer feature is `produce_full_track` — a meta-tool that chains 6 steps in one call:
+The killer feature is `produce_and_master` — a meta-tool that chains 7 steps in one call:
 
 ```python
 from opendaw_mcp.server import OpendawServer
@@ -36,19 +36,21 @@ from opendaw_mcp.server import OpendawServer
 server = OpendawServer()
 await server.bridge.start()
 
-# One call = BPM + arrangement + drums + bass + mix + render
-await server.mcp_opendaw_produce_full_track(
+# One call = BPM + arrangement + drums + bass + genre effects + mastering + render
+await server.mcp_opendaw_produce_and_master(
     structure="intro:4,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4",
     key_root="A",
     scale_type="minor",
     genre="house",
     bpm=124,
+    platform="spotify",
+    master_style="balanced",
     render=True
 )
-# → Complete track rendered to WAV
+# → Complete mastered track rendered to WAV, -14 LUFS, -1 dBTP
 ```
 
-This replaces 15-20 individual tool calls. The agent specifies structure, key, genre, and tempo — everything else is automatic.
+This replaces 30-40 individual tool calls. The agent specifies structure, key, genre, tempo, and platform — everything else is automatic.
 
 ## What 520 tools looks like
 

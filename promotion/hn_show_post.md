@@ -16,7 +16,7 @@ I built **opendaw-mcp**, an MCP (Model Context Protocol) server that gives AI ag
 - Rendering: mix export, per-stem export, offline render
 - **130 DSP scripts**: hardware compressor emulations (LA-2A, 1176, SSL G-bus), true peak limiter, psychoacoustic bass enhancer, spring reverb, vocoder, and more
 - **8 structural section generators**: intro, prechorus, interlude, transition, bridge, outro, coda — each with 5 style variants
-- **Meta-tools**: `arrange_full_song` (one call = MIDI skeleton), `produce_full_track` (one call = full track: BPM + arrangement + drums + bass + mix + render)
+- **Meta-tools**: `arrange_full_song` (one call = MIDI skeleton), `produce_full_track` (one call = full track), `produce_and_master` (one call = produced + mastered track, 7 steps: BPM → arrange → drums → bass → genre FX → mastering → render), `auto_master` (one call = adaptive mastering)
 - **35+ genre arrangements**: house, techno, DnB, trap, dubstep, synthwave, jazz, rock, metal, ambient, lofi, and more
 - **Stem splitter**: 7 SOTA open-source models (BS-Roformer, HTDemucs FT, SCNet, MelBand Roformer) running locally on GPU
 - **Preset management**: save/load .opb preset bundles
@@ -25,11 +25,12 @@ I built **opendaw-mcp**, an MCP (Model Context Protocol) server that gives AI ag
 
 **The one-call pipeline:**
 ```python
-await server.mcp_opendaw_produce_full_track(
+await server.mcp_opendaw_produce_and_master(
     structure="intro:4,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4",
-    key_root="A", scale_type="minor", genre="house", bpm=124, render=True
+    key_root="A", scale_type="minor", genre="house", bpm=124,
+    platform="spotify", master_style="balanced", render=True
 )
-# → Complete track rendered to WAV
+# → Complete mastered track rendered to WAV, -14 LUFS, -1 dBTP
 ```
 
 **Why this matters:** AI music generation is solved (Suno, Udio, MusicGen). But production — mixing, arranging, mastering — is still manual. opendaw-mcp bridges that gap: an agent can take a raw AI-generated track, split it into stems, add effects, build an arrangement, and master to -1 dBTP for streaming.
