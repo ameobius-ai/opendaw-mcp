@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.331.0 (2026-07-06)
+
+- **`create_drum_solo`** — Genre-specific drum solo generator with rudimental vocabulary. 5 styles: rock (double kick 16ths, crash accents, tom descent fills, intensity build), jazz (swing ride pattern, comping, press rolls, hi-hat feathering), funk (ghost-note 16ths, hi-hat splashes, syncopated kick, pocket fills), latin (cascara, mambo bell, timbale fills, 2-3 clave), marching (paradiddles, flams, drags, open rolls, DCI vocabulary). Rudiment helpers: paradiddle (RLRR LRLL), flam (grace+main), drag (2 grace+main), open roll. Seeded PRNG. 29 unit tests. 504 MCP tools.
+
 ## v1.330.0 (2026-07-06)
 
 - **`create_solo`** — Genre-specific melodic solo generator. 5 styles: bebop (chromatic approach tones, enclosures, bebop scale passing, chord-tone targeting on strong beats), blues (minor pentatonic + blue notes, 12-bar progression, riff repetition + variation), rock (pentatonic positions, repeated riffs, register climaxes), jazz_swing (swung 8ths 0.66/0.34, guide-tone lines, arpeggio patterns), fusion (wide intervals, chromatic passing, rhythmic displacement, modal). 6 scales (major/minor/dorian/mixolydian/blues/pentatonic_minor). Seeded mulberry32 PRNG for reproducibility. 27 unit tests. 503 MCP tools.

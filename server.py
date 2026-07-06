@@ -57924,3 +57924,283 @@ async def mcp_opendaw_create_solo(
     }.get(solo_type, "")
 
     return json.dumps(data, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_drum_solo(
+    solo_type: str = "rock",
+    bars: int = 4,
+    velocity: float = 0.9,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a genre-specific drum solo with rudimental vocabulary.
+
+    Generates a complete drum solo using vocabulary appropriate to the
+    chosen style. Unlike create_drum_fill (short transition), this tool
+    creates a full multi-bar solo with phrasing, build-ups, climax, and
+    genre-specific rudimental patterns:
+
+    - **rock**: Thunderous 16th-note double kick patterns, crash accents,
+      tom fills, snare ghost notes, building intensity. John Bonham,
+      Neil Peart, Danny Carey.
+    - **jazz**: Brushes + sticks, comping patterns, ride bell, press rolls,
+      polyrhythmic phrasing, trading 4s feel. Max Roach, Elvin Jones,
+      Tony Williams.
+    - **funk**: Ghost-note heavy 16th-note grooves, hi-hat splashes,
+      pocket fills, James Brown/Bootsy aesthetic. Clyde Stubblefield,
+      Jabo Starks, Bernard Purdie.
+    - **latin**: Cascara, mambo bell, timbale fills, clave-based phrasing,
+      6/8 feel options. Tito Puente, Mongo Santamaria.
+    - **marching**: Rudimental solo — paradiddles, flams, drags, roll
+      building, double-stroke open rolls. DCI, snare line vocabulary.
+
+    solo_type: rock | jazz | funk | latin | marching
+    bars: Solo length (2-16, default 4)
+    velocity: Base velocity 0-1 (drum solos are loud, default 0.9)
+    seed: PRNG seed for reproducibility
+
+    Returns notes created and solo characteristics.
+
+    Example:
+      create_drum_solo(solo_type="rock", bars=4)
+      create_drum_solo(solo_type="jazz", bars=8)
+      create_drum_solo(solo_type="marching", bars=4, seed=100)
+    """
+    VALID_SOLO_TYPES = ["rock", "jazz", "funk", "latin", "marching"]
+    if solo_type not in VALID_SOLO_TYPES:
+        return json.dumps({"error": f"Invalid solo_type '{solo_type}'. Valid: {VALID_SOLO_TYPES}"})
+    if bars < 2 or bars > 16:
+        return json.dumps({"error": "bars must be 2-16"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+
+    # GM Drum pitches
+    KICK = 36
+    SNARE = 38
+    HAT = 42
+    OPEN_HAT = 46
+    RIDE = 51
+    CRASH = 49
+    TOM1 = 48  # high tom
+    TOM2 = 45  # mid tom
+    TOM3 = 41  # floor tom
+    TOM4 = 36  # kick-position tom (bass drum)
+    CROSS_STICK = 37
+    MAMBO_BELL = 57
+    TIMBALE = 65
+
+    # Seeded PRNG
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+
+    notes = []
+    bar_beats = 4.0
+
+    # --- Helper: add a note ---
+    def add_note(pitch, start, dur, vel):
+        notes.append({"pitch": pitch, "start": round(start, 4), "duration": dur, "velocity": round(min(1.0, vel), 3)})
+
+    # --- Helper: rudiment patterns ---
+    def paradiddle(start, pitch=SNARE, vel=velocity):
+        """RLRR LRLL — 8 notes, paradiddle rudiment."""
+        pattern = [1, 0, 1, 1, 0, 1, 0, 0]  # 1=accent, 0=quiet
+        for i, acc in enumerate(pattern):
+            v = vel * (0.9 if acc else 0.5)
+            add_note(pitch, start + i * 0.25, 0.12, v)
+
+    def flam(start, pitch=SNARE, vel=velocity):
+        """Flam: grace note + main note."""
+        add_note(pitch, start, 0.08, vel * 0.5)
+        add_note(pitch, start + 0.02, 0.12, vel * 0.95)
+
+    def drag(start, pitch=SNARE, vel=velocity):
+        """Drag: two grace notes + main note."""
+        add_note(pitch, start - 0.06, 0.06, vel * 0.4)
+        add_note(pitch, start - 0.03, 0.06, vel * 0.4)
+        add_note(pitch, start, 0.12, vel * 0.9)
+
+    def open_roll(start, beats=1.0, pitch=SNARE, vel=velocity):
+        """Double-stroke open roll — 16th notes."""
+        n = int(beats * 4)
+        for i in range(n):
+            v = vel * (0.85 + next(rng) * 0.15)
+            add_note(pitch, start + i * 0.25, 0.1, v)
+
+    def tom_descent(start, vel=velocity):
+        """Descending tom fill: TOM1→TOM2→TOM3→TOM4."""
+        toms = [TOM1, TOM2, TOM3, TOM4]
+        for i, t in enumerate(toms):
+            for j in range(2):
+                add_note(t, start + (i * 2 + j) * 0.25, 0.15, vel * (0.9 - i * 0.05))
+
+    # --- Generate solo per style ---
+    for bar in range(bars):
+        bar_start = start_beat + bar * bar_beats
+        intensity = 0.6 + 0.4 * (bar / max(1, bars - 1))  # builds to climax
+        bar_vel = velocity * intensity
+
+        if solo_type == "rock":
+            # Rock: double kick 16ths, crash accents, tom fills
+            # Bars 1-2: groove with kick variations
+            # Last 2 bars: tom fills + crash climax
+            if bar < bars - 2:
+                # Groove: kick on 1, 2.5, snare on 2, 4
+                add_note(KICK, bar_start, 0.2, bar_vel)
+                add_note(HAT, bar_start, 0.04, bar_vel * 0.5)
+                add_note(HAT, bar_start + 0.5, 0.04, bar_vel * 0.4)
+                add_note(SNARE, bar_start + 1.0, 0.12, bar_vel)
+                add_note(HAT, bar_start + 1.0, 0.04, bar_vel * 0.4)
+                add_note(KICK, bar_start + 1.5, 0.2, bar_vel * 0.9)
+                add_note(HAT, bar_start + 1.5, 0.04, bar_vel * 0.4)
+                add_note(HAT, bar_start + 2.0, 0.04, bar_vel * 0.5)
+                add_note(KICK, bar_start + 2.5, 0.2, bar_vel)
+                add_note(HAT, bar_start + 2.5, 0.04, bar_vel * 0.4)
+                add_note(SNARE, bar_start + 3.0, 0.12, bar_vel)
+                add_note(HAT, bar_start + 3.0, 0.04, bar_vel * 0.4)
+                add_note(KICK, bar_start + 3.5, 0.2, bar_vel * 0.9)
+                add_note(HAT, bar_start + 3.5, 0.04, bar_vel * 0.4)
+                # End-of-bar fill: ghost notes
+                if next(rng) < 0.5:
+                    for g in range(4):
+                        add_note(SNARE, bar_start + 3.75 + g * 0.06, 0.04, bar_vel * 0.3)
+            else:
+                # Fill bars: tom descent + crash
+                tom_descent(bar_start, bar_vel)
+                if bar == bars - 1:
+                    # Final crash
+                    add_note(CRASH, bar_start + 3.5, 0.5, bar_vel)
+                    add_note(KICK, bar_start + 3.5, 0.3, bar_vel)
+                else:
+                    # Mid fill: paradiddle on snare
+                    paradiddle(bar_start + 2.0, SNARE, bar_vel)
+
+        elif solo_type == "jazz":
+            # Jazz: ride pattern, comping, press rolls, building
+            # Swing ride: 1, 2&, 3, 4& (long-short swing)
+            ride_pattern = [(0.0, bar_vel), (0.66, bar_vel * 0.6), (1.0, bar_vel),
+                           (1.66, bar_vel * 0.6), (2.0, bar_vel), (2.66, bar_vel * 0.6),
+                           (3.0, bar_vel), (3.66, bar_vel * 0.6)]
+            for pos, v in ride_pattern:
+                add_note(RIDE, bar_start + pos, 0.3, v)
+                add_note(HAT, bar_start + pos, 0.04, v * 0.3)  # feathered hat
+
+            # Hi-hat on 2 and 4 (foot)
+            add_note(HAT, bar_start + 1.0, 0.1, bar_vel * 0.4)
+            add_note(HAT, bar_start + 3.0, 0.1, bar_vel * 0.4)
+
+            # Comping: random snare/kick accents
+            comp_positions = [0.5, 1.5, 2.5, 3.5]
+            for pos in comp_positions:
+                if next(rng) < 0.5:
+                    comp_pitch = SNARE if next(rng) < 0.6 else KICK
+                    add_note(comp_pitch, bar_start + pos, 0.1, bar_vel * 0.7)
+
+            # Last bar: press roll build
+            if bar == bars - 1:
+                open_roll(bar_start + 2.0, 2.0, SNARE, bar_vel)
+                add_note(CRASH, bar_start + 4.0 - 0.1, 0.5, bar_vel)
+
+        elif solo_type == "funk":
+            # Funk: ghost-note 16ths, hi-hat splashes, pocket fills
+            # 16th-note hat pattern with ghost snare
+            for i in range(16):
+                pos = i * 0.25
+                v = bar_vel * (0.5 + 0.3 * (1 if i % 4 == 0 else 0))
+                add_note(HAT if i % 2 == 0 else OPEN_HAT, bar_start + pos, 0.04, v * 0.5)
+                # Ghost snare on off-16ths
+                if i % 2 == 1 and next(rng) < 0.6:
+                    add_note(SNARE, bar_start + pos, 0.06, bar_vel * 0.3)
+            # Kick pattern: syncopated
+            kick_positions = [0.0, 0.75, 2.0, 2.75, 3.5]
+            for pos in kick_positions:
+                add_note(KICK, bar_start + pos, 0.15, bar_vel * 0.9)
+            # Snare backbeat
+            add_note(SNARE, bar_start + 1.0, 0.12, bar_vel)
+            add_note(SNARE, bar_start + 3.0, 0.12, bar_vel)
+            # Fill: drag on last bar
+            if bar == bars - 1:
+                drag(bar_start + 3.5, SNARE, bar_vel)
+
+        elif solo_type == "latin":
+            # Latin: cascara + mambo bell + timbale fills
+            # Cascara pattern (2-3 clave)
+            cascara = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+            cascara_accents = [1, 0, 1, 0, 0, 1, 0, 0]
+            for i, pos in enumerate(cascara):
+                v = bar_vel * (0.8 if cascara_accents[i] else 0.4)
+                add_note(CROSS_STICK, bar_start + pos, 0.08, v)
+
+            # Mambo bell
+            bell_positions = [0.0, 1.0, 1.5, 2.5, 3.0]
+            for pos in bell_positions:
+                add_note(MAMBO_BELL, bar_start + pos, 0.15, bar_vel * 0.7)
+
+            # Kick on clave beats
+            add_note(KICK, bar_start, 0.15, bar_vel * 0.8)
+            add_note(KICK, bar_start + 2.5, 0.15, bar_vel * 0.8)
+            add_note(KICK, bar_start + 3.0, 0.15, bar_vel * 0.8)
+
+            # Timbale fill on last 2 bars
+            if bar >= bars - 2:
+                fill_start = bar_start + 2.0
+                for i in range(8):
+                    add_note(TIMBALE, fill_start + i * 0.25, 0.1, bar_vel * (0.7 + next(rng) * 0.3))
+
+        elif solo_type == "marching":
+            # Marching: rudimental solo — paradiddles, flams, drags, rolls
+            rudiment = bar % 4
+            if rudiment == 0:
+                # Paradiddles
+                paradiddle(bar_start, SNARE, bar_vel)
+                paradiddle(bar_start + 2.0, SNARE, bar_vel)
+            elif rudiment == 1:
+                # Flams
+                for i in range(4):
+                    flam(bar_start + i * 1.0, SNARE, bar_vel)
+            elif rudiment == 2:
+                # Drags
+                for i in range(4):
+                    drag(bar_start + i * 1.0, SNARE, bar_vel)
+            else:
+                # Open roll building
+                roll_len = 1.0 + next(rng) * 1.0
+                open_roll(bar_start, roll_len, SNARE, bar_vel)
+                # Accent at end
+                add_note(CRASH, bar_start + roll_len, 0.3, bar_vel)
+                # More rolls
+                open_roll(bar_start + roll_len + 0.5, bar_beats - roll_len - 0.5, SNARE, bar_vel * 0.9)
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["drum_solo"] = True
+    data["solo_type"] = solo_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "rock": "double kick 16ths, crash accents, tom fills, ghost notes, intensity build to climax",
+        "jazz": "swing ride pattern, comping, press rolls, hi-hat feathering, polyrhythmic phrasing",
+        "funk": "ghost-note 16ths, hi-hat splashes, syncopated kick, pocket fills, drag endings",
+        "latin": "cascara, mambo bell, timbale fills, clave-based phrasing, 2-3 clave",
+        "marching": "rudimental: paradiddles, flams, drags, open rolls, accent building, DCI vocabulary",
+    }.get(solo_type, "")
+
+    return json.dumps(data, indent=2)
