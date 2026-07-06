@@ -7305,6 +7305,198 @@ async def mcp_opendaw_analyze_dynamics(filename: str) -> str:
         return _err(f"Dynamics analysis error: {e}")
 
 @mcp.tool()
+async def mcp_opendaw_analyze_mix(filename: str) -> str:
+    """Complete mix diagnosis in one call — combines track + spectrum + stereo + dynamics.
+
+    Runs all four analysis modules and synthesizes a single prioritized report:
+    1. analyze_track: BPM, key, LUFS, duration
+    2. analyze_spectrum: 7-band frequency balance, spectral centroid, rolloff
+    3. analyze_stereo: width, L/R balance, phase correlation, mono compat
+    4. analyze_dynamics: crest factor, LRA, transient density, segment contour
+
+    Produces prioritized mix_suggestions (sorted by severity) and a master_check
+    with platform-specific LUFS targets:
+    - Spotify: -14 LUFS
+    - Apple Music: -16 LUFS
+    - YouTube: -14 LUFS
+    - CD: no target (full dynamics)
+
+    The agent can call this single tool instead of 4 separate calls, getting
+    a complete picture for mix decisions: EQ, compression, stereo, mastering.
+
+    Args:
+        filename: Name of the WAV file in the exports directory (without path),
+                  or absolute path to any WAV file.
+
+    Returns combined analysis + prioritized suggestions + master check.
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        channels = wav["channels"]
+        sr = wav["sample_rate"]
+
+        # Run all four analyses
+        track_data = {
+            "bpm": None, "key": None, "mode": None,
+            "lufs_integrated": None, "duration_seconds": None,
+        }
+        try:
+            bpm_data = _detect_bpm(channels, sr)
+            track_data["bpm"] = bpm_data["bpm"]
+            track_data["bpm_confidence"] = bpm_data["confidence"]
+        except Exception:
+            pass
+        try:
+            key_data = _detect_key(channels, sr)
+            track_data["key"] = key_data["key"]
+            track_data["mode"] = key_data["mode"]
+            track_data["key_confidence"] = key_data["confidence"]
+        except Exception:
+            pass
+        try:
+            lufs_data = _compute_lufs(channels, sr)
+            track_data["lufs_integrated"] = lufs_data["lufs_integrated"]
+            track_data["true_peak_db"] = lufs_data["true_peak_db"]
+        except Exception:
+            pass
+        track_data["duration_seconds"] = round(wav["n_frames"] / sr, 2)
+        track_data["sample_rate"] = sr
+        track_data["channels"] = wav["n_channels"]
+
+        spectrum = _analyze_spectrum(channels, sr)
+        stereo = _analyze_stereo(channels, sr)
+        dynamics = _analyze_dynamics(channels, sr)
+
+        # Collect all suggestions and prioritize them
+        all_suggestions = []
+
+        # --- LUFS / mastering ---
+        lufs = track_data.get("lufs_integrated")
+        if lufs is not None:
+            targets = {"spotify": -14, "apple": -16, "youtube": -14}
+            master_check = {}
+            for platform, target in targets.items():
+                diff = lufs - target
+                status = "ok" if abs(diff) <= 1.0 else ("too_loud" if diff > 0 else "too_quiet")
+                master_check[platform] = {
+                    "target_lufs": target,
+                    "actual_lufs": lufs,
+                    "difference_db": round(diff, 1),
+                    "status": status,
+                }
+            # High-priority mastering suggestion
+            if lufs > -10:
+                all_suggestions.append(("HIGH", f"Very loud ({lufs} LUFS) — above all streaming targets, will be turned down"))
+            elif lufs < -20:
+                all_suggestions.append(("HIGH", f"Very quiet ({lufs} LUFS) — below streaming targets, will need gain"))
+        else:
+            master_check = {}
+
+        # --- Spectrum ---
+        bands = spectrum.get("bands", [])
+        if bands:
+            dominant = max(bands, key=lambda b: b.get("energy_pct", 0))
+            all_suggestions.append(("INFO", f"Dominant energy: {dominant['name']} band ({dominant['energy_pct']}%)"))
+
+            lh_ratio = spectrum.get("low_high_ratio", 0)
+            if lh_ratio > 3.0:
+                all_suggestions.append(("MEDIUM", "Bass-heavy mix — reduce sub_bass/bass or boost high mids"))
+            elif lh_ratio < 0.3:
+                all_suggestions.append(("MEDIUM", "Thin/bright mix — boost bass or reduce high mids"))
+
+            centroid = spectrum.get("spectral_centroid_hz", 0)
+            if centroid > 0:
+                if centroid < 1500:
+                    all_suggestions.append(("LOW", f"Dark mix (centroid {centroid:.0f} Hz) — high shelf boost above 5kHz"))
+                elif centroid > 5000:
+                    all_suggestions.append(("LOW", f"Bright mix (centroid {centroid:.0f} Hz) — high shelf cut above 5kHz"))
+
+            low_mids_pct = next((b["energy_pct"] for b in bands if b["name"] == "low_mids"), 0)
+            if low_mids_pct > 25:
+                all_suggestions.append(("MEDIUM", "Muddy low-mids — cut around 300-400 Hz"))
+            presence_pct = next((b["energy_pct"] for b in bands if b["name"] == "presence"), 0)
+            if presence_pct > 20:
+                all_suggestions.append(("MEDIUM", "Harsh presence — cut around 3-5 kHz"))
+
+        # --- Stereo ---
+        if stereo.get("is_stereo"):
+            sw = stereo.get("stereo_width", 0)
+            if sw < 0.1:
+                all_suggestions.append(("LOW", "Narrow stereo field — consider panning or stereo width"))
+            elif sw > 0.8:
+                all_suggestions.append(("MEDIUM", "Very wide stereo — verify mono compatibility"))
+
+            pc = stereo.get("phase_correlation", 1.0)
+            if pc < 0:
+                all_suggestions.append(("HIGH", f"Phase issues (correlation {pc}) — will cancel in mono"))
+            elif pc < 0.3:
+                all_suggestions.append(("MEDIUM", f"Low phase correlation ({pc}) — mono compatibility at risk"))
+
+            lr = stereo.get("lr_balance", 0.0)
+            if abs(lr) > 0.2:
+                side = "right" if lr > 0 else "left"
+                all_suggestions.append(("LOW", f"{side.title()}-heavy (balance {lr}) — consider rebalancing"))
+
+            regions = stereo.get("regions", [])
+            if regions and regions[0]["width"] > 0.3:
+                all_suggestions.append(("MEDIUM", f"Wide bass (width {regions[0]['width']}) — keep bass mono/centered"))
+
+        # --- Dynamics ---
+        cf = dynamics.get("crest_factor_db", 0)
+        if cf < 6 and cf > 0:
+            all_suggestions.append(("HIGH", f"Heavily compressed (crest {cf} dB) — low headroom"))
+        elif cf > 15:
+            all_suggestions.append(("LOW", f"Very dynamic (crest {cf} dB) — consider compression"))
+
+        lra = dynamics.get("loudness_range_db", 0)
+        if lra < 4:
+            all_suggestions.append(("LOW", f"Flat dynamics (LRA {lra} dB) — lacks dynamic interest"))
+        elif lra > 12:
+            all_suggestions.append(("MEDIUM", f"Varied dynamics (LRA {lra} dB) — consider leveling"))
+
+        td = dynamics.get("transient_density", 0)
+        if td > 10:
+            all_suggestions.append(("INFO", f"Percussive content (transient density {td}/s) — fast attack for punch"))
+        elif td < 2:
+            all_suggestions.append(("INFO", f"Smooth content (transient density {td}/s) — slow attack for glue"))
+
+        sv = dynamics.get("segment_variation_db", 0)
+        if sv > 6:
+            all_suggestions.append(("MEDIUM", f"Level changes across track ({sv} dB) — consider automation"))
+
+        # Sort by priority
+        priority_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "INFO": 3}
+        all_suggestions.sort(key=lambda x: priority_order.get(x[0], 4))
+        prioritized = [{"priority": p, "suggestion": s} for p, s in all_suggestions]
+
+        return json.dumps({
+            "success": True,
+            "track": track_data,
+            "spectrum": spectrum,
+            "stereo": stereo,
+            "dynamics": dynamics,
+            "master_check": master_check,
+            "mix_suggestions": prioritized,
+            "n_suggestions": len(prioritized),
+            "high_priority_count": sum(1 for p, _ in all_suggestions if p == "HIGH"),
+            "file": filepath,
+        }, indent=2)
+    except Exception as e:
+        return _err(f"Mix analysis error: {e}")
+
+@mcp.tool()
 async def mcp_opendaw_transcribe_drums(
     filename: str,
     bpm: float = 0,

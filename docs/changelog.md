@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.305.0 (2026-07-06)
+
+- **`analyze_mix`** — Complete mix diagnosis in one call. Combines track (BPM/key/LUFS) + spectrum (7-band) + stereo (width/phase) + dynamics (crest/LRA/transients) into a single prioritized report. Mix suggestions sorted by severity (HIGH/MEDIUM/LOW/INFO). Master check with platform LUFS targets (Spotify -14, Apple -16, YouTube -14). One call replaces four — agent gets complete mix picture for EQ, compression, stereo, and mastering decisions.
+
 ## v1.304.0 (2026-07-06)
 
 - **`analyze_dynamics`** — Dynamics analysis: crest factor (peak/RMS), loudness range (LRA 95-10 percentile), dynamic range, transient density (spikes/sec), 10-segment RMS contour, segment variation. Auto compression suggestions (heavily compressed, very dynamic, flat, percussive, smooth, level changes). Pure Python 300ms RMS windows. Completes the analysis trilogy: track + spectrum + stereo + dynamics.
