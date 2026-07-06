@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.347.0 (2026-07-06)
+
+- **`werkstatt_fet_comp.js`** — FET compressor (Urei 1176 style). Lightning-fast 0.02-4ms attack, program-dependent release (faster after loud peaks), 4 ratio modes (4:1/8:1/12:1/20:1 all-buttons-in), soft knee, output transformer saturation. 7 params. 127 DSP scripts. Drums, vocals, bass, aggressive rock compression.
+
 ## v1.346.0 (2026-07-06)
 
 - **`werkstatt_thermal_comp.js`** — Optical compressor (LA-2A style). Photoresistor gain reduction with slow program-dependent attack/release, tube saturation on output for warmth. 5 params: peak_reduce, gain, tube, speed, mix. 126 DSP scripts. Vocals, bass, glue compression.
