@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.291.0 (2026-07-06)
+
+- **`create_tala`** — Indian classical tala: cyclic rhythmic structure with vibhag sections (unequal-length groupings), tali (clap) and khali (wave) markings, and theka (tabla bols sequence). 6 talas: teental (16), ektal (12), jhaptal (10), rupak (7), dadra (6), kehartwa (8). 3 laya tempos: vilambit, madhya, drut. Bol-to-pitch mapping: bayan strokes (Dha/Dhin) in lower register, dayan strokes (Ti/Na/Ta/Tin) in higher register. Velocity: tali beats emphasized, khali beats soft. Second non-European tradition after gamelan colotomic. Indian classical music.
+
 ## v1.290.0 (2026-07-06)
 
 ### Added

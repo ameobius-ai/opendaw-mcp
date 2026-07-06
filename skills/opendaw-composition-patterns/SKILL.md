@@ -136,6 +136,7 @@ What do you want to create?
 ├── Cadenza → create_cadenza (unmeasured virtuosic solo, 6 segment types: flourish/leap/trill/fermata/cascade/climb, 4 styles, rubato rhythm, breath marks)
 ├── Fugato → create_fugato (fugal passage, subject + answer + countersubject + episode, 2-4 voices, real/tonal answer, custom or auto subject)
 ├── Colotomic → create_colotomic (gamelan gong layers, 4 structures: slendro/pelog/lancaran/ketawang, 3 densities, hierarchical cyclic grid, non-European tradition)
+├── Tala → create_tala (Indian cyclic rhythm, 6 talas: teental/ektal/jhaptal/rupak/dadra/kehartwa, vibhag sections, tali/khali, tabla bols, 3 laya tempos, non-European tradition)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

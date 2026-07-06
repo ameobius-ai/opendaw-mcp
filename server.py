@@ -38193,6 +38193,231 @@ async def mcp_opendaw_create_colotomic(
     }}""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_create_tala(
+    tala_name: str = "teental",
+    cycles: int = 4,
+    laya: str = "madhya",
+    velocity: float = 0.7,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create an Indian classical tala — cyclic rhythmic structure with vibhag sections and tali/khali markings.
+
+    A tala is a cyclic rhythmic framework in Indian classical music. Unlike Western
+    meter (which groups beats into uniform bars), a tala divides its cycle into
+    vibhags (sections) of unequal length, each marked by tali (clap) or khali
+    (wave). The theka — a sequence of named tabla strokes (bols) — defines the
+    characteristic pattern of each tala.
+
+    The cycle (avartan) repeats, with the sam (first beat) being the strongest
+    point. Tali beats are played with emphasis; khali beats are played softly
+    (the "empty" section). This dynamic contrast gives Indian rhythm its
+    distinctive breathing quality.
+
+    Talas:
+      teental  — 16 beats, 4+4+4+4 vibhags. The most common tala. Tali at
+                  beats 1, 5, 13; khali at beat 9. Dha-Dhin-Dhin-Dha pattern.
+      ektal    — 12 beats, 2+2+2+2+2+2 vibhags. Used in classical vocal and
+                  sitar. Tali at 1, 5, 9, 11; khali at 3, 7.
+      jhaptal  — 10 beats, 2+3+2+3 vibhags. Asymmetric grouping. Tali at
+                  1, 3, 8; khali at 6.
+      rupak    — 7 beats, 3+2+2 vibhags. Unusual — starts with khali (no
+                  clap on sam). Tali at 4, 6; khali at 1.
+      dadra    — 6 beats, 3+3 vibhags. Light classical, semi-classical.
+                  Tali at 1; khali at 4.
+      kehartwa — 8 beats, 4+4 vibhags. Tali at 1; khali at 5.
+
+    Laya (tempo):
+      vilambit — slow, 2-beat note duration (sustained strokes)
+      madhya   — medium, 1-beat note duration
+      drut     — fast, 0.5-beat note duration
+
+    Each bol maps to a MIDI pitch representing the tabla stroke character:
+      Dha/Dhin (bayan+dayan) -> lower register (36-38)
+      Ti/Na/Tin/Ta (dayan) -> higher register (46-52)
+
+    Args:
+        tala_name: Tala name (teental, ektal, jhaptal, rupak, dadra, kehartwa).
+        cycles: Number of avartan cycles (1-16).
+        laya: Tempo (vilambit, madhya, drut).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, vibhag structure, tali/khali positions, and bols sequence.
+    """
+    TALAS = {
+        "teental": {
+            "beats": 16,
+            "vibhags": [4, 4, 4, 4],
+            "tali": [0, 4, 12],
+            "khali": [8],
+            "theka": ["Dha", "Dhin", "Dhin", "Dha", "Dha", "Dhin", "Dhin", "Dha",
+                      "Dha", "Tin", "Tin", "Ta", "Ta", "Dhin", "Dhin", "Dha"],
+        },
+        "ektal": {
+            "beats": 12,
+            "vibhags": [2, 2, 2, 2, 2, 2],
+            "tali": [0, 4, 8, 10],
+            "khali": [2, 6],
+            "theka": ["Dhin", "Dha", "Ti", "Ta", "Tin", "Ta",
+                      "Dhin", "Dha", "Ti", "Ta", "Dhin", "Dha"],
+        },
+        "jhaptal": {
+            "beats": 10,
+            "vibhags": [2, 3, 2, 3],
+            "tali": [0, 2, 7],
+            "khali": [5],
+            "theka": ["Dhin", "Na", "Dhi", "Dhi", "Na", "Ti", "Na", "Dhi", "Dhi", "Na"],
+        },
+        "rupak": {
+            "beats": 7,
+            "vibhags": [3, 2, 2],
+            "tali": [3, 5],
+            "khali": [0],
+            "theka": ["Tin", "Ti", "Na", "Dhin", "Na", "Dhin", "Na"],
+        },
+        "dadra": {
+            "beats": 6,
+            "vibhags": [3, 3],
+            "tali": [0],
+            "khali": [3],
+            "theka": ["Dha", "Dhin", "Na", "Dha", "Dhin", "Na"],
+        },
+        "kehartwa": {
+            "beats": 8,
+            "vibhags": [4, 4],
+            "tali": [0],
+            "khali": [4],
+            "theka": ["Dha", "Dha", "Ti", "Ta", "Dha", "Dha", "Ti", "Ta"],
+        },
+    }
+
+    BOL_PITCHES = {
+        "Dha": 36, "Dhin": 38, "Dhi": 39,
+        "Tin": 48, "Ta": 52, "Na": 50, "Ti": 46,
+    }
+
+    LAYA_DURATIONS = {"vilambit": 2.0, "madhya": 1.0, "drut": 0.5}
+
+    if tala_name not in TALAS:
+        return f"Error: tala_name must be one of {', '.join(TALAS.keys())}, got {tala_name}"
+    if not (1 <= cycles <= 16):
+        return f"Error: cycles must be 1-16, got {cycles}"
+    if laya not in LAYA_DURATIONS:
+        return f"Error: laya must be vilambit, madhya, or drut, got {laya}"
+
+    tala = TALAS[tala_name]
+    beats = tala["beats"]
+    theka = tala["theka"]
+    tali = tala["tali"]
+    khali = tala["khali"]
+    note_dur = LAYA_DURATIONS[laya]
+    total_beats = cycles * beats
+
+    notes = []
+    bol_sequence = []
+
+    for cycle in range(cycles):
+        cycle_start = cycle * beats
+        for beat_idx in range(beats):
+            bol = theka[beat_idx]
+            pitch = BOL_PITCHES.get(bol, 48)
+            pos = cycle_start + beat_idx
+
+            if beat_idx in khali:
+                vel = velocity * 0.45  # khali = soft
+            elif beat_idx in tali:
+                vel = min(1.0, velocity * 1.2)  # tali = emphasized
+            else:
+                vel = velocity * 0.75
+
+            notes.append({"pitch": pitch, "pos": pos, "dur": note_dur, "vel": round(vel, 4)})
+            bol_sequence.append(bol)
+
+    notes.sort(key=lambda n: n["pos"])
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    vibhags_json = json.dumps(tala["vibhags"])
+    tali_json = json.dumps(tali)
+    khali_json = json.dumps(khali)
+    bols_json = json.dumps(bol_sequence[:beats])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            tala: "{tala_name}",
+            laya: "{laya}",
+            cycles: {cycles},
+            beats_per_cycle: {beats},
+            total_beats: {total_beats},
+            vibhags: {vibhags_json},
+            tali: {tali_json},
+            khali: {khali_json},
+            notes_created: created,
+            bols: {bols_json},
+            note_preview: noteEvents.slice(0, 16),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
 
 
 
