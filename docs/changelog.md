@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.352.0 (2026-07-06)
+
+- **`werkstatt_ssl_bus_comp.js`** — SSL G-series bus compressor. VCA-based with RMS detection (256-sample window), stepped ratios (2:1/4:1/10:1), stepped attack (0.1-30ms), auto-release mode (program-dependent, heavy compression → faster release), makeup gain. 129 DSP scripts. The "glue" compressor for mix bus — subtle but transformative.
+
 ## v1.351.0 (2026-07-06)
 
 - **`arrange_full_song`** — Meta-tool: arranges a complete song from structural sections in one call. Parses "intro:4,prechorus:2,chorus:4,verse:8,bridge:4,outro:4" format. Calls section generators (create_intro, create_prechorus, create_arpeggio for chorus/verse, create_bridge, create_interlude, create_transition, create_outro, create_coda) with automatic start_beat tracking. Creates song structure markers. 9 valid sections, type variants for each. 27 unit tests. 518 MCP tools. Eliminates 8+ separate calls with manual beat offset calculation — one call builds the whole song skeleton.
