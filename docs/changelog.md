@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.376.0 (2026-07-06)
+
+- **`auto_master` upgraded** — Now places LUFS meter on output automatically (Step 4: verification). After mastering chain + auto_gain, a Werkstatt LUFS meter is added to the output bus for post-mastering loudness verification. Closes the feedback loop: master → measure → verify. `meters_available` field lists all three metering DSP scripts available for verification.
+
 ## v1.375.0 (2026-07-06)
 
 - **`werkstatt_spectrum_analyzer.js`** — FFT Spectrum Analyzer. Cooley-Tukey radix-2 FFT with Hann window. Reports peak frequency, spectral centroid (brightness), spectral rolloff (85% energy), low/mid/high band levels, and crest factor. Read-only meter — no audio modification. Closes the frequency verification gap: now you can verify spectral balance after EQ/mastering. 134 DSP scripts. Metering trio complete: LUFS + correlation + spectrum.

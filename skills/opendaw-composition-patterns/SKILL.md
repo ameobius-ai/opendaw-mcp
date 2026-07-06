@@ -76,7 +76,7 @@ What do you want to create?
 ├── Full track production → produce_full_track (ultimate meta-tool: set_bpm → arrange → drums → bass → melody → mix → render, one call = complete track)
 ├── Descant (counter-melody above) → create_descant (5 types: soaring/weaving/pedal_tone/call_response/ornamental, higher register)
 ├── Counter-melody (below/around) → create_counter_melody (5 types: contrary/oblique/parallel/rhythmic/pedal, lower register, quieter)
-├── Adaptive mastering → auto_master (meta-tool: analyze → mastering chain → auto-gain, 6 platforms, 4 styles, LUFS targeting)
+├── Adaptive mastering → auto_master (meta-tool: analyze → mastering chain → auto-gain → LUFS meter verification, 6 platforms, 4 styles, LUFS targeting)
 ├── Ultimate pipeline → produce_and_master (8 steps: BPM → arrange → drums → bass → melody → genre FX → master → render, ONE CALL = complete mastered track)
 ├── Verse (storytelling) → create_verse (5 types: narrative/sparse/driving/conversational/build, lower energy, lyrics lead)
 ├── Chorus (emotional peak) → create_chorus (5 types: anthemic/hooky/driving/soaring/call_response, higher energy, the hook)

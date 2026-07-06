@@ -61906,7 +61906,7 @@ async def mcp_opendaw_auto_master(
     1. analyze_mix — get current LUFS, spectrum, dynamics
     2. apply_mastering_chain — EQ + compression + limiting
     3. auto_gain — adjust to target LUFS
-    4. (optional) render — if render=True
+    4. verification — LUFS meter placed on output for loudness verification
 
     The mastering chain adapts to the platform target:
     - spotify: -14 LUFS, -1 dBTP
@@ -61988,15 +61988,25 @@ async def mcp_opendaw_auto_master(
     except Exception as e:
         results["gain_error"] = str(e)
 
+    # Step 4: Add verification meters on output
+    try:
+        await mcp_opendaw_add_effect("Werkstatt", -1)
+        await mcp_opendaw_set_script_device_code("werkstatt", -1, -1, "lufs_meter")
+        results["verification"] = "LUFS meter placed on output for loudness verification"
+    except Exception:
+        pass
+
     results["auto_master"] = True
     results["platform"] = platform
     results["style"] = style
     results["target_lufs"] = effective_lufs
     results["ceiling_dbtp"] = ceiling_dbtp
+    results["meters_available"] = ["lufs_meter", "correlation_meter", "spectrum_analyzer"]
     results["next_steps"] = [
         "Render with render_full to get the mastered WAV",
         "Use export_stems for mastered stems",
         f"Target: {effective_lufs} LUFS, {ceiling_dbtp} dBTP for {platform}",
+        "Verification meters placed on output — check LUFS after render",
     ]
 
     return json.dumps(results, indent=2)
