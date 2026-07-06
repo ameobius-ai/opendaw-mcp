@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.333.0 (2026-07-06)
+
+- **`create_turnaround`** — 2-bar resolution phrase generator. 5 styles: jazz (I-vi-ii-V with chromatic approach tones, guide tones, 7ths), blues (I-IV-IVdim-I walkup, shuffle feel, dominant 7ths, pentatonic), gospel (ii-V-I with chromatic approach, plagal Amen cadence, melisma), rock (bVII-IV-I mixolydian descent, power chords, octave accents, passing tones), pop (I-V-vi-IV axis progression, diatonic stepwise melody). 4 scales (major/minor/mixolydian/dorian). Chromatic pitch helper for non-diatonic chords. Seeded PRNG. 42 unit tests. 506 MCP tools.
+- **O(n) base64 + redeclare fix** — User fixed `let binary` → `const binary = chunks.join("")` redeclaration causing JS SyntaxError in render. Combined with O(n) chunked encoding (32KB), large WAV render now works without crash. Render timeout raised to 600s.
+
 ## v1.332.0 (2026-07-06)
 
 - **`create_riff`** — Genre-specific riff generator. 5 styles: rock (power chord roots+fifths, bluesy bends, syncopated rests, octave accents), funk (16th syncopation, ghost notes, staccato stabs, accent map), metal (galloping rhythm 16-16-8, palm-mute, tritone b5 intervals), blues (shuffle feel long-short 8ths, pentatonic bending, call-response), hip_hop (sparse loop aesthetic, melodic minor pentatonic, space between notes). 5 scales (minor_pentatonic/major_pentatonic/blues/minor/phrygian). Seeded PRNG. 25 unit tests. 505 MCP tools.

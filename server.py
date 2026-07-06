@@ -58412,3 +58412,272 @@ async def mcp_opendaw_create_riff(
     }.get(riff_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_turnaround(
+    turnaround_type: str = "jazz",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    velocity: float = 0.75,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a turnaround — a 2-bar phrase that resolves a section back to tonic.
+
+    Turnarounds appear at the end of a form (last 2 bars of a 12-bar blues,
+    last 2 bars of an A section, end of a chorus) and create harmonic momentum
+    that leads the listener back to the beginning. Essential in jazz, blues,
+    gospel, rock, and pop.
+
+    - **jazz**: I-vi-ii-V with chromatic approach tones, guide tones, 7ths.
+    - **blues**: I-IV-IVdim-I walkup with shuffle feel and dominant 7ths.
+    - **gospel**: ii-V-I with chromatic approach, plagal Amen cadence, melisma.
+    - **rock**: bVII-IV-I mixolydian descent, power chords, octave accents.
+    - **pop**: I-V-vi-IV axis progression, diatonic stepwise melody.
+
+    turnaround_type: jazz | blues | gospel | rock | pop
+    key_root: Root note name
+    scale_type: major | minor | mixolydian | dorian
+    octave: MIDI octave for melody (4 = C4=60)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_turnaround(turnaround_type="jazz", key_root="C")
+      create_turnaround(turnaround_type="blues", key_root="A", scale_type="minor")
+      create_turnaround(turnaround_type="pop", key_root="G")
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+    }
+
+    VALID_TYPES = ["jazz", "blues", "gospel", "rock", "pop"]
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if turnaround_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid turnaround_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    _ = mulberry32(seed)  # PRNG available for future stochastic variations
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        ns = len(scale)
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    def chrom_pitch(semitone, octave_shift=0):
+        return base + octave_shift * 12 + semitone
+
+    if turnaround_type == "jazz":
+        chord_degrees = [
+            (0.0, [0, 2, 4], 0),
+            (2.0, [5, 0, 2], 5),
+            (4.0, [1, 3, 5], 1),
+            (6.0, [4, 6, 1], 4),
+        ]
+        for ci, (cb, tones, root_deg) in enumerate(chord_degrees):
+            root_pitch = deg_to_pitch(root_deg)
+            notes.append({"pitch": root_pitch, "start": round(start_beat + cb, 4),
+                          "duration": 1.5, "velocity": round(velocity * 0.9, 3)})
+            third_pitch = deg_to_pitch(root_deg + 2) if root_deg + 2 < len(scale) * 2 else deg_to_pitch(tones[1])
+            notes.append({"pitch": third_pitch, "start": round(start_beat + cb + 0.5, 4),
+                          "duration": 1.0, "velocity": round(velocity * 0.75, 3)})
+            seventh_deg = root_deg + 6
+            seventh_pitch = deg_to_pitch(seventh_deg) if seventh_deg < len(scale) * 2 else chrom_pitch(root_pc + 10, 0)
+            notes.append({"pitch": seventh_pitch, "start": round(start_beat + cb + 1.0, 4),
+                          "duration": 0.75, "velocity": round(velocity * 0.7, 3)})
+            if ci < len(chord_degrees) - 1:
+                next_root = chord_degrees[ci + 1][2]
+                next_root_pitch = deg_to_pitch(next_root)
+                approach_pitch = next_root_pitch - 1
+                notes.append({"pitch": approach_pitch, "start": round(start_beat + cb + 1.75, 4),
+                              "duration": 0.25, "velocity": round(velocity * 0.6, 3)})
+
+    elif turnaround_type == "blues":
+        bar1_degrees = [0, 2, 3, 2, 0, -1, 4, 3]
+        bar1_positions = [0.0, 0.75, 1.0, 1.75, 2.0, 2.75, 3.0, 3.75]
+        bar1_durs = [0.75, 0.25, 0.75, 0.25, 0.75, 0.25, 0.75, 0.25]
+        for pos, deg, dur in zip(bar1_positions, bar1_degrees, bar1_durs):
+            if deg == -1:
+                continue
+            notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.85, 3)})
+
+        iv_root = deg_to_pitch(3)
+        notes.append({"pitch": iv_root, "start": round(start_beat + 4.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.8, 3)})
+        notes.append({"pitch": iv_root + 4, "start": round(start_beat + 4.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.7, 3)})
+        notes.append({"pitch": iv_root + 7, "start": round(start_beat + 4.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.65, 3)})
+        notes.append({"pitch": iv_root, "start": round(start_beat + 5.0, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.7, 3)})
+        notes.append({"pitch": iv_root + 3, "start": round(start_beat + 5.0, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.6, 3)})
+        notes.append({"pitch": iv_root + 6, "start": round(start_beat + 5.0, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.55, 3)})
+        i_root = deg_to_pitch(0)
+        notes.append({"pitch": i_root, "start": round(start_beat + 5.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.9, 3)})
+        notes.append({"pitch": i_root + 7, "start": round(start_beat + 5.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.7, 3)})
+        walk_notes = [deg_to_pitch(2), deg_to_pitch(3), deg_to_pitch(4)]
+        for i, wp in enumerate(walk_notes):
+            notes.append({"pitch": wp, "start": round(start_beat + 6.0 + i * 0.5, 4),
+                          "duration": 0.5, "velocity": round(velocity * 0.75, 3)})
+        notes.append({"pitch": deg_to_pitch(0), "start": round(start_beat + 7.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.95, 3)})
+
+    elif turnaround_type == "gospel":
+        ii_root = deg_to_pitch(1)
+        v_root = deg_to_pitch(4)
+        i_root = deg_to_pitch(0)
+        iv_root = deg_to_pitch(3)
+
+        notes.append({"pitch": ii_root, "start": round(start_beat + 0.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.85, 3)})
+        notes.append({"pitch": ii_root + 3, "start": round(start_beat + 0.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.75, 3)})
+        notes.append({"pitch": ii_root + 6, "start": round(start_beat + 1.0, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.7, 3)})
+        notes.append({"pitch": v_root - 1, "start": round(start_beat + 1.5, 4),
+                      "duration": 0.25, "velocity": round(velocity * 0.6, 3)})
+        notes.append({"pitch": v_root, "start": round(start_beat + 1.75, 4),
+                      "duration": 0.25, "velocity": round(velocity * 0.8, 3)})
+        notes.append({"pitch": v_root, "start": round(start_beat + 2.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.85, 3)})
+        notes.append({"pitch": v_root + 4, "start": round(start_beat + 2.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.75, 3)})
+        notes.append({"pitch": v_root + 7, "start": round(start_beat + 3.0, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.7, 3)})
+        notes.append({"pitch": v_root + 10, "start": round(start_beat + 3.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.65, 3)})
+
+        notes.append({"pitch": i_root, "start": round(start_beat + 4.0, 4),
+                      "duration": 1.5, "velocity": round(velocity * 0.9, 3)})
+        notes.append({"pitch": i_root + 4, "start": round(start_beat + 4.5, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.75, 3)})
+        notes.append({"pitch": i_root + 3, "start": round(start_beat + 5.0, 4),
+                      "duration": 0.25, "velocity": round(velocity * 0.7, 3)})
+        notes.append({"pitch": i_root + 4, "start": round(start_beat + 5.25, 4),
+                      "duration": 0.25, "velocity": round(velocity * 0.75, 3)})
+        notes.append({"pitch": iv_root, "start": round(start_beat + 6.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.8, 3)})
+        notes.append({"pitch": iv_root + 4, "start": round(start_beat + 6.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.7, 3)})
+        notes.append({"pitch": i_root, "start": round(start_beat + 7.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.95, 3)})
+
+    elif turnaround_type == "rock":
+        bvii_root = chrom_pitch(10, 0)
+        iv_root = chrom_pitch(5, 0)
+        v_root = chrom_pitch(7, 0)
+        i_root = chrom_pitch(0, 0)
+
+        chord_plan = [
+            (0.0, bvii_root, 2.0, 0.85),
+            (2.0, iv_root, 2.0, 0.85),
+            (4.0, v_root, 2.0, 0.8),
+            (6.0, i_root, 2.0, 0.95),
+        ]
+        for ci, (cb, root, dur, v_mult) in enumerate(chord_plan):
+            notes.append({"pitch": root, "start": round(start_beat + cb, 4),
+                          "duration": dur, "velocity": round(velocity * v_mult, 3)})
+            notes.append({"pitch": root + 7, "start": round(start_beat + cb, 4),
+                          "duration": dur, "velocity": round(velocity * v_mult * 0.8, 3)})
+            notes.append({"pitch": root + 12, "start": round(start_beat + cb, 4),
+                          "duration": 0.5, "velocity": round(velocity * v_mult * 0.7, 3)})
+            if ci < len(chord_plan) - 1:
+                passing = root - 2
+                notes.append({"pitch": passing, "start": round(start_beat + cb + dur - 0.25, 4),
+                              "duration": 0.25, "velocity": round(velocity * 0.5, 3)})
+
+    elif turnaround_type == "pop":
+        chord_roots = [
+            (0.0, 0),
+            (2.0, 4),
+            (4.0, 5),
+            (6.0, 3),
+        ]
+        for ci, (cb, root_deg) in enumerate(chord_roots):
+            root_pitch = deg_to_pitch(root_deg)
+            notes.append({"pitch": root_pitch, "start": round(start_beat + cb, 4),
+                          "duration": 1.5, "velocity": round(velocity * 0.85, 3)})
+            third_pitch = deg_to_pitch(root_deg + 2) if root_deg + 2 < len(scale) * 2 else chrom_pitch(scale[root_deg] + 4, 0)
+            notes.append({"pitch": third_pitch, "start": round(start_beat + cb + 0.5, 4),
+                          "duration": 0.75, "velocity": round(velocity * 0.75, 3)})
+            fifth_pitch = deg_to_pitch(root_deg + 4) if root_deg + 4 < len(scale) * 2 else chrom_pitch(scale[root_deg] + 7, 0)
+            notes.append({"pitch": fifth_pitch, "start": round(start_beat + cb + 1.0, 4),
+                          "duration": 0.5, "velocity": round(velocity * 0.7, 3)})
+            if ci < len(chord_roots) - 1:
+                next_root_deg = chord_roots[ci + 1][1]
+                next_root_pitch = deg_to_pitch(next_root_deg)
+                step_dir = 1 if next_root_pitch > root_pitch else -1
+                approach_pitch = root_pitch + step_dir * 2
+                notes.append({"pitch": approach_pitch, "start": round(start_beat + cb + 1.5, 4),
+                              "duration": 0.25, "velocity": round(velocity * 0.6, 3)})
+                notes.append({"pitch": next_root_pitch - step_dir, "start": round(start_beat + cb + 1.75, 4),
+                              "duration": 0.25, "velocity": round(velocity * 0.65, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["turnaround"] = True
+    data["turnaround_type"] = turnaround_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = 2
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "jazz": "I-vi-ii-V with chromatic approach tones, guide tones, 7ths",
+        "blues": "I-IV-IVdim-I walkup, shuffle feel, dominant 7ths, pentatonic",
+        "gospel": "ii-V-I with chromatic approach, plagal Amen cadence, melisma",
+        "rock": "bVII-IV-I mixolydian descent, power chords, octave accents",
+        "pop": "I-V-vi-IV axis progression, diatonic stepwise melody",
+    }.get(turnaround_type, "")
+
+    return json.dumps(data, indent=2)
