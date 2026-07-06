@@ -494,7 +494,7 @@ async def suno_to_opendaw_full(suno_url: str):
 - `opendaw-track-architecture` — tracks, regions, clips, notes, tempo
 - `opendaw-sound-design` — instruments + scriptable DSP
 - `opendaw-effect-routing` — effect chains, sends, sidechain, render
-- `opendaw-automation` — 490 MCP tools full API reference
+- `opendaw-automation` — 491 MCP tools full API reference
 
 ## Tooling
 
@@ -507,7 +507,7 @@ async def suno_to_opendaw_full(suno_url: str):
 - **Remix**: `mcp_opendaw_remix_track` (7-step pipeline in one call)
 - **Import**: `mcp_opendaw_import_audio_to_tracks` (file → stems → tracks, one call)
 - **Stem splitter**: `mcp_opendaw_split_stems` (7 modes, GPU local)
-- **openDAW MCP**: v1.315.0 (v1.315.0)
+- **openDAW MCP**: v1.316.0 (v1.316.0)
 - **DSP scripts**: 108 scripts (88 Werkstatt + 9 Apparat + 10 Spielwerk)
 - **Mix**: `apply_genre_mix` (15 genres), `apply_full_mix` (one-call chains+mastering)
 - **Master**: `add_mastering_chain` (EQ + comp + maximizer, LUFS targeting)

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.316.0 (2026-07-06)
+
+- **`create_binary_form`** — Binary form: two contrasting sections (A|B) with optional repeats (AABB). 5 modulation types: dominant (B in V), relative (B in relative minor/major), subdominant (B in IV), parallel (same key, different material), no_modulation. A section: stepwise melody around tonic, I-V-I bass. B section: wider intervals, modulated, returns to tonic. Baroque dance suites (Bach), folk tunes, early jazz. 22 unit tests. 491 MCP tools.
+
 ## v1.315.0 (2026-07-06)
 
 - **`create_call_and_response`** — Two phrases in musical dialogue: leader (call) followed by response. 5 response types: echo (exact repeat), transpose (interval shift), variation (rhythmic variation), complementary (contrasting phrase using inversion-like degrees), fill (short approach+target). 14 scales. Adjustable gap, pairs, response_interval. Root of blues, gospel, African music, jazz, work songs, hip-hop. Call on track_index, response on track_index+1. 23 unit tests. 490 MCP tools.

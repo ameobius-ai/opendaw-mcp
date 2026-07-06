@@ -30319,6 +30319,215 @@ async def mcp_opendaw_create_call_and_response(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_binary_form(
+    key_root: str = "G",
+    scale_name: str = "major",
+    bars_per_section: int = 8,
+    repeat: bool = True,
+    modulation: str = "dominant",
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create binary form — two contrasting sections (A|B) with optional repeats.
+
+    Binary form is the simplest structural form in Western music:
+    two self-contained sections, each typically repeated. The A section
+    establishes the tonic, the B section departs and returns. Found in
+    Baroque dance suites (Bach, Handel), folk tunes, early jazz, and
+    many pop structures.
+
+    Modulation types (how B section relates to A):
+      - dominant: B section in the dominant key (V). Classical approach —
+        Bach two-part inventions, Baroque dance movements.
+      - relative: B section in the relative minor/major. Romantic and folk
+        approach — gentler contrast.
+      - subdominant: B section in the subdominant (IV). Church hymns,
+        modal folk tunes.
+      - parallel: B section stays in same key but uses contrasting melodic
+        material. Minimalist/folk approach.
+      - no_modulation: B section identical key, same harmonic center.
+
+    With repeat=True, each section is played twice (AABB structure),
+    matching the traditional binary form with repeat marks.
+
+    A section: stepwise melody around tonic, I-V-I harmony.
+    B section: contrasting melody in modulated key, wider intervals,
+    returns to tonic at end.
+
+    Creates melody on track_index, bass on track_index+1.
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALE_INTERVALS = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],
+        "lydian": [0, 2, 4, 6, 7, 9, 11],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "aeolian": [0, 2, 3, 5, 7, 8, 10],
+        "locrian": [0, 1, 3, 5, 6, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+        "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+        "blues": [0, 3, 5, 6, 7, 10],
+        "whole_tone": [0, 2, 4, 6, 8, 10],
+    }
+
+    valid_modulations = ["dominant", "relative", "subdominant", "parallel", "no_modulation"]
+    if modulation not in valid_modulations:
+        return json.dumps({"error": f"Invalid modulation '{modulation}'. Valid: {valid_modulations}"})
+    if scale_name not in SCALE_INTERVALS:
+        return json.dumps({"error": f"Invalid scale '{scale_name}'"})
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    scale = SCALE_INTERVALS[scale_name]
+    root_pitch = (3 + 1) * 12 + root_pc
+    beats_per_bar = 4
+
+    # Determine B section root offset
+    is_minor = 3 in scale[:3]  # minor-like if 3rd is flat
+    if modulation == "dominant":
+        b_root_offset = 7  # up a fifth
+    elif modulation == "relative":
+        b_root_offset = 3 if is_minor else -3  # relative major/minor
+    elif modulation == "subdominant":
+        b_root_offset = 5  # up a fourth
+    elif modulation == "parallel":
+        b_root_offset = 0  # same key, different material
+    else:  # no_modulation
+        b_root_offset = 0
+
+    b_root_pitch = root_pitch + b_root_offset
+
+    def degree_to_pitch(degree, base_pitch, sc):
+        n_intervals = len(sc)
+        octave = degree // n_intervals
+        index = degree % n_intervals
+        if index < 0:
+            index += n_intervals
+            octave -= 1
+        return base_pitch + octave * 12 + sc[index]
+
+    # A section melody: stepwise around tonic
+    a_melody_degrees = [0, 1, 2, 1, 0, 2, 4, 2,
+                        0, 2, 1, 0, -1, 0, 2, 0]
+    # B section melody: wider intervals, modulated
+    b_melody_degrees = [4, 2, 5, 4, 2, 0, 2, 4,
+                        5, 7, 5, 4, 2, 1, 0, 0]
+
+    # Bass: A = I-V-I-V, B = V-I (in new key) → return to I
+    a_bass_degrees = [0, 0, 4, 4, 0, 0, 4, 0,
+                      0, 0, 4, 4, 0, 0, 0, 0]
+    b_bass_degrees = [0, 0, 4, 4, 0, 0, 4, 0,
+                      0, 0, 4, 4, 0, 0, -5, 0]  # -5 returns to original key
+
+    import random as _rng
+    rng = _rng.Random(42)
+
+    def generate_section(degrees, bass_degrees, base_pitch, sec_start, bars, sc, vel):
+        melody_notes = []
+        bass_notes = []
+        notes_per_bar = len(degrees) // bars if bars > 0 else len(degrees)
+        beat_per_note = beats_per_bar / notes_per_bar
+
+        for bar in range(bars):
+            bar_start = sec_start + bar * beats_per_bar
+            for n in range(notes_per_bar):
+                idx = bar * notes_per_bar + n
+                if idx >= len(degrees):
+                    break
+                deg = degrees[idx]
+                # Add slight variation on repeats
+                if bar > 0 and rng.random() < 0.15:
+                    deg = deg + rng.choice([-1, 0, 1])
+                pitch = degree_to_pitch(deg, base_pitch, sc)
+                beat_pos = bar_start + n * beat_per_note
+                melody_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat_pos, 4),
+                    "duration": round(beat_per_note * 0.9, 4),
+                    "velocity": round(vel * (0.6 + 0.05 * (n % 4)), 3),
+                })
+            # Bass: one note per beat, cycling through bass_degrees
+            for b in range(4):
+                b_idx = (bar * 4 + b) % len(bass_degrees)
+                b_deg = bass_degrees[b_idx]
+                b_pitch = degree_to_pitch(b_deg, base_pitch, sc) - 12
+                bass_notes.append({
+                    "pitch": b_pitch,
+                    "start": round(bar_start + b, 4),
+                    "duration": 0.9,
+                    "velocity": round(vel * 0.7, 3),
+                })
+        return melody_notes, bass_notes
+
+    all_melody = []
+    all_bass = []
+
+    sections_to_play = []
+    # A section
+    sections_to_play.append(("A", root_pitch, scale, a_melody_degrees, a_bass_degrees))
+    if repeat:
+        sections_to_play.append(("A", root_pitch, scale, a_melody_degrees, a_bass_degrees))
+    # B section
+    sections_to_play.append(("B", b_root_pitch, scale, b_melody_degrees, b_bass_degrees))
+    if repeat:
+        sections_to_play.append(("B", b_root_pitch, scale, b_melody_degrees, b_bass_degrees))
+
+    current_beat = start_beat
+    section_labels = []
+
+    for sec_label, base_pitch, sc, mel_deg, bass_deg in sections_to_play:
+        m_notes, b_notes = generate_section(mel_deg, bass_deg, base_pitch, current_beat, bars_per_section, sc, velocity)
+        all_melody.extend(m_notes)
+        all_bass.extend(b_notes)
+        section_labels.append(sec_label)
+        current_beat += bars_per_section * beats_per_bar
+
+    # Create notes
+    melody_json = json.dumps(all_melody)
+    melody_result = await mcp_opendaw_create_notes_batch(melody_json, unit_index, track_index)
+
+    bass_json = json.dumps(all_bass)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, track_index + 1)
+
+    try:
+        data = json.loads(melody_result)
+        data["binary_form"] = True
+        data["modulation"] = modulation
+        data["repeat"] = repeat
+        data["structure"] = "".join(section_labels)
+        data["sections"] = section_labels
+        data["num_sections"] = len(section_labels)
+        data["bars_per_section"] = bars_per_section
+        data["total_bars"] = len(section_labels) * bars_per_section
+        data["key_root"] = key_root
+        data["scale_name"] = scale_name
+        data["b_root_offset"] = b_root_offset
+        data["melody_notes_created"] = len(all_melody)
+        data["bass_notes_created"] = len(all_bass)
+        data["melody_track"] = track_index
+        data["bass_track"] = track_index + 1
+        try:
+            data["bass_result_status"] = json.loads(bass_result).get("success", False) if bass_result else False
+        except Exception:
+            data["bass_result_status"] = False
+        return json.dumps(data, indent=2)
+    except Exception:
+        return melody_result
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""
