@@ -37924,6 +37924,278 @@ async def mcp_opendaw_create_fugato(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_colotomic(
+    root: str = "C",
+    scale: str = "pentatonic_minor",
+    cycles: int = 4,
+    octave: int = 4,
+    structure: str = "slendro",
+    tempo_density: str = "medium",
+    velocity: float = 0.65,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a colotomic structure — interlocking gong layers marking cyclic time.
+
+    Gamelan music uses colotomic instruments (gongs of different sizes) to
+    mark the cyclic structure of a piece. Each gong level has its own
+    periodicity, creating an interlocking temporal grid. The largest gong
+    (gong ageng) marks the end of a full cycle, while smaller gongs subdivide
+    it into sections. The melodic instruments (saron, bonang) fill in between
+    the gong strikes.
+
+    Unlike polyrhythm (simultaneous conflicting meters) or additive rhythm
+    (unequal groupings), colotomic structure is hierarchical: each layer
+    subdivides the cycle at a different level, creating a nested temporal
+    hierarchy. This is the foundation of Indonesian gamelan, Javanese
+    klenengan, and Balinese ritual music.
+
+    Structures:
+      slendro  — 8-beat gong cycle (gongan): gong at beat 8, kenong at 4,
+                  kempul at 2+6, kethuk at every odd beat. Slendro scale.
+      pelog    — 16-beat gong cycle: gong at 16, kenong at 8+12, kempul at
+                  4+12, kethuk at every 2 beats. Pelog-inspired.
+      lancaran — 8-beat with doubled kethuk (faster surface rhythm)
+      ketawang — 16-beat with half-speed gong (longer cycle feel)
+
+    Tempo density:
+      sparse   — gong layers only, no melodic fill
+      medium   — gong layers + basic saron (elaboration)
+      dense    — gong layers + saron + bonang (full interlock)
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (pentatonic_minor, pentatonic_major, major, minor).
+            Default pentatonic_minor for slendro-like feel.
+        cycles: Number of gongan cycles (1-8).
+        octave: Starting MIDI octave (2-5).
+        structure: Structure type (slendro, pelog, lancaran, ketawang).
+        tempo_density: Density level (sparse, medium, dense).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, gong layer breakdown, and cycle info.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["pentatonic_minor"])
+
+    if not (1 <= cycles <= 8):
+        return f"Error: cycles must be 1-8, got {cycles}"
+    if not (2 <= octave <= 5):
+        return f"Error: octave must be 2-5, got {octave}"
+    if structure not in ("slendro", "pelog", "lancaran", "ketawang"):
+        return f"Error: structure must be slendro, pelog, lancaran, or ketawang, got {structure}"
+    if tempo_density not in ("sparse", "medium", "dense"):
+        return f"Error: tempo_density must be sparse, medium, or dense, got {tempo_density}"
+
+    # Structure definitions: gong cycle length and gong layer positions
+    STRUCTURES = {
+        "slendro": {
+            "cycle_beats": 8,
+            "gong": [0],          # gong ageng at start of each cycle
+            "kenong": [4],        # kenong at midpoint
+            "kempul": [2, 6],     # kempul divides
+            "kethuk": [1, 3, 5, 7],  # kethuk on odd beats
+        },
+        "pelog": {
+            "cycle_beats": 16,
+            "gong": [0],
+            "kenong": [8, 12],
+            "kempul": [4, 12],
+            "kethuk": [2, 6, 10, 14],
+        },
+        "lancaran": {
+            "cycle_beats": 8,
+            "gong": [0],
+            "kenong": [4],
+            "kempul": [2, 6],
+            "kethuk": [1, 2, 3, 5, 6, 7],  # doubled kethuk
+        },
+        "ketawang": {
+            "cycle_beats": 16,
+            "gong": [0],
+            "kenong": [4, 8, 12],
+            "kempul": [2, 6, 10, 14],
+            "kethuk": [1, 3, 5, 7, 9, 11, 13, 15],
+        },
+    }
+
+    struct = STRUCTURES[structure]
+    cycle_beats = struct["cycle_beats"]
+
+    # Pitch assignments per gong layer (different octaves)
+    gong_pitch = (octave + 1) * 12 + root_num - 12  # lowest (gong ageng)
+    kempul_pitch = (octave + 1) * 12 + root_num - 7  # mid-low
+    kenong_pitch = (octave + 1) * 12 + root_num       # mid
+    kethuk_pitch = (octave + 1) * 12 + root_num + 5   # higher
+
+    # Scale pitches for melodic fill
+    scale_pitches = []
+    for iv in intervals:
+        scale_pitches.append((octave + 1) * 12 + (root_num + iv) % 12)
+    scale_pitches = sorted(set(scale_pitches))
+
+    # Velocity per layer
+    vel_gong = min(1.0, velocity * 1.2)      # loudest
+    vel_kenong = velocity * 1.0
+    vel_kempul = velocity * 0.85
+    vel_kethuk = velocity * 0.7              # quietest
+
+    # Duration per layer
+    dur_gong = 2.0       # long resonance
+    dur_kenong = 1.0
+    dur_kempul = 0.5
+    dur_kethuk = 0.25
+
+    # Generate notes
+    notes = []
+    layer_counts = {"gong": 0, "kenong": 0, "kempul": 0, "kethuk": 0, "saron": 0, "bonang": 0}
+
+    for cycle in range(cycles):
+        cycle_start = cycle * cycle_beats
+
+        # Gong layer
+        for beat in struct["gong"]:
+            pos = cycle_start + beat
+            notes.append({"pitch": gong_pitch, "pos": pos, "dur": dur_gong, "vel": vel_gong})
+            layer_counts["gong"] += 1
+
+        # Kenong layer
+        for beat in struct["kenong"]:
+            pos = cycle_start + beat
+            # Skip if overlaps with gong
+            if beat not in struct["gong"]:
+                notes.append({"pitch": kenong_pitch, "pos": pos, "dur": dur_kenong, "vel": vel_kenong})
+                layer_counts["kenong"] += 1
+
+        # Kempul layer
+        for beat in struct["kempul"]:
+            pos = cycle_start + beat
+            if beat not in struct["gong"] and beat not in struct["kenong"]:
+                notes.append({"pitch": kempul_pitch, "pos": pos, "dur": dur_kempul, "vel": vel_kempul})
+                layer_counts["kempul"] += 1
+
+        # Kethuk layer
+        for beat in struct["kethuk"]:
+            pos = cycle_start + beat
+            if beat not in struct["gong"] and beat not in struct["kenong"] and beat not in struct["kempul"]:
+                notes.append({"pitch": kethuk_pitch, "pos": pos, "dur": dur_kethuk, "vel": vel_kethuk})
+                layer_counts["kethuk"] += 1
+
+        # Melodic fill (saron) — only for medium/dense
+        if tempo_density in ("medium", "dense"):
+            # Saron plays the basic melody (balungan) — root + 3rd + 5th pattern
+            balungan_pattern = [0, 2, 0, 2]  # scale degree indices
+            for beat_idx in range(0, cycle_beats, 2):
+                pos = cycle_start + beat_idx
+                deg = balungan_pattern[(beat_idx // 2) % len(balungan_pattern)]
+                if deg < len(scale_pitches):
+                    pitch = scale_pitches[deg]
+                    # Skip if gong is at this beat (gong dominates)
+                    if beat_idx not in struct["gong"]:
+                        notes.append({"pitch": pitch, "pos": pos, "dur": 1.0, "vel": velocity * 0.6})
+                        layer_counts["saron"] += 1
+
+        # Bonang elaboration — only for dense
+        if tempo_density == "dense":
+            # Bonang plays interlocking elaboration on off-beats
+            for beat_idx in range(1, cycle_beats, 2):
+                pos = cycle_start + beat_idx
+                # Alternate between two scale pitches
+                deg = (beat_idx // 2) % len(intervals)
+                if deg < len(scale_pitches):
+                    pitch = scale_pitches[deg] + 7  # octave up for bonang
+                    # Skip if kethuk is at this exact beat
+                    if beat_idx not in struct["kethuk"]:
+                        notes.append({"pitch": pitch, "pos": pos, "dur": 0.5, "vel": velocity * 0.5})
+                        layer_counts["bonang"] += 1
+
+    # Sort by position
+    notes.sort(key=lambda n: n["pos"])
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            structure: "{structure}",
+            tempo_density: "{tempo_density}",
+            cycles: {cycles},
+            cycle_beats: {cycle_beats},
+            total_beats: {cycles * cycle_beats},
+            notes_created: created,
+            layer_counts: {json.dumps(layer_counts)},
+            note_preview: noteEvents.slice(0, 12),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 

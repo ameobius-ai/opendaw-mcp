@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.290.0 (2026-07-06)
+
+### Added
+- `create_colotomic` — Gamelan colotomic structure: interlocking gong layers (gong ageng, kenong, kempul, kethuk) marking cyclic time. 4 structures: slendro (8-beat), pelog (16-beat), lancaran (doubled kethuk), ketawang (16-beat dense). 3 densities: sparse (gongs only), medium (+saron balungan), dense (+bonang elaboration). Hierarchical nested temporal grid. Unlike polyrhythm (conflicting meters), colotomic is hierarchical nesting. Indonesian gamelan, Javanese, Balinese.
+
 ## v1.289.0 (2026-07-06)
 
 ### Added

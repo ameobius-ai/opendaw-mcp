@@ -225,6 +225,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 212. `create_tuplet_group` — irrational rhythm subdivision: N notes in M-note span, triplets/quintuplets/septuplets up to 16, 5 pitch modes, rest positions, accent first, repeats
 213. `create_cadenza` — unmeasured virtuosic solo: 6 segment types (flourish/leap/trill/fermata/cascade/climb), 4 styles (classical/romantic/jazz/modern), rubato rhythm, accelerando, fermatas, breath marks, seeded PRNG
 214. `create_fugato` — fugal passage: subject entries + answer (real/tonal) + countersubject + episode, 2-4 voices, custom or auto subject, voice 3 octave lower
+215. `create_colotomic` — gamelan colotomic structure: 4 gong layers (gong/kenong/kempul/kethuk), 4 structures (slendro/pelog/lancaran/ketawang), 3 densities (sparse/medium/dense), hierarchical cyclic grid
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`
