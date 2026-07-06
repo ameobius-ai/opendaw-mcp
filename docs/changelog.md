@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.308.0 (2026-07-06)
+
+- **`create_reggae_percussion`** — Jamaican reggae drum patterns across 6 styles: one_drop (roots reggae, kick+snare on beat 3 "the drop"), rockers (kick 1+3, snare 2+4), steppers (four-on-the-floor, dub/roots), ska (fast upbeat, Skatalites), rocksteady (laid-back, behind-beat hats), dancehall (syncopated, programmed). GM percussion pitches. Swing parameter for ska. 13th world rhythm tradition. 37 unit tests. 483 MCP tools.
+
 ## v1.307.0 (2026-07-06)
 
 - **`create_chaconne`** — Chaconne: repeating bass + chord progression + developing variations. Unlike ground bass (bass only) or passacaglia (bass + melodic variations), chaconne repeats both bass AND chords as fixed harmonic framework, with variation melody on top. 5 variation styles: baroque (descending stepwise with grace notes accumulating), romantic (wide intervals, rubato-like timing), jazz (syncopated, chromatic passing tones, descending chromatic runs), minimalist (repeating cells with phase shift), contemporary (dissonant clusters, pointillistic). Bass on track_index, chords on track_index+1, variation on track_index+2. Chord parsing supports major/minor/dim/aug/maj7/m7/7/sus4/sus2/m7b5. 37 unit tests. 482 MCP tools.

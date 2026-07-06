@@ -29190,6 +29190,195 @@ async def mcp_opendaw_create_chaconne(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_reggae_percussion(
+    style: str = "one_drop",
+    bars: int = 2,
+    tempo_bpm: float = 75.0,
+    velocity: float = 0.7,
+    swing: float = 0.0,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create Jamaican reggae percussion patterns across 6 styles.
+
+    Reggae drum patterns are the rhythmic backbone of Jamaican popular music.
+    The one-drop is the most iconic — kick and snare together on beat 3,
+    creating the characteristic "drop" that defines roots reggae.
+
+    Styles:
+      - one_drop: Roots reggae (Bob Marley, Burning Spear). Kick+snare on
+        beat 3 of each bar. Hi-hat 8th notes. The "drop" = beat 3 hits hard,
+        beats 1/2/4 are empty or sparse. 65-80 BPM.
+      - rockers: Late roots/early dancehall (Sly Dunbar, Robbie Shakespeare).
+        Kick on 1 and 3, snare on 2 and 4. Steady four-on-the-floor feel but
+        with reggae push. 75-90 BPM.
+      - steppers: Dub/roots (Burning Spear "Marcus Garvey"). Four-on-the-floor
+        kick on every beat, snare on 3. Driving, hypnotic. 70-85 BPM.
+      - ska: Early Jamaican ska (Skatalites, Prince Buster). Fast, upbeat
+        emphasis. Kick on 1+3, snare on 2+4, riding hi-hat with heavy
+        syncopation. 120-180 BPM.
+      - rocksteady: Transition era (Alton Ellis, Hopeton Lewis). Slower than
+        ska, laid-back. Kick on 1+3, snare on 3, hi-hat 8ths with slight
+        behind-the-beat feel. 70-85 BPM.
+      - dancehall: Modern Jamaican (Shabba Ranks, Sean Paul). Programmed
+        feel, kick on 1, 3-and, snare on 2, 4, with syncopated hi-hat.
+        90-120 BPM.
+
+    swing: 0.0-0.6, offsets off-beat hats (reggae rarely swings heavy,
+    but ska can use 0.3-0.5).
+
+    Creates drum notes on track_index using GM percussion pitches:
+    36 (kick), 38 (snare), 42 (closed hat), 46 (open hat).
+    """
+    valid_styles = ["one_drop", "rockers", "steppers", "ska", "rocksteady", "dancehall"]
+    if style not in valid_styles:
+        return json.dumps({"error": f"Invalid style '{style}'. Valid: {valid_styles}"})
+
+    KICK = 36
+    SNARE = 38
+    HAT_C = 42  # closed hi-hat
+    HAT_O = 46  # open hi-hat
+
+    sec_per_beat = 60.0 / tempo_bpm
+    beats_per_bar = 4
+    total_beats = bars * beats_per_bar
+
+    notes = []
+
+    def add(pitch, beat_pos, dur, vel):
+        notes.append({
+            "pitch": pitch,
+            "start": round(start_beat + beat_pos, 4),
+            "duration": round(dur, 4),
+            "velocity": round(max(0.0, min(1.0, vel)), 3),
+        })
+
+    for bar in range(bars):
+        bar_start = bar * beats_per_bar
+
+        if style == "one_drop":
+            # Kick + snare together on beat 3 (the "drop")
+            # Hi-hat on all 8th notes
+            for h in range(8):
+                hat_beat = bar_start + h * 0.5
+                # swing off-beats
+                if h % 2 == 1 and swing > 0:
+                    hat_beat += swing * 0.15
+                hat_vel = velocity * 0.45 if h % 2 == 0 else velocity * 0.35
+                add(HAT_C, hat_beat, 0.3, hat_vel)
+            # The drop: kick + snare on beat 3
+            add(KICK, bar_start + 2.0, 0.5, velocity)
+            add(SNARE, bar_start + 2.0, 0.4, velocity * 0.85)
+            # Optional light kick on beat 1 (some players add it)
+            if bar % 2 == 0:
+                add(KICK, bar_start + 0.0, 0.4, velocity * 0.6)
+
+        elif style == "rockers":
+            # Kick on 1 and 3, snare on 2 and 4
+            for h in range(8):
+                hat_beat = bar_start + h * 0.5
+                if h % 2 == 1 and swing > 0:
+                    hat_beat += swing * 0.12
+                add(HAT_C, hat_beat, 0.3, velocity * 0.4)
+            add(KICK, bar_start + 0.0, 0.5, velocity * 0.9)
+            add(SNARE, bar_start + 1.0, 0.4, velocity * 0.8)
+            add(KICK, bar_start + 2.0, 0.5, velocity)
+            add(SNARE, bar_start + 3.0, 0.4, velocity * 0.8)
+            # Extra kick on 3.5 for drive
+            add(KICK, bar_start + 3.5, 0.3, velocity * 0.5)
+
+        elif style == "steppers":
+            # Four-on-the-floor kick, snare on 3
+            for beat in range(4):
+                add(KICK, bar_start + beat * 1.0, 0.5, velocity * 0.85)
+            add(SNARE, bar_start + 2.0, 0.4, velocity * 0.85)
+            # Hi-hat 8ths
+            for h in range(8):
+                hat_beat = bar_start + h * 0.5
+                if h % 2 == 1 and swing > 0:
+                    hat_beat += swing * 0.1
+                add(HAT_C, hat_beat, 0.3, velocity * 0.35)
+            # Open hat on offbeats occasionally
+            if bar % 2 == 1:
+                add(HAT_O, bar_start + 3.5, 0.3, velocity * 0.4)
+
+        elif style == "ska":
+            # Fast, upbeat emphasis. Kick on 1+3, snare on 2+4
+            # Riding hat with heavy syncopation
+            add(KICK, bar_start + 0.0, 0.3, velocity * 0.9)
+            add(SNARE, bar_start + 1.0, 0.3, velocity * 0.8)
+            add(KICK, bar_start + 2.0, 0.3, velocity * 0.9)
+            add(SNARE, bar_start + 3.0, 0.3, velocity * 0.8)
+            # Ska upstroke hats — heavy on offbeats
+            for h in range(8):
+                hat_beat = bar_start + h * 0.5
+                if h % 2 == 1:
+                    # Offbeat = ska emphasis
+                    if swing > 0:
+                        hat_beat += swing * 0.15
+                    add(HAT_C, hat_beat, 0.25, velocity * 0.6)
+                else:
+                    add(HAT_C, hat_beat, 0.25, velocity * 0.3)
+            # Open hat on the "and" of 2 and 4
+            add(HAT_O, bar_start + 1.5, 0.25, velocity * 0.5)
+            add(HAT_O, bar_start + 3.5, 0.25, velocity * 0.5)
+
+        elif style == "rocksteady":
+            # Slower, laid-back. Kick on 1+3, snare on 3, hat 8ths behind beat
+            add(KICK, bar_start + 0.0, 0.5, velocity * 0.85)
+            add(KICK, bar_start + 2.0, 0.5, velocity)
+            add(SNARE, bar_start + 2.0, 0.4, velocity * 0.8)
+            # Light snare ghost on 4
+            add(SNARE, bar_start + 3.0, 0.3, velocity * 0.4)
+            for h in range(8):
+                hat_beat = bar_start + h * 0.5
+                # Behind-the-beat feel: slight negative offset
+                hat_beat -= 0.02
+                add(HAT_C, hat_beat, 0.3, velocity * 0.4)
+            # Open hat on offbeat of 2
+            add(HAT_O, bar_start + 1.5, 0.3, velocity * 0.45)
+
+        else:  # dancehall
+            # Programmed feel, syncopated
+            add(KICK, bar_start + 0.0, 0.4, velocity)
+            add(SNARE, bar_start + 1.0, 0.3, velocity * 0.85)
+            add(KICK, bar_start + 2.5, 0.3, velocity * 0.8)  # 3-and
+            add(SNARE, bar_start + 3.0, 0.3, velocity * 0.85)
+            # Syncopated hi-hat 16ths
+            for h in range(16):
+                hat_beat = bar_start + h * 0.25
+                if h % 4 == 3 and swing > 0:
+                    hat_beat += swing * 0.08
+                vel = velocity * 0.35 if h % 2 == 0 else velocity * 0.25
+                add(HAT_C, hat_beat, 0.15, vel)
+            # Open hat on the "and" of 4
+            add(HAT_O, bar_start + 3.5, 0.2, velocity * 0.5)
+
+    notes_json = json.dumps(notes)
+    result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+        data["reggae_percussion"] = True
+        data["style"] = style
+        data["bars"] = bars
+        data["tempo_bpm"] = tempo_bpm
+        data["swing"] = swing
+        data["total_notes"] = len(notes)
+        data["cycle_beats"] = beats_per_bar
+        data["total_beats"] = total_beats
+        data["sec_per_beat"] = round(sec_per_beat, 4)
+        data["instruments"] = {
+            "kick": KICK, "snare": SNARE, "closed_hat": HAT_C, "open_hat": HAT_O
+        }
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""

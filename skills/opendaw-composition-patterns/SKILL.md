@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 176 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.307.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 176 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.308.0"
 ---
 
 # openDAW Composition Patterns
@@ -149,6 +149,7 @@ What do you want to create?
 ├── Taiko Ensemble → create_taiko_ensemble (Japanese kumi-daiko, 4 instruments: odaiko/chu-daiko/shime/atarigane, 5 styles: miyake/yatai/edo/hachijo/omega, dramatic dynamics)
 ├── Korean Percussion → create_korean_percussion (nongak/samul nori, 5 instruments: janggu chwe+kyong/buk/kkwaenggwari/jing, 5 styles: nongak/samul_nori/binari/utdari_pungnyu/yeongnam_folk)
 ├── Second Line → create_second_line (New Orleans street parade, 5 instruments: bass/snare/hi-hat/tom/cymbal, 5 styles: traditional/brass_band/mardi_gras_indian/jazz_funeral/bounce)
+├── Reggae percussion → create_reggae_percussion (Jamaican drum patterns, 6 styles: one_drop/rockers/steppers/ska/rocksteady/dancehall, GM percussion, swing)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
