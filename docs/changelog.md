@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.335.0 (2026-07-06)
+
+- **`create_hook`** — Melodic earworm phrase generator. 5 styles: pop (stepwise singable, I-V-vi-IV contour, repeated rhythmic motif, climax leap), rock (pentatonic with bluesy bends, power-note climaxes, root-fifth-root-octave motif), dance (rhythmic ostinato, syncopated off-beat stabs, octave jumps, 1-bar loop), rnb (melismatic neo-soul, chromatic turns, blue-note inflections b3/b7, syncopated 16ths), country (diatonic story-melody, 3rd/6th emphasis, pentatonic-adjacent, root resolution). 5 scales. Chromatic pitch helper. Seeded PRNG. 39 unit tests. 508 MCP tools.
+
 ## v1.334.0 (2026-07-06)
 
 - **`create_lick`** — Short melodic vocabulary phrase generator. 5 styles: bebop (enclosures, chromatic passing, chord-tone targeting, 8th-note linear flow), blues (pentatonic + blue notes b3/b5/b7, bends, call-response micro-phrases), funk (staccato 16th syncopation, octave jumps, ghost notes, accent pattern), rock (pentatonic position, bending aesthetic, climax note), jazz_minor (diminished arpeggio + chromatic descent over minor ii-V-i, altered scale). 5 scales. Chromatic pitch helper. Seeded PRNG. 38 unit tests. 507 MCP tools.

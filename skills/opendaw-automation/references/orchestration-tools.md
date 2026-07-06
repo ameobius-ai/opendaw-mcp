@@ -6,7 +6,7 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.334.0, 507 total)
+## Tools Added (v1.10.0, 255 total → v1.335.0, 508 total)
 
 250+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
@@ -387,7 +387,7 @@ When adding a new orchestration tool:
 173. Run: `python -m pytest tests/ -q` to verify no regressions
 174. Commit with `feat: N orchestration tools — ...` message
 
-## Tools Added v1.199.0–v1.334.0 (cycles 199–356, 130 new tools)
+## Tools Added v1.199.0–v1.335.0 (cycles 199–357, 131 new tools)
 
 ### Multi-Track Genre Arrangements (35 genres, 3–5 tracks each)
 - `create_dnb_arrangement` / `create_liquid_dnb_arrangement` / `create_neurofunk_arrangement` — DnB family: classic, liquid, neurofunk (Reese bass, complex breaks, dark stabs)
@@ -415,6 +415,7 @@ When adding a new orchestration tool:
 - `create_riff` — 5 riff styles: rock (power chords, bends), funk (16th syncopation, ghost notes), metal (galloping rhythm, tritone), blues (shuffle, pentatonic), hip_hop (sparse loop). 5 scales, seeded PRNG.
 - `create_turnaround` — 2-bar resolution phrase: jazz (I-vi-ii-V), blues (I-IV-IVdim-I walkup), gospel (ii-V-I + plagal Amen), rock (bVII-IV-I mixolydian), pop (I-V-vi-IV axis). 4 scales, seeded PRNG.
 - `create_lick` — Short melodic vocabulary phrase: bebop (enclosures, chromatic passing), blues (blue notes, call-response), funk (16th syncopation, octave jumps), rock (pentatonic, bending, climax), jazz_minor (diminished + chromatic descent over minor ii-V-i). 5 scales, seeded PRNG.
+- `create_hook` — Melodic earworm phrase: pop (stepwise singable, I-V-vi-IV contour), rock (pentatonic, power-note climaxes), dance (rhythmic ostinato, syncopated stabs), rnb (melismatic, blue-note inflections), country (diatonic story-melody, 3rd/6th emphasis). 5 scales, seeded PRNG.
 
 ### World Rhythm (15 traditions)
 - `create_songo_pattern` / `create_samba_pattern` / `create_djembe_ensemble` — Afro-Cuban/Brazilian/West African

@@ -58921,3 +58921,233 @@ async def mcp_opendaw_create_lick(
     }.get(lick_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_hook(
+    hook_type: str = "pop",
+    key_root: str = "C",
+    scale_type: str = "major",
+    bars: int = 2,
+    octave: int = 4,
+    velocity: float = 0.8,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a melodic hook — an earworm phrase that lodges in memory.
+
+    A hook is a short, singable melodic phrase (1-4 bars) that repeats and
+    becomes the most memorable part of a song. Unlike a riff (rhythmic/repeated
+    instrumental pattern) or a lick (vocabulary fragment for improvisation),
+    a hook is designed to be immediately singable and memorable — the part
+    you hum after the song ends. Seven Nation Army, Sweet Child O' Mine,
+    Don't Stop Believin'.
+
+    - **pop**: Stepwise singable melody, I-V-vi-IV contour, repeated rhythmic
+      motif, leap on climax. Max Martin, Jack Antonoff.
+    - **rock**: Pentatonic with bluesy bends, power-note climaxes, repeated
+      short motif. Led Zeppelin, AC/DC, White Stripes.
+    - **dance**: Rhythmic ostinato hook, syncopated, repetitive 1-bar pattern
+      looped. Daft Punk, Calvin Harris, Avicii.
+    - **rnb**: Melismatic, neo-soul chromatic turns, syncopated 16ths,
+      blue-note inflections. D'Angelo, Frank Ocean, H.E.R.
+    - **country**: Diatonic, story-melody shape, 3rd and 6th emphasis,
+      pentatonic-adjacent. Taylor Swift (early), Carrie Underwood.
+
+    hook_type: pop | rock | dance | rnb | country
+    key_root: Root note name
+    scale_type: major | minor | dorian | mixolydian | pentatonic_major
+    bars: Hook length (1-4, default 2)
+    octave: MIDI octave (4 = C4=60)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_hook(hook_type="pop", key_root="C", bars=2)
+      create_hook(hook_type="rock", key_root="E", scale_type="minor", bars=1)
+      create_hook(hook_type="dance", key_root="A", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+    }
+
+    VALID_TYPES = ["pop", "rock", "dance", "rnb", "country"]
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if hook_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid hook_type. Valid: {VALID_TYPES}"})
+    if bars < 1 or bars > 4:
+        return json.dumps({"error": "bars must be 1-4"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+    bar_beats = 4.0
+
+    def deg_to_pitch(degree, octave_shift=0):
+        ns = len(scale)
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    def chrom_pitch(semitone, octave_shift=0):
+        return base + octave_shift * 12 + semitone
+
+    if hook_type == "pop":
+        # Pop hook: stepwise singable, I-V-vi-IV contour
+        # Motif: 3-note rising step (0-1-2), then leap to 4, resolve to 2
+        # Repeated rhythmic pattern: eighths with sustain on downbeats
+        motif = [(0.0, 0, 0.5), (0.5, 1, 0.5), (1.0, 2, 0.5), (1.5, 4, 1.0),
+                 (2.5, 3, 0.5), (3.0, 2, 0.5), (3.5, 0, 0.5)]
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            # Vary motif on repeat: octave shift or degree change
+            oct_shift = 0 if bar == 0 else 0
+            for pos, deg, dur in motif:
+                pitch = deg_to_pitch(deg, oct_shift)
+                v = velocity * (0.85 + next(rng) * 0.15)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+            # Climax note (leap to octave on bar 2)
+            if bar == 1:
+                notes.append({"pitch": deg_to_pitch(0, 1), "start": round(start_beat + bar_off + 2.0, 4),
+                              "duration": 1.0, "velocity": round(velocity * 0.95, 3)})
+
+    elif hook_type == "rock":
+        # Rock hook: pentatonic, power-note climaxes, repeated short motif
+        # Motif: root-fifth-root-octave, repeated with variation
+        motif = [(0.0, 0, 0.5), (0.5, 2, 0.25), (0.75, 0, 0.25),
+                 (1.0, 4, 0.5), (1.5, 0, 0.5), (2.0, 4, 0.25),
+                 (2.25, 5, 0.25), (2.5, 4, 0.5), (3.0, 0, 1.0)]
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            for pos, deg, dur in motif:
+                pitch = deg_to_pitch(deg)
+                v = velocity * (0.8 + next(rng) * 0.2)
+                # Power chord: root + fifth
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+                if deg in (0, 4):
+                    notes.append({"pitch": pitch + 7, "start": round(start_beat + bar_off + pos, 4),
+                                  "duration": dur, "velocity": round(v * 0.7, 3)})
+
+    elif hook_type == "dance":
+        # Dance hook: rhythmic ostinato, syncopated, 1-bar loop repeated
+        # Pattern: off-beat stabs with octave jumps
+        motif = [(0.0, 0, 0.25), (0.25, -1, 0.0), (0.5, 2, 0.25), (0.75, 0, 0.25),
+                 (1.0, 4, 0.25), (1.25, 2, 0.25), (1.5, 0, 0.25), (1.75, -1, 0.0),
+                 (2.0, 0, 0.25), (2.25, 4, 0.25), (2.5, 2, 0.25), (2.75, 0, 0.25),
+                 (3.0, 0, 0.5), (3.5, 4, 0.5)]
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            for pos, deg, dur in motif:
+                if deg == -1:
+                    continue
+                pitch = deg_to_pitch(deg)
+                v = velocity * (0.85 + next(rng) * 0.15)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+            # Octave accent on bar end
+            notes.append({"pitch": deg_to_pitch(0, 1), "start": round(start_beat + bar_off + 3.75, 4),
+                          "duration": 0.25, "velocity": round(velocity * 0.9, 3)})
+
+    elif hook_type == "rnb":
+        # R&B hook: melismatic, neo-soul, chromatic turns, syncopated 16ths
+        # Blue-note inflections (b3, b7), melisma groups
+        motif = [(0.0, 0, 0.5), (0.5, 2, 0.25), (0.75, -1, 0.25),
+                 (1.0, 4, 0.5), (1.5, 3, 0.25), (1.75, 4, 0.25),
+                 (2.0, 5, 0.5), (2.5, 4, 0.25), (2.75, 2, 0.25),
+                 (3.0, 0, 0.5), (3.5, -1, 0.5)]
+        chrom_map = {(-1, 0.75): 3, (-1, 3.5): 10}  # b3 and b7 chromatic
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            for pos, deg, dur in motif:
+                if deg == -1:
+                    key = (deg, pos)
+                    if key in chrom_map:
+                        pitch = chrom_pitch(chrom_map[key], 0)
+                    else:
+                        continue
+                else:
+                    pitch = deg_to_pitch(deg)
+                v = velocity * (0.75 + next(rng) * 0.25)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+    elif hook_type == "country":
+        # Country hook: diatonic, story-melody shape, 3rd/6th emphasis
+        # Motif: rise to 3rd, drop to 6th, resolve to root
+        motif = [(0.0, 0, 0.75), (0.75, 2, 0.5), (1.25, 4, 0.5),
+                 (1.75, 2, 0.5), (2.25, 5, 0.75), (3.0, 4, 0.5),
+                 (3.5, 2, 0.5)]
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            for pos, deg, dur in motif:
+                pitch = deg_to_pitch(deg)
+                v = velocity * (0.8 + next(rng) * 0.15)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+            # Final resolution to root on bar end
+            if bar == bars - 1:
+                notes.append({"pitch": deg_to_pitch(0), "start": round(start_beat + bar_off + 3.75, 4),
+                              "duration": 0.25, "velocity": round(velocity * 0.95, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["hook"] = True
+    data["hook_type"] = hook_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "pop": "stepwise singable, I-V-vi-IV contour, repeated rhythmic motif, climax leap",
+        "rock": "pentatonic with bluesy bends, power-note climaxes, root-fifth-root-octave motif",
+        "dance": "rhythmic ostinato, syncopated off-beat stabs, octave jumps, 1-bar loop",
+        "rnb": "melismatic neo-soul, chromatic turns, blue-note inflections, syncopated 16ths",
+        "country": "diatonic story-melody, 3rd/6th emphasis, pentatonic-adjacent, root resolution",
+    }.get(hook_type, "")
+
+    return json.dumps(data, indent=2)
