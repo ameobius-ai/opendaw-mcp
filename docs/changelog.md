@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.346.0 (2026-07-06)
+
+- **`werkstatt_thermal_comp.js`** — Optical compressor (LA-2A style). Photoresistor gain reduction with slow program-dependent attack/release, tube saturation on output for warmth. 5 params: peak_reduce, gain, tube, speed, mix. 126 DSP scripts. Vocals, bass, glue compression.
+
 ## v1.345.0 (2026-07-06)
 
 - **`werkstatt_nyquist_comp.js`** — Parallel/New York compression. Dry signal blended with heavily compressed parallel path. Peak envelope detector, adjustable threshold/ratio/attack/release, makeup gain on compressed path. 125 DSP scripts. Increases perceived loudness and detail without killing transients — drums, vocals, mix bus.
