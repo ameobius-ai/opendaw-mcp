@@ -5669,11 +5669,12 @@ Returns the saved file path.
 
         // Convert to base64
         const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) {{
-            binary += String.fromCharCode(bytes[i]);
+        const chunks = [];
+        const cs = 0x8000;
+        for (let ci = 0; ci < bytes.length; ci += cs) {{
+            chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + cs)));
         }}
-        const b64 = btoa(binary);
+        const b64 = btoa(chunks.join(""));
 
         return {{
             success: true,
@@ -5739,7 +5740,12 @@ Returns the path to the exported WAV and audio metadata.
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
                 let binary = "";
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
                 window.__lastExportB64 = btoa(binary);
 
                 let maxSample = 0;
@@ -5812,7 +5818,12 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
                 let binary = "";
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
                 window.__lastExportB64 = btoa(binary);
 
                 let maxSample = 0;
@@ -5905,7 +5916,12 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
                 let binary = "";
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
                 window.__lastExportB64 = btoa(binary);
 
                 let maxSample = 0;
@@ -6004,7 +6020,12 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
                 let binary = "";
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
                 window.__lastExportB64 = btoa(binary);
 
                 let maxSample = 0;
@@ -6103,7 +6124,12 @@ async def mcp_opendaw_export_dry_stem(unit_index: int, filename: str, sample_rat
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
                 let binary = "";
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
                 window.__lastExportB64 = btoa(binary);
 
                 let maxSample = 0;
@@ -6724,11 +6750,12 @@ Returns: file path, size, and box count.
         try {
             const buffer = h.project.toArrayBuffer();
             const bytes = new Uint8Array(buffer);
-            let binary = "";
-            for (let i = 0; i < bytes.length; i++) {
-                binary += String.fromCharCode(bytes[i]);
+            const chunks = [];
+            const cs = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += cs) {
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + cs)));
             }
-            const b64 = btoa(binary);
+            const b64 = btoa(chunks.join(""));
             window.__lastProjectB64 = b64;
             window.__lastProjectSize = bytes.length;
             return {
@@ -7921,7 +7948,12 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
                     const wav = WavFile.encodeFloats(audioData);
                     const bytes = new Uint8Array(wav);
                     let binary = "";
-                    for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+                    const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
                     window.__lastExportB64 = btoa(binary);
                     resolve({{success: true, samples: audioData.frames[0]?.length || 0}});
                 }} catch(e) {{
@@ -9539,7 +9571,12 @@ Returns base64-encoded preset bytes and metadata, or error.
         // Convert ArrayBuffer to base64
         const bytes = new Uint8Array(buffer);
         let binary = '';
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
         const base64 = btoa(binary);
         return {{
             success: true,
@@ -9691,7 +9728,12 @@ Returns base64 preset bytes, or error.
         const buffer = PresetEncoder.encodeEffects(effects, kind);
         const bytes = new Uint8Array(buffer);
         let binary = '';
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
         const base64 = btoa(binary);
         return {{
             success: true,
@@ -13004,7 +13046,12 @@ async def mcp_opendaw_capture_realtime(duration_seconds: float, filename: str) -
             const wav = WavFile.encodeFloats(audioData);
             const bytes = new Uint8Array(wav);
             let binary = "";
-            for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
+            const chunks = [];
+            const chunkSize = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
+            }}
+            const binary = chunks.join("");
             window.__lastCaptureB64 = btoa(binary);
             return {{
                 success: true,
@@ -13387,11 +13434,12 @@ async def mcp_opendaw_export_dawproject(filename: str = "project") -> str:
             const buffer = await daw.encode(skeleton, window.DAW_sampleManager, metaData);
             // Convert ArrayBuffer to base64 for transfer
             const bytes = new Uint8Array(buffer);
-            let binary = '';
-            for (let i = 0; i < bytes.length; i++) {
-                binary += String.fromCharCode(bytes[i]);
+            const chunks = [];
+            const cs = 0x8000;
+            for (let ci = 0; ci < bytes.length; ci += cs) {
+                chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + cs)));
             }
-            const base64 = btoa(binary);
+            const base64 = btoa(chunks.join(""));
             return {
                 success: true,
                 base64: base64,
@@ -18120,11 +18168,12 @@ async def mcp_opendaw_save_effect_preset(unit_index: int, effect_index: int, nam
         // Encode as audio-effect preset (ChainKind.Audio = 1)
         const presetBytes = PE.encodeEffects([effectBox], 1);
         const bytes = new Uint8Array(presetBytes);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {{
-            binary += String.fromCharCode(bytes[i]);
+        const chunks = [];
+        const cs = 0x8000;
+        for (let ci = 0; ci < bytes.length; ci += cs) {{
+            chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + cs)));
         }}
-        return {{b64: btoa(binary), device: deviceKey}};
+        return {{b64: btoa(chunks.join("")), device: deviceKey}};
     }}""")
     if isinstance(result, dict) and result.get("error"):
         return _json.dumps(result)
@@ -56939,3 +56988,235 @@ async def mcp_opendaw_create_ambient_arrangement(
         return json.dumps(data, indent=2)
     except Exception:
         return results[0]
+
+
+@mcp.tool()
+async def mcp_opendaw_create_neurofunk_arrangement(
+    bpm: float = 174,
+    bars: int = 8,
+    root: str = "F",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    reese_track: int = 2,
+    stabs_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.9,
+) -> str:
+    """Create a full neurofunk DnB arrangement — 4 tracks: drums + sub-bass + Reese + stabs.
+
+    Neurofunk (Noisia, Spor, Phace, Ed Rush & Optical) is the technically
+    advanced evolution of drum & bass — darker, more complex, with signature
+    sound design elements:
+    - 170-180 BPM, dark minor key (typically F or E minor)
+    - Complex chopped breakbeats with extra ghost notes, kicks, and rolls
+    - Reese bass: detuned saw layers with movement, the hallmark neurofunk sound
+    - Sub-bass underneath the Reese for low-end weight
+    - Dark minor chord stabs and sci-fi atmosphere
+    - Aggressive velocity, tight quantization with occasional swing
+
+    Creates 4 tracks:
+    1. Drums (drum_track): Complex amen break with extra kick placements,
+       ghost notes, and snare rolls at phrase ends. 2-bar cycle.
+    2. Sub-bass (bass_track): Deep sustained sub following root note,
+       syncopated gaps where drums fill. Octave 1 for sub weight.
+    3. Reese (reese_track): Detuned saw-style Reese bass with chromatic
+       movement, pitch slides, and rhythmic stabs. The signature neuro sound.
+    4. Stabs (stabs_track): Dark minor chord stabs (root + b3 + b5 + b7)
+       on beats 1 and 3, with occasional off-beat sci-fi stabs.
+
+    bpm: Tempo (160-185, default 174).
+    bars: Arrangement length (4-32, default 8).
+    root: Root note (default F = classic neurofunk key).
+    octave: MIDI octave for Reese/bass (2 = C2=36).
+
+    Returns notes created per track and total.
+
+    Example:
+      create_neurofunk_arrangement(bpm=174, root="F", bars=8)
+      create_neurofunk_arrangement(bpm=180, root="E", bars=16)
+    """
+    if not (160 <= bpm <= 185):
+        return "Error: bpm must be 160-185"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    root_pc = NOTE_TO_PITCH[root]
+    sub_base = (octave + 1) * 12 + root_pc
+    reese_base = (octave + 1) * 12 + root_pc
+    stab_base = (octave + 4) * 12 + root_pc  # stabs 2 octaves above bass
+
+    # --- DRUMS: Complex neurofunk breakbeat (2-bar cycle) ---
+    # Extra kick placements, ghost notes, snare rolls
+    drum_pattern = [
+        (0.0, "kick"), (0.0, "hat"), (0.25, "ghost"), (0.5, "hat"),
+        (0.75, "kick"), (0.75, "ghost"), (1.0, "snare"), (1.0, "hat"),
+        (1.25, "ghost"), (1.5, "hat"), (1.75, "kick"), (1.75, "ghost"),
+        (2.0, "hat"), (2.25, "ghost"), (2.5, "kick"), (2.5, "hat"),
+        (2.75, "ghost"), (3.0, "snare"), (3.0, "hat"),
+        (3.25, "ghost"), (3.33, "ghost"), (3.41, "ghost"),
+        (3.5, "kick"), (3.5, "hat"), (3.75, "hat"),
+        (4.0, "kick"), (4.0, "hat"), (4.25, "ghost"), (4.5, "hat"),
+        (4.75, "kick"), (4.75, "ghost"), (5.0, "snare"), (5.0, "hat"),
+        (5.25, "ghost"), (5.5, "hat"), (5.75, "kick"), (5.75, "ghost"),
+        (6.0, "hat"), (6.25, "ghost"), (6.5, "kick"), (6.5, "hat"),
+        (6.75, "ghost"), (7.0, "snare"), (7.0, "hat"),
+        (7.25, "ghost"), (7.33, "ghost"), (7.41, "ghost"),
+        (7.5, "kick"), (7.5, "hat"), (7.75, "hat"),
+    ]
+
+    kick_p, snare_p, hat_p, ghost_p = 36, 38, 42, 37
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "ghost": ghost_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.05),
+        "snare": velocity,
+        "hat": max(0.0, velocity - 0.2),
+        "ghost": max(0.0, velocity - 0.35),
+    }
+    drum_dur_map = {"kick": 0.15, "snare": 0.1, "hat": 0.04, "ghost": 0.03}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- SUB-BASS: Deep sustained sub, syncopated gaps ---
+    sub_pattern = [
+        (0.0, 0, 1.5, 1.0),
+        (2.0, 0, 1.5, 0.9),
+        (3.75, 0, 0.2, 0.7),
+        (4.0, 0, 1.5, 1.0),
+        (6.0, 0, 1.5, 0.9),
+        (7.75, 0, 0.2, 0.7),
+    ]
+    sub_notes = []
+    sub_cycle = 8.0
+    sub_cycles = bars // 2
+    for c in range(sub_cycles):
+        off = c * sub_cycle
+        for beat, po, dur, vm in sub_pattern:
+            sub_notes.append({
+                "pitch": sub_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- REESE: Detuned saw bass with chromatic movement ---
+    # Rhythmic stabs + sustained notes with pitch movement
+    reese_pattern = [
+        (0.0, 0, 1.0, 0.9),
+        (1.25, 0, 0.25, 0.8),
+        (1.75, -1, 0.5, 0.85),  # chromatic slide down
+        (2.5, 0, 0.5, 0.8),
+        (3.0, 3, 0.25, 0.75),   # minor third jump
+        (3.5, 0, 0.5, 0.9),
+        (4.0, 0, 1.0, 0.9),
+        (5.25, 0, 0.25, 0.8),
+        (5.75, -1, 0.5, 0.85),
+        (6.5, 0, 0.5, 0.8),
+        (7.0, 3, 0.25, 0.75),
+        (7.5, 0, 0.5, 0.9),
+    ]
+    reese_notes = []
+    reese_cycle = 8.0
+    reese_cycles = bars // 2
+    for c in range(reese_cycles):
+        off = c * reese_cycle
+        for beat, po, dur, vm in reese_pattern:
+            reese_notes.append({
+                "pitch": reese_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- STABS: Dark minor chord stabs (root + b3 + b5 + b7) ---
+    stab_intervals = [0, 3, 6, 10]  # root, minor third, tritone, minor seventh
+    stab_pattern = [
+        (0.0, 0.3, 0.9),
+        (2.0, 0.3, 0.7),
+        (4.0, 0.3, 0.9),
+        (6.0, 0.25, 0.7),
+        (7.5, 0.2, 0.6),
+    ]
+    stab_notes = []
+    stab_cycle = 8.0
+    stab_cycles = bars // 2
+    for c in range(stab_cycles):
+        off = c * stab_cycle
+        for beat, dur, vm in stab_pattern:
+            for interval in stab_intervals:
+                stab_notes.append({
+                    "pitch": stab_base + interval,
+                    "start": round(start_beat + off + beat, 4),
+                    "duration": dur,
+                    "velocity": round(velocity * vm, 3),
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    sub_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(sub_notes), unit_index, bass_track)
+    reese_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(reese_notes), unit_index, reese_track)
+    stabs_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(stab_notes), unit_index, stabs_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        sub_data = json.loads(sub_result)
+    except Exception:
+        sub_data = {"raw": sub_result}
+    try:
+        reese_data = json.loads(reese_result)
+    except Exception:
+        reese_data = {"raw": reese_result}
+    try:
+        stabs_data = json.loads(stabs_result)
+    except Exception:
+        stabs_data = {"raw": stabs_result}
+
+    return json.dumps({
+        "neurofunk_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes),
+                       "result": drum_data.get("notes_created", len(drum_notes)),
+                       "style": "complex chopped breakbeat with extra kicks, ghost rolls"},
+            "sub_bass": {"track": bass_track, "notes": len(sub_notes),
+                          "result": sub_data.get("notes_created", len(sub_notes)),
+                          "style": "deep sustained sub, syncopated gaps"},
+            "reese": {"track": reese_track, "notes": len(reese_notes),
+                       "result": reese_data.get("notes_created", len(reese_notes)),
+                       "style": "detuned saw bass, chromatic slides, rhythmic stabs"},
+            "stabs": {"track": stabs_track, "notes": len(stab_notes),
+                       "result": stabs_data.get("notes_created", len(stab_notes)),
+                       "style": "dark minor chord stabs (root+b3+b5+b7)"},
+        },
+        "total_notes": len(drum_notes) + len(sub_notes) + len(reese_notes) + len(stab_notes),
+        "drum_pattern": "neurofunk_complex",
+        "bass_pattern": "reese_chromatic",
+        "harmony": "diminished_minor",
+    }, indent=2)
