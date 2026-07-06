@@ -195,7 +195,85 @@ def psychoacoustic_bass(data, sr, freq=60, amount=0.25, mix=0.3):
 
 # ─── Stereo ────────────────────────────────────────────────────────────
 
+def tube_saturation(data, drive=0.3, mix=0.5):
+    """Tube-style saturation — emphasizes EVEN harmonics (2nd, 4th).
+    Warmer, rounder than tanh (which emphasizes odd harmonics).
+    Uses x - a*x² curve for asymmetric (tube-like) distortion."""
+    drive_amt = drive * 2
+    # Asymmetric waveshaping: even harmonics
+    driven = data - drive_amt * data ** 2 * np.sign(data) * 0.5
+    # Normalize to prevent level change
+    norm = np.max(np.abs(driven) + 1e-10)
+    if norm > 1.0:
+        driven = driven / norm * np.max(np.abs(data))
+    return data * (1 - mix) + driven * mix
+
+
+def soft_knee_limiter(data, ceiling=0.84, knee_db=3.0, sr=48000, lookahead_ms=3.0, release_ms=100.0):
+    """Soft knee limiter — gradual compression curve near ceiling.
+    More transparent than hard clip. Knee starts below ceiling."""
+    ceiling_lin = ceiling
+    knee_lin = ceiling / (10 ** (knee_db / 20))  # knee starts here
+
+    lookahead = max(1, int(sr * lookahead_ms / 1000))
+    release_samp = max(1, int(sr * release_ms / 1000))
+    release_coef = np.exp(-1 / release_samp)
+
+    abs_data = np.abs(data)
+    env = np.zeros_like(data)
+
+    for ch in range(data.shape[0]):
+        peak_hold = scipy_ndimage.maximum_filter1d(
+            abs_data[ch], size=lookahead, mode="constant", cval=0.0
+        )
+        rl_b = [1.0 - release_coef]
+        rl_a = [1, -release_coef]
+        env[ch] = scipy_signal.lfilter(rl_b, rl_a, peak_hold)
+
+    # Soft knee gain reduction
+    # Below knee: no reduction
+    # Between knee and ceiling: gradual (quadratic) reduction
+    # Above ceiling: full reduction to ceiling
+    gain = np.ones_like(env)
+    in_knee = (env > knee_lin) & (env <= ceiling_lin)
+    over = env > ceiling_lin
+
+    # Quadratic soft knee: 1 - ((env - knee) / (ceiling - knee))² * (1 - ceiling/env)
+    knee_range = ceiling_lin - knee_lin
+    if knee_range > 0:
+        ratio = (env[in_knee] - knee_lin) / knee_range
+        gain[in_knee] = 1 - ratio ** 2 * (1 - ceiling_lin / (env[in_knee] + 1e-10))
+
+    gain[over] = ceiling_lin / (env[over] + 1e-10)
+
+    # Apply with lookahead delay
+    limited = np.zeros_like(data)
+    for ch in range(data.shape[0]):
+        delayed = np.zeros(data.shape[1])
+        if data.shape[1] > lookahead:
+            delayed[lookahead:] = data[ch, :-lookahead]
+        limited[ch] = delayed * gain[ch]
+
+    return limited
+
+
+def ms_eq(data, sr, side_hp_freq=200):
+    """M/S EQ — highpass the side channel to tighten bass in stereo.
+    Bass frequencies should be mono (centered). Side HPF removes
+    stereo information below side_hp_freq, tightening the image."""
+    if data.shape[0] != 2:
+        return data
+    mid = (data[0] + data[1]) * 0.5
+    side = (data[0] - data[1]) * 0.5
+    # Highpass side channel
+    w0 = side_hp_freq / (sr / 2)
+    b, a = scipy_signal.butter(2, w0, btype="high")
+    side = scipy_signal.filtfilt(b, a, side)
+    return np.stack([mid + side, mid - side], axis=0)
+
+
 def stereo_widen(data, amount=0.4):
+    """Widen stereo via M/S processing. amount=0 neutral, 1=max wide."""
     if data.shape[0] != 2:
         return data
     mid = (data[0] + data[1]) * 0.5
@@ -260,50 +338,56 @@ def main():
     data, lufs_pre, gain_pre = lufs_normalize(data, -14.0, sr)
     print(f"  Gain: {gain_pre:+.1f} dB, LUFS: {lufs_pre:.2f} → -14.00")
 
-    # ═══ Step 2: Multiband split (LR4 crossovers) ═══
-    print("\n=== Step 2: Multiband split (200/2000/8000 Hz) ===")
-    bands = multiband_split(data, sr, freqs=(200, 2000, 8000))
-    print("  Bands: sub(<200), bass(200-2k), mid(2k-8k), high(>8k)")
+    # ═══ Step 2: Multiband split (5-band: 200/500/2000/5000/8000 Hz) ═══
+    print("\n=== Step 2: Multiband split (200/500/2000/5000/8000 Hz) ===")
+    bands = multiband_split(data, sr, freqs=(200, 500, 2000, 5000, 8000))
+    print("  Bands: sub(<200), bass(200-500), lowmid(500-2k), presence(2k-5k), high(>8k)")
+    # Note: band[3] = 5k-8k (upper-mid), band[4] = >8k (air)
+    # 5-band: sub, bass, lowmid, presence, uppermid, air → 6 bands from 5 crossovers
+    # Actually: freqs=(200,500,2000,5000,8000) → 6 bands: sub, bass, lowmid, mid, uppermid, air
 
     # ═══ Step 3: Per-band processing ═══
-    print("\n=== Step 3: Per-band processing ===")
+    print("\n=== Step 3: Per-band processing (6 bands) ===")
 
     # Sub band (<200Hz): psychoacoustic bass + parallel comp for density
     print("  sub: psychoacoustic bass + parallel comp (dense sub)")
     bands[0] = psychoacoustic_bass(bands[0], sr, freq=60, amount=0.15, mix=0.2)
-    # Parallel compression: dry + heavily compressed for density without losing punch
     sub_compressed = compressor(bands[0], threshold=0.2, ratio=4.0, attack=0.005, release=0.2, sr=sr, mix=1.0)
     bands[0] = bands[0] * 0.6 + sub_compressed * 0.4
     # Mono collapse (bass should be centered — pro standard)
     mono_sub = (bands[0][0] + bands[0][1]) * 0.5
     bands[0] = np.stack([mono_sub, mono_sub], axis=0)
 
-    # Bass band (200-2k): mud cut + lowmid fill + tape sat
-    print("  bass: mud cut -2dB @ 250 + lowmid +3dB @ 350 + tape sat")
+    # Bass band (200-500Hz): mud cut + tape sat
+    print("  bass: mud cut -2dB @ 250 + tape sat")
     bands[1] = bell_eq(bands[1], sr, 250, -2.0, q=1.2)
-    bands[1] = bell_eq(bands[1], sr, 350, 3.0, q=1.0)
     bands[1] = tape_saturation(bands[1], drive=0.15, mix=0.25)
-    # Partial mono collapse (keep some stereo on bass, but centered)
-    mid_b = (bands[1][0] + bands[1][1]) * 0.5
-    side_b = (bands[1][0] - bands[1][1]) * 0.5
-    bands[1] = np.stack([mid_b + side_b * 0.3, mid_b - side_b * 0.3], axis=0)
 
-    # Mid band (2k-8k): presence boost + parallel comp for density
-    print("  mid: presence +4dB @ 3k + +2dB @ 4k + +3dB @ 5k + parallel comp 60/40")
-    bands[2] = bell_eq(bands[2], sr, 3000, 4.0, q=1.0)
-    bands[2] = bell_eq(bands[2], sr, 4000, 2.0, q=1.0)
-    bands[2] = bell_eq(bands[2], sr, 5000, 3.0, q=1.0)
-    # Parallel compression on mid — 60/40 for more presence forward
-    mid_compressed = compressor(bands[2], threshold=0.3, ratio=3.0, attack=0.005, release=0.15, sr=sr, mix=1.0)
-    bands[2] = bands[2] * 0.6 + mid_compressed * 0.4
+    # Lowmid band (500-2k): lowmid fill + tape
+    print("  lowmid: +3dB @ 700 + tape sat (warmth)")
+    bands[2] = bell_eq(bands[2], sr, 700, 3.0, q=1.0)
+    bands[2] = tape_saturation(bands[2], drive=0.1, mix=0.2)
 
-    # High band (>8k): air boost + harmonic exciter — NO limiter here!
-    print("  high: high-shelf +4dB @ 8k + exciter + bell +3dB @ 12k")
-    bands[3] = high_shelf(bands[3], sr, 8000, 4.0)
-    bands[3] = harmonic_exciter(bands[3], sr, freq=8000, amount=0.25, mix=0.4)
-    bands[3] = bell_eq(bands[3], sr, 12000, 3.0, q=0.7)
-    # Widen ONLY high band (air in stereo, bass in mono)
-    bands[3] = stereo_widen(bands[3], amount=0.5)
+    # Presence band (2k-5k): presence boost + tube saturation
+    print("  presence: +5dB @ 3k + +4dB @ 4k + +3dB @ 5k + tube sat")
+    bands[3] = bell_eq(bands[3], sr, 3000, 5.0, q=1.0)
+    bands[3] = bell_eq(bands[3], sr, 4000, 4.0, q=1.0)
+    bands[3] = bell_eq(bands[3], sr, 5000, 3.0, q=1.0)
+    bands[3] = tube_saturation(bands[3], drive=0.2, mix=0.3)
+    # Parallel compression on presence — 60/40 for more forward
+    pres_compressed = compressor(bands[3], threshold=0.3, ratio=3.0, attack=0.005, release=0.15, sr=sr, mix=1.0)
+    bands[3] = bands[3] * 0.6 + pres_compressed * 0.4
+
+    # Upper-mid band (5k-8k): slight presence boost
+    print("  uppermid: +2dB @ 6k (vocal clarity)")
+    bands[4] = bell_eq(bands[4], sr, 6000, 2.0, q=1.0)
+
+    # Air band (>8k): air boost + harmonic exciter — isolated!
+    print("  air: high-shelf +4dB @ 8k + exciter + bell +3dB @ 12k + widen")
+    bands[5] = high_shelf(bands[5], sr, 8000, 4.0)
+    bands[5] = harmonic_exciter(bands[5], sr, freq=8000, amount=0.25, mix=0.4)
+    bands[5] = bell_eq(bands[5], sr, 12000, 3.0, q=0.7)
+    bands[5] = stereo_widen(bands[5], amount=0.5)
 
     # ═══ Step 4: Recombine + glue comp on full mix ═══
     print("\n=== Step 4: Recombine bands + glue comp ===")
@@ -313,8 +397,9 @@ def main():
     lufs_recomb = meter.integrated_loudness(data.T)
     print(f"  LUFS after recombine + glue: {lufs_recomb:.2f}")
 
-    # ═══ Step 5: Stereo widen (M/S +30% — high band already widened) ═══
-    print("\n=== Step 5: Stereo widen (M/S +30%) ===")
+    # ═══ Step 5: M/S EQ (tighten bass in stereo) + widen ═══
+    print("\n=== Step 5: M/S EQ (side HPF 200Hz) + widen +30% ===")
+    data = ms_eq(data, sr, side_hp_freq=200)
     data = stereo_widen(data, amount=0.3)
 
     # ═══ Step 6: Re-normalize to -14 LUFS ═══
@@ -322,9 +407,9 @@ def main():
     data, _, gain_recomb = lufs_normalize(data, -14.0, sr)
     print(f"  Gain: {gain_recomb:+.1f} dB")
 
-    # ═══ Step 7: Lookahead brickwall limiter ═══
-    print("\n=== Step 7: Lookahead brickwall limiter ===")
-    data = lookahead_limiter(data, ceiling=0.84, lookahead_ms=3.0, release_ms=80.0, sr=sr)
+    # ═══ Step 7: Soft knee brickwall limiter ═══
+    print("\n=== Step 7: Soft knee limiter (ceiling 0.84, knee 3dB) ===")
+    data = soft_knee_limiter(data, ceiling=0.84, knee_db=3.0, sr=sr, lookahead_ms=3.0, release_ms=100.0)
 
     # ═══ Step 8: Final LUFS correction + brickwall ═══
     print("\n=== Step 8: Final LUFS correction + brickwall ===")
