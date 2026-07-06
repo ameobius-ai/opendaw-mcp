@@ -63886,3 +63886,203 @@ async def mcp_opendaw_create_jpop_arrangement(
             "Use render_full to render the arrangement",
         ],
     }, indent=2)
+
+
+async def mcp_opendaw_create_counter_melody(
+    counter_type: str = "contrary",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 3,
+    bars: int = 8,
+    velocity: float = 0.55,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a counter-melody — a secondary melody that complements the main one.
+
+    Counter-melody is a foundational composition technique. Unlike descant
+    (which sits ABOVE the melody), counter-melody typically sits BELOW or
+    AROUND it, weaving in and out. The key principle is independence —
+    counter-melody has its own rhythmic and melodic character, not just
+    doubling the melody at a different interval.
+
+    Counter-melody types:
+    - **contrary**: Moves in opposite direction to implied main melody.
+      When melody goes up, counter goes down. Classic species counterpoint.
+      Good for classical, jazz, film scores, prog rock.
+    - **oblique**: One voice stays on a sustained note while the other
+      moves. Creates harmonic anchor. Good for pads, ambient, worship.
+    - **parallel**: Moves in parallel thirds or sixths below the melody.
+      Sweet, consonant, romantic. Good for pop, folk, country, ballads.
+    - **rhythmic**: Different rhythm from melody — enters on offbeats,
+      fills gaps, creates polyrhythmic texture. Good for jazz, funk, world.
+    - **pedal**: Sustained drone notes that change only at chord changes.
+      Minimal, atmospheric. Good for ambient, drone, cinematic, post-rock.
+
+    counter_type: contrary | oblique | parallel | rhythmic | pedal
+    key_root: Root note
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (3 = below melody, 4 = same range, 5 = above)
+    bars: 4-16
+    velocity: 0-1 (counter-melody is typically quieter, 0.5-0.65)
+    seed: PRNG seed
+
+    Example:
+      create_counter_melody(counter_type="contrary", key_root="D", scale_type="minor", octave=3)
+      create_counter_melody(counter_type="parallel", key_root="G", scale_type="major", octave=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["contrary", "oblique", "parallel", "rhythmic", "pedal"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if counter_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid counter_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (2 <= octave <= 6):
+        return json.dumps({"error": "octave must be 2-6"})
+    if not (4 <= bars <= 16):
+        return json.dumps({"error": "bars must be 4-16"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+
+    if counter_type == "contrary":
+        # Move opposite to implied main melody
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # Main melody implied: ascends on even bars, descends on odd
+            main_up = (bar % 2 == 0)
+            counter_dir = -1 if main_up else 1
+            v = velocity * (0.8 + 0.2 * next(rng))
+
+            # 3-4 notes per bar, moving contrary
+            note_positions = [0, 1.5, 3.0]
+            for i, beat in enumerate(note_positions):
+                # Counter goes opposite direction
+                deg = (bar * 2 + i * counter_dir) % ns
+                if deg < 0:
+                    deg += ns
+                dur = 1.5 if i == 0 else 1.0
+                notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+    elif counter_type == "oblique":
+        # One voice sustained while other moves
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * 0.7
+            # Sustained note for first half of bar
+            sustain_deg = 0 if bar % 2 == 0 else 4  # alternate tonic and 5th
+            notes.append({"pitch": deg_to_pitch(sustain_deg), "start": round(start_beat + bar_start, 4),
+                          "duration": 2.5, "velocity": round(v, 3)})
+            # Moving note on beat 3
+            move_deg = (bar + 2) % ns
+            notes.append({"pitch": deg_to_pitch(move_deg), "start": round(start_beat + bar_start + 3, 4),
+                          "duration": 0.5, "velocity": round(v * 0.8, 3)})
+
+    elif counter_type == "parallel":
+        # Parallel thirds or sixths below melody
+        interval = 2  # third (scale degree offset)
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.8 + 0.15 * next(rng))
+            # Melody implied: scale degrees 0, 2, 4, 2 per bar
+            melody_degrees = [0, 2, 4, 2]
+            for i, m_deg in enumerate(melody_degrees):
+                beat = i * 1.0
+                c_deg = (m_deg - interval) % ns  # parallel third below
+                if c_deg < 0:
+                    c_deg += ns
+                notes.append({"pitch": deg_to_pitch(c_deg), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": 0.8, "velocity": round(v, 3)})
+
+    elif counter_type == "rhythmic":
+        # Different rhythm — offbeat entries, fills gaps
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.7 + 0.2 * next(rng))
+            # Enter on offbeats: 0.5, 1.5, 2.5, 3.5
+            offbeats = [0.5, 1.5, 2.5, 3.5]
+            for i, beat in enumerate(offbeats):
+                deg = (bar * 3 + i * 2) % ns
+                dur = 0.3 + 0.2 * next(rng)
+                notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start + beat, 4),
+                              "duration": round(dur, 3), "velocity": round(v, 3)})
+
+    elif counter_type == "pedal":
+        # Sustained drone notes, change at chord changes
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * 0.6
+            # I-vi-IV-V progression implied
+            prog = [0, 5, 3, 4]
+            deg = prog[bar % len(prog)]
+            notes.append({"pitch": deg_to_pitch(deg), "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["counter_melody"] = True
+    data["counter_type"] = counter_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["octave"] = octave
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "contrary": "moves opposite to main melody, species counterpoint, classical jazz film",
+        "oblique": "one voice sustained while other moves, harmonic anchor, pads ambient",
+        "parallel": "parallel thirds or sixths below melody, sweet consonant romantic",
+        "rhythmic": "different rhythm, offbeat entries, fills gaps, polyrhythmic texture",
+        "pedal": "sustained drone notes at chord changes, minimal atmospheric cinematic",
+    }.get(counter_type, "")
+
+    return json.dumps(data, indent=2)

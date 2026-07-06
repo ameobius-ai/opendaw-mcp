@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.373.0 (2026-07-06)
+
+- **`create_counter_melody`** — Counter-melody: secondary melody that complements the main one. 5 types: contrary (opposite direction, species counterpoint), oblique (sustained + moving), parallel (thirds/sixths below), rhythmic (offbeat entries, fills gaps), pedal (drone at chord changes). 3 scales, octave 3 (below melody), 4-16 bars. Seeded PRNG. 24 unit tests. 531 MCP tools. Pairs with create_descant (above) for full contrapuntal texture.
+- **TOOL_CATALOG genre counts fixed** — produce_full_track: 20+→37, produce_and_master: 35→37 genres.
+
 ## v1.372.0 (2026-07-06)
 
 - **`add_genre_effects` expanded 35→37 genres** — Added jpop and harmonic chains. Now 100% coverage: all 37 arrangement genres have matching effect chains. Zero "Invalid genre" errors possible.
