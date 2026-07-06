@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.329.0 (2026-07-06)
+
+- **2 new DSP scripts**: `werkstatt_plate_reverb.js` (EMT 140 / Valhalla Plate style algorithmic plate reverb: 4 allpass diffusers → FDN with damping lowpass + LFO shimmer, stereo cross-feed width, pre-delay, low-cut, diffusion control, 8 params), `werkstatt_ensemble.js` (Roland Juno-60 style ensemble chorus: 3 detuned delay lines at prime-ratio LFO rates 0.5/0.83/1.37Hz, L/C/R panning, depth/rate/voices/detune/width — the signature lush Juno chorus sound). 119 DSP scripts total.
+
 ## v1.328.0 (2026-07-06)
 
 - **3 new DSP scripts**: `werkstatt_sidechain_comp.js` (sidechain compressor with pump effect, 8 params: threshold/ratio/attack/release/makeup/mix/srcSelect/listenDuck, envelope follower, gain smoothing, kick→bass ducking), `werkstatt_ott.js` (Xfer-style OTT multiband upward/downward compressor, 3-band LR crossover at 200/2000Hz, per-band upward+downward compression, depth/time/per-band+master gain, the signature EDM sound), `werkstatt_soft_clipper.js` (soft clipper with tanh+cubic curves, ceiling/drive/curve/mix/out, drum bus/mix bus/808 loudness). 117 DSP scripts total.

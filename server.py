@@ -5739,10 +5739,9 @@ Returns the path to the exported WAV and audio metadata.
 
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
-                let binary = "";
                 const chunks = [];
             const chunkSize = 0x8000;
-            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{ 
                 chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
             }}
             const binary = chunks.join("");
@@ -5817,10 +5816,9 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
 
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
-                let binary = "";
                 const chunks = [];
             const chunkSize = 0x8000;
-            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{ 
                 chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
             }}
             const binary = chunks.join("");
@@ -5915,10 +5913,9 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
 
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
-                let binary = "";
                 const chunks = [];
             const chunkSize = 0x8000;
-            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{ 
                 chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
             }}
             const binary = chunks.join("");
@@ -6019,10 +6016,9 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
 
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
-                let binary = "";
                 const chunks = [];
             const chunkSize = 0x8000;
-            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{ 
                 chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
             }}
             const binary = chunks.join("");
@@ -6123,10 +6119,9 @@ async def mcp_opendaw_export_dry_stem(unit_index: int, filename: str, sample_rat
 
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
-                let binary = "";
                 const chunks = [];
             const chunkSize = 0x8000;
-            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
+            for (let ci = 0; ci < bytes.length; ci += chunkSize) {{ 
                 chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
             }}
             const binary = chunks.join("");

@@ -18,6 +18,8 @@
 | `werkstatt_sidechain_comp.js` | Sidechain Compressor (pump effect, envelope follower, gain smoothing, kick→bass ducking, 8 params) |
 | `werkstatt_ott.js` | OTT Multiband Compressor (Xfer-style 3-band upward/downward, LR crossover 200/2000Hz, depth/time/per-band+master gain) |
 | `werkstatt_soft_clipper.js` | Soft Clipper (tanh+cubic curves, ceiling/drive/curve, drum bus/mix bus/808 loudness without harshness) |
+| `werkstatt_plate_reverb.js` | Plate Reverb (EMT 140 / Valhalla style: 4 allpass diffusers → FDN, damping lowpass, LFO shimmer, stereo width, pre-delay) |
+| `werkstatt_ensemble.js` | Ensemble Chorus (Roland Juno-60 style: 3 detuned delay lines at prime-ratio LFO rates, L/C/R panning, lush ensemble wash) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |
