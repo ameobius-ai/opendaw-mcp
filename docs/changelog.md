@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.338.0 (2026-07-06)
+
+- **Render fix** — Root cause of render_full 600s timeout found and fixed. bridge.evaluate default timeout=30s killed renders at 30s, not 600s. Added timeout=1200000 (20 min) to all 6 render evaluate calls. Also removed project.copy() from 4 render functions — OfflineEngineRenderer.start() manages loopArea internally, worker gets snapshot via toArrayBuffer(). Deep copy of 364MB audio was #1 bottleneck. E2E confirmed: 6 stems × 272.8s rendered in 234s → 100MB WAV, has_audio=true.
+- **`create_intro`** — Intro section generator. 5 types: ambient (sustained pad swell, root+fifth), drum (rhythmic build kick→snare→hats), melodic (emerging arpeggio I-vi-IV-V, sparse→dense), minimalist (Reich/Glass layered repetition), cinematic (drone+riser+impact, chromatic ascent). 3 scales, 2-8 bars. Seeded PRNG. 46 unit tests. 511 MCP tools.
+- **`werkstatt_analog_delay.js`** — BBD bucket-brigade delay with clock aliasing. Analog warmth via sample-rate reduction, feedback saturation. 122 DSP scripts.
+- **`werkstatt_distortion_pedal.js`** — DS-1/Rat style distortion with active tone stack. Character control (scoop vs hump). 123 DSP scripts.
+
 ## v1.337.0 (2026-07-06)
 
 - **`werkstatt_cassette_sim.js`** — Cassette Tape Simulator. Full tape machine modeling: wow (0.5-2Hz slow speed variation) + flutter (13-33Hz fast flutter) via delay-line interpolation pitch modulation, asymmetric tape saturation (tanh soft clipping), 80Hz head bump resonance, high-frequency loss from tape head gap, pink tape hiss with age control, DC blocker. RC-20/SketchCassette aesthetic. 8 parameters. node --check ✅. **120 DSP scripts**.

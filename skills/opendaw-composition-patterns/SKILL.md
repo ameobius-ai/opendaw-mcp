@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 509 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riffs, hooks, licks, turnarounds, solos, etudes, world rhythms, DSP chains, stem splitting, offline render. Decision tree: which tool for which musical goal. v1.336.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 511 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riffs, hooks, licks, turnarounds, solos, etudes, world rhythms, DSP chains, stem splitting, offline render. Decision tree: which tool for which musical goal. v1.338.0"
 ---
 
 # openDAW Composition Patterns
@@ -64,6 +64,8 @@ What do you want to create?
 ├── Solo (melodic) → create_solo (5 styles: bebop/blues/rock/jazz_swing/fusion, chromatic approaches)
 ├── Drum solo → create_drum_solo (5 styles: rock/jazz/funk/latin/marching, rudimental vocabulary)
 ├── Etude (technical study) → create_etude (5 types: scale/arpeggio/interval/rhythm/chromatic, Czerny/Chopin)
+├── Cadence (section ending) → create_cadence (5 types: authentic/plagal/half/deceptive/phrygian, V-I, Amen, Neapolitan)
+├── Intro (opening section) → create_intro (5 types: ambient/drum/melodic/minimalist/cinematic, pad swell, rhythmic build, drone+riser)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)
 ├── Bassline (walking jazz) → create_walking_bass (chord progression input)
 ├── Arpeggio → create_arpeggio (up/down/updown/random, octaves)

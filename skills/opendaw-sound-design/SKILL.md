@@ -1,6 +1,6 @@
 ---
 name: opendaw-sound-design
-description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 111 DSP scripts. How to synthesize and shape sound with MCP tools."
+description: "openDAW instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont, MIDIOutput) + scriptable DSP (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). 123 DSP scripts. How to synthesize and shape sound with MCP tools."
 tags: [opendaw, mcp, sound-design, instruments, synth, dsp, werkstatt, apparat, spielwerk, scriptable]
 ---
 

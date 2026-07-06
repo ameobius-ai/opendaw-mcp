@@ -1,12 +1,12 @@
 ---
 name: opendaw-automation
-description: "openDAW automation — 491 MCP tools via Playwright. 80+ orchestration tools. Full DAW control. v1.316.0. 13 agent skills. 111 DSP scripts (92 Werkstatt + 9 Apparat + 10 Spielwerk). Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 4670 unit tests. Scriptable params mapping-aware. Suno integration pipeline (download → analyze → remix → render). See references/"
+description: "openDAW automation — 511 MCP tools via Playwright. 80+ orchestration tools. Full DAW control. v1.338.0. 13 agent skills. 123 DSP scripts (103 Werkstatt + 9 Apparat + 10 Spielwerk). Stem splitter integration (7 SOTA models, GPU local). Preset save/load (.opb). 5500 unit tests. Scriptable params mapping-aware. Suno integration pipeline (download → analyze → remix → render). See references/"
 tags: [opendaw, audio, daw, headless, mcp, playwright]
 ---
 
 # openDAW Automation Meta-Skill
 
-491 MCP tools (mcp_opendaw_* prefix; 482 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.316.0** — 13 agent skills (adaptive-mix-mastering, suno-to-opendaw, dsp-script-authoring, opendaw-automation, opendaw-track-architecture, opendaw-sound-design, opendaw-effect-routing, opendaw-genres, opendaw-composition-patterns, opendaw-dsp-chains, lyrics-pipeline). 111 DSP scripts (92 Werkstatt + 9 Apparat + 10 Spielwerk). 4670 unit tests. Suno integration pipeline: download_audio → remix_track → render_full.
+511 MCP tools (mcp_opendaw_* prefix; 482 total async defs including start/stop/evaluate). Full DAW control via Playwright headless Chromium → openDAW Vite dev server. Published at https://github.com/AMEOBIUS/opendaw-mcp (Apache-2.0, CI green). MCP Registry: io.github.AMEOBIUS/opendaw-mcp. **v1.338.0** — 13 agent skills (adaptive-mix-mastering, suno-to-opendaw, dsp-script-authoring, opendaw-automation, opendaw-track-architecture, opendaw-sound-design, opendaw-effect-routing, opendaw-genres, opendaw-composition-patterns, opendaw-dsp-chains, lyrics-pipeline). 123 DSP scripts (103 Werkstatt + 9 Apparat + 10 Spielwerk). 5500 unit tests. Suno integration pipeline: download_audio → remix_track → render_full.
 
 ## References (read these before working on opendaw-mcp)
 
@@ -21,7 +21,7 @@ tags: [opendaw, audio, daw, headless, mcp, playwright]
 ## Key facts
 
 ### Project layout
-- MCP server: `opendaw-mcp/server.py` (~33000 lines, 385 tools)
+- MCP server: `opendaw-mcp/server.py` (~46200 lines, 511 tools)
 - Headless host: `headless-daw/` (Vite on port 5174, COOP/COEP → crossOriginIsolated)
 - openDAW upstream: `openDAW/` (git remote: upstream → andremichelle/openDAW)
 - Tests: `tests/test_utils.py` (3050 unit), `tests/test_integration.py` (E2E, auto-skip if DAW not running)
