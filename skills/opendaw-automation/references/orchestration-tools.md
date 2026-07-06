@@ -231,6 +231,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 218. `create_samba_pattern` — Brazilian samba percussion ensemble: 5 instruments (surdo/caixa/tamborim/chocalho/repique), 4 styles (batucada/samba_enredo/pagode/samba_funk), multi-instrument layered groove
 219. `create_djembe_ensemble` — West African djembe/dunun ensemble: 6 instruments (kenkeni/sangban/dundunba/bell/djembe2/djembe1), 4 rhythms (danza/kuku/djole/doundounba), cyclical ostinato + call-response
 220. `create_arabic_percussion` — Arabic/Middle Eastern percussion: 3 instruments (darbuka/daf/zills), 6 rhythms (maqsum/baladi/saidi/ayoub/malfouf/chiftetelli), dum/tek/ka stroke-to-pitch offset
+221. `create_flamenco_compas` — Flamenco compás: 4 instruments (palmas secas/sordas/cajón/golpe), 6 palos (bulerias/solea/alegrias/siguiriyas/tangos/rumba), 12-beat cyclical with accents on 3/6/8/10/12
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

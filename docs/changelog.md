@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.296.0 (2026-07-06)
+
+- **`create_flamenco_compas`** — Flamenco compás: the 12-beat cyclical rhythmic foundation of Flamenco. 6 palos: bulerias (fast festive, accents 12/3/6/8/10), solea (slow solemn, mother of Flamenco), alegrias (joyful from Cádiz), seguiriyas (tragic, asymmetric 3+2+3+2+2 grouping), tangos (simple 4/4), rumba (syncopated 4/4, Gypsy Kings). 4 instruments: palmas secas (sharp claps on accents), palmas sordas (muffled claps on non-accents), cajón (box drum on bass beats), golpe (table tap at cycle end). Andalusian / Spanish tradition.
+
 ## v1.295.0 (2026-07-06)
 
 - **`create_arabic_percussion`** — Arabic/Middle Eastern percussion ensemble: darbuka (dum/tek/ka strokes), daf (frame drum), zills (finger cymbals). 6 rhythms: maqsum (the mother rhythm), baladi (urban Egyptian double-dum), saidi (Upper Egyptian), ayoub (Sufi trance 2/4), malfouf (fast running 2/4), chiftetelli (slow 8/4 belly dance). Dum = low center stroke, tek = high rim, ka = left-hand rim. Stroke-to-pitch offset: dum lowers, tek/ka raise pitch. Arabic, Turkish, Persian traditions.

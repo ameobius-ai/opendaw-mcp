@@ -40022,6 +40022,185 @@ async def mcp_opendaw_create_arabic_percussion(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_flamenco_compas(
+    palo: str = "bulerias",
+    cycles: int = 4,
+    velocity: float = 0.75,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    palmas_secas_pitch: int = 39,
+    palmas_sordas_pitch: int = 42,
+    cajon_pitch: int = 36,
+    golpe_pitch: int = 50,
+) -> str:
+    """Create a Flamenco compás — the cyclical rhythmic foundation of Flamenco.
+
+    Flamenco compás is the rhythmic cycle that defines each palo (form). Unlike
+    Western meter (uniform bars), Flamenco uses a 12-beat cycle with accents on
+    specific beats (typically 3, 6, 8, 10, 12). The accents create the
+    characteristic Flamenco feel — a tension between the expected downbeat and
+    where the accents actually fall.
+
+    The compás is marked by three layers:
+    1. PALMAS SECAS — Sharp, dry handclaps on accented beats. The "skeleton" of
+       the compás. Loud, precise.
+    2. PALMAS SORDAS — Muffled handclaps on unaccented beats. The "flesh" — fills
+       the gaps between secas. Softer, cupped hands.
+    3. CAJÓN — Peruvian box drum adapted to Flamenco. Plays the bass pulse,
+       usually on beats 1 and the main accents. Resonant, deep.
+    4. GOLPE — Table tap / footwork accent. Sharp percussive hits for dramatic
+       moments, often at the end of a compás cycle.
+
+    palos (forms):
+      "bulerias"   — 12 beats, accents on 12, 3, 6, 8, 10. Fast, festive.
+                      The most modern and popular palo. Starts on 12.
+      "solea"      — 12 beats, accents on 3, 6, 8, 10, 12. Slow, solemn.
+                      The "mother of Flamenco". Deep, expressive.
+      "alegrias"   — 12 beats, accents on 3, 6, 12 (lighter), 8, 10. Joyful.
+                      From Cádiz. Mid-fast tempo.
+      "siguiriyas" — 12 beats, accents on 3, 6, 8, 11 (asymmetric grouping
+                      3+2+3+2+2). Slow, tragic. The most jondo (deep) palo.
+      "tangos"     — 4 beats, accents on 1, 3. Simple 4/4 feel, the most
+                      accessible palo. Rhythmic, earthy.
+      "rumba"      — 4 beats, accents on 1, 2.5, 3 (syncopated). The most
+                      accessible Flamenco-pop form. Gypsy Kings style.
+
+    Args:
+        palo: Flamenco form (bulerias, solea, alegrias, seguiriyas, tangos, rumba).
+        cycles: Number of compás cycles (1-16).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        palmas_secas_pitch: Palmas secas (sharp clap) MIDI pitch (39 = D#1).
+        palmas_sordas_pitch: Palmas sordas (muffled clap) MIDI pitch (42 = F#1).
+        cajon_pitch: Cajón (box drum) MIDI pitch (36 = C1).
+        golpe_pitch: Golpe (tap) MIDI pitch (50 = D2).
+
+    Returns notes created, instrument breakdown, accent positions, and palo info.
+    """
+    if not (1 <= cycles <= 16):
+        return f"Error: cycles must be 1-16, got {cycles}"
+    if palo not in ("bulerias", "solea", "alegrias", "siguiriyas", "tangos", "rumba"):
+        return f"Error: palo must be one of bulerias, solea, alegrias, seguiriyas, tangos, rumba, got {palo}"
+
+    PALOS = {
+        "bulerias": {
+            "cycle_beats": 12,
+            "accents": [12, 3, 6, 8, 10],  # 1-indexed: beats 3, 6, 9, 11 + cycle end
+            "cajon_beats": [12, 6],
+        },
+        "solea": {
+            "cycle_beats": 12,
+            "accents": [3, 6, 8, 10, 12],
+            "cajon_beats": [3, 8],
+        },
+        "alegrias": {
+            "cycle_beats": 12,
+            "accents": [3, 6, 12, 8, 10],
+            "cajon_beats": [3, 6],
+        },
+        "siguiriyas": {
+            "cycle_beats": 12,
+            "accents": [3, 6, 8, 11],
+            "cajon_beats": [3, 8],
+        },
+        "tangos": {
+            "cycle_beats": 4,
+            "accents": [1, 3],
+            "cajon_beats": [1, 3],
+        },
+        "rumba": {
+            "cycle_beats": 4,
+            "accents": [1, 2.5, 3],
+            "cajon_beats": [1, 3],
+        },
+    }
+
+    pitch_map = {
+        "palmas_secas": palmas_secas_pitch,
+        "palmas_sordas": palmas_sordas_pitch,
+        "cajon": cajon_pitch,
+        "golpe": golpe_pitch,
+    }
+
+    palo_data = PALOS[palo]
+    cycle_beats = palo_data["cycle_beats"]
+    accents = set(palo_data["accents"])
+    cajon_beats = set(palo_data["cajon_beats"])
+
+    all_notes = []
+    inst_counts = {"palmas_secas": 0, "palmas_sordas": 0, "cajon": 0, "golpe": 0}
+
+    for cycle in range(cycles):
+        cycle_start = cycle * cycle_beats
+
+        for beat_1indexed in range(1, cycle_beats + 1):
+            beat_pos = beat_1indexed - 1  # 0-indexed position
+            pos = round(start_beat + cycle_start + beat_pos, 4)
+
+            # Cajón on designated beats
+            if beat_1indexed in cajon_beats:
+                all_notes.append({
+                    "pitch": pitch_map["cajon"],
+                    "start": pos,
+                    "duration": 0.3,
+                    "velocity": round(max(0.0, min(1.0, velocity * 0.9)), 3),
+                })
+                inst_counts["cajon"] += 1
+
+            # Palmas secas on accented beats
+            if beat_1indexed in accents:
+                all_notes.append({
+                    "pitch": pitch_map["palmas_secas"],
+                    "start": pos,
+                    "duration": 0.08,
+                    "velocity": round(max(0.0, min(1.0, velocity * 1.0)), 3),
+                })
+                inst_counts["palmas_secas"] += 1
+            else:
+                # Palmas sordas on unaccented beats
+                all_notes.append({
+                    "pitch": pitch_map["palmas_sordas"],
+                    "start": pos,
+                    "duration": 0.06,
+                    "velocity": round(max(0.0, min(1.0, velocity * 0.45)), 3),
+                })
+                inst_counts["palmas_sordas"] += 1
+
+        # Golpe at end of each cycle (last beat)
+        golpe_pos = round(start_beat + cycle_start + cycle_beats - 1, 4)
+        all_notes.append({
+            "pitch": pitch_map["golpe"],
+            "start": golpe_pos,
+            "duration": 0.1,
+            "velocity": round(max(0.0, min(1.0, velocity * 0.85)), 3),
+        })
+        inst_counts["golpe"] += 1
+
+    # Sort by start time
+    all_notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["flamenco_compas"] = True
+        data["palo"] = palo
+        data["cycles"] = cycles
+        data["cycle_beats"] = cycle_beats
+        data["accents"] = palo_data["accents"]
+        data["instruments"] = list(pitch_map.keys())
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,

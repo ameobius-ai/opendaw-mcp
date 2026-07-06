@@ -141,6 +141,7 @@ What do you want to create?
 ├── Samba → create_samba_pattern (Brazilian bateria ensemble, 5 instruments: surdo/caixa/tamborim/chocalho/repique, 4 styles: batucada/samba_enredo/pagode/samba_funk)
 ├── Djembe Ensemble → create_djembe_ensemble (West African, 6 instruments: kenkeni/sangban/dundunba/bell/djembe2/djembe1, 4 rhythms: danza/kuku/djole/doundounba, cyclical ostinato + call-response)
 ├── Arabic Percussion → create_arabic_percussion (Middle Eastern, 3 instruments: darbuka/daf/zills, 6 rhythms: maqsum/baladi/saidi/ayoub/malfouf/chiftetelli, dum/tek/ka strokes)
+├── Flamenco Compás → create_flamenco_compas (Andalusian, 4 instruments: palmas secas/sordas/cajón/golpe, 6 palos: bulerias/solea/alegrias/siguiriyas/tangos/rumba, 12-beat cyclical)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
