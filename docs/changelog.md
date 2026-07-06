@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.315.0 (2026-07-06)
+
+- **`create_call_and_response`** — Two phrases in musical dialogue: leader (call) followed by response. 5 response types: echo (exact repeat), transpose (interval shift), variation (rhythmic variation), complementary (contrasting phrase using inversion-like degrees), fill (short approach+target). 14 scales. Adjustable gap, pairs, response_interval. Root of blues, gospel, African music, jazz, work songs, hip-hop. Call on track_index, response on track_index+1. 23 unit tests. 490 MCP tools.
+
 ## v1.314.0 (2026-07-06)
 
 - **`create_comparsa`** — Cuban comparsa: carnival procession percussion. 7 instruments (conga low 54/high 63/open 64, claves 75, cowbell 56, maracas 70, guiro 73). 5 styles: habanera (classic 3-2 clave, cowbell 8ths), santiago (2-3 rumba-influenced, guiro scrapes), matanzas (rumba columbia, sparse, no claves, quinto improvisation), conga_line (marching, bass every beat), comparsa_moderna (16th maracas, salsa-influenced). Ancestor of salsa. 15th world rhythm tradition. Cuba. 25 unit tests. 489 MCP tools.

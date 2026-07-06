@@ -30088,6 +30088,237 @@ async def mcp_opendaw_create_comparsa(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_call_and_response(
+    call_pattern: str = "0 2 4 7 4 2",
+    call_rhythm: str = "0.5 0.5 0.5 1.0 0.5 0.5",
+    response_type: str = "echo",
+    key_root: str = "C",
+    scale_name: str = "major",
+    pairs: int = 4,
+    response_interval: int = 5,
+    velocity: float = 0.7,
+    gap_beats: float = 1.0,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create call-and-response — two phrases in musical dialogue.
+
+    Call-and-response is the most fundamental musical conversation:
+    a leader phrase (call) followed by a response phrase. Root of
+    blues, gospel, African music, jazz, work songs, and hip-hop.
+
+    Response types:
+      - echo: exact repeat of the call (African tradition, gospel)
+      - transpose: repeat transposed by response_interval semitones
+        (blues, jazz — response at IV or V)
+      - variation: same pitches, varied rhythm (jazz, bebop)
+      - complementary: contrasting phrase using scale degrees
+        (gospel, soul — response "answers" the call)
+      - fill: shorter response — last note only, or 2-note fill
+        (blues turnaround, funk fills)
+
+    Call pattern: space-separated scale degrees (0=root, 2=2nd, etc.).
+    Call rhythm: space-separated durations in beats.
+    Response interval: for transpose type, semitones to shift
+        (5 = perfect 4th up, 7 = perfect 5th up, -5 = 4th down).
+    Pairs: number of call-response pairs.
+    Gap beats: silence between call and response.
+
+    Creates call on track_index, response on track_index+1.
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALE_INTERVALS = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],
+        "lydian": [0, 2, 4, 6, 7, 9, 11],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "aeolian": [0, 2, 3, 5, 7, 8, 10],
+        "locrian": [0, 1, 3, 5, 6, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+        "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+        "blues": [0, 3, 5, 6, 7, 10],
+        "whole_tone": [0, 2, 4, 6, 8, 10],
+    }
+
+    valid_responses = ["echo", "transpose", "variation", "complementary", "fill"]
+    if response_type not in valid_responses:
+        return json.dumps({"error": f"Invalid response_type '{response_type}'. Valid: {valid_responses}"})
+    if scale_name not in SCALE_INTERVALS:
+        return json.dumps({"error": f"Invalid scale '{scale_name}'. Valid: {list(SCALE_INTERVALS.keys())}"})
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    scale = SCALE_INTERVALS[scale_name]
+    root_pitch = (3 + 1) * 12 + root_pc  # octave 3
+
+    def degree_to_pitch(degree):
+        n_intervals = len(scale)
+        octave = degree // n_intervals
+        index = degree % n_intervals
+        if index < 0:
+            index += n_intervals
+            octave -= 1
+        return octave * 12 + scale[index]
+
+    degrees = [int(d) for d in call_pattern.split()]
+    durations = [float(d) for d in call_rhythm.split()]
+    if len(durations) < len(degrees):
+        durations.extend([0.5] * (len(degrees) - len(durations)))
+    n_call_notes = len(degrees)
+    call_duration = sum(durations[:n_call_notes])
+
+    import random as _rng
+    rng = _rng.Random(42)
+
+    all_call_notes = []
+    all_response_notes = []
+
+    for p in range(pairs):
+        pair_start = start_beat + p * (call_duration + gap_beats + call_duration + gap_beats)
+
+        # --- Call phrase ---
+        beat = pair_start
+        for i in range(n_call_notes):
+            pitch = root_pitch + degree_to_pitch(degrees[i])
+            dur = durations[i] if i < len(durations) else 0.5
+            all_call_notes.append({
+                "pitch": pitch,
+                "start": round(beat, 4),
+                "duration": round(dur * 0.95, 4),
+                "velocity": round(velocity, 3),
+            })
+            beat += dur
+
+        # --- Response phrase ---
+        response_start = pair_start + call_duration + gap_beats
+
+        if response_type == "echo":
+            # Exact repeat
+            beat = response_start
+            for i in range(n_call_notes):
+                pitch = root_pitch + degree_to_pitch(degrees[i])
+                dur = durations[i] if i < len(durations) else 0.5
+                all_response_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat, 4),
+                    "duration": round(dur * 0.95, 4),
+                    "velocity": round(velocity * 0.9, 3),  # slightly quieter
+                })
+                beat += dur
+
+        elif response_type == "transpose":
+            # Repeat transposed
+            beat = response_start
+            for i in range(n_call_notes):
+                pitch = root_pitch + degree_to_pitch(degrees[i]) + response_interval
+                dur = durations[i] if i < len(durations) else 0.5
+                all_response_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat, 4),
+                    "duration": round(dur * 0.95, 4),
+                    "velocity": round(velocity * 0.9, 3),
+                })
+                beat += dur
+
+        elif response_type == "variation":
+            # Same pitches, varied rhythm
+            beat = response_start
+            for i in range(n_call_notes):
+                pitch = root_pitch + degree_to_pitch(degrees[i])
+                dur = durations[i] if i < len(durations) else 0.5
+                # Vary rhythm: add syncopation
+                offset = 0.0
+                if rng.random() < 0.4:
+                    offset = rng.choice([0.25, -0.125, 0.125])
+                var_dur = dur * rng.choice([0.5, 0.75, 1.0, 1.25])
+                all_response_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat + offset, 4),
+                    "duration": round(var_dur * 0.9, 4),
+                    "velocity": round(velocity * rng.uniform(0.7, 1.0), 3),
+                })
+                beat += dur  # keep original spacing
+
+        elif response_type == "complementary":
+            # Contrasting phrase using different scale degrees
+            beat = response_start
+            # Use complementary degrees: inversion-like (7-deg)
+            comp_degrees = [(-d + 7) % (len(scale) * 2) - len(scale) for d in degrees]
+            for i in range(n_call_notes):
+                deg = comp_degrees[i] if i < len(comp_degrees) else 0
+                pitch = root_pitch + degree_to_pitch(deg)
+                dur = durations[i] if i < len(durations) else 0.5
+                all_response_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat, 4),
+                    "duration": round(dur * 0.95, 4),
+                    "velocity": round(velocity * 0.85, 3),
+                })
+                beat += dur
+
+        else:  # fill
+            # Shorter response: last note + approach note
+            beat = response_start
+            # Approach note: one scale degree below last
+            last_deg = degrees[-1]
+            approach_deg = last_deg - 1
+            all_response_notes.append({
+                "pitch": root_pitch + degree_to_pitch(approach_deg),
+                "start": round(beat, 4),
+                "duration": 0.25,
+                "velocity": round(velocity * 0.6, 3),
+            })
+            # Target note (last call note)
+            all_response_notes.append({
+                "pitch": root_pitch + degree_to_pitch(last_deg),
+                "start": round(beat + 0.25, 4),
+                "duration": 1.0,
+                "velocity": round(velocity * 0.85, 3),
+            })
+
+    # Create notes on two tracks
+    call_json = json.dumps(all_call_notes)
+    call_result = await mcp_opendaw_create_notes_batch(call_json, unit_index, track_index)
+
+    response_json = json.dumps(all_response_notes)
+    response_result = await mcp_opendaw_create_notes_batch(response_json, unit_index, track_index + 1)
+
+    try:
+        data = json.loads(call_result)
+        data["call_and_response"] = True
+        data["response_type"] = response_type
+        data["pairs"] = pairs
+        data["key_root"] = key_root
+        data["scale_name"] = scale_name
+        data["call_pattern"] = call_pattern
+        data["call_rhythm"] = call_rhythm
+        data["gap_beats"] = gap_beats
+        data["response_interval"] = response_interval
+        data["call_notes_created"] = len(all_call_notes)
+        data["response_notes_created"] = len(all_response_notes)
+        data["call_track"] = track_index
+        data["response_track"] = track_index + 1
+        try:
+            data["response_result_status"] = json.loads(response_result).get("success", False) if response_result else False
+        except Exception:
+            data["response_result_status"] = False
+        return json.dumps(data, indent=2)
+    except Exception:
+        return call_result
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""

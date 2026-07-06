@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 176 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.314.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 176 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.315.0"
 ---
 
 # openDAW Composition Patterns
@@ -44,6 +44,7 @@ What do you want to create?
 ├── Chaconne (bass + chords + variations) → create_chaconne (repeating bass AND chord progression + variation melody, 5 styles: baroque/romantic/jazz/minimalist/contemporary)
 ├── Soli (ensemble unison) → create_soli (all voices same melody in rhythmic unison, 2-5 voices, octave doublings, 14 scales, jazz big band/orchestral tutti/rock riffs)
 ├── Rondo (ABACA form) → create_rondo (recurring theme + contrasting episodes, 5 forms: simple ABA / classical ABACA / seven_part ABACABA / pop_rock ABABCB / jazz ABAC, Mozart/Beethoven/pop/jazz)
+├── Call-and-response → create_call_and_response (leader phrase + response, 5 types: echo/transpose/variation/complementary/fill, blues/gospel/African/jazz/hip-hop)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 ├── Groove transfer (feel cloning) → groove_transfer (source drum groove → destination programmed track, timing + velocity feel)
