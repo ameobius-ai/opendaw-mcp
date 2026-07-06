@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.302.0 (2026-07-06)
+
+- **`analyze_spectrum`** — Spectral analysis across 7 ISO frequency bands (sub_bass/bass/low_mids/mids/high_mids/presence/brilliance). Per band: RMS, peak dB, energy %. Global: spectral centroid (brightness), spectral spread (variance), spectral rolloff (95%), low/high ratio (tonal balance), spectral crest (tonal vs noisy). Auto mix suggestions (bass-heavy, dark, bright, muddy, harsh). Pure Python STFT, 8192-point Hann window.
+
 ## v1.301.0 (2026-07-06)
 
 - **`create_second_line`** — New Orleans second line percussion: street parade groove, the root of funk/R&B. 5 instruments: bass drum (syncopated "street beat"), snare (backbeat + ghost notes), hi-hat (Charleston or 8ths), tom (fills), cymbal (phrase accents). 5 styles: traditional (parade, Charleston hi-hat), brass_band (modern, 8th-note hats + tom rolls), mardi_gras_indian (tribal, call-and-response tom/snare), jazz_funeral (dirge→celebration dynamic shift), bounce (NOLA hip-hop, double-time "Triggerman" bass + 16th hats). North American tradition.

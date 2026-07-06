@@ -43,6 +43,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _detect_key,
     _transcribe_drums,
     _transcribe_melody,
+    _analyze_spectrum,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -7062,6 +7063,91 @@ async def mcp_opendaw_analyze_track(filename: str) -> str:
         })
     except Exception as e:
         return _err(f"Track analysis error: {e}")
+
+@mcp.tool()
+async def mcp_opendaw_analyze_spectrum(filename: str) -> str:
+    """Spectral analysis of audio across 7 ISO frequency bands.
+
+    Divides the spectrum into standard bands:
+    - sub_bass (20-60 Hz), bass (60-250 Hz), low_mids (250-500 Hz),
+      mids (500-2000 Hz), high_mids (2000-4000 Hz), presence (4000-6000 Hz),
+      brilliance (6000-20000 Hz)
+
+    Per band: RMS (linear + dB), peak (dB), energy percentage.
+    Global descriptors:
+    - spectral_centroid_hz: brightness (weighted mean frequency)
+    - spectral_spread_hz: frequency variance around centroid
+    - spectral_rolloff_95_hz: frequency below which 95% of energy lies
+    - low_high_ratio: energy <250 Hz / energy >250 Hz (tonal balance)
+    - spectral_crest: peak/mean power ratio (tonal vs noisy)
+
+    Use after analyze_track for mix decisions:
+    - High low_high_ratio → bass-heavy mix, may need EQ cut in low mids
+    - Low spectral_centroid → dark/muffled, consider high shelf boost
+    - High spectral_centroid → bright/harsh, consider high shelf cut
+    - Dominant band energy_pct → where the mix lives
+
+    Args:
+        filename: Name of the WAV file in the exports directory (without path),
+                  or absolute path to any WAV file.
+
+    Returns band-by-band analysis + global spectral descriptors + mix suggestions.
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        result = _analyze_spectrum(wav["channels"], wav["sample_rate"])
+
+        # Generate mix suggestions based on spectral analysis
+        suggestions = []
+        bands = result.get("bands", [])
+        if bands:
+            # Find dominant band
+            dominant = max(bands, key=lambda b: b.get("energy_pct", 0))
+            suggestions.append(f"Dominant energy in {dominant['name']} band ({dominant['energy_pct']}%)")
+
+            # Low/high ratio
+            lh_ratio = result.get("low_high_ratio", 0)
+            if lh_ratio > 3.0:
+                suggestions.append("Bass-heavy mix — consider reducing sub_bass/bass or boosting high mids")
+            elif lh_ratio < 0.3:
+                suggestions.append("Thin/bright mix — consider boosting bass or reducing high mids")
+
+            # Spectral centroid
+            centroid = result.get("spectral_centroid_hz", 0)
+            if centroid > 0:
+                if centroid < 1500:
+                    suggestions.append(f"Dark mix (centroid {centroid:.0f} Hz) — consider high shelf boost above 5kHz")
+                elif centroid > 5000:
+                    suggestions.append(f"Bright mix (centroid {centroid:.0f} Hz) — consider high shelf cut above 5kHz")
+
+            # Check for muddy low-mids
+            low_mids_pct = next((b["energy_pct"] for b in bands if b["name"] == "low_mids"), 0)
+            if low_mids_pct > 25:
+                suggestions.append("High low-mids energy — potential muddiness, consider cut around 300-400 Hz")
+
+            # Check for harsh presence
+            presence_pct = next((b["energy_pct"] for b in bands if b["name"] == "presence"), 0)
+            if presence_pct > 20:
+                suggestions.append("High presence energy — potential harshness, consider cut around 3-5 kHz")
+
+        result["mix_suggestions"] = suggestions
+        result["success"] = True
+        result["file"] = filepath
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return _err(f"Spectrum analysis error: {e}")
 
 @mcp.tool()
 async def mcp_opendaw_transcribe_drums(

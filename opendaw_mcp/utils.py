@@ -832,3 +832,184 @@ def _transcribe_melody(channels: list, sample_rate: int, bpm: float = None,
         "frame_size": frame_size,
         "hop_size": hop_size,
     }
+
+
+def _analyze_spectrum(channels: list, sample_rate: int, n_bands: int = 7) -> dict:
+    """Spectral analysis of audio across frequency bands.
+
+    Pure Python (no numpy):
+    1. Mix to mono
+    2. STFT (8192-point, Hann window, 50% overlap)
+    3. Average power spectrum across all frames
+    4. Divide into standard frequency bands:
+       - sub_bass:  20-60 Hz
+       - bass:      60-250 Hz
+       - low_mids:  250-500 Hz
+       - mids:      500-2000 Hz
+       - high_mids: 2000-4000 Hz
+       - presence:  4000-6000 Hz
+       - brilliance:6000-20000 Hz
+    5. Per band: RMS (linear), peak (dB), energy percentage
+    6. Global: spectral centroid (brightness), spectral rolloff (95%),
+       spectral spread (variance), low/high balance ratio
+
+    Returns dict with band analysis and global spectral descriptors.
+    """
+    import math as _m
+
+    if not channels or not channels[0]:
+        return _empty_spectrum()
+
+    n_frames = len(channels[0])
+    n_ch = len(channels)
+
+    # 1. Mix to mono
+    mono = [sum(channels[c][i] for c in range(n_ch)) / n_ch for i in range(n_frames)]
+
+    # 2. STFT parameters
+    fft_size = 8192
+    hop_size = fft_size // 2  # 50% overlap
+    if n_frames < fft_size:
+        fft_size = 1
+        while fft_size < n_frames:
+            fft_size <<= 1
+        fft_size = max(256, fft_size)
+        hop_size = fft_size
+    if fft_size < 256:
+        return _empty_spectrum()
+
+    # Hann window
+    hann = [0.5 - 0.5 * _m.cos(2.0 * _m.pi * i / (fft_size - 1)) for i in range(fft_size)]
+
+    # 3. Accumulate power spectrum
+    half = fft_size // 2
+    accum_power = [0.0] * half
+    n_frames_processed = 0
+    pos = 0
+    while pos + fft_size <= n_frames:
+        frame = [mono[pos + i] * hann[i] for i in range(fft_size)]
+        re = list(frame)
+        im = [0.0] * fft_size
+        _fft_radix2(re, im)
+        for k in range(1, half):
+            mag = _m.sqrt(re[k] * re[k] + im[k] * im[k])
+            accum_power[k] += mag * mag  # power
+        n_frames_processed += 1
+        pos += hop_size
+
+    if n_frames_processed == 0:
+        return _empty_spectrum()
+
+    # Average power spectrum
+    avg_power = [p / n_frames_processed for p in accum_power]
+
+    # 4. Frequency bands (ISO standard crossover frequencies)
+    bands = [
+        ("sub_bass", 20.0, 60.0),
+        ("bass", 60.0, 250.0),
+        ("low_mids", 250.0, 500.0),
+        ("mids", 500.0, 2000.0),
+        ("high_mids", 2000.0, 4000.0),
+        ("presence", 4000.0, 6000.0),
+        ("brilliance", 6000.0, 20000.0),
+    ]
+
+    bin_freq = sample_rate / fft_size  # Hz per bin
+
+    band_results = []
+    total_energy = 0.0
+
+    for name, f_lo, f_hi in bands:
+        bin_lo = max(1, int(f_lo / bin_freq))
+        bin_hi = min(half - 1, int(f_hi / bin_freq))
+        if bin_lo >= bin_hi:
+            band_results.append({
+                "name": name, "freq_lo": f_lo, "freq_hi": f_hi,
+                "rms": 0.0, "peak_db": -120.0, "energy_pct": 0.0,
+            })
+            continue
+        band_power = sum(avg_power[k] for k in range(bin_lo, bin_hi + 1))
+        band_rms = _m.sqrt(band_power / (bin_hi - bin_lo + 1))
+        band_peak = max(avg_power[k] for k in range(bin_lo, bin_hi + 1))
+        band_peak_db = 10 * _m.log10(band_peak) if band_peak > 0 else -120.0
+        band_rms_db = 10 * _m.log10(band_rms) if band_rms > 0 else -120.0
+        total_energy += band_power
+        band_results.append({
+            "name": name, "freq_lo": f_lo, "freq_hi": f_hi,
+            "rms": round(band_rms, 6), "rms_db": round(band_rms_db, 1),
+            "peak_db": round(band_peak_db, 1), "energy": round(band_power, 6),
+        })
+
+    # Energy percentages
+    if total_energy > 0:
+        for br in band_results:
+            br["energy_pct"] = round(100.0 * br.get("energy", 0.0) / total_energy, 1)
+
+    # 5. Global spectral descriptors
+    # Spectral centroid: weighted mean frequency
+    freqs = [k * bin_freq for k in range(1, half)]
+    powers = avg_power[1:half]
+    total_p = sum(powers)
+    if total_p > 0:
+        centroid = sum(f * p for f, p in zip(freqs, powers)) / total_p
+        # Spectral spread (variance around centroid)
+        spread = _m.sqrt(sum(p * (f - centroid) ** 2 for f, p in zip(freqs, powers)) / total_p)
+        # Spectral rolloff (95th percentile)
+        cumulative = 0.0
+        rolloff_freq = 0.0
+        for f, p in zip(freqs, powers):
+            cumulative += p
+            if cumulative >= 0.95 * total_p:
+                rolloff_freq = f
+                break
+    else:
+        centroid = 0.0
+        spread = 0.0
+        rolloff_freq = 0.0
+
+    # Low/high balance: ratio of energy below 250 Hz to above 250 Hz
+    low_energy = sum(br.get("energy", 0.0) for br in band_results[:2])  # sub_bass + bass
+    high_energy = sum(br.get("energy", 0.0) for br in band_results[2:])  # everything else
+    low_high_ratio = low_energy / high_energy if high_energy > 0 else 0.0
+
+    # Spectral crest factor: peak / mean of spectrum
+    peak_power = max(powers) if powers else 0.0
+    mean_power = total_p / len(powers) if powers else 0.0
+    crest = peak_power / mean_power if mean_power > 0 else 0.0
+
+    return {
+        "bands": band_results,
+        "spectral_centroid_hz": round(centroid, 1),
+        "spectral_spread_hz": round(spread, 1),
+        "spectral_rolloff_95_hz": round(rolloff_freq, 1),
+        "low_high_ratio": round(low_high_ratio, 3),
+        "spectral_crest": round(crest, 2),
+        "fft_size": fft_size,
+        "frames_analyzed": n_frames_processed,
+        "sample_rate": sample_rate,
+    }
+
+
+def _empty_spectrum() -> dict:
+    """Return empty spectrum result for invalid input."""
+    bands = [
+        {"name": n, "freq_lo": lo, "freq_hi": hi, "rms": 0.0, "rms_db": -120.0,
+         "peak_db": -120.0, "energy": 0.0, "energy_pct": 0.0}
+        for n, lo, hi in [
+            ("sub_bass", 20.0, 60.0), ("bass", 60.0, 250.0),
+            ("low_mids", 250.0, 500.0), ("mids", 500.0, 2000.0),
+            ("high_mids", 2000.0, 4000.0), ("presence", 4000.0, 6000.0),
+            ("brilliance", 6000.0, 20000.0),
+        ]
+    ]
+    return {
+        "bands": bands,
+        "spectral_centroid_hz": 0.0,
+        "spectral_spread_hz": 0.0,
+        "spectral_rolloff_95_hz": 0.0,
+        "low_high_ratio": 0.0,
+        "spectral_crest": 0.0,
+        "fft_size": 0,
+        "frames_analyzed": 0,
+        "sample_rate": 0,
+    }
