@@ -205,12 +205,42 @@ For remote deployments and registry introspection (e.g. [Glama](https://glama.ai
 MCP_TRANSPORT=sse FASTMCP_HOST=0.0.0.0 FASTMCP_PORT=8080 python server.py
 ```
 
+### Token Optimization Modes
+
+opendaw-mcp ships 505 MCP tools. For token-sensitive environments, three modes reduce schema payload:
+
+| Mode | Env var | Tools | Savings | When to use |
+|------|---------|-------|---------|-------------|
+| **full** (default) | `OPENDAW_MCP_MODE=full` | 505 | 0% | Full control, no token constraints |
+| **lite** | `OPENDAW_MCP_MODE=lite` | 39 | 92% | Basic track production, minimal context |
+| **phase** | `OPENDAW_MCP_MODE=phase` | 10-55 | 90% | Phase-based: agent calls `switch_phase()` to load relevant tools |
+
+```bash
+# Lite mode — 39 essential tools
+OPENDAW_MCP_MODE=lite python server.py
+
+# Phase mode — agent switches between compose/mix/render/inspect
+OPENDAW_MCP_MODE=phase python server.py
+```
+
+Phase guides: [`docs/phases/compose.md`](docs/phases/compose.md), [`docs/phases/mix.md`](docs/phases/mix.md), [`docs/phases/render.md`](docs/phases/render.md), [`docs/phases/inspect.md`](docs/phases/inspect.md)
+
+### Output Sandbox
+
+Truncate bulky tool responses to prevent context flooding:
+
+```bash
+OPENDAW_MCP_OUTPUT_LIMIT=2000 python server.py  # max 2000 chars per response
+```
+
+Smart JSON truncation: dicts get field truncation with `__truncated` flag, lists get first N items with `total`/`shown` counts.
+
 ### CLI
 
 ```bash
 python server.py --help        # show usage and env vars
 python server.py --version     # print version and tool count
-python server.py --list-tools  # list all 258 registered MCP tools
+python server.py --list-tools  # list all registered MCP tools
 ```
 
 ### Docker

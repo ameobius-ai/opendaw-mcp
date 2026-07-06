@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.385.0 (2026-07-06)
+
+- **Tool exposure audit complete** — All 3 token optimization modes documented in README: full (505 tools), lite (39, 92% savings), phase (10-55, 90% savings). Output sandbox (`OPENDAW_MCP_OUTPUT_LIMIT`) documented. `--help` updated with all env vars and modes. Stale "258 tools" CLI text fixed. 7 refactor kanban tasks completed.
+
 ## v1.384.0 (2026-07-06)
 
 - **Trellis phase-specific guides** — 4 agent guides for phase-based workflow: `docs/phases/compose.md` (tracks, instruments, notes, sections, arrangements, 37 genres, chord progressions, scriptable devices), `docs/phases/mix.md` (effects, sends, buses, mastering, automation, genre chains, MIDI effects), `docs/phases/render.md` (render, export, audio I/O, time/pitch stretch, presets, one-call pipeline), `docs/phases/inspect.md` (project state, metering trio, analysis, verification workflow). Agents load only relevant phase guide.
