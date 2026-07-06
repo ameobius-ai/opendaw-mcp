@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.330.0 (2026-07-06)
+
+- **`create_solo`** — Genre-specific melodic solo generator. 5 styles: bebop (chromatic approach tones, enclosures, bebop scale passing, chord-tone targeting on strong beats), blues (minor pentatonic + blue notes, 12-bar progression, riff repetition + variation), rock (pentatonic positions, repeated riffs, register climaxes), jazz_swing (swung 8ths 0.66/0.34, guide-tone lines, arpeggio patterns), fusion (wide intervals, chromatic passing, rhythmic displacement, modal). 6 scales (major/minor/dorian/mixolydian/blues/pentatonic_minor). Seeded mulberry32 PRNG for reproducibility. 27 unit tests. 503 MCP tools.
+
 ## v1.329.0 (2026-07-06)
 
 - **2 new DSP scripts**: `werkstatt_plate_reverb.js` (EMT 140 / Valhalla Plate style algorithmic plate reverb: 4 allpass diffusers → FDN with damping lowpass + LFO shimmer, stereo cross-feed width, pre-delay, low-cut, diffusion control, 8 params), `werkstatt_ensemble.js` (Roland Juno-60 style ensemble chorus: 3 detuned delay lines at prime-ratio LFO rates 0.5/0.83/1.37Hz, L/C/R panning, depth/rate/voices/detune/width — the signature lush Juno chorus sound). 119 DSP scripts total.

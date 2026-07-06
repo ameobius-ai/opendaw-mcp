@@ -7942,7 +7942,6 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
                     const audioData = await OfflineEngineRenderer.start(copied, Option.None, progress, undefined, {sample_rate});
                     const wav = WavFile.encodeFloats(audioData);
                     const bytes = new Uint8Array(wav);
-                    let binary = "";
                     const chunks = [];
             const chunkSize = 0x8000;
             for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
@@ -9565,7 +9564,6 @@ Returns base64-encoded preset bytes and metadata, or error.
         const buffer = PresetEncoder.encode(srcAU, {{includeTimeline: {str(include_timeline).lower()}}});
         // Convert ArrayBuffer to base64
         const bytes = new Uint8Array(buffer);
-        let binary = '';
         const chunks = [];
             const chunkSize = 0x8000;
             for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
@@ -9722,7 +9720,6 @@ Returns base64 preset bytes, or error.
 
         const buffer = PresetEncoder.encodeEffects(effects, kind);
         const bytes = new Uint8Array(buffer);
-        let binary = '';
         const chunks = [];
             const chunkSize = 0x8000;
             for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
@@ -13040,7 +13037,6 @@ async def mcp_opendaw_capture_realtime(duration_seconds: float, filename: str) -
             if (!WavFile) return {{error: "WavFile not available"}};
             const wav = WavFile.encodeFloats(audioData);
             const bytes = new Uint8Array(wav);
-            let binary = "";
             const chunks = [];
             const chunkSize = 0x8000;
             for (let ci = 0; ci < bytes.length; ci += chunkSize) {{
@@ -57636,3 +57632,295 @@ async def mcp_opendaw_create_future_bass_arrangement(
         "progression": "I-V-vi-IV",
         "scale": "major",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_solo(
+    solo_type: str = "bebop",
+    key_root: str = "C",
+    scale_type: str = "major",
+    bars: int = 8,
+    octave: int = 4,
+    velocity: float = 0.8,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a genre-specific melodic solo over a chord progression.
+
+    Generates a complete solo line using vocabulary appropriate to the
+    chosen style. Unlike generate_melody (contour-guided) or
+    create_random_walk (stepwise), this tool uses genre-specific
+    soloing techniques:
+
+    - **bebop**: Chromatic approach tones, chord-tone targeting on
+      strong beats, enclosure (upper+lower chromatic neighbor),
+      bebop scale passing notes, ii-V-I arpeggio fluency.
+      Charlie Parker, Dizzy Gillespie, Clifford Brown.
+    - **blues**: Minor pentatonic + blue notes (b5, b3 bent),
+      repetition of short motifs with variation, call-response
+      phrasing, string-bending aesthetic via pitch slides.
+      B.B. King, Eric Clapton, Stevie Ray Vaughan.
+    - **rock**: Pentatonic positions, repeated riffs, wide interval
+      jumps, rhythmic syncopation, climax-building through register
+      shifts. Jimmy Page, Hendrix, Gilmour.
+    - **jazz_swing**: Swing 8th notes, guide-tone lines,
+      chord-tone on beat 1+3, arpeggio + approach patterns.
+      Lester Young, Sonny Rollins.
+    - **fusion**: Mixolydian/dorian modes, odd-meter phrasing,
+      wide intervals, chromatic passing, rhythmic displacement.
+      Metheny, Brecker, Holdsworth.
+
+    solo_type: bebop | blues | rock | jazz_swing | fusion
+    key_root: Root note (C, C#, D, ... B)
+    scale_type: major | minor | dorian | mixolydian | blues | pentatonic_minor
+    bars: Solo length (4-32, default 8)
+    octave: MIDI octave for solo (4 = C4=60)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Returns notes created and solo characteristics.
+
+    Example:
+      create_solo(solo_type="bebop", key_root="F", scale_type="major", bars=8)
+      create_solo(solo_type="blues", key_root="A", scale_type="blues", bars=12)
+      create_solo(solo_type="rock", key_root="E", scale_type="pentatonic_minor", bars=16)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "blues": [0, 3, 5, 6, 7, 10],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+    }
+
+    VALID_SOLO_TYPES = ["bebop", "blues", "rock", "jazz_swing", "fusion"]
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type '{scale_type}'. Valid: {list(SCALES.keys())}"})
+    if solo_type not in VALID_SOLO_TYPES:
+        return json.dumps({"error": f"Invalid solo_type '{solo_type}'. Valid: {VALID_SOLO_TYPES}"})
+    if bars < 4 or bars > 32:
+        return json.dumps({"error": "bars must be 4-32"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+
+    # Seeded PRNG (mulberry32)
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+
+    # Chord progression per bar (ii-V-I for bebop/jazz, I-IV-V for blues, etc.)
+    if solo_type in ("bebop", "jazz_swing"):
+        # ii-V-I-VI (turnaround) in major, or i-iv-V7-i in minor
+        prog = [1, 4, 0, 5]  # scale degrees: ii, V, I, vi
+    elif solo_type == "blues":
+        prog = [0, 0, 0, 0, 3, 3, 0, 0, 5, 3, 0, 4]  # 12-bar blues
+    elif solo_type == "rock":
+        prog = [0, 0, 4, 4, 5, 5, 0, 0]  # I-I-IV-IV-V-V-I-I
+    elif solo_type == "fusion":
+        prog = [0, 3, 4, 0, 5, 4, 3, 0]  # modal-ish
+    else:
+        prog = [0] * bars
+
+    def deg_to_pitch(degree, root_note, sc):
+        ns = len(sc)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return root_note + oct_shift * 12 + sc[idx]
+
+    def chromatic_approach(target_pitch, from_below=True):
+        """Chromatic approach tone one semitone below/above target."""
+        return target_pitch - 1 if from_below else target_pitch + 1
+
+    def enclosure(target_pitch):
+        """Bebop enclosure: upper chromatic + lower chromatic + target."""
+        return [target_pitch + 1, target_pitch - 1, target_pitch]
+
+    notes = []
+    bar_beats = 4.0
+
+    for bar in range(bars):
+        bar_start = start_beat + bar * bar_beats
+        chord_degree = prog[bar % len(prog)]
+
+        # Chord tones for this bar
+        chord_tones = [0, 2, 4]  # root, 3rd, 5th relative to chord degree
+        chord_pitches = [deg_to_pitch(chord_degree + ct, base, scale) for ct in chord_tones]
+
+        if solo_type == "bebop":
+            # Bebop: chromatic approaches, enclosures, bebop scale passing
+            # 8th note line with chromatic passing
+            positions = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+            for j, pos in enumerate(positions):
+                if next(rng) < 0.3:
+                    # Rest
+                    continue
+                # Target chord tone on beats 1 and 3
+                if j % 4 == 0:
+                    target = chord_pitches[j // 4 % len(chord_pitches)]
+                    if next(rng) < 0.4:
+                        # Enclosure: 2 chromatic approach notes + target
+                        enc = enclosure(target)
+                        for k, ep in enumerate(enc):
+                            if k < 2 and pos + k * 0.25 < bar_beats:
+                                notes.append({
+                                    "pitch": ep, "start": round(bar_start + pos + k * 0.25, 4),
+                                    "duration": 0.25, "velocity": round(velocity * 0.7, 3),
+                                })
+                            elif k == 2:
+                                notes.append({
+                                    "pitch": ep, "start": round(bar_start + pos + 0.5, 4),
+                                    "duration": 0.5, "velocity": round(velocity * 0.9, 3),
+                                })
+                    else:
+                        notes.append({
+                            "pitch": target, "start": round(bar_start + pos, 4),
+                            "duration": 0.5, "velocity": round(velocity * 0.9, 3),
+                        })
+                else:
+                    # Passing tone or scale tone
+                    sc_deg = int(next(rng) * 7) - 3 + chord_degree
+                    pitch = deg_to_pitch(sc_deg, base, scale)
+                    if next(rng) < 0.3:
+                        # Chromatic passing tone
+                        pitch = chromatic_approach(pitch, from_below=next(rng) < 0.5)
+                    notes.append({
+                        "pitch": pitch, "start": round(bar_start + pos, 4),
+                        "duration": 0.5, "velocity": round(velocity * 0.75, 3),
+                    })
+
+        elif solo_type == "blues":
+            # Blues: pentatonic riffs, blue notes, repetition + variation
+            blues_degrees = [0, 3, 5, 6, 7, 10, 12, 10, 7, 5, 3, 0]  # blue note scale
+            # Short riffs of 3-4 notes, repeated with variation
+            riff_len = 3 + int(next(rng) * 2)
+            riff = [blues_degrees[int(next(rng) * len(blues_degrees))] for _ in range(riff_len)]
+            riff_pos = 0
+            pos = 0.0
+            while pos < bar_beats:
+                deg = riff[riff_pos % len(riff)]
+                dur = 0.5 if next(rng) < 0.7 else 0.25
+                # Blue note bend: occasionally add b5
+                if next(rng) < 0.15:
+                    deg = 6  # blue note
+                vel = velocity * (0.7 + next(rng) * 0.3)
+                notes.append({
+                    "pitch": base + deg, "start": round(bar_start + pos, 4),
+                    "duration": dur, "velocity": round(vel, 3),
+                })
+                pos += dur
+                riff_pos += 1
+                # Occasional pause for phrasing
+                if next(rng) < 0.15:
+                    pos += 0.5
+
+        elif solo_type == "rock":
+            # Rock: pentatonic riffs, repeated, register climaxes
+            rock_degrees = [0, 3, 5, 7, 10, 12, 15, 12, 10, 7, 5, 3]
+            # Build a riff and repeat it
+            riff = [rock_degrees[int(next(rng) * len(rock_degrees))] for _ in range(4)]
+            positions = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+            for j, pos in enumerate(positions):
+                deg = riff[j % len(riff)]
+                # Register shift every 4 bars
+                oct_shift = 12 * (bar // 4) if bar >= 4 and bar % 4 == 0 else 0
+                vel = velocity * (0.7 + 0.3 * (j % 2))  # accent beats 1,3
+                notes.append({
+                    "pitch": base + deg + oct_shift, "start": round(bar_start + pos, 4),
+                    "duration": 0.5, "velocity": round(vel, 3),
+                })
+
+        elif solo_type == "jazz_swing":
+            # Jazz swing: swung 8ths, guide tones, arpeggios
+            # Swing: long-short 8th note pairs (0.66, 0.34)
+            pos = 0.0
+            beat_num = 0
+            while pos < bar_beats - 0.1:
+                dur = 0.66 if beat_num % 2 == 0 else 0.34
+                # Guide tone: 3rd or 7th of chord
+                if beat_num % 4 == 0:
+                    deg = chord_degree + (2 if next(rng) < 0.5 else 4)
+                else:
+                    deg = chord_degree + int(next(rng) * 5) - 2
+                pitch = deg_to_pitch(deg, base, scale)
+                vel = velocity * (0.8 + 0.2 * (1 if beat_num % 2 == 0 else 0.5))
+                notes.append({
+                    "pitch": pitch, "start": round(bar_start + pos, 4),
+                    "duration": round(dur, 4), "velocity": round(vel, 3),
+                })
+                pos += dur
+                beat_num += 1
+
+        elif solo_type == "fusion":
+            # Fusion: wide intervals, chromatic passing, rhythmic displacement
+            positions = [0.0, 0.75, 1.5, 2.25, 2.75, 3.5]  # irregular
+            for j, pos in enumerate(positions):
+                if pos >= bar_beats:
+                    break
+                # Wide interval jump
+                base_deg = chord_degree + int(next(rng) * 7)
+                pitch = deg_to_pitch(base_deg, base, scale)
+                if next(rng) < 0.3:
+                    # Octave jump
+                    pitch += 12
+                if next(rng) < 0.25:
+                    # Chromatic passing
+                    pitch = chromatic_approach(pitch, next(rng) < 0.5)
+                dur = 0.5 if j % 2 == 0 else 0.25
+                vel = velocity * (0.65 + next(rng) * 0.35)
+                notes.append({
+                    "pitch": pitch, "start": round(bar_start + pos, 4),
+                    "duration": dur, "velocity": round(vel, 3),
+                })
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["solo"] = True
+    data["solo_type"] = solo_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["progression"] = prog[:min(len(prog), bars)]
+    data["characteristics"] = {
+        "bebop": "chromatic approach tones, enclosures, bebop scale passing, chord-tone targeting",
+        "blues": "pentatonic riffs, blue notes (b5), repetition + variation, call-response",
+        "rock": "pentatonic positions, repeated riffs, register climaxes, rhythmic syncopation",
+        "jazz_swing": "swung 8ths (0.66/0.34), guide-tone lines, arpeggio patterns",
+        "fusion": "wide intervals, chromatic passing, rhythmic displacement, modal",
+    }.get(solo_type, "")
+
+    return json.dumps(data, indent=2)
