@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.372.0 (2026-07-06)
+
+- **`add_genre_effects` expanded 35→37 genres** — Added jpop and harmonic chains. Now 100% coverage: all 37 arrangement genres have matching effect chains. Zero "Invalid genre" errors possible.
+
 ## v1.371.0 (2026-07-06)
 
 - **`create_jpop_arrangement`** — J-pop arrangement (One Ok Rock/BABYMETAL/YOASOBI/LiSA/Kenshi Yonezu style). Fast energetic 140 BPM, melody-driven lead with wide intervals and fast 16th runs, octave-jumping bassline, double-time hats (32nd notes), IV-V-vi-iv progression with modal mixture (minor iv), syncopated chord stabs + arpeggiated picks. C major, 16 bars, 4 tracks. 23 unit tests. 530 MCP tools. 39 genre arrangements.

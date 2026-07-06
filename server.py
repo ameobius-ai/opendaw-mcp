@@ -62270,6 +62270,18 @@ async def mcp_opendaw_add_genre_effects(
             {"effect": "Reverb", "params": {"decay": 0.2, "mix": 0.1}, "target": "atmos"},
             {"effect": "Maximizer", "params": {"ceiling": 0.90, "release": 0.02, "mix": 0.97}, "target": "output"},
         ],
+        "jpop": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 4, "attack": 0.003, "release": 0.08, "mix": 0.88}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.35, "mix": 0.2}, "target": "lead"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.25, "mix": 0.15}, "target": "lead"},
+            {"effect": "StereoTool", "params": {"width": 1.35, "mix": 0.88}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.94, "release": 0.04, "mix": 0.9}, "target": "output"},
+        ],
+        "harmonic": [
+            {"effect": "Reverb", "params": {"decay": 0.5, "mix": 0.3}, "target": "all"},
+            {"effect": "Compressor", "params": {"threshold": 0.3, "ratio": 2, "attack": 0.005, "release": 0.12, "mix": 0.75}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.96, "release": 0.06, "mix": 0.82}, "target": "output"},
+        ],
     }
 
     if genre not in GENRE_CHAINS:
@@ -62361,10 +62373,11 @@ async def mcp_opendaw_produce_and_master(
     scale_type: major | minor | harmonic_minor
     octave: MIDI octave (4 = C4=60)
     velocity: Base velocity 0-1
-    genre: 35 genres (house/techno/dnb/trap/dubstep/synthwave/ambient/lofi/rock/
-           pop/funk/reggae/jazz/metal/edm/industrial/breakbeat/kpop/hardstyle/
-           garage/acid/psytrance/downtempo/phonk/future_bass/trance/disco/
-           afrobeat/soul/rnb/blues/country/gospel/liquid_dnb/neurofunk)
+    genre: 37 genres (house/techno/dnb/trap/dubstep/synthwave/ambient/lofi/rock/
+           pop/funk/reggae/jazz/metal/edm/industrial/breakbeat/kpop/jpop/
+           hardstyle/garage/acid/psytrance/downtempo/phonk/future_bass/trance/
+           disco/afrobeat/soul/rnb/blues/country/gospel/liquid_dnb/neurofunk/
+           harmonic)
     bpm: Tempo (60-200)
     platform: spotify | apple | youtube | tidal | soundcloud | club
     master_style: balanced | warm | loud | transparent
