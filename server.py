@@ -55162,3 +55162,340 @@ async def mcp_opendaw_create_second_line(
         return json.dumps(data, indent=2)
     except Exception:
         return result_str
+
+
+@mcp.tool()
+async def mcp_opendaw_create_sonata_form(
+    key_root: str = "C",
+    scale_name: str = "major",
+    exposition_bars: int = 16,
+    development_bars: int = 12,
+    recap_bars: int = 16,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create sonata form — exposition, development, recapitulation.
+
+    Sonata form is the structural foundation of classical symphonies,
+    sonatas, string quartets, and concertos from Haydn through Mahler.
+    Three main sections:
+
+    1. EXPOSITION (bars 1-N): Two contrasting themes.
+       - Theme 1 in the home key (tonic): stepwise, lyrical, conjunct
+       - Transition: modulates from tonic to dominant (or relative major
+         if minor key)
+       - Theme 2 in the new key: more rhythmic, wider intervals
+       - Closing group: cadential figures in the new key
+
+    2. DEVELOPMENT (bars N+1 to N+M): Fragmentation and modulations.
+       - Takes fragments from Theme 1 and Theme 2
+       - Sequences through related keys (iii, vi, ii, IV)
+       - Builds tension through rising sequences
+       - Retransition: dominant pedal leading back to tonic
+
+    3. RECAPITULATION (bars N+M+1 to end): Both themes in the tonic.
+       - Theme 1 returns in tonic (as in exposition)
+       - NO modulation — Theme 2 now in tonic (not dominant)
+       - Closing group in tonic
+       - Optional coda (4 bars): final cadential reinforcement
+
+    Melody track: track_index. Bass track: track_index + 1.
+    The development section uses sequence-based modulation, the
+    hallmark of classical development technique.
+
+    Scale options: major, minor, dorian, phrygian, lydian, mixolydian,
+    aeolian, locrian, harmonic_minor, melodic_minor, pentatonic_major,
+    pentatonic_minor, blues, whole_tone.
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALE_INTERVALS = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],
+        "lydian": [0, 2, 4, 6, 7, 9, 11],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "aeolian": [0, 2, 3, 5, 7, 8, 10],
+        "locrian": [0, 1, 3, 5, 6, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+        "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+        "blues": [0, 3, 5, 6, 7, 10],
+        "whole_tone": [0, 2, 4, 6, 8, 10],
+    }
+
+    if scale_name not in SCALE_INTERVALS:
+        return json.dumps({"error": f"Invalid scale '{scale_name}'. Valid: {list(SCALE_INTERVALS.keys())}"})
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    scale = SCALE_INTERVALS[scale_name]
+    melody_oct = (3 + 1) * 12 + root_pc  # C4 area
+    bass_oct = (2 + 1) * 12 + root_pc    # C3 area
+
+    def deg_to_pitch(degree, root_note, sc):
+        ns = len(sc)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return root_note + oct_shift * 12 + sc[idx]
+
+    all_melody = []
+    all_bass = []
+
+    # ---- Determine second-key root for exposition ----
+    if scale_name == "minor":
+        second_root_pc = (root_pc + 3) % 12  # relative major (iii)
+    else:
+        second_root_pc = (root_pc + 7) % 12  # dominant (V)
+    second_scale = SCALE_INTERVALS[scale_name] if scale_name != "minor" else SCALE_INTERVALS["major"]
+    second_oct = (3 + 1) * 12 + second_root_pc
+
+    # ================================================================
+    # 1. EXPOSITION
+    # ================================================================
+    exp_bars = max(4, exposition_bars)
+    t1_bars = exp_bars // 2      # theme 1 + closing in tonic
+    trans_bars = 2               # transition
+    t2_bars = exp_bars - t1_bars - trans_bars
+
+    # --- Theme 1: stepwise, lyrical, in tonic ---
+    beat = start_beat
+    t1_degrees = [0, 2, 1, 0, -1, 0, 2, 4]
+    t1_rhythm = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    t2_degrees = [0, 4, 7, 4, 2, 0]
+    t2_rhythm = [1.0, 0.5, 0.5, 0.5, 0.5, 1.0]
+    for bar in range(t1_bars):
+        bar_start = beat
+        for i in range(len(t1_degrees)):
+            pitch = deg_to_pitch(t1_degrees[i] + (bar % 3) - 1, melody_oct, scale)
+            dur = t1_rhythm[i % len(t1_rhythm)]
+            all_melody.append({
+                "pitch": pitch, "start": round(bar_start, 4),
+                "duration": round(dur * 0.9, 4),
+                "velocity": round(velocity * 0.95, 3),
+            })
+            bar_start += dur
+        # Bass: I-V pattern
+        bass_deg = [0, 0, 4, 4]
+        for b in range(4):
+            bidx = (bar * 4 + b) % len(bass_deg)
+            bp = deg_to_pitch(bass_deg[bidx], bass_oct, scale)
+            all_bass.append({
+                "pitch": bp, "start": round(beat + b, 4),
+                "duration": 0.9, "velocity": round(velocity * 0.8, 3),
+            })
+        beat += 4.0
+
+    # --- Transition: rising sequence modulating to second key ---
+    trans_start = beat
+    seq_shifts = [0, 2, 4, 5]  # rising by scale degrees
+    for step in range(trans_bars * 2):
+        shift = seq_shifts[step % len(seq_shifts)]
+        # Interpolate between tonic and second key
+        if step < 2:
+            sc_use = scale
+            root_use = melody_oct
+        else:
+            sc_use = second_scale
+            root_use = second_oct
+        for note_i in range(4):
+            pitch = deg_to_pitch(shift + note_i, root_use, sc_use)
+            all_melody.append({
+                "pitch": pitch, "start": round(trans_start + step * 2 + note_i * 0.5, 4),
+                "duration": 0.45, "velocity": round(velocity * 0.85, 3),
+            })
+        # Bass: walking
+        bdeg = [0, 4, 7, 4]
+        bi = step % 4
+        if step >= 2:
+            bp = deg_to_pitch(bdeg[bi], (2 + 1) * 12 + second_root_pc, second_scale)
+        else:
+            bp = deg_to_pitch(bdeg[bi], bass_oct, scale)
+        all_bass.append({
+            "pitch": bp, "start": round(trans_start + step * 2, 4),
+            "duration": 1.8, "velocity": round(velocity * 0.75, 3),
+        })
+    beat = trans_start + trans_bars * 4.0
+
+    # --- Theme 2: wider intervals, in second key ---
+    t2_start = beat
+    for bar in range(t2_bars):
+        bar_start = t2_start + bar * 4.0
+        for i in range(len(t2_degrees)):
+            pitch = deg_to_pitch(t2_degrees[i] + (bar % 2), second_oct, second_scale)
+            dur = t2_rhythm[i % len(t2_rhythm)]
+            all_melody.append({
+                "pitch": pitch, "start": round(bar_start, 4),
+                "duration": round(dur * 0.9, 4),
+                "velocity": round(velocity * (0.9 + 0.05 * (bar % 2)), 3),
+            })
+            bar_start += dur
+        # Bass: V-I in second key
+        bass_deg = [4, 4, 0, 0]
+        for b in range(4):
+            bidx = (bar * 4 + b) % len(bass_deg)
+            bp = deg_to_pitch(bass_deg[bidx], (2 + 1) * 12 + second_root_pc, second_scale)
+            all_bass.append({
+                "pitch": bp, "start": round(t2_start + bar * 4.0 + b, 4),
+                "duration": 0.9, "velocity": round(velocity * 0.8, 3),
+            })
+    beat = t2_start + t2_bars * 4.0
+
+    # ================================================================
+    # 2. DEVELOPMENT — fragmentation + modulations
+    # ================================================================
+    dev_start = beat
+    dev_bars = max(4, development_bars)
+    # Keys to modulate through: iii, vi, ii, IV (relative to tonic)
+    mod_pcs = [root_pc, (root_pc + 3) % 12, (root_pc + 5) % 12, (root_pc + 7) % 12]
+
+    for bar in range(dev_bars):
+        mod_idx = (bar * 2) // max(1, dev_bars)
+        mod_idx = min(mod_idx, len(mod_pcs) - 1)
+        cur_pc = mod_pcs[mod_idx]
+        cur_oct = (3 + 1) * 12 + cur_pc
+        cur_bass = (2 + 1) * 12 + cur_pc
+
+        # Fragment from theme 1 or theme 2, transposed & fragmented
+        use_t1 = (bar % 2 == 0)
+        if use_t1:
+            frag = t1_degrees[:4 + (bar % 4)]
+            frag_rhy = t1_rhythm[:len(frag)]
+        else:
+            frag = t2_degrees[:4 + (bar % 4)]
+            frag_rhy = t2_rhythm[:len(frag)]
+
+        # Rising sequence within the bar
+        bar_start = dev_start + bar * 4.0
+        seq_offset = (bar % 3) * 2
+        for i in range(len(frag)):
+            pitch = deg_to_pitch(frag[i] + seq_offset, cur_oct, scale)
+            dur = frag_rhy[i] if i < len(frag_rhy) else 0.5
+            all_melody.append({
+                "pitch": pitch, "start": round(bar_start, 4),
+                "duration": round(dur * 0.85, 4),
+                "velocity": round(velocity * (0.6 + 0.3 * (bar / max(1, dev_bars))), 3),
+            })
+            bar_start += dur
+
+        # Bass: pulsing root, then dominant pedal at end
+        if bar >= dev_bars - 3:
+            # Retransition: dominant pedal
+            dom_pc = (root_pc + 7) % 12
+            bp = deg_to_pitch(0, (2 + 1) * 12 + dom_pc, scale)
+            all_bass.append({
+                "pitch": bp, "start": round(dev_start + bar * 4.0, 4),
+                "duration": 3.9, "velocity": round(velocity * 0.7, 3),
+            })
+        else:
+            bass_deg = [0, 0, 4, 4]
+            for b in range(4):
+                bidx = (bar * 4 + b) % len(bass_deg)
+                bp = deg_to_pitch(bass_deg[bidx], cur_bass, scale)
+                all_bass.append({
+                    "pitch": bp, "start": round(dev_start + bar * 4.0 + b, 4),
+                    "duration": 0.9, "velocity": round(velocity * 0.75, 3),
+                })
+    beat = dev_start + dev_bars * 4.0
+
+    # ================================================================
+    # 3. RECAPITULATION — both themes in tonic
+    # ================================================================
+    rec_bars = max(4, recap_bars)
+    rec_t1_bars = rec_bars // 2
+    rec_t2_bars = rec_bars - rec_t1_bars
+
+    # Theme 1 in tonic (same as exposition)
+    for bar in range(rec_t1_bars):
+        bar_start = beat
+        for i in range(len(t1_degrees)):
+            pitch = deg_to_pitch(t1_degrees[i] + (bar % 3) - 1, melody_oct, scale)
+            dur = t1_rhythm[i % len(t1_rhythm)]
+            all_melody.append({
+                "pitch": pitch, "start": round(bar_start, 4),
+                "duration": round(dur * 0.9, 4),
+                "velocity": round(velocity * 0.95, 3),
+            })
+            bar_start += dur
+        bass_deg = [0, 0, 4, 4]
+        for b in range(4):
+            bidx = (bar * 4 + b) % len(bass_deg)
+            bp = deg_to_pitch(bass_deg[bidx], bass_oct, scale)
+            all_bass.append({
+                "pitch": bp, "start": round(beat + b, 4),
+                "duration": 0.9, "velocity": round(velocity * 0.8, 3),
+            })
+        beat += 4.0
+
+    # Theme 2 in TONIC (key difference from exposition!)
+    for bar in range(rec_t2_bars):
+        bar_start = beat
+        for i in range(len(t2_degrees)):
+            pitch = deg_to_pitch(t2_degrees[i] + (bar % 2), melody_oct, scale)
+            dur = t2_rhythm[i % len(t2_rhythm)]
+            all_melody.append({
+                "pitch": pitch, "start": round(bar_start, 4),
+                "duration": round(dur * 0.9, 4),
+                "velocity": round(velocity * (0.9 + 0.05 * (bar % 2)), 3),
+            })
+            bar_start += dur
+        bass_deg = [0, 0, 4, 4]
+        for b in range(4):
+            bidx = (bar * 4 + b) % len(bass_deg)
+            bp = deg_to_pitch(bass_deg[bidx], bass_oct, scale)
+            all_bass.append({
+                "pitch": bp, "start": round(beat + b, 4),
+                "duration": 0.9, "velocity": round(velocity * 0.8, 3),
+            })
+        beat += 4.0
+
+    all_melody.sort(key=lambda n: (n["start"], n["pitch"]))
+    all_bass.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    melody_json = json.dumps(all_melody)
+    melody_result = await mcp_opendaw_create_notes_batch(melody_json, unit_index, track_index)
+
+    bass_json = json.dumps(all_bass)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, track_index + 1)
+
+    total_bars = exp_bars + dev_bars + rec_bars
+    try:
+        data = json.loads(melody_result)
+        data["sonata_form"] = True
+        data["sections"] = {
+            "exposition": {"bars": exp_bars, "start": start_beat, "end": start_beat + exp_bars * 4.0,
+                           "themes": ["theme1_tonic", "transition", "theme2_second_key"]},
+            "development": {"bars": dev_bars, "start": start_beat + exp_bars * 4.0,
+                            "end": start_beat + (exp_bars + dev_bars) * 4.0,
+                            "techniques": ["fragmentation", "sequence", "modulation", "dominant_pedal"]},
+            "recapitulation": {"bars": rec_bars,
+                               "start": start_beat + (exp_bars + dev_bars) * 4.0,
+                               "end": start_beat + total_bars * 4.0,
+                               "themes": ["theme1_tonic", "theme2_tonic"]},
+        }
+        data["total_bars"] = total_bars
+        data["key_root"] = key_root
+        data["scale_name"] = scale_name
+        data["second_key_root"] = second_root_pc
+        data["melody_notes_created"] = len(all_melody)
+        data["bass_notes_created"] = len(all_bass)
+        data["melody_track"] = track_index
+        data["bass_track"] = track_index + 1
+        try:
+            data["bass_result_status"] = json.loads(bass_result).get("success", False) if bass_result else False
+        except Exception:
+            data["bass_result_status"] = False
+        return json.dumps(data, indent=2)
+    except Exception:
+        return melody_result

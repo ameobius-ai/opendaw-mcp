@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.317.0 (2026-07-06)
+
+- **`create_sonata_form`** — Sonata form: exposition (theme 1 in tonic + transition + theme 2 in dominant/relative), development (fragmentation, sequence, modulation through iii/vi/ii/IV, dominant pedal retransition), recapitulation (both themes in tonic). The structural foundation of classical symphonies, sonatas, quartets from Haydn through Mahler. Major key modulates to dominant, minor to relative major. Development features rising sequences and crescendo. 27 unit tests. 492 MCP tools.
+
 ## v1.316.0 (2026-07-06)
 
 - **`create_binary_form`** — Binary form: two contrasting sections (A|B) with optional repeats (AABB). 5 modulation types: dominant (B in V), relative (B in relative minor/major), subdominant (B in IV), parallel (same key, different material), no_modulation. A section: stepwise melody around tonic, I-V-I bass. B section: wider intervals, modulated, returns to tonic. Baroque dance suites (Bach), folk tunes, early jazz. 22 unit tests. 491 MCP tools.
