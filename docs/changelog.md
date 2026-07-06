@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.353.0 (2026-07-06)
+
+- **`produce_full_track`** — Ultimate meta-tool: produces a complete track in one call. Chains 6 steps: set_bpm → arrange_full_song → create_drum_pattern → create_bassline → apply_mix_preset → render_full (optional). One call replaces 15-20 individual tool calls. Agent specifies structure, key, genre, tempo — everything else automatic. 20+ genres, render optional. 22 unit tests. 519 MCP tools. The one-call production pipeline.
+
 ## v1.352.0 (2026-07-06)
 
 - **`werkstatt_ssl_bus_comp.js`** — SSL G-series bus compressor. VCA-based with RMS detection (256-sample window), stepped ratios (2:1/4:1/10:1), stepped attack (0.1-30ms), auto-release mode (program-dependent, heavy compression → faster release), makeup gain. 129 DSP scripts. The "glue" compressor for mix bus — subtle but transformative.

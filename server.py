@@ -61521,3 +61521,136 @@ async def mcp_opendaw_arrange_full_song(
             "Use render_full to render the complete song",
         ],
     }, indent=2)
+
+
+async def mcp_opendaw_produce_full_track(
+    structure: str = "intro:4,verse:8,prechorus:2,chorus:8,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4",
+    key_root: str = "C",
+    scale_type: str = "minor",
+    octave: int = 4,
+    velocity: float = 0.65,
+    genre: str = "house",
+    bpm: float = 124,
+    render: bool = False,
+    seed: int = 42,
+) -> str:
+    """Produce a complete track from structure to render in one call.
+
+    This is the ultimate meta-tool. It chains:
+    1. set_bpm (tempo)
+    2. arrange_full_song (MIDI skeleton with all sections)
+    3. create_drum_track (genre-specific drum pattern)
+    4. create_bass_track (genre-specific bassline)
+    5. apply_mix_preset (track levels and panning)
+    6. render_full (if render=True — renders the complete track to WAV)
+
+    One call replaces 15-20 individual tool calls. The agent specifies
+    structure, key, genre, and tempo — everything else is automatic.
+
+    structure: Comma-separated section:bars pairs (see arrange_full_song)
+    key_root: Root note (C, C#, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    velocity: Base velocity 0-1
+    genre: Genre for drum + bass patterns (house, techno, dnb, trap, rock,
+           pop, funk, reggae, lofi, ambient, synthwave, disco, jazz, blues,
+           metal, hiphop, rnb, soul, gospel, edm)
+    bpm: Tempo (60-200)
+    render: If true, renders the complete track to WAV after arrangement
+    seed: PRNG seed for reproducibility
+
+    Example:
+      produce_full_track(structure="intro:4,verse:8,chorus:8,outro:4", key_root="A", genre="dnb", bpm=174)
+      produce_full_track(structure="intro:8,verse:8,chorus:8,bridge:4,chorus:8,outro:4", key_root="F", genre="pop", bpm=120, render=True)
+    """
+    results = {}
+
+    # Step 1: Set BPM
+    try:
+        await mcp_opendaw_set_bpm(bpm)
+        results["bpm"] = bpm
+    except Exception as e:
+        results["bpm_error"] = str(e)
+
+    # Step 2: Arrange song structure (MIDI skeleton)
+    try:
+        arrange_result = await mcp_opendaw_arrange_full_song(
+            structure, key_root, scale_type, octave, velocity,
+            "melodic", "build", "breakdown", "fade",
+            "instrumental", "texture_build", "theme", seed)
+        arrange_data = json.loads(arrange_result)
+        results["arrangement"] = {
+            "sections": arrange_data.get("total_sections", 0),
+            "total_bars": arrange_data.get("total_bars", 0),
+            "total_notes": arrange_data.get("total_notes", 0),
+        }
+    except Exception as e:
+        results["arrange_error"] = str(e)
+
+    # Step 3: Create drum track (genre-specific)
+    try:
+        drum_result = await mcp_opendaw_create_drum_pattern(genre, -1)
+        drum_data = json.loads(drum_result)
+        results["drums"] = {
+            "genre": genre,
+            "notes": drum_data.get("notes_created", drum_data.get("notes_generated", 0)),
+        }
+    except Exception as e:
+        results["drum_error"] = str(e)
+
+    # Step 4: Create bass track (genre-specific)
+    try:
+        bass_result = await mcp_opendaw_create_bassline(
+            key_root, genre, -1, 0, 0, octave - 1, velocity * 0.9, scale_type)
+        bass_data = json.loads(bass_result)
+        results["bass"] = {
+            "genre": genre,
+            "notes": bass_data.get("notes_created", bass_data.get("notes_generated", 0)),
+        }
+    except Exception as e:
+        results["bass_error"] = str(e)
+
+    # Step 5: Apply mix preset
+    try:
+        await mcp_opendaw_apply_mix_preset("balanced")
+        results["mix"] = "balanced preset applied"
+    except Exception as e:
+        results["mix_error"] = str(e)
+
+    # Step 6: Render (optional)
+    if render:
+        try:
+            render_result = await mcp_opendaw_render_full()
+            render_data = json.loads(render_result)
+            results["render"] = {
+                "has_audio": render_data.get("has_audio", False),
+                "duration": render_data.get("duration_seconds", 0),
+                "size": render_data.get("file_size_mb", 0),
+            }
+        except Exception as e:
+            results["render_error"] = str(e)
+
+    # Count total notes
+    total_notes = 0
+    if "arrangement" in results:
+        total_notes += results["arrangement"].get("total_notes", 0)
+    if "drums" in results:
+        total_notes += results["drums"].get("notes", 0)
+    if "bass" in results:
+        total_notes += results["bass"].get("notes", 0)
+
+    results["produced"] = True
+    results["structure"] = structure
+    results["key_root"] = key_root
+    results["scale_type"] = scale_type
+    results["genre"] = genre
+    results["bpm"] = bpm
+    results["total_notes"] = total_notes
+    results["rendered"] = render
+    results["next_steps"] = [
+        "Use add_effect / add_vocal_chain / add_instrument_chain for additional processing",
+        "Use export_stems for stem separation",
+        "Use analyze_mix for mix analysis and suggestions",
+    ]
+
+    return json.dumps(results, indent=2)
