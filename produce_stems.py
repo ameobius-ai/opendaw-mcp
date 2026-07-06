@@ -132,7 +132,7 @@ async def main():
             print(f"  unit {uid}: {effect_type} ❌ {add_d}")
 
     # Step 3: Mastering
-    print(f"\n=== Step 3: Mastering on primary bus ===")
+    print("\n=== Step 3: Mastering on primary bus ===")
     for effect_type, params in MASTERING:
         add_d = _parse(await mcp_opendaw_add_effect(effect_type=effect_type, unit_index=0))
         if add_d and add_d.get("success"):
@@ -144,7 +144,7 @@ async def main():
             print(f"  {effect_type} ❌ {add_d}")
 
     # Step 4: Render (NO start_engine!)
-    print(f"\n=== Step 4: Render ===")
+    print("\n=== Step 4: Render ===")
     render_d = _parse(await mcp_opendaw_render_full(filename=OUTPUT_NAME, sample_rate=48000))
     if render_d and render_d.get("success"):
         dur = render_d.get("samples", 0) / render_d.get("sample_rate", 48000)
