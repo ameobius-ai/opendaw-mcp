@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.311.0 (2026-07-06)
+
+- **`create_gospel_arrangement`** — Gospel music across 4 tracks: gospel shuffle drums (kick on 1+3, snare on 2+4 with ghost notes, triplet shuffle hats), walking bass (root→3rd→5th→7th approach), Hammond B3 organ (chord stabs on 1+3, sustained on 2+4), SATB choir (sustained with dynamic swell). I-IV-V-I progression. Ab major default (flat keys traditional for gospel). 22nd multi-track arrangement. 25 unit tests. 486 MCP tools.
+
 ## v1.310.0 (2026-07-06)
 
 - **`create_rondo`** — Rondo form: recurring theme (A) alternating with contrasting episodes (B, C). 5 form types: simple (ABA, 3 sections), classical (ABACA, 5 sections), seven_part (ABACABA, 7 sections), pop_rock (ABABCB — verse/chorus/bridge structure), jazz (ABAC — head/solo/head/contrast). Each section has distinct melodic pattern (A=tonic stepwise, B=dominant wider intervals, C=distant contrast) and bass pattern (I-V, V-I, IV-I). Adjustable bars_per_section. 14 scales. Mozart/Beethoven classical rondo, pop/rock song structure, jazz standard form. 32 unit tests. 485 MCP tools.

@@ -47039,6 +47039,185 @@ async def mcp_opendaw_create_metal_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_gospel_arrangement(
+    bpm: float = 75,
+    bars: int = 8,
+    root: str = "Ab",
+    octave: int = 3,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    organ_track: int = 2,
+    choir_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.7,
+) -> str:
+    """Create a full gospel arrangement — shuffle drums + walking bass + Hammond organ + choir.
+
+    Gospel music — the foundation of soul, R&B, and modern pop:
+    - Track 0: Drums — gospel shuffle. Kick on 1, snare on 2+4 with ghost
+                     notes, hi-hats with triplet shuffle feel. The "pocket"
+                     is deep — slightly behind the beat. Dynamics are expressive.
+    - Track 1: Bass — walking bass line through I-IV-V-I progression.
+                     Root → 3rd → 5th → approach note. Warm, supportive.
+    - Track 2: Hammond B3 organ — chord stabs with Leslie rotation feel.
+                     Triadic voicings, 2nd inversion common. The Hammond is
+                     the signature sound of gospel — drawbar harmonics.
+    - Track 3: Choir — sustained SATB voicings. Call-and-response with organ.
+                     Long notes, rich harmony, the "church" sound.
+
+    Ab major default — flat keys are traditional for gospel singers.
+    I-IV-V-I progression (Ab-Db-Eb-Ab) with passing diminished approach.
+    6/8 or 4/4 at 70-85 BPM (slow groove).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid root '{root}'. Valid: {list(NOTE_MAP.keys())}"})
+
+    KICK = 36
+    SNARE = 38
+    HAT_C = 42
+    HAT_O = 46
+
+    # Scale: major for gospel
+    major = [0, 2, 4, 5, 7, 9, 11]
+    root_pitch = (octave + 1) * 12 + root_pc
+
+    # I-IV-V-I progression (4 chords, 2 bars each)
+    # I = scale degree 0, IV = scale degree 3, V = scale degree 4
+    chord_roots = [0, 3, 4, 0]  # scale degree indices for I, IV, V, I
+    chord_types = {
+        0: [0, 4, 7],      # I major
+        3: [0, 4, 7],      # IV major
+        4: [0, 4, 7],      # V major
+    }
+    bars_per_chord = bars // 4 if bars >= 4 else 2
+    beats_per_bar = 4
+
+    drum_notes = []
+    bass_notes = []
+    organ_notes = []
+    choir_notes = []
+
+    for chord_idx, deg in enumerate(chord_roots):
+        chord_start_beat = start_beat + chord_idx * bars_per_chord * beats_per_bar
+        chord_root_pitch = root_pitch + major[deg % 7] + (12 * (deg // 7))
+        triad = chord_types.get(deg, [0, 4, 7])
+
+        for bar in range(bars_per_chord):
+            bar_start = chord_start_beat + bar * beats_per_bar
+
+            # --- Drums: gospel shuffle ---
+            # Kick on beat 1
+            drum_notes.append({"pitch": KICK, "start": round(bar_start, 4), "duration": 0.5, "velocity": velocity * 0.9})
+            # Kick on beat 3 (gospel pocket)
+            drum_notes.append({"pitch": KICK, "start": round(bar_start + 2.0, 4), "duration": 0.5, "velocity": velocity * 0.8})
+            # Snare on 2 and 4
+            drum_notes.append({"pitch": SNARE, "start": round(bar_start + 1.0, 4), "duration": 0.4, "velocity": velocity * 0.85})
+            drum_notes.append({"pitch": SNARE, "start": round(bar_start + 3.0, 4), "duration": 0.4, "velocity": velocity * 0.85})
+            # Ghost snare on 4-and
+            drum_notes.append({"pitch": SNARE, "start": round(bar_start + 3.5, 4), "duration": 0.2, "velocity": velocity * 0.3})
+            # Shuffle hats — triplet feel (approximate with 0.33 offset)
+            for h in range(8):
+                hat_beat = bar_start + h * 0.5
+                if h % 2 == 1:
+                    hat_beat += 0.08  # shuffle offset
+                hat_vel = velocity * (0.4 if h % 2 == 0 else 0.3)
+                drum_notes.append({"pitch": HAT_C, "start": round(hat_beat, 4), "duration": 0.2, "velocity": round(hat_vel, 3)})
+            # Open hat on the "and" of 4
+            drum_notes.append({"pitch": HAT_O, "start": round(bar_start + 3.5, 4), "duration": 0.3, "velocity": round(velocity * 0.35, 3)})
+
+            # --- Bass: walking ---
+            # Root → 3rd → 5th → approach to next chord
+            walk_degrees = [0, 2, 4, 6]  # root, 3rd, 5th, 7th (approach)
+            for b in range(4):
+                walk_deg = walk_degrees[b]
+                walk_pitch = chord_root_pitch - 12 + major[walk_deg % 7] + (12 * (walk_deg // 7))
+                bass_notes.append({
+                    "pitch": walk_pitch,
+                    "start": round(bar_start + b * 1.0, 4),
+                    "duration": 0.9,
+                    "velocity": round(velocity * 0.75, 3),
+                })
+
+            # --- Organ: chord stabs with Leslie feel ---
+            # Stab on beat 1 and 3, sustained on 2 and 4
+            for beat in range(4):
+                beat_pos = bar_start + beat * 1.0
+                is_stab = beat % 2 == 0  # stab on 1 and 3
+                stab_vel = velocity * (0.65 if is_stab else 0.5)
+                for interval in triad:
+                    organ_notes.append({
+                        "pitch": chord_root_pitch + interval,
+                        "start": round(beat_pos, 4),
+                        "duration": 0.9 if not is_stab else 0.45,
+                        "velocity": round(stab_vel, 3),
+                    })
+
+            # --- Choir: sustained SATB ---
+            # Sustained chord for the whole bar, slight dynamic swell
+            choir_pitches = [
+                chord_root_pitch + 12,  # soprano (root + octave)
+                chord_root_pitch + 16,  # alto (3rd + octave)
+                chord_root_pitch + 19,  # tenor (5th + octave)
+                chord_root_pitch - 12,  # bass (root below)
+            ]
+            swell = 0.5 + 0.1 * (bar / max(1, bars_per_chord))
+            for pitch in choir_pitches:
+                choir_notes.append({
+                    "pitch": pitch,
+                    "start": round(bar_start, 4),
+                    "duration": round(beats_per_bar * 0.98, 4),
+                    "velocity": round(velocity * swell, 3),
+                })
+
+    # Create notes on 4 tracks
+    drum_json = json.dumps(drum_notes)
+    drum_result = await mcp_opendaw_create_notes_batch(drum_json, unit_index, drum_track)
+
+    bass_json = json.dumps(bass_notes)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, bass_track)
+
+    organ_json = json.dumps(organ_notes)
+    organ_result = await mcp_opendaw_create_notes_batch(organ_json, unit_index, organ_track)
+
+    choir_json = json.dumps(choir_notes)
+    choir_result = await mcp_opendaw_create_notes_batch(choir_json, unit_index, choir_track)
+
+    try:
+        data = json.loads(drum_result)
+        data["gospel_arrangement"] = True
+        data["bpm"] = bpm
+        data["bars"] = bars
+        data["root"] = root
+        data["key"] = f"{root} major"
+        data["progression"] = "I-IV-V-I"
+        data["tracks"] = {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "pattern": "gospel_shuffle"},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "pattern": "walking_root_3rd_5th_7th"},
+            "organ": {"track": organ_track, "notes": len(organ_notes), "pattern": "hammond_stabs_leslie"},
+            "choir": {"track": choir_track, "notes": len(choir_notes), "pattern": "sustained_SATB"},
+        },
+        data["total_notes"] = len(drum_notes) + len(bass_notes) + len(organ_notes) + len(choir_notes),
+        data["form"] = "I-IV-V-I_gospel",
+        data["results"] = {
+            "drums": json.loads(drum_result).get("success", False) if drum_result else False,
+            "bass": json.loads(bass_result).get("success", False) if bass_result else False,
+            "organ": json.loads(organ_result).get("success", False) if organ_result else False,
+            "choir": json.loads(choir_result).get("success", False) if choir_result else False,
+        }
+        return json.dumps(data, indent=2)
+    except Exception:
+        return drum_result
+
+
+
+
+@mcp.tool()
 async def mcp_opendaw_create_reggae_arrangement(
     bpm: float = 80,
     bars: int = 8,
