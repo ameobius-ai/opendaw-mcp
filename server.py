@@ -61355,3 +61355,169 @@ async def mcp_opendaw_create_prechorus(
     }.get(prechorus_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_arrange_full_song(
+    structure: str = "intro:4,prechorus:2,chorus:4,verse:4,prechorus:2,chorus:4,bridge:4,chorus:4,outro:4",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    velocity: float = 0.65,
+    intro_type: str = "melodic",
+    prechorus_type: str = "build",
+    bridge_type: str = "breakdown",
+    outro_type: str = "fade",
+    interlude_type: str = "instrumental",
+    transition_type: str = "texture_build",
+    coda_type: str = "theme",
+    seed: int = 42,
+) -> str:
+    """Arrange a complete song from structural sections in one call.
+
+    This is a meta-tool that calls section generators (create_intro,
+    create_prechorus, create_bridge, create_outro, etc.) in sequence,
+    automatically tracking start_beat so each section begins where
+    the previous one ends. Eliminates the need for 8+ separate calls
+    with manual beat offset calculation.
+
+    The "chorus" and "verse" sections use create_arpeggio for melodic
+    content (since there are no dedicated verse/chorus generators —
+    those are genre-specific). All other sections use their dedicated
+    generators with the specified type variants.
+
+    structure: Comma-separated list of section:bars pairs.
+               Valid sections: intro, prechorus, chorus, verse, bridge,
+               interlude, transition, outro, coda
+               Example: "intro:4,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4"
+    key_root: Root note for all sections (C, C#, D, ... B)
+    scale_type: Scale for all sections (major, minor, harmonic_minor)
+    octave: MIDI octave (4 = C4=60)
+    velocity: Base velocity 0-1
+    intro_type: intro variant (ambient/drum/melodic/minimalist/cinematic)
+    prechorus_type: prechorus variant (build/pedal/stall/lift/suspending)
+    bridge_type: bridge variant (breakdown/modulation/solo/atmospheric/surprise)
+    outro_type: outro variant (fade/ritardando/recap/pedal/cadential)
+    interlude_type: interlude variant (instrumental/atmospheric/breakdown/reprise/contrapuntal)
+    transition_type: transition variant (key_shift/tempo_ramp/texture_build/texture_thin/drop)
+    coda_type: coda variant (theme/vamp/codetta/postlude/fanfare)
+    seed: PRNG seed for reproducibility
+
+    Example:
+      arrange_full_song(structure="intro:4,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4", key_root="A", scale_type="minor")
+      arrange_full_song(structure="intro:8,chorus:8,interlude:2,chorus:8,outro:4,coda:2", key_root="D", scale_type="major")
+    """
+    VALID_SECTIONS = {"intro", "prechorus", "chorus", "verse", "bridge",
+                      "interlude", "transition", "outro", "coda"}
+
+    # Parse structure
+    try:
+        sections = []
+        for part in structure.split(","):
+            name, bars_str = part.strip().split(":")
+            name = name.strip().lower()
+            bars = int(bars_str.strip())
+            if name not in VALID_SECTIONS:
+                return json.dumps({"error": f"Invalid section name: {name!r}. Valid: {sorted(VALID_SECTIONS)}"})
+            if not (1 <= bars <= 16):
+                return json.dumps({"error": f"bars for {name} must be 1-16, got {bars}"})
+            sections.append({"name": name, "bars": bars})
+    except Exception as e:
+        return json.dumps({"error": f"Invalid structure format: {e}. Expected: 'intro:4,verse:8,chorus:8,...'"})
+
+    if not sections:
+        return json.dumps({"error": "No sections provided"})
+
+    current_beat = 0.0
+    results = []
+    total_notes = 0
+
+    for sec in sections:
+        name = sec["name"]
+        bars = sec["bars"]
+        start_beat = current_beat
+
+        if name == "intro":
+            r = await mcp_opendaw_create_intro(
+                intro_type, key_root, scale_type, octave, bars,
+                velocity, -1, 0, start_beat, seed)
+        elif name == "prechorus":
+            r = await mcp_opendaw_create_prechorus(
+                prechorus_type, key_root, scale_type, octave, bars,
+                velocity, -1, 0, start_beat, seed)
+        elif name == "chorus":
+            # Chorus: full arpeggio with higher velocity
+            chord_name = key_root + ("min7" if scale_type in ("minor", "harmonic_minor") else "maj7")
+            r = await mcp_opendaw_create_arpeggio(
+                chord_name, "up", "8", octave,
+                bars * 4, 0, 0, round(start_beat, 4),
+                round(min(velocity * 1.1, 1.0), 3))
+        elif name == "verse":
+            # Verse: sparse arpeggio with lower velocity
+            chord_name = key_root + ("min7" if scale_type in ("minor", "harmonic_minor") else "maj7")
+            r = await mcp_opendaw_create_arpeggio(
+                chord_name, "updown", "4", octave,
+                bars * 4, 0, 0, round(start_beat, 4),
+                round(velocity * 0.8, 3))
+        elif name == "bridge":
+            r = await mcp_opendaw_create_bridge(
+                bridge_type, key_root, scale_type, octave, bars,
+                velocity, -1, 0, start_beat, seed)
+        elif name == "interlude":
+            r = await mcp_opendaw_create_interlude(
+                interlude_type, key_root, scale_type, octave, bars,
+                velocity, -1, 0, start_beat, seed)
+        elif name == "transition":
+            r = await mcp_opendaw_create_transition(
+                transition_type, key_root, scale_type, octave, bars,
+                velocity, "up", 5, -1, 0, start_beat, seed)
+        elif name == "outro":
+            r = await mcp_opendaw_create_outro(
+                outro_type, key_root, scale_type, octave, bars,
+                velocity, -1, 0, start_beat, seed)
+        elif name == "coda":
+            r = await mcp_opendaw_create_coda(
+                coda_type, key_root, scale_type, octave, bars,
+                velocity, -1, 0, start_beat, seed)
+        else:
+            continue
+
+        try:
+            data = json.loads(r)
+            notes_gen = data.get("notes_generated", 0)
+        except Exception:
+            notes_gen = 0
+
+        total_notes += notes_gen
+        results.append({
+            "section": name,
+            "bars": bars,
+            "start_beat": round(start_beat, 4),
+            "end_beat": round(start_beat + bars * 4.0, 4),
+            "notes_generated": notes_gen,
+        })
+
+        current_beat += bars * 4.0
+
+    # Also create song structure markers
+    marker_sections = json.dumps([{"name": s["name"].title(), "bars": s["bars"]} for s in sections])
+    try:
+        await mcp_opendaw_create_song_structure(marker_sections, 0)
+    except Exception:
+        pass  # markers are optional, don't fail if they don't work
+
+    return json.dumps({
+        "arranged": True,
+        "structure": structure,
+        "sections": results,
+        "total_sections": len(results),
+        "total_bars": sum(s["bars"] for s in sections),
+        "total_beats": round(current_beat, 4),
+        "total_notes": total_notes,
+        "key_root": key_root,
+        "scale_type": scale_type,
+        "next_steps": [
+            "Use add_drum_chain / add_bass_chain / add_instrument_chain for rhythm section",
+            "Use apply_mix_preset to set track levels",
+            "Use render_full to render the complete song",
+        ],
+    }, indent=2)

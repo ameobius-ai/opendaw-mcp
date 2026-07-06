@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-517 MCP tools for headless openDAW control via Playwright bridge.
+518 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -415,6 +415,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_coda` — Coda section generator. 5 types: theme (final statement, fermata), vamp (I-IV-V-I repeat fading), codetta (2-bar tag, scale run into tonic), postlude (instrumental winding down after vocals), fanfare (ascending arpeggios + tutti hits). 3 scales, 2-8 bars. Seeded PRNG. Formal closing — concludes the piece, doesn't just fade.
 - `create_transition` — Transition section generator. 5 types: key_shift (modulation via pivot chord, up/down 1-7 semitones), tempo_ramp (accel/ritardando via duration scaling), texture_build (sparse→dense, voices added per bar), texture_thin (dense→sparse, voices removed), drop (full→silence→re-entry, dramatic contrast). 3 scales, 2-8 bars. Direction + interval params. Seeded PRNG. Active movement between sections.
 - `create_prechorus` — Pre-chorus section generator. 5 types: build (crescendo ii-IV-V, velocity+density rise), pedal (sustained V chord, melodic build over dominant), stall (rhythmic stasis on ii-V, repetition builds tension), lift (melodic ascent climbing scale degrees), suspending (sus4→sus2→resolve repeated, delays tonic for maximum tension). 3 scales, 2-4 bars. Seeded PRNG. Tension builder before chorus.
+- `arrange_full_song` — Meta-tool: arranges a complete song from structural sections in one call. Parses "intro:4,prechorus:2,chorus:4,verse:8,bridge:4,outro:4" format, calls section generators with automatic start_beat tracking, creates markers. 9 valid sections: intro/prechorus/chorus/verse/bridge/interlude/transition/outro/coda. Type variants for each section. Eliminates 8+ separate calls with manual beat calculation.
 - `create_cross_rhythm` — Cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar into n+m parts), cross-rhythm gives each voice its own period in beats. Voices cycle independently, only realign at LCM of all periods. 2-6 voices, velocity attenuation. African cross-rhythms, Steve Reich, Talking Heads.
 - `create_clave` — Afro-Cuban clave pattern: 5-note rhythmic skeleton across 2 bars. 6 clave types (son 3-2, son 2-3, rumba 3-2, rumba 2-3, bossa nova, 6/8). Direction (3-2 or 2-3) determines feel. All other rhythms align to clave.
 - `create_euclidean_rhythm` — Euclidean rhythm: distributes k onsets across n steps maximally evenly via Björklund's algorithm. Generates world rhythms: E(3,8)=tresillo, E(5,8)=cinquillo, E(7,16)=samba, E(7,12)=bembé, E(4,9)=Aksak. Rotation shifts pattern.
