@@ -1,17 +1,17 @@
-# Controlling a DAW with AI Agents: 263 Tools for openDAW via MCP
+# Controlling a DAW with AI Agents: 520 Tools for openDAW via MCP
 
-> What if your AI agent could mix a track, tune a synth, and master to -14 LUFS — without you touching a single knob?
+> What if your AI agent could arrange a full song, mix it, and master to -1 dBTP — all in one call?
 
-**opendaw-mcp** gives an LLM agent full control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation. 263 MCP tools, 3 framework wrappers (LangChain, AutoGen, CrewAI), 26 DSP scripts, 8 genre templates, stem separation, and a full docs site.
+**opendaw-mcp** gives an LLM agent full control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation. **520 MCP tools**, 130 DSP scripts, 12 agent skills, 35+ genre arrangements, stem separation, and a full docs site.
 
 📖 **Full docs**: https://ameobius.github.io/opendaw-mcp/
 📦 **PyPI**: `pip install opendaw-mcp`
 
 Most "AI music" tools generate audio end-to-end. You prompt, it spits out a track. But real music production happens *inside* a DAW — tracks, effects, automation, mixing, rendering. That's where the craft lives.
 
-What if an AI agent could work *inside* the DAW? Not generating audio, but *producing* it — the way a producer does.
+What if an AI agent could work *inside* the DAW? Not generating audio, but *producing* it — the way a producer does?
 
-That's what [opendaw-mcp](https://github.com/AMEOBIUS/opendaw-mcp) does. 263 MCP tools that give an LLM agent full control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
+That's what [opendaw-mcp](https://github.com/AMEOBIUS/opendaw-mcp) does. 520 MCP tools that give an LLM agent full control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
 
 ## The setup
 
@@ -26,7 +26,9 @@ graph LR
 
 The agent talks MCP. The server translates to JavaScript that runs in openDAW's V8 context via Playwright. No API, no REST — direct DOM-level control of a real DAW engine.
 
-## 30 seconds to a beat
+## One call = full track
+
+The killer feature is `produce_full_track` — a meta-tool that chains 6 steps in one call:
 
 ```python
 from opendaw_mcp.server import OpendawServer
@@ -34,26 +36,21 @@ from opendaw_mcp.server import OpendawServer
 server = OpendawServer()
 await server.bridge.start()
 
-# One call = full drum beat (kick | snare | hihat)
-await server.mcp_opendaw_create_drum_pattern(
-    pattern="x...x...x...x...|o.......o.....o.|..x...x...x...x.",
-    unit_index=0
+# One call = BPM + arrangement + drums + bass + mix + render
+await server.mcp_opendaw_produce_full_track(
+    structure="intro:4,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4",
+    key_root="A",
+    scale_type="minor",
+    genre="house",
+    bpm=124,
+    render=True
 )
-
-# Add a synth with reverb
-await server.mcp_opendaw_create_synth_track(name="Lead")
-await server.mcp_opendaw_add_effect(unit_index=1, effect_type="Dattorro")
-await server.mcp_opendaw_set_effect_parameter(
-    unit_index=1, effect_index=0, param="decay", value=0.6
-)
-
-# Render to WAV
-await server.mcp_opendaw_render_full(output_path="beat.wav")
+# → Complete track rendered to WAV
 ```
 
-That's a full beat → synth → reverb → render pipeline in 5 lines. No clicking, no menus, no "File > Export".
+This replaces 15-20 individual tool calls. The agent specifies structure, key, genre, and tempo — everything else is automatic.
 
-## What 263 tools looks like
+## What 520 tools looks like
 
 The tools cover every aspect of music production:
 
@@ -70,34 +67,38 @@ The tools cover every aspect of music production:
 | Export | 17 | Render full mix, per-stem, dry stems, MP3/FLAC, LUFS |
 | Scriptable Devices | 5 | Custom JS DSP — write your own audio effects |
 | Stem Separation | 2 | 7 SOTA models (BS-Roformer, HTDemucs, SCNet) on GPU |
-| Orchestration | 8 | High-level: drum patterns, chord progressions, mastering |
+| Orchestration | 250+ | Section generators, genre arrangements, meta-tools |
 
-## The killer feature: orchestration tools
+## Song structure pipeline
 
-Individual tools are powerful but verbose. 8 orchestration tools combine multiple operations into one call:
+8 structural section generators, each with 5 style variants:
 
-```python
-# Create a full chord progression from names — auto-voiced
-await server.mcp_opendaw_create_chord_progression(
-    chords=["Cm", "Fm7", "Gdom7", "Cm"],
-    unit_index=1, track_index=0, duration=1920
-)
-
-# Add a mastering chain in one call
-await server.mcp_opendaw_add_mastering_chain(style="balanced")
-
-# Create a smooth filter sweep
-await server.mcp_opendaw_automation_sweep(
-    unit_index=0, effect_index=0, param_name="frequency",
-    start_position=0, end_position=3840,
-    start_value=0.1, end_value=0.9, curve="log"
-)
-
-# Apply a full mix preset
-await server.mcp_opendaw_apply_mix_preset(preset="lofi")
+```
+create_intro → create_prechorus → [chorus] → create_interlude →
+create_transition → [chorus] → create_bridge → create_outro → create_coda
 ```
 
-One call replaces 10-50 low-level tool calls. For agents, this means fewer tokens, fewer round-trips, faster production.
+Or just call `arrange_full_song` with a structure string:
+
+```python
+await server.mcp_opendaw_arrange_full_song(
+    structure="intro:4,prechorus:2,chorus:8,verse:8,bridge:4,outro:4",
+    key_root="D", scale_type="major"
+)
+```
+
+## Hardware compressor emulations
+
+130 DSP scripts include faithful emulations of legendary hardware:
+
+| Compressor | Model | Character |
+|------------|-------|-----------|
+| Thermal Comp | LA-2A optical | Smooth, program-dependent, tube warmth |
+| FET Comp | Urei 1176 | Lightning-fast attack, aggressive |
+| SSL Bus Comp | SSL G-series | The "glue" for mix bus, RMS detection |
+| Nyquist Comp | Parallel/New York | Up-front without killing transients |
+
+Plus a **true peak limiter** with inter-sample peak detection (4x oversampling) for streaming compliance — essential for mastering to -1 dBTP.
 
 ## Suno → openDAW pipeline
 
@@ -118,10 +119,6 @@ result = await server.mcp_opendaw_split_stems(
     auto_import=True
 )
 # → 6 stems imported as audio tracks
-
-# Add reverb send on vocals
-await server.mcp_opendaw_create_send(unit_index=2, bus_index=0)
-await server.mcp_opendaw_set_send_level(unit_index=2, send_index=0, level=0.4)
 
 # Master to -14 LUFS
 await server.mcp_opendaw_auto_gain(target_lufs=-14)
@@ -150,25 +147,16 @@ function processAudio(inputs, outputs, parameters) {
 }
 ```
 
-26 ready-made DSP scripts ship with the project: tape saturation, wavefolding, bitcrush, reverb, chorus, phaser, shimmer, granular stretch, FM synth, ring mod, arpeggiator, and more.
+130 ready-made DSP scripts ship with the project: tape saturation, wavefolding, bitcrush, spring reverb, chorus, phaser, shimmer, granular stretch, FM synth, ring mod, vocoder, psychoacoustic bass enhancer, SSL bus compressor, true peak limiter, and more.
 
-## 8 genre templates — E2E verified
+## 35+ genre arrangements
 
-Want to start from a genre? 8 templates are tested end-to-end:
+Want to start from a genre? 35+ multi-track arrangements are tested:
 
-| Genre | BPM | What's included |
-|-------|-----|-----------------|
-| Techno | 130 | Driving 4-on-floor, hypnotic patterns |
-| Coldwave | 100 | Dark post-punk, Dattorro + Waveshaper |
-| Ambient | 70 | Pad + bell + texture, long reverbs |
-| Hip-hop | 85 | Boom bap, 808 bass |
-| DnB | 174 | Amen break, reese + sub |
-| House | 124 | 4-on-floor, off-beat stabs |
-| Lo-fi | 82 | Swung drums, ii-V-I jazz chords |
-| Trap | 145 | Fast hi-hat rolls, gliding 808 |
+House, techno, DnB, neurofunk, liquid DnB, trap, dubstep, synthwave, trance, psytrance, disco, garage, acid, breakbeat, hardstyle, future bass, phonk, downtempo, ambient, lofi, afrobeat, reggae, rock, metal, country, jazz, pop, funk, soul, R&B, blues, gospel, EDM, and more.
 
 ```bash
-python examples/genre_house.py
+python examples/one_call_production.py
 ```
 
 ## Install
@@ -180,7 +168,7 @@ pip install opendaw-mcp
 Or Docker:
 
 ```bash
-docker run -p 3000:3000 ghcr.io/ameobius/opendaw-mcp:1.14.4
+docker run -p 3000:3000 ghcr.io/ameobius/opendaw-mcp:latest
 ```
 
 Full docs: **https://ameobius.github.io/opendaw-mcp/**
