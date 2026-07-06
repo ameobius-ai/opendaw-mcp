@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.381.0 (2026-07-06)
+
+- **Lite mode** — `OPENDAW_MCP_MODE=lite` env var. Registers only 39 essential tools instead of 504, reducing tool schema payload by 92%. Lite includes: project info, tracks, instruments, notes, effects, mixing, BPM, render, export, compositional building blocks (drums/bass/melody/chords), scriptable devices, audio I/O, markers. Full mode (default) unchanged. `--version` and `--help` updated to show mode info. 19 unit tests. Also adds `__version__` to server.py.
+
 ## v1.380.0 (2026-07-06)
 
 - **`_build_chord_prog` key-aware chord builder** — Fixed bug where `produce_and_master` and `produce_full_track` hardcoded C major chords regardless of `key_root`. Now builds I-V-vi-IV (major), i-VI-III-VII (minor), i-iv-V-i (harmonic minor) transposed to the actual key. D major → Dmaj7,A7,Bm7,Gmaj7. A minor → Am7,Fmaj7,Cmaj7,G7. 12 unit tests. Both meta-tools now produce harmonically correct progressions in any key.

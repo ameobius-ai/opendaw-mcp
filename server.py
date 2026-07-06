@@ -58,6 +58,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("opendaw-mcp")
+__version__ = "1.381.0"
 DAW_HOST_DIR = os.environ.get("OPENDAW_HOST_DIR", os.path.join(os.path.dirname(__file__), "..", "headless-daw"))
 EXPORT_DIR = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "..", "exports"))
 os.makedirs(EXPORT_DIR, exist_ok=True)
@@ -30583,39 +30584,79 @@ async def mcp_opendaw_create_binary_form(
 
 
 
+# Lite mode: essential tools for basic track production (93% token savings)
+# When OPENDAW_MCP_MODE=lite, only these 39 tools are registered.
+# Full mode (default) registers all 504 decorated tools.
+LITE_TOOLS = {
+    "mcp_opendaw_get_full_project_state", "mcp_opendaw_get_project_info",
+    "mcp_opendaw_list_tracks", "mcp_opendaw_list_note_regions",
+    "mcp_opendaw_create_audio_track", "mcp_opendaw_create_note_track", "mcp_opendaw_delete_track",
+    "mcp_opendaw_create_synth_track", "mcp_opendaw_create_instrument_track",
+    "mcp_opendaw_create_note", "mcp_opendaw_create_notes_batch", "mcp_opendaw_delete_note", "mcp_opendaw_set_note_properties",
+    "mcp_opendaw_create_track_region", "mcp_opendaw_delete_region",
+    "mcp_opendaw_add_effect", "mcp_opendaw_list_effects", "mcp_opendaw_set_effect_parameter", "mcp_opendaw_get_effect_state",
+    "mcp_opendaw_create_send", "mcp_opendaw_set_track_volume", "mcp_opendaw_set_track_panning",
+    "mcp_opendaw_detect_bpm", "mcp_opendaw_set_bpm",
+    "mcp_opendaw_render_full", "mcp_opendaw_export_stems",
+    "mcp_opendaw_create_drum_pattern", "mcp_opendaw_create_bassline", "mcp_opendaw_create_melody",
+    "mcp_opendaw_create_chord_progression", "mcp_opendaw_apply_mix_preset",
+    "mcp_opendaw_add_marker",
+    "mcp_opendaw_set_script_device_code", "mcp_opendaw_get_script_device_code",
+    "mcp_opendaw_list_script_params", "mcp_opendaw_set_script_param", "mcp_opendaw_list_script_samples",
+    "mcp_opendaw_load_audio", "mcp_opendaw_place_audio_region",
+}
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            print("opendaw-mcp 1.23.3 — 283 MCP tools")
+            mode = os.environ.get("OPENDAW_MCP_MODE", "full")
+            print(f"opendaw-mcp {__version__} — {len(LITE_TOOLS) if mode == 'lite' else '504'} MCP tools (mode: {mode})")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
             import asyncio
             tools = asyncio.run(mcp.list_tools())
             for t in sorted(tools, key=lambda x: x.name):
                 print(f"  {t.name} — {t.description[:80]}")
-            print(f"\nTotal: {len(tools)} tools")
+            print(f"\nTotal: {len(tools)} tools (mode: {os.environ.get('OPENDAW_MCP_MODE', 'full')})")
             return
         if sys.argv[1] in ("--help", "-h"):
-            print("opendaw-mcp — 283 MCP tools for agent-native openDAW control")
+            print("opendaw-mcp — MCP tools for agent-native openDAW control")
             print()
             print("Usage:")
-            print("  opendaw-mcp              Start MCP server (stdio transport)")
+            print("  opendaw-mcp              Start MCP server (stdio transport, full mode)")
+            print("  OPENDAW_MCP_MODE=lite opendaw-mcp  Start with 39 essential tools (93% token savings)")
             print("  MCP_TRANSPORT=sse opendaw-mcp  Start MCP server (SSE transport)")
             print("  opendaw-mcp --version    Show version")
             print("  opendaw-mcp --list-tools List all registered MCP tools")
             print("  opendaw-mcp --help       Show this help")
             print()
             print("Environment variables:")
-            print("  OPENDAW_HOST_DIR  Path to headless openDAW directory")
-            print("  OPENDAW_URL       URL of openDAW Vite dev server")
-            print("  OPENDAW_EXPORT_DIR  Directory for audio exports")
-            print("  NODE_BIN_DIR      Path to Node.js bin directory")
-            print("  MCP_TRANSPORT     Transport type: stdio (default) or sse")
-            print("  FASTMCP_HOST      SSE host (default 0.0.0.0)")
-            print("  FASTMCP_PORT      SSE port (default 8080)")
+            print("  OPENDAW_MCP_MODE   Tool set: full (default, 504 tools) or lite (39 tools)")
+            print("  OPENDAW_HOST_DIR   Path to headless openDAW directory")
+            print("  OPENDAW_URL        URL of openDAW Vite dev server")
+            print("  OPENDAW_EXPORT_DIR Directory for audio exports")
+            print("  NODE_BIN_DIR       Path to Node.js bin directory")
+            print("  MCP_TRANSPORT      Transport type: stdio (default) or sse")
+            print("  FASTMCP_HOST       SSE host (default 0.0.0.0)")
+            print("  FASTMCP_PORT       SSE port (default 8080)")
             return
+
+    # Lite mode: remove non-essential tools
+    mode = os.environ.get("OPENDAW_MCP_MODE", "full")
+    if mode == "lite":
+        import asyncio
+        all_tools = asyncio.run(mcp.list_tools())
+        lite_set = set(LITE_TOOLS)
+        removed = 0
+        for t in all_tools:
+            if t.name not in lite_set:
+                mcp._tool_manager.remove_tool(t.name)
+                removed += 1
+        print(f"Lite mode: {len(all_tools) - removed} tools active, {removed} removed", file=sys.stderr)
+
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     mcp.run(transport=transport)
 
