@@ -61654,3 +61654,231 @@ async def mcp_opendaw_produce_full_track(
     ]
 
     return json.dumps(results, indent=2)
+
+
+async def mcp_opendaw_create_descant(
+    descant_type: str = "soaring",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 5,
+    bars: int = 4,
+    velocity: float = 0.55,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a descant — a secondary melody sung/played above the main melody.
+
+    A descant is a counter-melody that sits *above* the main tune, typically
+    in a higher register. It adds richness and depth without competing with
+    the lead. Common in choral music, worship, folk, and pop ballads —
+    think of the high violin line over a chorus, or the soprano descant
+    in the last verse of a hymn.
+
+    Unlike create_harmony_line (which harmonizes *with* the melody at fixed
+    intervals), a descant is an *independent* melodic line that weaves
+    above the melody, sometimes crossing, sometimes parallel, sometimes
+    contrary. It should be singable on its own but subordinate in volume.
+
+    - **soaring**: Long sustained notes that rise gradually, reaching
+      the highest note near the end. Cinematic, anthemic. Good for
+      worship, ballads, film scores.
+    - **weaving**: Interlocking phrases that fill gaps in the main
+      melody — when the melody rests, the descant sings. Contrapuntal
+      but accessible. Good for folk, pop, indie.
+    - **pedal_tone**: A repeated or sustained high note (typically the
+      5th or tonic of the key) that rings above the melody. Creates
+      tension and grandeur. Good for worship, cinematic, anthemic rock.
+    - **call_response**: Short phrases that answer the melody — the
+      melody sings, then the descant responds. Conversational. Good
+      for pop, R&B, gospel.
+    - **ornamental**: Fast decorative runs, turns, and grace notes
+      around the melody's sustained notes. Baroque-influenced. Good
+      for classical crossover, folk, progressive.
+
+    descant_type: soaring | weaving | pedal_tone | call_response | ornamental
+    key_root: Root note (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (5 = C5=72, higher than melody which is usually octave 4)
+    bars: Number of bars (2-8)
+    velocity: Base velocity 0-1 (descants are typically quieter, 0.5-0.6)
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_descant(descant_type="soaring", key_root="G", scale_type="major", octave=5, bars=4)
+      create_descant(descant_type="weaving", key_root="D", scale_type="minor", octave=5, bars=8)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["soaring", "weaving", "pedal_tone", "call_response", "ornamental"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if descant_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid descant_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (3 <= octave <= 7):
+        return json.dumps({"error": "octave must be 3-7 (descant should be above melody)"})
+    if not (2 <= bars <= 8):
+        return json.dumps({"error": "bars must be 2-8"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+
+    if descant_type == "soaring":
+        # Long sustained notes, gradually rising, highest note near end
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            progress = bar / max(bars - 1, 1)
+            # Start on 3rd, rise to 5th, then octave, then highest near end
+            degree_map = [2, 4, 0, 4]  # 3rd, 5th, octave(tonic), 5th
+            deg = degree_map[bar % len(degree_map)]
+            # Add octave shift for rising effect
+            oct_shift = int(progress * 1.5)
+            pitch = deg_to_pitch(deg, oct_shift)
+            v = velocity * (0.7 + 0.3 * progress)
+            notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+            # Add a passing note at the bar transition
+            if bar < bars - 1:
+                pass_deg = (deg + 1) % ns
+                pass_pitch = deg_to_pitch(pass_deg, oct_shift)
+                notes.append({"pitch": pass_pitch, "start": round(start_beat + bar_start + bar_len - 0.5, 4),
+                              "duration": 0.5, "velocity": round(v * 0.5, 3)})
+
+    elif descant_type == "weaving":
+        # Interlocking phrases: fill gaps, rest when melody sings
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.6 + 0.2 * next(rng))
+            # Descant sings on beats 1-2 and 3.5-4 (filling melody gaps)
+            deg1 = (bar * 2 + 2) % ns  # 3rd or 5th
+            pitch1 = deg_to_pitch(deg1)
+            notes.append({"pitch": pitch1, "start": round(start_beat + bar_start, 4),
+                          "duration": 1.5, "velocity": round(v, 3)})
+            # Rest on beat 2.5-3 (melody sings here)
+            deg2 = (bar * 2 + 4) % ns  # 5th or 7th
+            pitch2 = deg_to_pitch(deg2)
+            notes.append({"pitch": pitch2, "start": round(start_beat + bar_start + 3.0, 4),
+                          "duration": 1.0, "velocity": round(v * 0.8, 3)})
+
+    elif descant_type == "pedal_tone":
+        # Sustained high note (5th or tonic) ringing above melody
+        pedal_deg = 4 if scale_type == "major" else 4  # 5th degree
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.5 + 0.1 * bar / max(bars - 1, 1))
+            # Sustained pedal tone
+            pitch = deg_to_pitch(pedal_deg)
+            notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+            # Occasional decorative note above
+            if bar % 2 == 1 and next(rng) > 0.5:
+                dec_deg = (pedal_deg + 2) % ns
+                dec_pitch = deg_to_pitch(dec_deg, 1)
+                notes.append({"pitch": dec_pitch, "start": round(start_beat + bar_start + 2.0, 4),
+                              "duration": 0.5, "velocity": round(v * 0.4, 3)})
+
+    elif descant_type == "call_response":
+        # Short answering phrases after melody
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.6 + 0.2 * next(rng))
+            # Descant responds on beats 2-3 (after melody's beat 1)
+            phrase_len = 2
+            num_phrases = 2
+            for p in range(num_phrases):
+                phrase_start = bar_start + 1 + p * 2
+                num_notes = 2 + int(next(rng) * 2)
+                for n in range(num_notes):
+                    deg = (bar + p * 2 + n) % ns
+                    pitch = deg_to_pitch(deg)
+                    beat = phrase_start + n * (phrase_len / max(num_notes, 1))
+                    notes.append({"pitch": pitch, "start": round(start_beat + beat, 4),
+                                  "duration": round(phrase_len / max(num_notes, 1) * 0.7, 3),
+                                  "velocity": round(v, 3)})
+
+    elif descant_type == "ornamental":
+        # Fast decorative runs around sustained notes
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * 0.5
+            # Sustained anchor note
+            anchor_deg = (bar + 2) % ns
+            anchor_pitch = deg_to_pitch(anchor_deg)
+            notes.append({"pitch": anchor_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.4, 3)})
+            # Ornamental runs: fast notes around the anchor
+            num_orn = 6
+            for n in range(num_orn):
+                # Alternate above and below the anchor
+                offset = 1 if n % 2 == 0 else -1
+                orn_deg = (anchor_deg + offset) % ns
+                orn_pitch = deg_to_pitch(orn_deg, 0 if orn_deg >= 0 else -1)
+                beat = bar_start + 0.5 + n * (bar_len - 1) / num_orn
+                notes.append({"pitch": orn_pitch, "start": round(start_beat + beat, 4),
+                              "duration": 0.25, "velocity": round(v * 0.7, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["descant"] = True
+    data["descant_type"] = descant_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["octave"] = octave
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "soaring": "long sustained notes rising gradually, highest near end, cinematic anthemic",
+        "weaving": "interlocking phrases filling melody gaps, contrapuntal but accessible",
+        "pedal_tone": "sustained high 5th or tonic ringing above, tension and grandeur",
+        "call_response": "short answering phrases after melody, conversational gospel pop",
+        "ornamental": "fast decorative runs and grace notes around sustained anchors, baroque",
+    }.get(descant_type, "")
+
+    return json.dumps(data, indent=2)

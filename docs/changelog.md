@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.354.0 (2026-07-06)
+
+- **`create_descant`** — Descant counter-melody generator. 5 types: soaring (long sustained rising notes, anthemic), weaving (interlocking phrases filling melody gaps), pedal_tone (sustained high 5th/tonic), call_response (short answering phrases), ornamental (fast decorative runs, baroque). 3 scales, octave 5+, 2-8 bars. Seeded PRNG. 26 unit tests. 520 MCP tools. Secondary melody above the main tune — choral, worship, folk, ballads.
+- **`one_call_production.py`** — Example demonstrating arrange_full_song + produce_full_track.
+- **Sound-design skill** — Added 7 new DSP entries (thermal/fet/ssl/nyquist/bx/psycho compressor table).
+
 ## v1.353.0 (2026-07-06)
 
 - **`produce_full_track`** — Ultimate meta-tool: produces a complete track in one call. Chains 6 steps: set_bpm → arrange_full_song → create_drum_pattern → create_bassline → apply_mix_preset → render_full (optional). One call replaces 15-20 individual tool calls. Agent specifies structure, key, genre, tempo — everything else automatic. 20+ genres, render optional. 22 unit tests. 519 MCP tools. The one-call production pipeline.
