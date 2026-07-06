@@ -229,6 +229,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 216. `create_tala` — Indian classical tala: cyclic rhythm with vibhag sections, tali/khali markings, tabla bols, 6 talas (teental/ektal/jhaptal/rupak/dadra/kehartwa), 3 laya tempos (vilambit/madhya/drut), bol-to-pitch mapping
 217. `create_songo_pattern` — Cuban songo drum-kit fusion: 4 variations (classic/modern/fusion/songo_funk), 4 voices (kick/snare/hh/tom), Los Van Van style, complete drum-kit groove
 218. `create_samba_pattern` — Brazilian samba percussion ensemble: 5 instruments (surdo/caixa/tamborim/chocalho/repique), 4 styles (batucada/samba_enredo/pagode/samba_funk), multi-instrument layered groove
+219. `create_djembe_ensemble` — West African djembe/dunun ensemble: 6 instruments (kenkeni/sangban/dundunba/bell/djembe2/djembe1), 4 rhythms (danza/kuku/djole/doundounba), cyclical ostinato + call-response
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

@@ -39505,6 +39505,275 @@ async def mcp_opendaw_create_samba_pattern(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_djembe_ensemble(
+    bars: int = 4,
+    style: str = "danza",
+    velocity: float = 0.75,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kenkeni_pitch: int = 35,
+    sangban_pitch: int = 36,
+    dundunba_pitch: int = 38,
+    djembe1_pitch: int = 42,
+    djembe2_pitch: int = 46,
+    bell_pitch: int = 50,
+) -> str:
+    """Create a West African djembe/dunun ensemble — cyclical ostinato with call-and-response.
+
+    West African drumming (Mali, Guinea, Senegal) is built on layered cyclical
+    patterns. Three bass drums (dununs) play interlocking ostinato patterns that
+    define the rhythmic foundation. The kenkeni (highest) plays the fastest cycle,
+    the sangban (middle) plays the core pulse, and the dundunba (lowest) plays the
+    slow anchor. A bell (kenken) plays the timeline — the reference pattern all
+    drummers orient to. Two djembes play lead and accompaniment parts: djembe 1
+    improvises calls and echauffements (heating-up sections), djembe 2 plays a
+    fixed accompaniment (accompagnement) that interlocks with the dununs.
+
+    Unlike samba (parade ensemble) or songo (drum kit), West African drumming
+    is cyclical: the accompaniment loops indefinitely while the lead djembe
+    improvises on top. The structure is call-and-response: the lead plays a
+    signal (appel) and the ensemble responds, then the groove continues.
+
+    styles (traditional rhythms):
+      "danza"    — Malian welcoming rhythm. Kenkeni steady 8ths, sangban
+                    pulse on 1+3, dundunba on 2+4. Bell timeline E(3,2,3).
+                    Djembe 2 accompagnement: slap-tone-slap-bass.
+      "kuku"     — Guinean celebration rhythm. Kenkeni offbeat pattern,
+                    sangban syncopated, dundunba sparse. Bell E(7,12).
+                    Djembe 2: rolling 16th tone-slaps.
+      "djole"    — Sierra Leonean rhythm (originally on sikko drums).
+                    Kenkeni 16ths, sangban 3-3-2, dundunba on 1. Bell E(3,2,3).
+                    Djembe 2: spaced bass-slap pattern.
+      "doundounba" — The "dance of the strong men" (Guinea). Sangban drives
+                    with a dense 16th pattern, dundunba on downbeats,
+                    kenkeni sparse. Bell E(3,2,3). Aggressive djembe 2.
+
+    bars: Pattern length (4-16, even).
+    style: Rhythm name (danza, kuku, djole, doundounba).
+    velocity: Base velocity (0-1).
+    kenkeni_pitch: Kenkeni (high dunun) MIDI pitch (35 = B0).
+    sangban_pitch: Sangban (mid dunun) MIDI pitch (36 = C1).
+    dundunba_pitch: Dundunba (low dunun) MIDI pitch (38 = D1).
+    djembe1_pitch: Lead djembe MIDI pitch (42 = F#1).
+    djembe2_pitch: Accompaniment djembe MIDI pitch (46 = A#1).
+    bell_pitch: Bell (kenken) timeline MIDI pitch (50 = D2).
+
+    Args:
+        bars: Pattern length in bars (4-16, even).
+        style: Rhythm style (danza, kuku, djole, doundounba).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        kenkeni_pitch: Kenkeni MIDI pitch.
+        sangban_pitch: Sangban MIDI pitch.
+        dundunba_pitch: Dundunba MIDI pitch.
+        djembe1_pitch: Lead djembe MIDI pitch.
+        djembe2_pitch: Accompaniment djembe MIDI pitch.
+        bell_pitch: Bell timeline MIDI pitch.
+
+    Returns notes created, instrument breakdown, and rhythm info.
+    """
+    if not (4 <= bars <= 16) or bars % 2 != 0:
+        return f"Error: bars must be even and 4-16, got {bars}"
+    if style not in ("danza", "kuku", "djole", "doundounba"):
+        return f"Error: style must be danza, kuku, djole, or doundounba, got {style}"
+
+    # Each instrument: list of (beat, vel_mult, dur) per 2-bar cycle (8 beats)
+    # Bell timeline pattern varies per rhythm
+    RHYTHMS = {
+        "danza": {
+            "kenkeni": [
+                (0.0, 0.6, 0.25), (1.0, 0.5, 0.25), (2.0, 0.6, 0.25), (3.0, 0.5, 0.25),
+                (4.0, 0.6, 0.25), (5.0, 0.5, 0.25), (6.0, 0.6, 0.25), (7.0, 0.5, 0.25),
+            ],
+            "sangban": [
+                (0.0, 1.0, 0.4), (2.0, 0.8, 0.3), (4.0, 1.0, 0.4), (6.0, 0.8, 0.3),
+            ],
+            "dundunba": [
+                (1.0, 0.85, 0.3), (3.0, 0.85, 0.3), (5.0, 0.85, 0.3), (7.0, 0.85, 0.3),
+            ],
+            "bell": [
+                (0.0, 0.9, 0.1), (0.5, 0.7, 0.08), (1.5, 0.8, 0.08),
+                (2.0, 0.9, 0.1), (2.5, 0.7, 0.08), (3.5, 0.8, 0.08),
+                (4.0, 0.9, 0.1), (4.5, 0.7, 0.08), (5.5, 0.8, 0.08),
+                (6.0, 0.9, 0.1), (6.5, 0.7, 0.08), (7.5, 0.8, 0.08),
+            ],
+            "djembe2": [
+                (0.0, 0.8, 0.15), (0.5, 0.6, 0.1), (1.0, 0.8, 0.15),
+                (1.5, 0.7, 0.12), (2.0, 0.6, 0.12),
+                (3.0, 0.8, 0.15), (3.5, 0.6, 0.1), (4.0, 0.8, 0.15),
+                (4.5, 0.7, 0.12), (5.0, 0.6, 0.12),
+                (6.0, 0.8, 0.15), (6.5, 0.6, 0.1), (7.0, 0.8, 0.15),
+                (7.5, 0.7, 0.12),
+            ],
+            "djembe1": [
+                (0.0, 0.9, 0.2), (1.5, 0.7, 0.1), (2.5, 0.8, 0.12),
+                (4.0, 0.85, 0.15), (5.5, 0.7, 0.1), (6.5, 0.85, 0.15),
+                (7.0, 0.9, 0.18), (7.5, 0.8, 0.12),
+            ],
+        },
+        "kuku": {
+            "kenkeni": [
+                (0.5, 0.6, 0.2), (1.5, 0.6, 0.2), (2.5, 0.6, 0.2), (3.5, 0.6, 0.2),
+                (4.5, 0.6, 0.2), (5.5, 0.6, 0.2), (6.5, 0.6, 0.2), (7.5, 0.6, 0.2),
+            ],
+            "sangban": [
+                (0.0, 0.9, 0.3), (1.5, 0.7, 0.2), (2.0, 0.85, 0.25),
+                (3.5, 0.7, 0.2), (4.0, 0.9, 0.3), (5.5, 0.7, 0.2),
+                (6.0, 0.85, 0.25), (7.5, 0.7, 0.2),
+            ],
+            "dundunba": [
+                (0.0, 1.0, 0.4), (2.0, 0.8, 0.3), (4.0, 1.0, 0.4), (6.0, 0.8, 0.3),
+            ],
+            "bell": [
+                (0.0, 0.9, 0.1), (1.0, 0.8, 0.08), (2.0, 0.9, 0.1),
+                (3.0, 0.7, 0.08), (3.5, 0.8, 0.08),
+                (4.0, 0.9, 0.1), (5.0, 0.8, 0.08), (6.0, 0.9, 0.1),
+                (7.0, 0.7, 0.08), (7.5, 0.8, 0.08),
+            ],
+            "djembe2": [
+                (0.25, 0.6, 0.08), (0.5, 0.7, 0.1), (0.75, 0.6, 0.08),
+                (1.25, 0.6, 0.08), (1.5, 0.7, 0.1), (1.75, 0.6, 0.08),
+                (2.25, 0.6, 0.08), (2.5, 0.7, 0.1), (2.75, 0.6, 0.08),
+                (3.25, 0.6, 0.08), (3.5, 0.7, 0.1), (3.75, 0.6, 0.08),
+                (4.25, 0.6, 0.08), (4.5, 0.7, 0.1), (4.75, 0.6, 0.08),
+                (5.25, 0.6, 0.08), (5.5, 0.7, 0.1), (5.75, 0.6, 0.08),
+                (6.25, 0.6, 0.08), (6.5, 0.7, 0.1), (6.75, 0.6, 0.08),
+                (7.25, 0.6, 0.08), (7.5, 0.7, 0.1), (7.75, 0.6, 0.08),
+            ],
+            "djembe1": [
+                (0.0, 0.9, 0.2), (1.0, 0.7, 0.12), (2.0, 0.85, 0.15),
+                (3.0, 0.7, 0.12), (3.5, 0.8, 0.12),
+                (4.0, 0.9, 0.2), (5.0, 0.7, 0.12), (6.0, 0.85, 0.15),
+                (7.0, 0.7, 0.12), (7.5, 0.85, 0.15),
+            ],
+        },
+        "djole": {
+            "kenkeni": [
+                (0.0, 0.6, 0.12), (0.25, 0.5, 0.08), (0.5, 0.6, 0.12), (0.75, 0.5, 0.08),
+                (1.0, 0.6, 0.12), (1.25, 0.5, 0.08), (1.5, 0.6, 0.12), (1.75, 0.5, 0.08),
+                (2.0, 0.6, 0.12), (2.25, 0.5, 0.08), (2.5, 0.6, 0.12), (2.75, 0.5, 0.08),
+                (3.0, 0.6, 0.12), (3.25, 0.5, 0.08), (3.5, 0.6, 0.12), (3.75, 0.5, 0.08),
+                (4.0, 0.6, 0.12), (4.25, 0.5, 0.08), (4.5, 0.6, 0.12), (4.75, 0.5, 0.08),
+                (5.0, 0.6, 0.12), (5.25, 0.5, 0.08), (5.5, 0.6, 0.12), (5.75, 0.5, 0.08),
+                (6.0, 0.6, 0.12), (6.25, 0.5, 0.08), (6.5, 0.6, 0.12), (6.75, 0.5, 0.08),
+                (7.0, 0.6, 0.12), (7.25, 0.5, 0.08), (7.5, 0.6, 0.12), (7.75, 0.5, 0.08),
+            ],
+            "sangban": [
+                (0.0, 0.9, 0.3), (1.5, 0.7, 0.2), (2.0, 0.9, 0.3),
+                (3.5, 0.7, 0.2), (4.0, 0.9, 0.3), (5.5, 0.7, 0.2),
+                (6.0, 0.9, 0.3), (7.5, 0.7, 0.2),
+            ],
+            "dundunba": [
+                (0.0, 1.0, 0.4), (4.0, 1.0, 0.4),
+            ],
+            "bell": [
+                (0.0, 0.9, 0.1), (0.5, 0.7, 0.08), (1.5, 0.8, 0.08),
+                (2.0, 0.9, 0.1), (2.5, 0.7, 0.08), (3.5, 0.8, 0.08),
+                (4.0, 0.9, 0.1), (4.5, 0.7, 0.08), (5.5, 0.8, 0.08),
+                (6.0, 0.9, 0.1), (6.5, 0.7, 0.08), (7.5, 0.8, 0.08),
+            ],
+            "djembe2": [
+                (0.0, 0.8, 0.15), (1.0, 0.7, 0.12), (1.5, 0.9, 0.15),
+                (2.0, 0.6, 0.1), (3.0, 0.7, 0.12), (3.5, 0.9, 0.15),
+                (4.0, 0.8, 0.15), (5.0, 0.7, 0.12), (5.5, 0.9, 0.15),
+                (6.0, 0.6, 0.1), (7.0, 0.7, 0.12), (7.5, 0.9, 0.15),
+            ],
+            "djembe1": [
+                (0.0, 0.9, 0.2), (1.5, 0.8, 0.12), (2.5, 0.7, 0.1),
+                (4.0, 0.85, 0.15), (5.5, 0.8, 0.12), (6.5, 0.85, 0.15),
+                (7.5, 0.9, 0.18),
+            ],
+        },
+        "doundounba": {
+            "kenkeni": [
+                (0.0, 0.6, 0.2), (2.0, 0.6, 0.2), (4.0, 0.6, 0.2), (6.0, 0.6, 0.2),
+            ],
+            "sangban": [
+                (0.0, 0.9, 0.12), (0.25, 0.7, 0.08), (0.5, 0.8, 0.12), (0.75, 0.7, 0.08),
+                (1.0, 0.9, 0.12), (1.25, 0.7, 0.08), (1.5, 0.8, 0.12), (1.75, 0.7, 0.08),
+                (2.0, 0.9, 0.12), (2.25, 0.7, 0.08), (2.5, 0.8, 0.12), (2.75, 0.7, 0.08),
+                (3.0, 0.9, 0.12), (3.25, 0.7, 0.08), (3.5, 0.8, 0.12), (3.75, 0.7, 0.08),
+                (4.0, 0.9, 0.12), (4.25, 0.7, 0.08), (4.5, 0.8, 0.12), (4.75, 0.7, 0.08),
+                (5.0, 0.9, 0.12), (5.25, 0.7, 0.08), (5.5, 0.8, 0.12), (5.75, 0.7, 0.08),
+                (6.0, 0.9, 0.12), (6.25, 0.7, 0.08), (6.5, 0.8, 0.12), (6.75, 0.7, 0.08),
+                (7.0, 0.9, 0.12), (7.25, 0.7, 0.08), (7.5, 0.8, 0.12), (7.75, 0.7, 0.08),
+            ],
+            "dundunba": [
+                (0.0, 1.0, 0.4), (2.0, 0.85, 0.3), (4.0, 1.0, 0.4), (6.0, 0.85, 0.3),
+            ],
+            "bell": [
+                (0.0, 0.9, 0.1), (0.5, 0.7, 0.08), (1.5, 0.8, 0.08),
+                (2.0, 0.9, 0.1), (2.5, 0.7, 0.08), (3.5, 0.8, 0.08),
+                (4.0, 0.9, 0.1), (4.5, 0.7, 0.08), (5.5, 0.8, 0.08),
+                (6.0, 0.9, 0.1), (6.5, 0.7, 0.08), (7.5, 0.8, 0.08),
+            ],
+            "djembe2": [
+                (0.0, 0.9, 0.15), (0.5, 0.7, 0.1), (1.0, 0.85, 0.12),
+                (1.5, 0.7, 0.1), (2.0, 0.9, 0.15),
+                (2.5, 0.7, 0.1), (3.0, 0.85, 0.12), (3.5, 0.7, 0.1),
+                (4.0, 0.9, 0.15), (4.5, 0.7, 0.1), (5.0, 0.85, 0.12),
+                (5.5, 0.7, 0.1), (6.0, 0.9, 0.15),
+                (6.5, 0.7, 0.1), (7.0, 0.85, 0.12), (7.5, 0.7, 0.1),
+            ],
+            "djembe1": [
+                (0.0, 0.95, 0.2), (0.5, 0.8, 0.12), (1.5, 0.85, 0.15),
+                (2.5, 0.7, 0.1), (3.0, 0.9, 0.15), (3.5, 0.85, 0.12),
+                (4.0, 0.95, 0.2), (4.5, 0.8, 0.12), (5.5, 0.85, 0.15),
+                (6.5, 0.7, 0.1), (7.0, 0.9, 0.15), (7.5, 0.85, 0.12),
+            ],
+        },
+    }
+
+    pitch_map = {
+        "kenkeni": kenkeni_pitch, "sangban": sangban_pitch, "dundunba": dundunba_pitch,
+        "djembe1": djembe1_pitch, "djembe2": djembe2_pitch, "bell": bell_pitch,
+    }
+
+    rhythm = RHYTHMS[style]
+    instruments = list(rhythm.keys())
+    cycle_len = 8.0  # 2-bar cycle
+    cycles = bars // 2
+
+    all_notes = []
+    inst_counts = {}
+
+    for inst in instruments:
+        inst_counts[inst] = 0
+        strokes = rhythm[inst]
+        for c in range(cycles):
+            offset = c * cycle_len
+            for beat, vel_mult, dur in strokes:
+                pos = round(start_beat + offset + beat, 4)
+                vel = round(max(0.0, min(1.0, velocity * vel_mult)), 3)
+                all_notes.append({
+                    "pitch": pitch_map[inst],
+                    "start": pos,
+                    "duration": dur,
+                    "velocity": vel,
+                })
+                inst_counts[inst] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["djembe_ensemble"] = True
+        data["style"] = style
+        data["bars"] = bars
+        data["cycles"] = cycles
+        data["instruments"] = instruments
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,

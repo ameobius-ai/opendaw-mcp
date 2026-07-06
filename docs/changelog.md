@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.294.0 (2026-07-06)
+
+- **`create_djembe_ensemble`** — West African djembe/dunun ensemble: cyclical ostinato with call-and-response. 6 instruments: kenkeni (high dunun), sangban (mid dunun), dundunba (low dunun), bell (timeline), djembe2 (accompaniment), djembe1 (lead/improvisation). 4 traditional rhythms: danza (Malian welcoming), kuku (Guinean celebration), djole (Sierra Leonean), doundounba (dance of the strong men). Unlike samba (parade) or songo (drum kit), West African drumming is cyclical ostinato under improvised lead. Mali, Guinea, Senegal tradition.
+
 ## v1.293.0 (2026-07-06)
 
 - **`create_samba_pattern`** — Brazilian samba percussion ensemble: multi-instrument layered groove with 5 independent drums (surdo, caixa, tamborim, chocalho, repique). Unlike songo (drum kit), samba is a bateria ensemble — each instrument has its own pattern, layered independently. 4 styles: batucada (carnival), samba_enredo (parade), pagode (backyard informal), samba_funk (fusion). Surdo = bass heartbeat, caixa = 16th snare glue, tamborim = syncopated conversation, chocalho = 16th shaker wash, repique = lead drum with calls/fills. Brazilian music tradition.
