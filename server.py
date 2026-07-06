@@ -61536,8 +61536,9 @@ async def mcp_opendaw_produce_full_track(
     2. arrange_full_song (MIDI skeleton with all sections)
     3. create_drum_track (genre-specific drum pattern)
     4. create_bass_track (genre-specific bassline)
-    5. apply_mix_preset (track levels and panning)
-    6. render_full (if render=True — renders the complete track to WAV)
+    5. create_melody (lead melody)
+    6. apply_mix_preset (track levels and panning)
+    7. render_full (if render=True — renders the complete track to WAV)
 
     One call replaces 15-20 individual tool calls. The agent specifies
     structure, key, genre, and tempo — everything else is automatic.
@@ -61605,14 +61606,26 @@ async def mcp_opendaw_produce_full_track(
     except Exception as e:
         results["bass_error"] = str(e)
 
-    # Step 5: Apply mix preset
+    # Step 5: Lead melody
+    try:
+        melody_pattern = "1 2 3 4 5 4 3 2 1 7 6 5 4 3 2 1"
+        melody_result = await mcp_opendaw_create_melody(
+            scale_type, key_root, melody_pattern, -1, 0, 0, octave + 1, velocity * 0.85)
+        melody_data = json.loads(melody_result)
+        results["melody"] = {
+            "notes": melody_data.get("notes_created", melody_data.get("notes_generated", 0)),
+        }
+    except Exception as e:
+        results["melody_error"] = str(e)
+
+    # Step 6: Apply mix preset
     try:
         await mcp_opendaw_apply_mix_preset("balanced")
         results["mix"] = "balanced preset applied"
     except Exception as e:
         results["mix_error"] = str(e)
 
-    # Step 6: Render (optional)
+    # Step 7: Render (optional)
     if render:
         try:
             render_result = await mcp_opendaw_render_full()
@@ -61633,6 +61646,8 @@ async def mcp_opendaw_produce_full_track(
         total_notes += results["drums"].get("notes", 0)
     if "bass" in results:
         total_notes += results["bass"].get("notes", 0)
+    if "melody" in results:
+        total_notes += results["melody"].get("notes", 0)
 
     results["produced"] = True
     results["structure"] = structure

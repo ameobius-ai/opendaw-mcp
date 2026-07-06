@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.370.0 (2026-07-06)
+
+- **`produce_full_track` upgraded** — Now includes lead melody step (Step 5: create_melody). Pipeline is now 7 steps: BPM → arrange → drums → bass → melody → mix → render. Matches produce_and_master's melody addition. Both meta-tools now produce tracks with lead melodies.
+
 ## v1.369.0 (2026-07-06)
 
 - **`produce_and_master` upgraded** — Now includes lead melody step (Step 5: create_melody). Pipeline is now 8 steps: BPM → arrange → drums → bass → melody → genre effects → mastering → render. Previously produced tracks had no lead melody — just drums, bass, and effects. Now every track has a melodic lead.

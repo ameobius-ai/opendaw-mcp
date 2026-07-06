@@ -73,7 +73,7 @@ What do you want to create?
 ├── Transition (active movement) → create_transition (5 types: key_shift/tempo_ramp/texture_build/texture_thin/drop, modulation, accel/ritard, dramatic drop)
 ├── Pre-chorus (tension builder) → create_prechorus (5 types: build/pedal/stall/lift/suspending, crescendo, V pedal, sus4 resolve)
 ├── Full song arrangement → arrange_full_song (meta-tool: "intro:4,prechorus:2,chorus:4,verse:8,bridge:4,outro:4" → calls all section generators with auto start_beat)
-├── Full track production → produce_full_track (ultimate meta-tool: set_bpm → arrange → drums → bass → mix → render, one call = complete track)
+├── Full track production → produce_full_track (ultimate meta-tool: set_bpm → arrange → drums → bass → melody → mix → render, one call = complete track)
 ├── Descant (counter-melody above) → create_descant (5 types: soaring/weaving/pedal_tone/call_response/ornamental, higher register)
 ├── Adaptive mastering → auto_master (meta-tool: analyze → mastering chain → auto-gain, 6 platforms, 4 styles, LUFS targeting)
 ├── Ultimate pipeline → produce_and_master (8 steps: BPM → arrange → drums → bass → melody → genre FX → master → render, ONE CALL = complete mastered track)
