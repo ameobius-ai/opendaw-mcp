@@ -6,7 +6,7 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.346.0, 515 total)
+## Tools Added (v1.10.0, 255 total → v1.361.0, 525 total)
 
 250+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
@@ -463,6 +463,43 @@ When adding a new orchestration tool:
 
 ### DSP Scripts (126 total: 107 Werkstatt + 9 Apparat + 10 Spielwerk)
 Key additions: `sidechain_comp`, `ott`, `soft_clipper`, `plate_reverb`, `ensemble`, `cabinet_sim`, `valve_preamp`, `synthetic_ir_reverb`, `tank_reverb` (spring tank), `bx_saturator` (3-band multi-band saturation), `nyquist_comp` (parallel/New York compression), `thermal_comp` (LA-2A optical compressor), `analog_delay` (BBD), `distortion_pedal` (DS-1/Rat), `cassette_sim`
+
+## Tools Added v1.347.0–v1.361.0 (cycles 372–381, 10 new tools, v1.346.0/515 → v1.361.0/525)
+
+| Version | Tool | Description |
+|---------|------|-------------|
+| v1.348.0 | `create_transition` | Transition section generator: 5 types (key_shift, tempo_ramp, texture_build, texture_thin, drop). Modulation, accel/ritard, dramatic contrast. 2-8 bars. |
+| v1.349.0 | `create_prechorus` | Pre-chorus section generator: 5 types (build, pedal, stall, lift, suspending). Tension builder before chorus. 2-4 bars. |
+| v1.350.0 | `werkstatt_psycho_bass.js` | Psychoacoustic bass enhancer (MaxxBass/RBass style). Sub-harmonic generation. |
+| v1.351.0 | `arrange_full_song` | Meta-tool: full song skeleton from structure string. 9 section types, auto start_beat tracking. |
+| v1.352.0 | `werkstatt_ssl_bus_comp.js` | SSL G-series bus compressor. VCA-based, RMS detection, the "glue". |
+| v1.353.0 | `produce_full_track` | Meta-tool: set_bpm → arrange → drums → bass → mix → render. One call = full track. |
+| v1.354.0 | `create_descant` | Descant counter-melody: 5 types (soaring, weaving, pedal_tone, call_response, ornamental). Above main melody. |
+| v1.355.0 | `werkstatt_true_peak_limiter.js` | True peak limiter with inter-sample peak detection (4x oversampling). -1 dBTP streaming compliance. |
+| v1.356.0 | `auto_master` | Adaptive mastering meta-tool: analyze → mastering chain → auto_gain. 6 platforms, 4 styles. |
+| v1.357.0 | `add_genre_effects` | Genre-specific effect chains: 15 genres, character-appropriate routing. Saves 5-10 calls. |
+| v1.358.0 | `produce_and_master` | Ultimate 7-step pipeline: BPM → arrange → drums → bass → genre FX → master → render. ONE CALL = mastered track. |
+| v1.359.0 | `create_industrial_arrangement` | Industrial (NIN/Ministry): distorted 4-on-floor, metallic percussion, tritone stabs, drone. |
+| v1.360.0 | `werkstatt_aire.js` | Stereo air exciter: M/S widener + HF harmonic exciter combo. |
+| v1.361.0 | `create_breakbeat_arrangement` | Breakbeat/big beat (Prodigy/Chemical Brothers): Amen-style broken beat, rolling bass, acid riff. |
+
+**Key additions v1.347–v1.361:**
+- **Meta-tools (5):** `arrange_full_song`, `produce_full_track`, `produce_and_master`, `auto_master`, `create_song_structure`
+- **Section generators (8):** intro, prechorus, interlude, transition, bridge, outro, coda + arrange_full_song
+- **Genre arrangements (3 new):** industrial, breakbeat, harmonic (total: 37)
+- **DSP (4 new):** psycho_bass, ssl_bus_comp, true_peak_limiter, aire (total: 131)
+- **Melodic vocabulary (1 new):** descant (total: 8: riff, turnaround, lick, hook, etude, cadence, descant, solo)
+- **Genre effects (1 new):** add_genre_effects (15 genres)
+
+**Mastering chain complete:**
+```
+EQ → multiband_comp → SSL bus comp → true_peak_limiter → aire (air+width)
+```
+
+**One-call pipeline:**
+```
+produce_and_master → 7 steps → rendered mastered WAV (-14 LUFS, -1 dBTP)
+```
 
 ## PyPI Publishing Workflow
 
