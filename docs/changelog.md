@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.312.0 (2026-07-06)
+
+- **`create_edm_arrangement`** — Festival/mainstage EDM across 4 tracks: 4-on-the-floor kick + claps on 2+4 + 16th closed hats + open hats on offbeats, offbeat sub bass, supersaw chord stabs on beats 1+3, arpeggiated lead hook. Snare roll buildup crescendo at end of phrases. i-VI-III-VII progression (Fm-Db-Ab-Eb). F minor default (most common EDM key). 128 BPM. 23rd multi-track arrangement. 22 unit tests. 487 MCP tools.
+
 ## v1.311.0 (2026-07-06)
 
 - **`create_gospel_arrangement`** — Gospel music across 4 tracks: gospel shuffle drums (kick on 1+3, snare on 2+4 with ghost notes, triplet shuffle hats), walking bass (root→3rd→5th→7th approach), Hammond B3 organ (chord stabs on 1+3, sustained on 2+4), SATB choir (sustained with dynamic swell). I-IV-V-I progression. Ab major default (flat keys traditional for gospel). 22nd multi-track arrangement. 25 unit tests. 486 MCP tools.

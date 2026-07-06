@@ -47218,6 +47218,206 @@ async def mcp_opendaw_create_gospel_arrangement(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_edm_arrangement(
+    bpm: float = 128,
+    bars: int = 16,
+    root: str = "F",
+    octave: int = 3,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    synth_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+) -> str:
+    """Create a full EDM arrangement — festival/mainstage 4-on-floor + supersaw + pluck + lead.
+
+    Electronic Dance Music — festival/mainstage sound:
+    - Track 0: Drums — 4-on-the-floor kick (every beat), claps on 2+4,
+                     open hats on offbeats, 16th closed hats for energy.
+                     Riser/snare buildup at end of 8-bar phrases.
+    - Track 1: Bass — offbeat bass (root on the "and" of each beat).
+                     Sub-bass frequency, driving, syncopated.
+    - Track 2: Supersaw synth — wide chord stabs on beats 1 and 3.
+                     Root position triads with spread voicings.
+                     The "wall of sound" — mainstage synth.
+    - Track 3: Lead synth — melody using scale degrees. Arpeggiated
+                     pattern with rhythmic repetition. The "hook".
+
+    F minor default — the most common EDM key (nice for both male and
+    female vocals, sits well in club systems). 128 BPM (house/EDM standard).
+    vi-IV-I-V progression (Fm-Db-Ab-Eb) — the "pop punk" progression
+    that drives most festival anthems.
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid root '{root}'. Valid: {list(NOTE_MAP.keys())}"})
+
+    KICK = 36
+    CLAP = 39
+    HAT_C = 42
+    HAT_O = 46
+    SNARE = 38
+
+    # F minor scale
+    minor = [0, 2, 3, 5, 7, 8, 10]
+    root_pitch = (octave + 1) * 12 + root_pc
+
+    # vi-IV-I-V in relative major, which is I-VI-III-VII in minor
+    # In F minor: Fm(i) - Db(VI) - Ab(III) - Eb(VII)
+    # Scale degree indices in minor scale: 0, 5, 2, 6
+    chord_degrees = [0, 5, 2, 6]
+    chord_types = {
+        0: [0, 3, 7],   # i minor
+        5: [0, 3, 7],   # VI minor (relative major IV)
+        2: [0, 3, 7],   # III minor
+        6: [0, 3, 7],   # VII minor
+    }
+
+    beats_per_bar = 4
+    bars_per_chord = max(2, bars // 4)
+
+    drum_notes = []
+    bass_notes = []
+    synth_notes = []
+    lead_notes = []
+
+    for chord_idx, deg in enumerate(chord_degrees):
+        chord_start = start_beat + chord_idx * bars_per_chord * beats_per_bar
+        chord_root = root_pitch + minor[deg % 7] + (12 * (deg // 7))
+        triad = chord_types.get(deg, [0, 3, 7])
+
+        for bar in range(bars_per_chord):
+            bar_start = chord_start + bar * beats_per_bar
+
+            # --- Drums: 4-on-floor ---
+            for beat in range(4):
+                drum_notes.append({
+                    "pitch": KICK,
+                    "start": round(bar_start + beat, 4),
+                    "duration": 0.5,
+                    "velocity": velocity * 0.95,
+                })
+            # Claps on 2 and 4
+            for beat in [1, 3]:
+                drum_notes.append({
+                    "pitch": CLAP,
+                    "start": round(bar_start + beat, 4),
+                    "duration": 0.3,
+                    "velocity": velocity * 0.8,
+                })
+            # Open hats on offbeats
+            for beat in range(4):
+                drum_notes.append({
+                    "pitch": HAT_O,
+                    "start": round(bar_start + beat + 0.5, 4),
+                    "duration": 0.2,
+                    "velocity": velocity * 0.5,
+                })
+            # 16th closed hats
+            for h in range(16):
+                hat_beat = bar_start + h * 0.25
+                hat_vel = velocity * (0.3 if h % 2 == 0 else 0.2)
+                drum_notes.append({
+                    "pitch": HAT_C,
+                    "start": round(hat_beat, 4),
+                    "duration": 0.1,
+                    "velocity": round(hat_vel, 3),
+                })
+
+            # Buildup: last 2 bars get snare roll
+            if bar >= bars_per_chord - 2 and chord_idx < 3:
+                # Snare 16th roll on last bar
+                if bar == bars_per_chord - 1:
+                    for s in range(16):
+                        svel = velocity * (0.3 + 0.04 * s)  # crescendo
+                        drum_notes.append({
+                            "pitch": SNARE,
+                            "start": round(bar_start + s * 0.25, 4),
+                            "duration": 0.1,
+                            "velocity": round(min(svel, velocity), 3),
+                        })
+
+            # --- Bass: offbeat ---
+            for beat in range(4):
+                bass_notes.append({
+                    "pitch": chord_root - 12,
+                    "start": round(bar_start + beat + 0.5, 4),
+                    "duration": 0.45,
+                    "velocity": round(velocity * 0.85, 3),
+                })
+
+            # --- Supersaw: chord stabs on 1 and 3 ---
+            for beat in [0, 2]:
+                for interval in triad:
+                    synth_notes.append({
+                        "pitch": chord_root + interval,
+                        "start": round(bar_start + beat, 4),
+                        "duration": 1.8,
+                        "velocity": round(velocity * 0.6, 3),
+                    })
+
+            # --- Lead: arpeggiated hook ---
+            # Pattern: root, 3rd, 5th, 3rd, octave, 5th, 3rd, root (8th notes)
+            arp_intervals = [triad[0], triad[1], triad[2], triad[1],
+                             triad[0] + 12, triad[2], triad[1], triad[0]]
+            for h in range(8):
+                lead_pitch = chord_root + arp_intervals[h % len(arp_intervals)]
+                lead_notes.append({
+                    "pitch": lead_pitch + 12,  # one octave up for lead
+                    "start": round(bar_start + h * 0.5, 4),
+                    "duration": 0.4,
+                    "velocity": round(velocity * (0.55 + 0.06 * (h % 4)), 3),
+                })
+
+    # Create notes on 4 tracks
+    drum_json = json.dumps(drum_notes)
+    drum_result = await mcp_opendaw_create_notes_batch(drum_json, unit_index, drum_track)
+
+    bass_json = json.dumps(bass_notes)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, bass_track)
+
+    synth_json = json.dumps(synth_notes)
+    synth_result = await mcp_opendaw_create_notes_batch(synth_json, unit_index, synth_track)
+
+    lead_json = json.dumps(lead_notes)
+    lead_result = await mcp_opendaw_create_notes_batch(lead_json, unit_index, lead_track)
+
+    try:
+        data = json.loads(drum_result)
+        data["edm_arrangement"] = True
+        data["bpm"] = bpm
+        data["bars"] = bars
+        data["root"] = root
+        data["key"] = f"{root} minor"
+        data["progression"] = "i-VI-III-VII (vi-IV-I-V equivalent)"
+        data["tracks"] = {
+            "drums": {"track": drum_track, "notes": len(drum_notes), "pattern": "4_on_floor_claps_hats_riser"},
+            "bass": {"track": bass_track, "notes": len(bass_notes), "pattern": "offbeat_sub_bass"},
+            "synth": {"track": synth_track, "notes": len(synth_notes), "pattern": "supersaw_chord_stabs"},
+            "lead": {"track": lead_track, "notes": len(lead_notes), "pattern": "arpeggiated_hook"},
+        },
+        data["total_notes"] = len(drum_notes) + len(bass_notes) + len(synth_notes) + len(lead_notes),
+        data["form"] = "festival_edm",
+        data["results"] = {
+            "drums": json.loads(drum_result).get("success", False) if drum_result else False,
+            "bass": json.loads(bass_result).get("success", False) if bass_result else False,
+            "synth": json.loads(synth_result).get("success", False) if synth_result else False,
+            "lead": json.loads(lead_result).get("success", False) if lead_result else False,
+        }
+        return json.dumps(data, indent=2)
+    except Exception:
+        return drum_result
+
+
+
+
+@mcp.tool()
 async def mcp_opendaw_create_reggae_arrangement(
     bpm: float = 80,
     bars: int = 8,
