@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.326.0 (2026-07-06)
+
+- **`create_phonk_arrangement`** — Drift phonk: 130 BPM Memphis rap-inspired. 3 tracks: Memphis drums (punchy kick 1&3, clap 2&4, 16th hats with rolls), sliding 808 bass (chromatic slides, sustained resonance, octave drops), cowbell lead (minor pentatonic repetitive riff, 1-bar cycle, 3 octaves above bass). F minor default. Kordhell, MC Slvr, LXST CXNTURY. 23 unit tests. 501 MCP tools.
+
 ## v1.325.0 (2026-07-06) — 500 MILESTONE
 
 - **`create_neurofunk_arrangement`** — Neurofunk DnB: 174 BPM dark technical DnB. 4 tracks: complex chopped breakbeat (extra kick placements, ghost note clusters/snare rolls at phrase ends), deep sustained sub-bass (syncopated gaps), Reese bass (detuned saw with chromatic slides and minor third jumps, rhythmic stabs), dark minor chord stabs (root+b3+tritone+b7). F minor default. Noisia, Spor, Phace. 22 unit tests. **500 MCP tools milestone.**

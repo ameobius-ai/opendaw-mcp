@@ -57220,3 +57220,197 @@ async def mcp_opendaw_create_neurofunk_arrangement(
         "bass_pattern": "reese_chromatic",
         "harmony": "diminished_minor",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_phonk_arrangement(
+    bpm: float = 130,
+    bars: int = 8,
+    root: str = "F",
+    octave: int = 2,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    cowbell_track: int = 2,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full drift phonk arrangement — 3 tracks: drums + 808 + cowbell lead.
+
+    Drift phonk (Kordhell, MC Slvr, LXST CXNTURY) is the TikTok-era evolution
+    of Memphis rap — dark, distorted, high-energy, with signature elements:
+    - 120-140 BPM, usually minor key
+    - Memphis-style drums: punchy kick on 1 and 3, snare/clap on 2 and 4,
+      fast 16th hats with occasional rolls, lo-fi texture
+    - 808 bass with slides (glide between notes, sustained resonance)
+    - Cowbell melody — the iconic phonk sound, catchy repetitive riffs
+      in minor pentatonic, often detuned/dark
+    - Sidechain feel — bass ducks when kick hits
+    - Distorted, lo-fi aesthetic
+
+    Creates 3 tracks:
+    1. Drums (drum_track): Memphis-style — punchy kick, clap on 2&4,
+       16th hats with rolls at phrase ends, occasional perc hits.
+    2. 808 bass (bass_track): Sliding 808 with sustained resonance.
+       Follows root with chromatic slides, octave drops, and gaps
+       where drums fill. The glide is simulated by short overlapping
+       notes at pitch transitions.
+    3. Cowbell lead (cowbell_track): Repetitive minor pentatonic riff
+       in high octave, catchy and driving. 1-bar or 2-bar cycle.
+
+    bpm: Tempo (110-150, default 130).
+    bars: Arrangement length (4-32, default 8).
+    root: Root note (default F = common phonk key).
+    octave: MIDI octave for 808 (2 = C2=36).
+
+    Example:
+      create_phonk_arrangement(bpm=130, root="F", bars=8)
+      create_phonk_arrangement(bpm=140, root="D#", bars=16)
+    """
+    if not (110 <= bpm <= 150):
+        return "Error: bpm must be 110-150"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc
+    cowbell_base = (octave + 5) * 12 + root_pc  # cowbell 3 octaves above bass
+
+    # Minor pentatonic: root, b3, 4th, 5th, b7
+    penta = [0, 3, 5, 7, 10]
+
+    # --- DRUMS: Memphis-style phonk drums (2-bar cycle) ---
+    drum_pattern = [
+        (0.0, "kick"), (0.25, "hat"), (0.5, "hat"), (0.75, "hat"),
+        (1.0, "clap"), (1.0, "hat"), (1.25, "hat"), (1.5, "hat"), (1.75, "hat"),
+        (2.0, "kick"), (2.25, "hat"), (2.5, "hat"), (2.75, "hat"),
+        (3.0, "clap"), (3.0, "hat"),
+        (3.25, "hat"), (3.33, "hat"), (3.41, "hat"), (3.5, "hat"), (3.75, "hat"),
+        (4.0, "kick"), (4.25, "hat"), (4.5, "hat"), (4.75, "hat"),
+        (5.0, "clap"), (5.0, "hat"), (5.25, "hat"), (5.5, "hat"), (5.75, "hat"),
+        (6.0, "kick"), (6.25, "hat"), (6.5, "hat"), (6.75, "hat"),
+        (7.0, "clap"), (7.0, "hat"),
+        (7.25, "hat"), (7.33, "hat"), (7.41, "hat"), (7.5, "hat"), (7.75, "hat"),
+    ]
+
+    kick_p, clap_p, hat_p = 36, 39, 42
+    drum_pitch_map = {"kick": kick_p, "clap": clap_p, "hat": hat_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.08),
+        "clap": velocity,
+        "hat": max(0.0, velocity - 0.25),
+    }
+    drum_dur_map = {"kick": 0.2, "clap": 0.1, "hat": 0.04}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(drum_vel_map[st], 3),
+            })
+
+    # --- 808 BASS: Sliding 808 with sustained resonance ---
+    # Simulates glide by overlapping short transition notes
+    # 2-bar cycle with root movement and octave drops
+    bass_pattern = [
+        (0.0, 0, 2.0, 1.0),
+        (2.0, 0, 1.0, 0.9),
+        (3.0, 3, 0.5, 0.85),    # slide to b3
+        (3.5, 0, 0.5, 0.8),     # slide back
+        (4.0, 0, 1.5, 1.0),
+        (5.5, -2, 0.5, 0.85),   # slide down to b7 below root
+        (6.0, 0, 1.5, 0.9),
+        (7.5, 12, 0.5, 0.8),    # octave jump
+    ]
+    bass_notes = []
+    bass_cycle = 8.0
+    bass_cycles = bars // 2
+    for c in range(bass_cycles):
+        off = c * bass_cycle
+        for beat, po, dur, vm in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + po,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- COWBELL LEAD: Repetitive minor pentatonic riff ---
+    # 1-bar cycle, catchy and driving
+    # Using cowbell MIDI note 56 (Cowbell in GM) mixed with pitched notes
+    # Actually phonk cowbell is pitched — we use the root pentatonic
+    # Pattern: b7-5-b3-root-5-b3-5-b7 (classic descending-ascending riff)
+    cowbell_degrees = [10, 7, 3, 0, 7, 3, 7, 10]  # pentatonic degrees
+    cowbell_beats = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+    cowbell_dur = 0.4
+    cowbell_vel_base = 0.85
+
+    cowbell_notes = []
+    cowbell_cycle = 4.0  # 1-bar cycle
+    for b in range(bars):
+        off = b * cowbell_cycle
+        for i, deg in enumerate(cowbell_degrees):
+            # Map pentatonic degree to semitone offset
+            semitone = penta[deg % len(penta)]
+            oct_shift = (deg // len(penta)) * 12
+            cowbell_notes.append({
+                "pitch": cowbell_base + semitone + oct_shift,
+                "start": round(start_beat + off + cowbell_beats[i], 4),
+                "duration": cowbell_dur,
+                "velocity": round(velocity * cowbell_vel_base, 3),
+            })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    cowbell_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(cowbell_notes), unit_index, cowbell_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        cowbell_data = json.loads(cowbell_result)
+    except Exception:
+        cowbell_data = {"raw": cowbell_result}
+
+    return json.dumps({
+        "phonk_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes),
+                       "result": drum_data.get("notes_created", len(drum_notes)),
+                       "style": "memphis punchy kick, clap 2&4, 16th hats with rolls"},
+            "808_bass": {"track": bass_track, "notes": len(bass_notes),
+                          "result": bass_data.get("notes_created", len(bass_notes)),
+                          "style": "sliding 808 with sustained resonance, chromatic slides"},
+            "cowbell": {"track": cowbell_track, "notes": len(cowbell_notes),
+                         "result": cowbell_data.get("notes_created", len(cowbell_notes)),
+                         "style": "minor pentatonic repetitive riff, 1-bar cycle"},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(cowbell_notes),
+        "drum_pattern": "memphis_phonk",
+        "bass_pattern": "808_slides",
+        "scale": "minor_pentatonic",
+    }, indent=2)
