@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.319.0 (2026-07-06)
+
+- **`create_hardstyle_arrangement`** — Hardstyle: 150 BPM Dutch festival hard dance. 4 tracks: hard kick on every beat + snare 2&4 + closed hats offbeat + open hat, reverse bass (offbeat boom-BM pattern), screechy sawtooth lead (wide intervals, octave jumps, high octave), stab chords on 1&3 (i-VI-III-VII). F minor default. Headhunterz, Brennan Heart, Wildstylez. 21 unit tests. 494 MCP tools.
+
 ## v1.318.0 (2026-07-06)
 
 - **`create_ternary_form`** — Ternary form (ABA): outer A sections with contrasting B middle. 5 B-section contrast types: trio (subdominant, smoother rhythm, minuet & trio), dominant (V key, more active, Beethoven scherzo), relative (relative minor/major, Schubert impromptu), episode (same key, different material, Chopin nocturne), development (fragmentation of A material). Optional A' ornamentation with passing tones and trill-like neighbors. Da capo aria, minuet & trio, Chopin nocturnes, pop/jazz ABA. 33 unit tests. 493 MCP tools.

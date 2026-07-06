@@ -55784,3 +55784,181 @@ async def mcp_opendaw_create_ternary_form(
         return json.dumps(data, indent=2)
     except Exception:
         return melody_result
+
+
+@mcp.tool()
+async def mcp_opendaw_create_hardstyle_arrangement(
+    key_root: str = "F",
+    bpm: int = 150,
+    bars: int = 16,
+    velocity: float = 0.8,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a hardstyle arrangement — 150 BPM festival hard dance.
+
+    Hardstyle is a Dutch electronic dance genre characterized by:
+    - Hard, distorted kick drum with a pitched tail (the signature sound)
+    - Reverse bass (off-beat bass that "reverses" the kick pattern)
+    - Screechy/sawtooth lead synth with wide unison
+    - 150 BPM, 4/4 time
+    - Aggressive, festival/headbanger energy
+
+    Creates 4 tracks:
+    1. Drums (track_index): Hard kick on every beat, snare on 2&4,
+       closed hats on offbeats, open hat occasionally
+    2. Bass (track_index+1): Reverse bass pattern — bass on offbeats
+       between kicks, creating the signature "boom-BM-boom-BM" feel
+    3. Lead (track_index+2): Screechy sawtooth lead playing a minor
+       melody with wide intervals and octave jumps
+    4. Chords (track_index+3): Stab chords on beat 1 and 3, minor key
+
+    Default key: F minor (common hardstyle key).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    # MIDI pitches (GM)
+    KICK = 36
+    SNARE = 38
+    CLOSED_HAT = 42
+    OPEN_HAT = 46
+
+    # F minor scale degrees → MIDI
+    minor_scale = [0, 2, 3, 5, 7, 8, 10]
+    bass_oct = (2 + 1) * 12 + root_pc  # octave 2
+    lead_oct = (4 + 1) * 12 + root_pc  # octave 4 (screechy high)
+    chord_oct = (3 + 1) * 12 + root_pc
+
+    def deg_to_pitch(degree, root_note, sc):
+        ns = len(sc)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return root_note + oct_shift * 12 + sc[idx]
+
+    drums = []
+    bass = []
+    lead = []
+    chords = []
+
+    # Lead melody pattern (hardstyle: wide intervals, octave jumps)
+    lead_degrees = [0, 7, 3, 0, 12, 7, 5, 3, 0, 10, 7, 5, 3, 7, 0, -1]
+    lead_rhythm = [0.5, 0.5, 0.5, 0.5, 0.25, 0.25, 0.5, 0.5,
+                   0.5, 0.5, 0.5, 0.5, 0.25, 0.25, 0.5, 0.5]
+
+    # Chord progression: i-VI-III-VII (Fm-Db-Ab-Eb)
+    chord_roots = [0, 5, 3, 8]  # scale degrees for i, VI, III, VII in natural minor
+    chord_intervals = [0, 3, 7]  # minor triad
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+
+        # --- Drums ---
+        # Hard kick on every beat
+        for beat in range(4):
+            drums.append({
+                "pitch": KICK, "start": round(bar_start + beat, 4),
+                "duration": 0.5, "velocity": round(velocity, 3),
+            })
+        # Snare on beats 2 and 4
+        for beat in [1, 3]:
+            drums.append({
+                "pitch": SNARE, "start": round(bar_start + beat, 4),
+                "duration": 0.3, "velocity": round(velocity * 0.9, 3),
+            })
+        # Closed hats on all offbeats
+        for beat in range(8):
+            drums.append({
+                "pitch": CLOSED_HAT, "start": round(bar_start + beat * 0.5 + 0.25, 4),
+                "duration": 0.15, "velocity": round(velocity * 0.5, 3),
+            })
+        # Open hat on the "and" of 3
+        drums.append({
+            "pitch": OPEN_HAT, "start": round(bar_start + 2.75, 4),
+            "duration": 0.2, "velocity": round(velocity * 0.6, 3),
+        })
+
+        # --- Reverse bass ---
+        # Bass on offbeats (between kicks): the "BM" in boom-BM
+        for beat in range(4):
+            bass.append({
+                "pitch": deg_to_pitch(0, bass_oct, minor_scale),
+                "start": round(bar_start + beat + 0.5, 4),
+                "duration": 0.45, "velocity": round(velocity * 0.85, 3),
+            })
+
+        # --- Lead ---
+        # Play lead pattern, cycling through degrees
+        beat_pos = bar_start
+        for i in range(len(lead_degrees)):
+            deg = lead_degrees[(bar * 4 + i) % len(lead_degrees)]
+            pitch = deg_to_pitch(deg, lead_oct, minor_scale)
+            dur = lead_rhythm[i % len(lead_rhythm)]
+            lead.append({
+                "pitch": pitch, "start": round(beat_pos, 4),
+                "duration": round(dur * 0.9, 4),
+                "velocity": round(velocity * 0.9, 3),
+            })
+            beat_pos += dur
+        # If bar not filled, pad with rests (just advance beat_pos)
+        if beat_pos < bar_start + 4.0:
+            beat_pos = bar_start + 4.0
+
+        # --- Chords (stab on 1 and 3) ---
+        chord_idx = (bar // 4) % len(chord_roots)
+        croot = chord_roots[chord_idx]
+        for beat in [0, 2]:
+            for ci in chord_intervals:
+                chords.append({
+                    "pitch": deg_to_pitch(croot + ci, chord_oct, minor_scale),
+                    "start": round(bar_start + beat, 4),
+                    "duration": 0.4, "velocity": round(velocity * 0.75, 3),
+                })
+
+    drums.sort(key=lambda n: (n["start"], n["pitch"]))
+    bass.sort(key=lambda n: (n["start"], n["pitch"]))
+    lead.sort(key=lambda n: (n["start"], n["pitch"]))
+    chords.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    results = []
+    for i, (notes, label) in enumerate([
+        (drums, "drums"), (bass, "bass"), (lead, "lead"), (chords, "chords")
+    ]):
+        notes_json = json.dumps(notes)
+        result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index + i)
+        results.append(result)
+
+    try:
+        data = json.loads(results[0])
+        data["hardstyle_arrangement"] = True
+        data["bpm"] = bpm
+        data["bars"] = n_bars
+        data["key_root"] = key_root
+        data["tracks"] = {
+            "drums": {"track": track_index, "notes": len(drums),
+                       "elements": ["hard_kick", "snare_2_4", "closed_hats", "open_hat"]},
+            "bass": {"track": track_index + 1, "notes": len(bass),
+                      "pattern": "reverse_bass_offbeat"},
+            "lead": {"track": track_index + 2, "notes": len(lead),
+                      "character": "screechy_sawtooth_wide_intervals"},
+            "chords": {"track": track_index + 3, "notes": len(chords),
+                        "pattern": "stab_on_1_3", "progression": "i-VI-III-VII"},
+        }
+        data["total_notes"] = len(drums) + len(bass) + len(lead) + len(chords)
+        data["all_tracks_created"] = all(
+            json.loads(r).get("success", False) if r else False for r in results
+        )
+        return json.dumps(data, indent=2)
+    except Exception:
+        return results[0]
