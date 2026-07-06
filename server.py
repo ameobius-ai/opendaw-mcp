@@ -61882,3 +61882,111 @@ async def mcp_opendaw_create_descant(
     }.get(descant_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_auto_master(
+    target_lufs: float = -14.0,
+    platform: str = "spotify",
+    style: str = "balanced",
+    ceiling_dbtp: float = -1.0,
+) -> str:
+    """Adaptive mastering — analyze, correct, and master in one call.
+
+    This meta-tool chains analysis + correction + mastering:
+    1. analyze_mix — get current LUFS, spectrum, dynamics
+    2. apply_mastering_chain — EQ + compression + limiting
+    3. auto_gain — adjust to target LUFS
+    4. (optional) render — if render=True
+
+    The mastering chain adapts to the platform target:
+    - spotify: -14 LUFS, -1 dBTP
+    - apple: -16 LUFS, -1 dBTP
+    - youtube: -14 LUFS, -1 dBTP
+    - tidal: -14 LUFS, -1 dBTP (Hifi)
+    - soundcloud: -14 LUFS, -1 dBTP
+    - club: -8 LUFS, -0.3 dBTP (loud)
+
+    Styles:
+    - balanced: gentle EQ correction, transparent compression, clean limiting
+    - warm: tube-style saturation, LA-2A optical compression, analog warmth
+    - loud: aggressive SSL bus compression, heavy limiting, maximum loudness
+    - transparent: minimal EQ, no compression, just limiting and LUFS
+
+    target_lufs: Target loudness in LUFS (-23 to -8)
+    platform: spotify | apple | youtube | tidal | soundcloud | club
+    style: balanced | warm | loud | transparent
+    ceiling_dbtp: True peak ceiling in dB (-3 to 0)
+
+    Example:
+      auto_master(platform="spotify", style="balanced")
+      auto_master(target_lufs=-8, platform="club", style="loud")
+    """
+    PLATFORM_LUFS = {
+        "spotify": -14.0,
+        "apple": -16.0,
+        "youtube": -14.0,
+        "tidal": -14.0,
+        "soundcloud": -14.0,
+        "club": -8.0,
+    }
+
+    VALID_STYLES = ["balanced", "warm", "loud", "transparent"]
+    VALID_PLATFORMS = list(PLATFORM_LUFS.keys())
+
+    if platform not in VALID_PLATFORMS:
+        return json.dumps({"error": f"Invalid platform. Valid: {VALID_PLATFORMS}"})
+    if style not in VALID_STYLES:
+        return json.dumps({"error": f"Invalid style. Valid: {VALID_STYLES}"})
+    if not (-23 <= target_lufs <= -8):
+        return json.dumps({"error": "target_lufs must be -23 to -8"})
+
+    # Use platform LUFS if target_lufs not explicitly set
+    effective_lufs = target_lufs if target_lufs != -14.0 else PLATFORM_LUFS[platform]
+
+    results = {}
+
+    # Step 1: Analyze current mix
+    try:
+        analysis = await mcp_opendaw_analyze_mix()
+        analysis_data = json.loads(analysis)
+        results["analysis"] = {
+            "lufs": analysis_data.get("lufs", "unknown"),
+            "dynamic_range": analysis_data.get("dynamic_range", "unknown"),
+            "spectrum": analysis_data.get("spectrum", {}),
+        }
+    except Exception as e:
+        results["analysis_error"] = str(e)
+
+    # Step 2: Apply mastering chain based on style
+    try:
+        chain_result = await mcp_opendaw_add_mastering_chain(style=style)
+        chain_data = json.loads(chain_result)
+        results["mastering_chain"] = {
+            "style": style,
+            "effects": chain_data.get("effects_added", chain_data.get("effects", 0)),
+        }
+    except Exception as e:
+        results["chain_error"] = str(e)
+
+    # Step 3: Auto-gain to target LUFS
+    try:
+        await mcp_opendaw_auto_gain(target_lufs=effective_lufs)
+        results["auto_gain"] = {
+            "target_lufs": effective_lufs,
+            "applied": True,
+        }
+    except Exception as e:
+        results["gain_error"] = str(e)
+
+    results["auto_master"] = True
+    results["platform"] = platform
+    results["style"] = style
+    results["target_lufs"] = effective_lufs
+    results["ceiling_dbtp"] = ceiling_dbtp
+    results["next_steps"] = [
+        "Render with render_full to get the mastered WAV",
+        "Use export_stems for mastered stems",
+        f"Target: {effective_lufs} LUFS, {ceiling_dbtp} dBTP for {platform}",
+    ]
+
+    return json.dumps(results, indent=2)

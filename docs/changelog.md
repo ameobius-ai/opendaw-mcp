@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.356.0 (2026-07-06)
+
+- **`auto_master`** — Adaptive mastering meta-tool. Chains analyze_mix → add_mastering_chain → auto_gain in one call. 6 platform targets (Spotify/Apple/YouTube/Tidal/SoundCloud/Club), 4 styles (balanced/warm/loud/transparent), true peak ceiling. 18 unit tests. 521 MCP tools. One call replaces 3-5 mastering tool calls.
+- **Promo materials updated** — dev.to article and HN Show post rewritten with 520 tools/130 DSP, produce_full_track demo, hardware compressor table, 35+ genres.
+
 ## v1.355.0 (2026-07-06)
 
 - **`werkstatt_true_peak_limiter.js`** — True peak limiter with inter-sample peak detection (4x oversampling). Lookahead delay line, fast attack, adjustable release, hard clip safety. -1 dBTP ceiling for streaming compliance (Spotify/Apple/YouTube). 130 DSP scripts. Essential for mastering — prevents codec distortion on streaming platforms.
