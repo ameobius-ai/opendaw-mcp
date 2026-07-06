@@ -289,12 +289,13 @@ def main():
     bands[1] = np.stack([mid_b + side_b * 0.3, mid_b - side_b * 0.3], axis=0)
 
     # Mid band (2k-8k): presence boost + parallel comp for density
-    print("  mid: presence +3dB @ 3k + +2dB @ 5k + parallel comp")
-    bands[2] = bell_eq(bands[2], sr, 3000, 3.0, q=1.0)
-    bands[2] = bell_eq(bands[2], sr, 5000, 2.0, q=1.0)
-    # Parallel compression on mid — brings presence forward
+    print("  mid: presence +4dB @ 3k + +2dB @ 4k + +3dB @ 5k + parallel comp 60/40")
+    bands[2] = bell_eq(bands[2], sr, 3000, 4.0, q=1.0)
+    bands[2] = bell_eq(bands[2], sr, 4000, 2.0, q=1.0)
+    bands[2] = bell_eq(bands[2], sr, 5000, 3.0, q=1.0)
+    # Parallel compression on mid — 60/40 for more presence forward
     mid_compressed = compressor(bands[2], threshold=0.3, ratio=3.0, attack=0.005, release=0.15, sr=sr, mix=1.0)
-    bands[2] = bands[2] * 0.5 + mid_compressed * 0.5
+    bands[2] = bands[2] * 0.6 + mid_compressed * 0.4
 
     # High band (>8k): air boost + harmonic exciter — NO limiter here!
     print("  high: high-shelf +4dB @ 8k + exciter + bell +3dB @ 12k")
@@ -323,18 +324,16 @@ def main():
 
     # ═══ Step 7: Lookahead brickwall limiter ═══
     print("\n=== Step 7: Lookahead brickwall limiter ===")
-    data = lookahead_limiter(data, ceiling=0.891, lookahead_ms=3.0, release_ms=80.0, sr=sr)
+    data = lookahead_limiter(data, ceiling=0.84, lookahead_ms=3.0, release_ms=80.0, sr=sr)
 
-    # ═══ Step 8: Final LUFS correction ═══
-    print("\n=== Step 8: Final LUFS correction ===")
+    # ═══ Step 8: Final LUFS correction + brickwall ═══
+    print("\n=== Step 8: Final LUFS correction + brickwall ===")
     lufs_final = meter.integrated_loudness(data.T)
     correction = -14.0 - lufs_final
     if abs(correction) > 0.1:
         data = data * (10 ** (correction / 20))
-        # Soft clip if correction pushed above ceiling
-        peak = np.max(np.abs(data))
-        if peak > 0.891:
-            data = np.tanh(data / 0.891) * 0.891
+    # Final brickwall: hard clip at ceiling (catches anything LUFS correction raised)
+    data = np.clip(data, -0.84, 0.84)
     lufs_final = meter.integrated_loudness(data.T)
     print(f"  LUFS: {lufs_final:.2f}")
 
