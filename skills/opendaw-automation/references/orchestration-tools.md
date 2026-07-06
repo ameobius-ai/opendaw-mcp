@@ -235,6 +235,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 222. `create_balkan_meter` — Balkan additive meter: 6 meters (7_8/9_8/11_16/13_8/7_8_sand/9_8_ska), unequal groupings (2+2+3 etc), 3 variations (classic/modern/wedding), accents at group starts
 223. `create_irish_trad` — Irish trad: bodhrán+feet+brush, 6 tune types (reel/jig/hornpipe/slip_jig/polka/slide), hornpipe swung (0.6), feet on every other bar
 224. `create_taiko_ensemble` — Japanese taiko: 4 instruments (odaiko/chu-daiko/shime/atarigane), 5 styles (miyake/yatai/edo/hachijo/omega), dramatic dynamics, 4-bar cycle
+225. `create_korean_percussion` — Korean nongak/samul nori: 5 instruments (janggu chwe+kyong/buk/kkwaenggwari/jing), 5 styles (nongak/samul_nori/binari/utdari_pungnyu/yeongnam_folk), weather element symbolism
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

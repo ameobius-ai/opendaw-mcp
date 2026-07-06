@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.300.0 (2026-07-06)
+
+- **`create_korean_percussion`** — Korean traditional percussion: nongak (farmers' music) and samul nori. 5 instruments: janggu (hourglass drum with two heads: chwe/low + kyeong/high), buk (barrel drum), kkwaenggwari (small gong, lead), jing (large gong). 5 styles: nongak (rural), samul_nori (modern stage), binari (ritual/shaman), utdari_pungnyu (court), yeongnam_folk (Gyeongsang). Four instruments = weather elements (rain/clouds/thunder/wind). Korean tradition.
+
 ## v1.299.0 (2026-07-06)
 
 - **`create_taiko_ensemble`** — Japanese taiko ensemble: kumi-daiko group drumming with dramatic dynamics. 4 instruments: odaiko (thunderous bass), chu-daiko (mid-range workhorse), shime-daiko (high timekeeper), atarigane (metal gong). 5 styles: miyake (steady + dramatic odaiko), yatai (festival, joyful), edo (march-like, sparse odaiko), hachijo (soloistic, long rolls, ma/silence), omega (modern Kodo-style, maximum density). Dynamic contrast from near silence to thunder. Japanese tradition.

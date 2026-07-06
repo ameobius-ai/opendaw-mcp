@@ -40852,6 +40852,261 @@ async def mcp_opendaw_create_taiko_ensemble(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_korean_percussion(
+    bars: int = 4,
+    style: str = "nongak",
+    velocity: float = 0.75,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    janggu_chwe_pitch: int = 35,
+    janggu_kyong_pitch: int = 42,
+    buk_pitch: int = 36,
+    kkwaenggwari_pitch: int = 54,
+    jing_pitch: int = 48,
+) -> str:
+    """Create a Korean traditional percussion ensemble — nongak (farmers' music).
+
+    Korean percussion (samul nori / nongak) uses four instruments representing
+    weather elements:
+
+    1. JANGGU — Hourglass drum with two heads: chwe (left, low, deep) and
+       kyeongbang (right, high, sharp). The most versatile Korean drum. Plays
+       complex interlocking patterns with both hands simultaneously.
+    2. BUK — Barrel drum. Deep bass tone. Plays steady downbeats.
+    3. KKWAENGGWARI — Small hand gong. High, piercing metallic. The lead
+       instrument — player (sangsoe) calls patterns and signals changes.
+    4. JING — Large gong. Deep, resonant, sustained. Plays sparse accents
+       to mark phrase boundaries.
+
+    The four instruments represent: janggu = rain, buk = clouds,
+    kkwaenggwari = thunder, jing = wind (lightning in some traditions).
+
+    styles:
+      "nongak"    — Farmers' music (rural tradition). Steady, driving.
+                    Janggu plays the basic nanajanggu pattern (alternating
+                    chwe/kyeong on 8th grid). Buk on downbeats. Kkwaenggwari
+                    on offbeats with accented calls. Jing on phrase starts.
+      "samul_nori" — Modern stage version (1978, Kim Duk-soo). Faster,
+                    denser, more dramatic. Janggu plays 16th patterns with
+                    ghost notes. Kkwaenggwari has call-and-response.
+      "binari"    — Ritual/shaman opening piece. Slow, ceremonial. Long
+                    jing resonance. Sparse janggu. Kkwaenggwari calls.
+                    Builds from near silence.
+      "utdari_pungnyu" — Court music style (upper register). Elegant,
+                    refined. Buk steady, janggu delicate 8ths, kkwaenggwari
+                    sparse. Jing on every 4 bars.
+      "yeongnam_folk" — Yeongnam region folk style (Gyeongsang). Rough,
+                    energetic. Buk on 1+3, janggu syncopated, kkwaenggwari
+                    dense. Working-class feel.
+
+    Args:
+        bars: Pattern length (4-32, even).
+        style: Style name (nongak, samul_nori, binari, utdari_pungnyu, yeongnam_folk).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        janggu_chwe_pitch: Janggu left head (low) MIDI pitch (35 = B0).
+        janggu_kyong_pitch: Janggu right head (high) MIDI pitch (42 = F#1).
+        buk_pitch: Buk (barrel drum) MIDI pitch (36 = C1).
+        kkwaenggwari_pitch: Kkwaenggwari (small gong) MIDI pitch (54 = G#1).
+        jing_pitch: Jing (large gong) MIDI pitch (48 = C2).
+
+    Returns notes created, instrument breakdown, and style info.
+    """
+    if not (4 <= bars <= 32) or bars % 2 != 0:
+        return f"Error: bars must be even and 4-32, got {bars}"
+    if style not in ("nongak", "samul_nori", "binari", "utdari_pungnyu", "yeongnam_folk"):
+        return f"Error: style must be nongak, samul_nori, binari, utdari_pungnyu, or yeongnam_folk, got {style}"
+
+    STYLES = {
+        "nongak": {
+            "janggu_chwe": [
+                (0.0, 0.7, 0.15), (1.0, 0.6, 0.12), (2.0, 0.7, 0.15),
+                (3.0, 0.6, 0.12), (4.0, 0.7, 0.15), (5.0, 0.6, 0.12),
+                (6.0, 0.7, 0.15), (7.0, 0.6, 0.12),
+                (8.0, 0.7, 0.15), (9.0, 0.6, 0.12), (10.0, 0.7, 0.15),
+                (11.0, 0.6, 0.12), (12.0, 0.7, 0.15), (13.0, 0.6, 0.12),
+                (14.0, 0.7, 0.15), (15.0, 0.6, 0.12),
+            ],
+            "janggu_kyong": [
+                (0.5, 0.5, 0.08), (1.5, 0.5, 0.08), (2.5, 0.5, 0.08),
+                (3.5, 0.5, 0.08), (4.5, 0.5, 0.08), (5.5, 0.5, 0.08),
+                (6.5, 0.5, 0.08), (7.5, 0.5, 0.08),
+                (8.5, 0.5, 0.08), (9.5, 0.5, 0.08), (10.5, 0.5, 0.08),
+                (11.5, 0.5, 0.08), (12.5, 0.5, 0.08), (13.5, 0.5, 0.08),
+                (14.5, 0.5, 0.08), (15.5, 0.5, 0.08),
+            ],
+            "buk": [
+                (0.0, 0.9, 0.3), (2.0, 0.8, 0.25), (4.0, 0.9, 0.3),
+                (6.0, 0.8, 0.25), (8.0, 0.9, 0.3), (10.0, 0.8, 0.25),
+                (12.0, 0.9, 0.3), (14.0, 0.8, 0.25),
+            ],
+            "kkwaenggwari": [
+                (1.0, 0.7, 0.06), (3.0, 0.7, 0.06), (5.0, 0.7, 0.06),
+                (7.0, 0.65, 0.06), (9.0, 0.7, 0.06), (11.0, 0.7, 0.06),
+                (13.0, 0.7, 0.06), (15.0, 0.8, 0.08),
+            ],
+            "jing": [
+                (0.0, 0.8, 0.6), (8.0, 0.75, 0.5),
+            ],
+        },
+        "samul_nori": {
+            "janggu_chwe": [
+                (i * 0.25, 0.65 if i % 2 == 0 else 0.5, 0.08)
+                for i in range(0, 64, 2)
+            ],
+            "janggu_kyong": [
+                (i * 0.25, 0.5 if i % 2 == 0 else 0.45, 0.06)
+                for i in range(1, 64, 2)
+            ],
+            "buk": [
+                (0.0, 0.9, 0.25), (1.0, 0.7, 0.15), (2.0, 0.85, 0.2),
+                (3.0, 0.7, 0.15), (4.0, 0.9, 0.25), (5.0, 0.7, 0.15),
+                (6.0, 0.85, 0.2), (7.0, 0.7, 0.15),
+                (8.0, 0.9, 0.25), (9.0, 0.7, 0.15), (10.0, 0.85, 0.2),
+                (11.0, 0.7, 0.15), (12.0, 0.9, 0.25), (13.0, 0.7, 0.15),
+                (14.0, 0.85, 0.2), (15.0, 0.8, 0.2),
+            ],
+            "kkwaenggwari": [
+                (0.5, 0.75, 0.06), (1.5, 0.65, 0.05), (2.5, 0.7, 0.06),
+                (3.5, 0.65, 0.05), (4.5, 0.75, 0.06), (5.5, 0.65, 0.05),
+                (6.5, 0.7, 0.06), (7.5, 0.8, 0.08),
+                (8.5, 0.75, 0.06), (9.5, 0.65, 0.05), (10.5, 0.7, 0.06),
+                (11.5, 0.65, 0.05), (12.5, 0.75, 0.06), (13.5, 0.65, 0.05),
+                (14.5, 0.7, 0.06), (15.5, 0.85, 0.1),
+            ],
+            "jing": [
+                (0.0, 0.8, 0.5), (4.0, 0.6, 0.3), (8.0, 0.75, 0.4), (12.0, 0.6, 0.3),
+            ],
+        },
+        "binari": {
+            "janggu_chwe": [
+                (0.0, 0.6, 0.2), (4.0, 0.55, 0.15), (8.0, 0.65, 0.2),
+                (12.0, 0.6, 0.18),
+            ],
+            "janggu_kyong": [
+                (2.0, 0.4, 0.1), (6.0, 0.4, 0.1), (10.0, 0.45, 0.1),
+                (14.0, 0.5, 0.1),
+            ],
+            "buk": [
+                (0.0, 0.7, 0.4), (8.0, 0.65, 0.35),
+            ],
+            "kkwaenggwari": [
+                (0.0, 0.7, 0.1), (4.0, 0.6, 0.08), (8.0, 0.75, 0.1),
+                (12.0, 0.8, 0.12), (15.5, 0.85, 0.15),
+            ],
+            "jing": [
+                (0.0, 0.9, 1.5), (8.0, 0.85, 1.2),
+            ],
+        },
+        "utdari_pungnyu": {
+            "janggu_chwe": [
+                (0.0, 0.6, 0.15), (2.0, 0.55, 0.12), (4.0, 0.6, 0.15),
+                (6.0, 0.55, 0.12), (8.0, 0.6, 0.15), (10.0, 0.55, 0.12),
+                (12.0, 0.6, 0.15), (14.0, 0.55, 0.12),
+            ],
+            "janggu_kyong": [
+                (1.0, 0.4, 0.08), (3.0, 0.4, 0.08), (5.0, 0.4, 0.08),
+                (7.0, 0.4, 0.08), (9.0, 0.4, 0.08), (11.0, 0.4, 0.08),
+                (13.0, 0.4, 0.08), (15.0, 0.4, 0.08),
+            ],
+            "buk": [
+                (0.0, 0.7, 0.3), (4.0, 0.65, 0.25), (8.0, 0.7, 0.3),
+                (12.0, 0.65, 0.25),
+            ],
+            "kkwaenggwari": [
+                (7.5, 0.5, 0.06), (15.5, 0.55, 0.08),
+            ],
+            "jing": [
+                (0.0, 0.7, 1.0),
+            ],
+        },
+        "yeongnam_folk": {
+            "janggu_chwe": [
+                (0.0, 0.8, 0.15), (0.75, 0.6, 0.1), (1.5, 0.7, 0.12),
+                (2.0, 0.75, 0.15), (2.75, 0.6, 0.1), (3.5, 0.65, 0.12),
+                (4.0, 0.8, 0.15), (4.75, 0.6, 0.1), (5.5, 0.7, 0.12),
+                (6.0, 0.75, 0.15), (6.75, 0.6, 0.1), (7.5, 0.65, 0.12),
+                (8.0, 0.8, 0.15), (8.75, 0.6, 0.1), (9.5, 0.7, 0.12),
+                (10.0, 0.75, 0.15), (10.75, 0.6, 0.1), (11.5, 0.65, 0.12),
+                (12.0, 0.8, 0.15), (12.75, 0.6, 0.1), (13.5, 0.7, 0.12),
+                (14.0, 0.8, 0.15), (14.75, 0.6, 0.1), (15.5, 0.7, 0.12),
+            ],
+            "janggu_kyong": [
+                (0.5, 0.5, 0.08), (1.25, 0.45, 0.06), (2.5, 0.5, 0.08),
+                (3.25, 0.45, 0.06), (4.5, 0.5, 0.08), (5.25, 0.45, 0.06),
+                (6.5, 0.5, 0.08), (7.25, 0.45, 0.06),
+                (8.5, 0.5, 0.08), (9.25, 0.45, 0.06), (10.5, 0.5, 0.08),
+                (11.25, 0.45, 0.06), (12.5, 0.5, 0.08), (13.25, 0.45, 0.06),
+                (14.5, 0.5, 0.08), (15.25, 0.5, 0.08),
+            ],
+            "buk": [
+                (0.0, 0.9, 0.25), (2.0, 0.85, 0.2), (4.0, 0.9, 0.25),
+                (6.0, 0.85, 0.2), (8.0, 0.9, 0.25), (10.0, 0.85, 0.2),
+                (12.0, 0.9, 0.25), (14.0, 0.85, 0.2),
+            ],
+            "kkwaenggwari": [
+                (1.0, 0.75, 0.06), (3.0, 0.7, 0.06), (5.0, 0.75, 0.06),
+                (7.0, 0.8, 0.08), (9.0, 0.75, 0.06), (11.0, 0.7, 0.06),
+                (13.0, 0.75, 0.06), (15.0, 0.85, 0.1),
+            ],
+            "jing": [
+                (0.0, 0.7, 0.5), (8.0, 0.65, 0.4),
+            ],
+        },
+    }
+
+    pitch_map = {
+        "janggu_chwe": janggu_chwe_pitch, "janggu_kyong": janggu_kyong_pitch,
+        "buk": buk_pitch, "kkwaenggwari": kkwaenggwari_pitch, "jing": jing_pitch,
+    }
+
+    style_data = STYLES[style]
+    instruments = list(style_data.keys())
+    cycle_len = 16.0
+    cycles = bars // 4
+
+    all_notes = []
+    inst_counts = {}
+
+    for inst in instruments:
+        inst_counts[inst] = 0
+        strokes = style_data[inst]
+        for c in range(cycles):
+            offset = c * cycle_len
+            for beat, vel_mult, dur in strokes:
+                pos = round(start_beat + offset + beat, 4)
+                vel = round(max(0.0, min(1.0, velocity * vel_mult)), 3)
+                all_notes.append({
+                    "pitch": pitch_map[inst],
+                    "start": pos,
+                    "duration": dur,
+                    "velocity": vel,
+                })
+                inst_counts[inst] += 1
+
+    all_notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["korean_percussion"] = True
+        data["style"] = style
+        data["bars"] = bars
+        data["cycles"] = cycles
+        data["instruments"] = instruments
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,

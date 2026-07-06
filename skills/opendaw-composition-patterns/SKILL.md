@@ -145,6 +145,7 @@ What do you want to create?
 ├── Balkan Meter → create_balkan_meter (additive meters 7/8/9/8/11/16/13/8, unequal groupings 2+2+3 etc, 6 meters + reversed, 3 variations: classic/modern/wedding)
 ├── Irish Trad → create_irish_trad (bodhrán+feet, 6 tune types: reel/jig/hornpipe/slip_jig/polka/slide, hornpipe swung, Ireland/Celtic)
 ├── Taiko Ensemble → create_taiko_ensemble (Japanese kumi-daiko, 4 instruments: odaiko/chu-daiko/shime/atarigane, 5 styles: miyake/yatai/edo/hachijo/omega, dramatic dynamics)
+├── Korean Percussion → create_korean_percussion (nongak/samul nori, 5 instruments: janggu chwe+kyong/buk/kkwaenggwari/jing, 5 styles: nongak/samul_nori/binari/utdari_pungnyu/yeongnam_folk)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
