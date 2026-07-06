@@ -82,38 +82,49 @@ def bell_eq(data, sr, freq, gain_db, q=1.0):
     return data + filtered * (gain_lin - 1)
 
 
-def limiter(data, target_lufs=-14.0, sr=48000, true_peak_ceiling=0.891):
+def stereo_widen(data, amount=0.4):
+    """Widen stereo via M/S processing. amount=0 neutral, 1=max wide."""
+    if data.shape[0] != 2:
+        return data
+    mid = (data[0] + data[1]) * 0.5
+    side = (data[0] - data[1]) * 0.5
+    side = side * (1.0 + amount)
+    return np.stack([mid + side, mid - side], axis=0)
+
+
+def limiter(data, target_lufs=-14.0, sr=48000, true_peak_ceiling=0.891, max_gain_db=8.0):
     """Apply LUFS normalization + soft limiter for true peak.
 
     true_peak_ceiling=0.891 ≈ -1.0 dBFS
+    max_gain_db caps the maximum gain to prevent excessive boost on quiet tracks.
     """
     # Measure current LUFS
     meter = pyln.Meter(sr)
     lufs = meter.integrated_loudness(data.T)
 
     # Calculate gain needed
-    gain_db = target_lufs - lufs
+    gain_db = min(target_lufs - lufs, max_gain_db)
     gain_lin = 10 ** (gain_db / 20)
 
     # Apply gain
     boosted = data * gain_lin
 
-    # Soft limiter (tanh saturation) to catch peaks
+    # Multi-stage soft limiting: hard knee limiter at ceiling
     ceiling = true_peak_ceiling
-    # Only limit samples above ceiling
-    peak = np.max(np.abs(boosted))
-    if peak > ceiling:
-        # Calculate makeup to bring peak to ceiling before saturation
-        ratio = ceiling / peak * 1.01  # slight margin
-        boosted = boosted * ratio
 
-        # Soft clip with tanh
-        abs_data = np.abs(boosted)
-        mask = abs_data > ceiling * 0.9
-        if np.any(mask):
-            # Apply tanh only to near-ceiling samples
-            over = boosted[mask]
-            boosted[mask] = np.tanh(over / ceiling) * ceiling
+    # First pass: aggressive tanh saturation to tame transients
+    # This allows higher LUFS without hard clipping
+    abs_data = np.abs(boosted)
+    peak = np.max(abs_data)
+
+    if peak > ceiling:
+        # Calculate drive to bring RMS up while taming peaks
+        # Use tanh: y = ceiling * tanh(x / ceiling)
+        # This compresses peaks while preserving RMS
+        boosted = np.tanh(boosted / ceiling) * ceiling
+
+    # Second pass: final hard clip at ceiling (safety)
+    boosted = np.clip(boosted, -ceiling, ceiling)
 
     return boosted, gain_db, lufs
 
@@ -143,23 +154,44 @@ def main():
     lufs_in = meter.integrated_loudness(data.T)
     print(f"  Input LUFS: {lufs_in:.2f}")
 
-    # Step 1: High-shelf +4dB at 8kHz (open air)
-    print("\n=== Step 1: High-shelf +4dB @ 8kHz ===")
-    data = high_shelf(data, sr, 8000, 4.0)
+    # Step 1: HPF 80Hz on mix (remove subsonic mud from vocals/guitars)
+    print("\n=== Step 1: HPF 80Hz (subsonic cleanup) ===")
+    b, a = scipy_signal.butter(2, 80 / (sr / 2), btype="high")
+    data = scipy_signal.filtfilt(b, a, data, axis=1)
     print(f"  Done. Peak: {20*np.log10(np.max(np.abs(data))+1e-10):.2f} dBFS")
 
-    # Step 2: Bell +2dB at 12kHz (more air)
-    print("\n=== Step 2: Bell +2dB @ 12kHz ===")
-    data = bell_eq(data, sr, 12000, 2.0, q=0.7)
+    # Step 2: Bass cut -2dB at 250Hz (reduce mud)
+    print("\n=== Step 2: Bell -2dB @ 250Hz (bass mud cut) ===")
+    data = bell_eq(data, sr, 250, -2.0, q=1.2)
     print(f"  Done. Peak: {20*np.log10(np.max(np.abs(data))+1e-10):.2f} dBFS")
 
-    # Step 3: Bell +1.5dB at 350Hz (fill lowmid)
-    print("\n=== Step 3: Bell +1.5dB @ 350Hz (lowmid fill) ===")
-    data = bell_eq(data, sr, 350, 1.5, q=1.0)
+    # Step 3: Lowmid fill +3dB at 350Hz
+    print("\n=== Step 3: Bell +3dB @ 350Hz (lowmid fill) ===")
+    data = bell_eq(data, sr, 350, 3.0, q=1.0)
     print(f"  Done. Peak: {20*np.log10(np.max(np.abs(data))+1e-10):.2f} dBFS")
 
-    # Step 4: LUFS normalize + limiter → -14 LUFS, -1.0 dBTP
-    print("\n=== Step 4: LUFS target -14 + true peak limiter ===")
+    # Step 4: Presence +3dB at 3kHz (vocal face)
+    print("\n=== Step 4: Bell +3dB @ 3kHz (presence) ===")
+    data = bell_eq(data, sr, 3000, 3.0, q=1.0)
+    print(f"  Done. Peak: {20*np.log10(np.max(np.abs(data))+1e-10):.2f} dBFS")
+
+    # Step 5: High-shelf +5dB at 8kHz (open air)
+    print("\n=== Step 5: High-shelf +5dB @ 8kHz (air) ===")
+    data = high_shelf(data, sr, 8000, 5.0)
+    print(f"  Done. Peak: {20*np.log10(np.max(np.abs(data))+1e-10):.2f} dBFS")
+
+    # Step 6: Bell +3dB at 12kHz (more air)
+    print("\n=== Step 6: Bell +3dB @ 12kHz (air top) ===")
+    data = bell_eq(data, sr, 12000, 3.0, q=0.7)
+    print(f"  Done. Peak: {20*np.log10(np.max(np.abs(data))+1e-10):.2f} dBFS")
+
+    # Step 7: Stereo widen (M/S processing)
+    print("\n=== Step 7: Stereo widen (M/S +40%) ===")
+    data = stereo_widen(data, amount=0.4)
+    print(f"  Done. Peak: {20*np.log10(np.max(np.abs(data))+1e-10):.2f} dBFS")
+
+    # Step 8: LUFS normalize + limiter → -14 LUFS, -1.0 dBTP
+    print("\n=== Step 8: LUFS target -14 + true peak limiter ===")
     data, gain_db, lufs_pre = limiter(data, target_lufs=-14.0, sr=sr, true_peak_ceiling=0.891)
     peak_out = np.max(np.abs(data))
     lufs_out = meter.integrated_loudness(data.T)

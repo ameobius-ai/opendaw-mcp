@@ -50,8 +50,8 @@ STEMS = [
     ("anchor",  f"{STEMS_DIR}/Last Light of Summer.wav",                  -6.0,  0.0,  True),
     ("vocal_1", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal).wav",      -2.0, -0.3, False),
     ("vocal_2", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal)(1).wav",   -3.0,  0.3, False),
-    ("acoustic",f"{STEMS_DIR}/Last Light of Summer (Acoustic Guitar).wav", -4.0, -0.7, False),
-    ("guitar",  f"{STEMS_DIR}/Last Light of Summer (Guitar).wav",          -5.0,  0.7, False),
+    ("acoustic",f"{STEMS_DIR}/Last Light of Summer (Acoustic Guitar).wav", -4.0, -0.9, False),
+    ("guitar",  f"{STEMS_DIR}/Last Light of Summer (Guitar).wav",          -5.0,  0.9, False),
     ("bass",    f"{STEMS_DIR}/Last Light of Summer (Bass).wav",            -3.0,  0.0, False),
     ("drums",   f"{STEMS_DIR}/Last Light of Summer (Drum Kit).wav",        -4.0,  0.0, False),
 ]
@@ -59,15 +59,6 @@ STEMS = [
 # Effects: (stem_index, effect_type, {param: value})
 # stem_index = position in STEMS list (0=anchor, 1=vocal_1, ...)
 EFFECTS = [
-    # Vocals: HPF 100Hz + lowmid 350Hz +2dB + presence 3kHz +2.5dB + air 12kHz +5dB
-    (1, "Werkstatt", {"__script__": "paraeq", "hp_freq": 100, "band1_freq": 350, "band1_gain": 2.0, "band1_q": 1.0, "band2_freq": 3000, "band2_gain": 2.5, "band2_q": 1.2, "band3_freq": 12000, "band3_gain": 5.0, "band3_q": 0.7}),
-    (2, "Werkstatt", {"__script__": "paraeq", "hp_freq": 100, "band1_freq": 350, "band1_gain": 2.0, "band1_q": 1.0, "band2_freq": 3000, "band2_gain": 2.5, "band2_q": 1.2, "band3_freq": 12000, "band3_gain": 5.0, "band3_q": 0.7}),
-    # Acoustic: HPF 120Hz + lowmid 350Hz +1.5dB + presence 3kHz +2dB + air 12kHz +4dB
-    (3, "Werkstatt", {"__script__": "paraeq", "hp_freq": 120, "band1_freq": 350, "band1_gain": 1.5, "band1_q": 1.0, "band2_freq": 3000, "band2_gain": 2.0, "band2_q": 1.2, "band3_freq": 12000, "band3_gain": 4.0, "band3_q": 0.7}),
-    # Guitar: HPF 120Hz + lowmid 400Hz +1.5dB + presence 4kHz +2dB + air 10kHz +4dB
-    (4, "Werkstatt", {"__script__": "paraeq", "hp_freq": 120, "band1_freq": 400, "band1_gain": 1.5, "band1_q": 1.0, "band2_freq": 4000, "band2_gain": 2.0, "band2_q": 1.0, "band3_freq": 10000, "band3_gain": 4.0, "band3_q": 0.7}),
-    # Bass: HPF 30Hz + slight cut at 250Hz to reduce mud
-    (5, "Werkstatt", {"__script__": "paraeq", "hp_freq": 30, "band1_freq": 250, "band1_gain": -1.5, "band1_q": 1.2}),
     # Vocals: compressor
     (1, "Compressor", {"threshold": -18, "ratio": 3, "attack": 0.003, "release": 0.25}),
     (2, "Compressor", {"threshold": -18, "ratio": 3, "attack": 0.003, "release": 0.25}),
@@ -80,8 +71,9 @@ EFFECTS = [
 ]
 
 # Mastering on primary bus (unit 0)
+# All EQ/air/limiter done in post_master.py (scipy) — Werkstatt on master bus
+# breaks offline render. Maximizer here is transparent (gain 0dB).
 MASTERING = [
-    # Maximizer: gain 0dB (post-prod will handle LUFS)
     ("Maximizer", {"ceiling": -0.5, "gain": 0.0}),
 ]
 
