@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-521 MCP tools for headless openDAW control via Playwright bridge.
+522 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -419,6 +419,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `produce_full_track` — Ultimate meta-tool: produces a complete track in one call. Chains set_bpm → arrange_full_song → create_drum_pattern → create_bassline → apply_mix_preset → render_full (optional). One call replaces 15-20 individual tool calls. Agent specifies structure, key, genre, tempo — everything else automatic. 20+ genres supported.
 - `create_descant` — Descant counter-melody generator. 5 types: soaring (long sustained rising notes, anthemic), weaving (interlocking phrases filling melody gaps), pedal_tone (sustained high 5th/tonic ringing above), call_response (short answering phrases), ornamental (fast decorative runs and grace notes, baroque). 3 scales, octave 5+ (above melody), 2-8 bars. Seeded PRNG. Secondary melody above the main tune — choral, worship, folk, ballads.
 - `auto_master` — Adaptive mastering meta-tool. Chains analyze_mix → add_mastering_chain → auto_gain in one call. 6 platform targets (Spotify -14, Apple -16, YouTube -14, Tidal, SoundCloud, Club -8), 4 styles (balanced, warm, loud, transparent), true peak ceiling control. One call replaces 3-5 mastering tool calls.
+- `add_genre_effects` — Genre-specific effect chains in one call. 15 genres with character-appropriate effect routing: house (sidechain comp + Dattorro + widener), techno (pumping comp + delay + waveshaper), dnb (aggressive comp + reverb + reese distortion), metal (heavy waveshaper + comp), ambient (long reverb, no compression), lofi (gentle comp + subtle saturation), etc. Saves 5-10 individual add_effect + set_effect_parameter calls.
 - `create_cross_rhythm` — Cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar into n+m parts), cross-rhythm gives each voice its own period in beats. Voices cycle independently, only realign at LCM of all periods. 2-6 voices, velocity attenuation. African cross-rhythms, Steve Reich, Talking Heads.
 - `create_clave` — Afro-Cuban clave pattern: 5-note rhythmic skeleton across 2 bars. 6 clave types (son 3-2, son 2-3, rumba 3-2, rumba 2-3, bossa nova, 6/8). Direction (3-2 or 2-3) determines feel. All other rhythms align to clave.
 - `create_euclidean_rhythm` — Euclidean rhythm: distributes k onsets across n steps maximally evenly via Björklund's algorithm. Generates world rhythms: E(3,8)=tresillo, E(5,8)=cinquillo, E(7,16)=samba, E(7,12)=bembé, E(4,9)=Aksak. Rotation shifts pattern.

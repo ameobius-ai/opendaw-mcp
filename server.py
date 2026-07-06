@@ -61990,3 +61990,202 @@ async def mcp_opendaw_auto_master(
     ]
 
     return json.dumps(results, indent=2)
+
+
+async def mcp_opendaw_add_genre_effects(
+    genre: str = "house",
+    unit_index: int = -1,
+    vocal_unit_index: int = -1,
+) -> str:
+    """Add genre-appropriate effects to tracks automatically.
+
+    Each genre has a characteristic effect chain. This tool applies the
+    chain in one call, saving 5-10 individual add_effect + set_effect_parameter
+    calls. Effects are applied to the specified unit (or all units if -1).
+
+    Genre chains:
+    - **house**: Sidechain compressor on bass, Dattorro reverb on lead,
+      StereoTool for widening, Maximizer on output
+    - **techno**: Compressor on drums (pumping), Delay on stabs,
+      Waveshaper on bass (distortion), Maximizer on output
+    - **dnb**: Compressor on drums (aggressive), Reverb on breaks,
+      Waveshaper on reese, Maximizer on output
+    - **trap**: Compressor on 808, Delay on hi-hats, Reverb on melodic,
+      Maximizer on output
+    - **dubstep**: Waveshaper on wobble bass, Compressor on drums,
+      Reverb on atmospheres, Maximizer on output
+    - **synthwave**: Dattorro reverb on pads, Delay on lead, Chorus,
+      StereoTool widening, Maximizer on output
+    - **ambient**: Long Dattorro reverb on everything, Delay,
+      StereoTool widening, no compression
+    - **lofi**: Compressor (gentle), Waveshaper (subtle saturation),
+      Reverb (small room), Maximizer (gentle)
+    - **rock**: Compressor on drums, Waveshaper on guitars,
+      Reverb on vocals, Maximizer on output
+    - **pop**: Compressor on vocals, Reverb on vocals, Dattorro on pads,
+      Maximizer on output
+    - **funk**: Compressor on bass (tight), Waveshaper on guitar,
+      Reverb on horns, Maximizer on output
+    - **reggae**: Reverb on skank, Delay on bass, Compressor on drums,
+      Maximizer on output
+    - **jazz**: Compressor (gentle) on piano, Reverb on horns,
+      Maximizer (gentle)
+    - **metal**: Waveshaper on guitars (heavy), Compressor on drums,
+      Maximizer (loud), Reverb (small)
+    - **edm**: Sidechain compressor on bass, Dattorro on lead,
+      Delay on plucks, Maximizer (loud)
+
+    genre: house | techno | dnb | trap | dubstep | synthwave | ambient |
+           lofi | rock | pop | funk | reggae | jazz | metal | edm
+    unit_index: AU index to apply effects to (-1 = apply to all AUs)
+    vocal_unit_index: AU index for vocal treatment (-1 = skip)
+
+    Example:
+      add_genre_effects(genre="house", unit_index=-1)
+      add_genre_effects(genre="dnb", unit_index=2, vocal_unit_index=3)
+    """
+    GENRE_CHAINS = {
+        "house": [
+            {"effect": "Compressor", "params": {"threshold": 0.3, "ratio": 4, "attack": 0.003, "release": 0.1, "mix": 0.8}, "target": "bass"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.5, "mix": 0.3}, "target": "lead"},
+            {"effect": "StereoTool", "params": {"width": 1.2, "mix": 0.8}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.05, "mix": 0.9}, "target": "output"},
+        ],
+        "techno": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 8, "attack": 0.001, "release": 0.05, "mix": 0.9}, "target": "drums"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.3, "mix": 0.25}, "target": "stabs"},
+            {"effect": "Waveshaper", "params": {"drive": 0.4, "mix": 0.6}, "target": "bass"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.93, "release": 0.03, "mix": 0.95}, "target": "output"},
+        ],
+        "dnb": [
+            {"effect": "Compressor", "params": {"threshold": 0.15, "ratio": 10, "attack": 0.001, "release": 0.03, "mix": 0.95}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.4, "mix": 0.2}, "target": "breaks"},
+            {"effect": "Waveshaper", "params": {"drive": 0.5, "mix": 0.7}, "target": "bass"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.92, "release": 0.02, "mix": 0.95}, "target": "output"},
+        ],
+        "trap": [
+            {"effect": "Compressor", "params": {"threshold": 0.1, "ratio": 10, "attack": 0.001, "release": 0.05, "mix": 0.9}, "target": "bass"},
+            {"effect": "Delay", "params": {"time": 0.25, "feedback": 0.2, "mix": 0.15}, "target": "hats"},
+            {"effect": "Reverb", "params": {"decay": 0.5, "mix": 0.25}, "target": "melodic"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.94, "release": 0.04, "mix": 0.9}, "target": "output"},
+        ],
+        "dubstep": [
+            {"effect": "Waveshaper", "params": {"drive": 0.7, "mix": 0.8}, "target": "bass"},
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 6, "attack": 0.002, "release": 0.04, "mix": 0.9}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.6, "mix": 0.15}, "target": "atmos"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.90, "release": 0.02, "mix": 0.95}, "target": "output"},
+        ],
+        "synthwave": [
+            {"effect": "DattorroReverb", "params": {"decay": 0.6, "mix": 0.35}, "target": "pads"},
+            {"effect": "Delay", "params": {"time": 0.5, "feedback": 0.4, "mix": 0.3}, "target": "lead"},
+            {"effect": "StereoTool", "params": {"width": 1.5, "mix": 0.9}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.05, "mix": 0.85}, "target": "output"},
+        ],
+        "ambient": [
+            {"effect": "DattorroReverb", "params": {"decay": 0.8, "mix": 0.5}, "target": "all"},
+            {"effect": "Delay", "params": {"time": 0.75, "feedback": 0.5, "mix": 0.3}, "target": "all"},
+            {"effect": "StereoTool", "params": {"width": 1.8, "mix": 0.9}, "target": "all"},
+        ],
+        "lofi": [
+            {"effect": "Compressor", "params": {"threshold": 0.4, "ratio": 2, "attack": 0.01, "release": 0.2, "mix": 0.7}, "target": "all"},
+            {"effect": "Waveshaper", "params": {"drive": 0.15, "mix": 0.4}, "target": "all"},
+            {"effect": "Reverb", "params": {"decay": 0.2, "mix": 0.15}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.97, "release": 0.1, "mix": 0.6}, "target": "output"},
+        ],
+        "rock": [
+            {"effect": "Compressor", "params": {"threshold": 0.25, "ratio": 4, "attack": 0.003, "release": 0.08, "mix": 0.85}, "target": "drums"},
+            {"effect": "Waveshaper", "params": {"drive": 0.5, "mix": 0.7}, "target": "guitars"},
+            {"effect": "Reverb", "params": {"decay": 0.3, "mix": 0.2}, "target": "vocals"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.93, "release": 0.03, "mix": 0.9}, "target": "output"},
+        ],
+        "pop": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 4, "attack": 0.005, "release": 0.1, "mix": 0.9}, "target": "vocals"},
+            {"effect": "Reverb", "params": {"decay": 0.35, "mix": 0.2}, "target": "vocals"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.4, "mix": 0.25}, "target": "pads"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.05, "mix": 0.9}, "target": "output"},
+        ],
+        "funk": [
+            {"effect": "Compressor", "params": {"threshold": 0.15, "ratio": 6, "attack": 0.001, "release": 0.03, "mix": 0.9}, "target": "bass"},
+            {"effect": "Waveshaper", "params": {"drive": 0.3, "mix": 0.5}, "target": "guitar"},
+            {"effect": "Reverb", "params": {"decay": 0.25, "mix": 0.15}, "target": "horns"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.94, "release": 0.04, "mix": 0.9}, "target": "output"},
+        ],
+        "reggae": [
+            {"effect": "Reverb", "params": {"decay": 0.3, "mix": 0.2}, "target": "skank"},
+            {"effect": "Delay", "params": {"time": 0.5, "feedback": 0.2, "mix": 0.15}, "target": "bass"},
+            {"effect": "Compressor", "params": {"threshold": 0.3, "ratio": 3, "attack": 0.005, "release": 0.1, "mix": 0.8}, "target": "drums"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.05, "mix": 0.85}, "target": "output"},
+        ],
+        "jazz": [
+            {"effect": "Compressor", "params": {"threshold": 0.4, "ratio": 2, "attack": 0.01, "release": 0.15, "mix": 0.6}, "target": "piano"},
+            {"effect": "Reverb", "params": {"decay": 0.35, "mix": 0.2}, "target": "horns"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.97, "release": 0.08, "mix": 0.7}, "target": "output"},
+        ],
+        "metal": [
+            {"effect": "Waveshaper", "params": {"drive": 0.8, "mix": 0.85}, "target": "guitars"},
+            {"effect": "Compressor", "params": {"threshold": 0.1, "ratio": 8, "attack": 0.001, "release": 0.02, "mix": 0.95}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.15, "mix": 0.1}, "target": "drums"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.88, "release": 0.01, "mix": 0.98}, "target": "output"},
+        ],
+        "edm": [
+            {"effect": "Compressor", "params": {"threshold": 0.15, "ratio": 8, "attack": 0.001, "release": 0.05, "mix": 0.9}, "target": "bass"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.5, "mix": 0.3}, "target": "lead"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.3, "mix": 0.2}, "target": "plucks"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.90, "release": 0.02, "mix": 0.97}, "target": "output"},
+        ],
+    }
+
+    if genre not in GENRE_CHAINS:
+        return json.dumps({"error": f"Invalid genre. Valid: {sorted(GENRE_CHAINS.keys())}"})
+
+    chain = GENRE_CHAINS[genre]
+    results = []
+    effects_added = 0
+
+    for fx in chain:
+        try:
+            # Determine target unit index
+            target_idx = unit_index
+            if fx["target"] == "output":
+                target_idx = -1  # output is always last
+            elif fx["target"] == "vocals" and vocal_unit_index >= 0:
+                target_idx = vocal_unit_index
+
+            effect_result = await mcp_opendaw_add_effect(target_idx, fx["effect"])
+            effect_data = json.loads(effect_result)
+
+            # Try to set parameters
+            for param_name, param_value in fx.get("params", {}).items():
+                try:
+                    effect_idx = effect_data.get("effect_index", 0)
+                    await mcp_opendaw_set_effect_parameter(
+                        target_idx, effect_idx, param_name, param_value)
+                except Exception:
+                    pass
+
+            effects_added += 1
+            results.append({
+                "effect": fx["effect"],
+                "target": fx["target"],
+                "params": fx.get("params", {}),
+                "added": True,
+            })
+        except Exception as e:
+            results.append({
+                "effect": fx["effect"],
+                "target": fx["target"],
+                "error": str(e)[:100],
+            })
+
+    return json.dumps({
+        "genre_effects": True,
+        "genre": genre,
+        "effects_added": effects_added,
+        "effects_planned": len(chain),
+        "chain": results,
+        "next_steps": [
+            "Use set_effect_parameter to fine-tune individual effect parameters",
+            "Use auto_master for final mastering",
+            "Use render_full to render the complete track",
+        ],
+    }, indent=2)

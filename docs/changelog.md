@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.357.0 (2026-07-06)
+
+- **`add_genre_effects`** — Genre-specific effect chains in one call. 15 genres with character-appropriate routing: house (sidechain + Dattorro + widener + maximizer), techno (pumping comp + delay + waveshaper), dnb (aggressive comp + reverb + reese), metal (heavy waveshaper + comp + loud maximizer), ambient (long reverb, no compression), lofi (gentle), etc. Each chain targets specific tracks (bass/drums/vocals/output). Saves 5-10 individual calls. 20 unit tests. 522 MCP tools.
+
 ## v1.356.0 (2026-07-06)
 
 - **`auto_master`** — Adaptive mastering meta-tool. Chains analyze_mix → add_mastering_chain → auto_gain in one call. 6 platform targets (Spotify/Apple/YouTube/Tidal/SoundCloud/Club), 4 styles (balanced/warm/loud/transparent), true peak ceiling. 18 unit tests. 521 MCP tools. One call replaces 3-5 mastering tool calls.
