@@ -21,6 +21,7 @@
 | `werkstatt_plate_reverb.js` | Plate Reverb (EMT 140 / Valhalla style: 4 allpass diffusers → FDN, damping lowpass, LFO shimmer, stereo width, pre-delay) |
 | `werkstatt_ensemble.js` | Ensemble Chorus (Roland Juno-60 style: 3 detuned delay lines at prime-ratio LFO rates, L/C/R panning, lush ensemble wash) |
 | `werkstatt_cassette_sim.js` | Cassette Tape Simulator (RC-20/SketchCassette style: wow 0.5-2Hz + flutter 13-33Hz pitch modulation via delay-line interpolation, asymmetric tape saturation, 80Hz head bump, HF loss from head gap, tape hiss, DC blocker, age control) |
+| `werkstatt_analog_delay.js` | Analog BBD Delay (bucket-brigade device: clock-rate reduction for BBD aliasing, analog reconstruction filter, tanh saturation warmth, LFO modulation, tone control, stereo offset, 10-1000ms delay range) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |
