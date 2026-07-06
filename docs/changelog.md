@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.339.0 (2026-07-06)
+
+- **`create_outro`** — Outro section generator. 5 types: fade (gradual thinning, velocity decreases), ritardando (slowing, durations increase, fermata), recap (return to opening, descending swell), pedal (V-I resolution, sustained tonic, octave finality), cadential (running notes to fermata chord, Beethoven close). 3 scales, 2-8 bars. Seeded PRNG. 35 unit tests. 512 MCP tools. Pairs with create_intro for full song framing.
+
 ## v1.338.0 (2026-07-06)
 
 - **Render fix** — Root cause of render_full 600s timeout found and fixed. bridge.evaluate default timeout=30s killed renders at 30s, not 600s. Added timeout=1200000 (20 min) to all 6 render evaluate calls. Also removed project.copy() from 4 render functions — OfflineEngineRenderer.start() manages loopArea internally, worker gets snapshot via toArrayBuffer(). Deep copy of 364MB audio was #1 bottleneck. E2E confirmed: 6 stems × 272.8s rendered in 234s → 100MB WAV, has_audio=true.

@@ -59850,3 +59850,278 @@ async def mcp_opendaw_create_intro(
     }.get(intro_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_outro(
+    outro_type: str = "fade",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 4,
+    velocity: float = 0.6,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create an outro section — the closing that resolves the song.
+
+    An outro winds the song down. It can fade out gradually, slow to a stop
+    (ritardando), recap the intro theme, sustain a final pedal chord, or
+    deliver a cadential flourish with a fermata. The outro's job is to release
+    tension and signal the listener that the journey is over.
+
+    - **fade**: Gradual fade-out — full texture that thins out bar by bar.
+      Velocity decreases, notes get sparser, last bar is near-silent. Good
+      for pop, rock, electronic songs that ride into the sunset.
+    - **ritardando**: Slowing down — note durations increase each bar, tempo
+      feels like it's pulling back. Last note is long and sustained. Good
+      for ballads, jazz endings, classical codas.
+    - **recap**: Return to the opening — echoes the intro's root+fifth pad,
+      but descending instead of swelling. Full circle closure. Good for
+      concept albums, film scores, cyclical song forms.
+    - **pedal**: Sustained final chord — tonic held across all bars with
+      slow inner voice resolution. V-I resolution embedded. Good for hymns,
+      anthems, epic conclusions, stadium rock endings.
+    - **cadential**: Final flourish — running notes that resolve to a
+      fermata chord. Beethoven-style dramatic close. Good for classical,
+      prog rock, theatrical endings, big finales.
+
+    outro_type: fade | ritardando | recap | pedal | cadential
+    key_root: Root note name (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (2-8)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_outro(outro_type="fade", key_root="D", scale_type="minor", bars=4)
+      create_outro(outro_type="pedal", key_root="A", scale_type="major", bars=4)
+      create_outro(outro_type="cadential", key_root="E", scale_type="minor", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["fade", "ritardando", "recap", "pedal", "cadential"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if outro_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid outro_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+    if not (2 <= bars <= 8):
+        return json.dumps({"error": "bars must be 2-8"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    def chrom_pitch(semitone, octave_shift=0):
+        return base + octave_shift * 12 + semitone
+
+    bar_len = 4.0
+
+    if outro_type == "fade":
+        # Full texture thinning out: bar 0 full, bar 1 less, bar 2 sparse, bar 3 near-silent
+        root_pitch = deg_to_pitch(0)
+        fifth_pitch = deg_to_pitch(4)
+        third_pitch = deg_to_pitch(2)
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # Velocity fades from full to near-zero
+            fade_factor = 1.0 - (bar / bars)
+            v = velocity * fade_factor
+            # Root sustained (always present)
+            notes.append({"pitch": root_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+            # Fifth (present until last bar)
+            if bar < bars - 1:
+                notes.append({"pitch": fifth_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.85, 3)})
+            # Third (present until last 2 bars)
+            if bar < bars - 2:
+                notes.append({"pitch": third_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.7, 3)})
+            # Melodic notes (decreasing density)
+            melody_notes = max(1, bars - bar)
+            for i in range(melody_notes):
+                deg = (bar + i) % ns
+                pitch = deg_to_pitch(deg)
+                pos = i * (bar_len / melody_notes)
+                v_note = v * (0.6 + 0.4 * next(rng))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + pos, 4),
+                              "duration": 0.5, "velocity": round(v_note, 3)})
+
+    elif outro_type == "ritardando":
+        # Note durations increase each bar — tempo feels like slowing
+        root_pitch = deg_to_pitch(0)
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # Duration multiplier: bar 0 = 1x, bar 1 = 1.5x, bar 2 = 2x, etc
+            dur_mult = 1.0 + bar * 0.5
+            v = velocity * (0.7 + 0.3 * (1.0 - bar / bars))
+            # Fewer notes per bar as we slow down
+            notes_per_bar = max(1, 4 - bar)
+            step = bar_len / notes_per_bar
+            for i in range(notes_per_bar):
+                deg = (i + bar) % ns
+                pitch = deg_to_pitch(deg)
+                pos = i * step
+                dur = step * dur_mult * 0.8
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + pos, 4),
+                              "duration": round(dur, 3), "velocity": round(v, 3)})
+            # Sustained root underneath
+            notes.append({"pitch": root_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.6, 3)})
+        # Final long note (fermata-like)
+        final_pitch = deg_to_pitch(0, 1)
+        final_start = start_beat + bars * bar_len - bar_len
+        notes.append({"pitch": final_pitch, "start": round(final_start, 4),
+                      "duration": bar_len * 1.5, "velocity": round(velocity * 0.8, 3)})
+
+    elif outro_type == "recap":
+        # Return to opening: root+fifth pad, descending (swell reverses)
+        root_pitch = deg_to_pitch(0)
+        fifth_pitch = deg_to_pitch(4)
+        third_pitch = deg_to_pitch(2)
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            progress = bar / max(bars - 1, 1)
+            # Descending swell: starts full, fades to soft
+            swell = 1.0 - 0.5 * progress
+            v = velocity * swell
+            notes.append({"pitch": root_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+            notes.append({"pitch": fifth_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.85, 3)})
+            # Third present in first half, then resolves away
+            if bar < bars // 2:
+                notes.append({"pitch": third_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.7, 3)})
+            # Descending melodic line (scale descent)
+            for i in range(4):
+                deg = ns - 1 - i - bar  # descending scale
+                if deg < 0:
+                    deg += ns
+                pitch = deg_to_pitch(deg % ns, deg // ns if deg >= 0 else -1)
+                pos = i * 1.0
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + pos, 4),
+                              "duration": 0.8, "velocity": round(v * 0.65, 3)})
+
+    elif outro_type == "pedal":
+        # Sustained tonic chord with inner voice resolution
+        root_pitch = deg_to_pitch(0)
+        fifth_pitch = deg_to_pitch(4)
+        third_pitch = deg_to_pitch(2)
+        # V chord tones for resolution
+        v_root = deg_to_pitch(4)
+        v_third = deg_to_pitch(6)
+        v_fifth = deg_to_pitch(8)
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.6 + 0.4 * bar / max(bars - 1, 1))  # crescendo to final
+            if bar < bars - 1:
+                # V chord sustained (building tension toward resolution)
+                notes.append({"pitch": v_root, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.7, 3)})
+                notes.append({"pitch": v_third, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.6, 3)})
+                notes.append({"pitch": v_fifth, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.65, 3)})
+            else:
+                # Final bar: I chord resolution (pedal point)
+                notes.append({"pitch": root_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v, 3)})
+                notes.append({"pitch": third_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.85, 3)})
+                notes.append({"pitch": fifth_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.9, 3)})
+                # Octave above for finality
+                notes.append({"pitch": deg_to_pitch(0, 1), "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.8, 3)})
+
+    elif outro_type == "cadential":
+        # Running notes resolving to fermata chord
+        total_beats = bars * bar_len
+        # Running scale descent across all bars except last half
+        run_beats = total_beats - bar_len  # last bar = fermata
+        run_steps = int(run_beats / 0.5)  # 8th notes
+        for i in range(run_steps):
+            # Descending scale with occasional skips
+            deg = (ns * 2 - 1 - i) % ns
+            oct_shift = -1 if (ns * 2 - 1 - i) >= ns else 0
+            if deg < 0:
+                deg += ns
+                oct_shift -= 1
+            pitch = deg_to_pitch(deg, oct_shift)
+            pos = i * 0.5
+            v = velocity * (0.5 + 0.4 * i / run_steps)  # crescendo
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": 0.4, "velocity": round(v, 3)})
+        # Fermata chord (last bar)
+        fermata_start = start_beat + run_beats
+        chord_pitches = [deg_to_pitch(0), deg_to_pitch(2), deg_to_pitch(4), deg_to_pitch(0, 1)]
+        for pitch in chord_pitches:
+            notes.append({"pitch": pitch, "start": round(fermata_start, 4),
+                          "duration": bar_len, "velocity": round(velocity, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["outro"] = True
+    data["outro_type"] = outro_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "fade": "gradual fade-out, texture thins bar by bar, velocity decreases, pop/rock/electronic",
+        "ritardando": "slowing down, note durations increase, final fermata note, ballad/jazz/classical",
+        "recap": "return to opening, root+fifth pad descending, full circle, concept album/film",
+        "pedal": "sustained final chord, V-I resolution, tonic pedal, hymn/anthem/stadium",
+        "cadential": "running notes to fermata chord, Beethoven close, classical/prog/theatrical",
+    }.get(outro_type, "")
+
+    return json.dumps(data, indent=2)
