@@ -258,6 +258,12 @@ class Processor {
 | `werkstatt_overdrive.js` | Asymmetric soft-clip overdrive | drive, tone, level, bias, dry | |
 | `werkstatt_multifilter.js` | Multi-mode SVF (LP/HP/BP/Notch) | mode, cutoff, resonance, drive, mix | |
 | `werkstatt_compressor.js` | Soft-knee peak compressor | threshold, ratio, attack, release, makeup, mix, knee | |
+| `werkstatt_thermal_comp.js` | Optical compressor (LA-2A style) | peak_reduce, gain, tube, speed, mix | |
+| `werkstatt_fet_comp.js` | FET compressor (1176 style) | input, attack, release, ratio, mode, output, mix | |
+| `werkstatt_ssl_bus_comp.js` | SSL G-series bus compressor (the glue) | threshold, ratio, attack, release, makeup, mix, auto_release | |
+| `werkstatt_nyquist_comp.js` | Parallel/New York compression | threshold, ratio, attack, release, blend, makeup | |
+| `werkstatt_bx_saturator.js` | 3-band multi-band saturator (BX style) | drive, low_sat, mid_sat, high_sat, blend, output | |
+| `werkstatt_psycho_bass.js` | Psychoacoustic bass enhancer (MaxxBass/RBass) | frequency, harmonics, intensity, mix | |
 | `werkstatt_paraeq.js` | 3-band parametric EQ + HP/LP | band1/2/3 freq+gain+Q, hp_freq, lp_freq, mix | |
 | `werkstatt_limiter.js` | Brickwall limiter w/ lookahead | ceiling, release, lookahead, dither, mix | |
 | `werkstatt_exciter.js` | Harmonic exciter (band-split) | freq, harmonics, drive, mix, output | |
@@ -367,6 +373,12 @@ class Processor {
 | Looper (overdub) | `werkstatt_looper.js` | Werkstatt |
 | Spectral gate | `werkstatt_spectral_gate.js` | Werkstatt |
 | Compressor (peak, soft-knee) | `werkstatt_compressor.js` | Werkstatt |
+| Optical comp (LA-2A) | `werkstatt_thermal_comp.js` | Werkstatt |
+| FET comp (1176) | `werkstatt_fet_comp.js` | Werkstatt |
+| SSL bus comp (G-series glue) | `werkstatt_ssl_bus_comp.js` | Werkstatt |
+| Parallel comp (New York) | `werkstatt_nyquist_comp.js` | Werkstatt |
+| Multi-band saturator (BX) | `werkstatt_bx_saturator.js` | Werkstatt |
+| Psychoacoustic bass (MaxxBass) | `werkstatt_psycho_bass.js` | Werkstatt |
 | Compressor (lookahead) | `werkstatt_lookahead.js` | Werkstatt |
 | Limiter (brickwall) | `werkstatt_limiter.js` | Werkstatt |
 | Exciter (harmonic) | `werkstatt_exciter.js` | Werkstatt |
