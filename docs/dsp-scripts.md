@@ -1,8 +1,8 @@
 # DSP Scripts
 
-105 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+106 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 105 scripts
+## Werkstatt (Audio Effects) — 106 scripts
 
 ### Dynamics (13)
 
@@ -25,6 +25,7 @@
 | `werkstatt_distortion_pedal.js` | Distortion Pedal (DS-1/Rat style: pre-distortion highpass, hard clipping with soft knee, active tone stack with bass/mid/treble bands, character control: mid scoop DS-1 vs mid hump Rat, level control, DC blocker) |
 | `werkstatt_tank_reverb.js` | Tank Reverb (Accutronics Type 9 spring tank: 4 dispersive delay lines, allpass dispersion for metallic character, damping lowpass, drive saturation into tank, stereo spread, predelay, DC blocker) |
 | `werkstatt_bx_saturator.js` | BX Saturator (3-band crossover with independent saturation: tube-style 2nd harmonic on lows, tape-style 3rd harmonic on mids, transformer-style odd harmonics on highs, blend control, output trim) |
+| `werkstatt_nyquist_comp.js` | Nyquist Comp (parallel/New York compression: dry + heavily compressed path blended, peak envelope detector, adjustable threshold/ratio/attack/release, makeup gain on compressed path, DC blocker) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |

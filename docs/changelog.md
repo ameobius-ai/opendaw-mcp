@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.345.0 (2026-07-06)
+
+- **`werkstatt_nyquist_comp.js`** — Parallel/New York compression. Dry signal blended with heavily compressed parallel path. Peak envelope detector, adjustable threshold/ratio/attack/release, makeup gain on compressed path. 125 DSP scripts. Increases perceived loudness and detail without killing transients — drums, vocals, mix bus.
+
 ## v1.344.0 (2026-07-06)
 
 - **`werkstatt_bx_saturator.js`** — BX-style multi-band saturator. 3-band crossover (200Hz/2kHz) with independent saturation per band: tube-style 2nd harmonic on lows, tape-style 3rd harmonic on mids, transformer-style odd harmonics on highs. Blend control, output trim. 124 DSP scripts. Mixing/mastering harmonic enhancement.
