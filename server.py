@@ -5716,6 +5716,7 @@ checking specific sections during mixing.
 Returns the path to the exported WAV and audio metadata.
 """
     safe_name = _safe_filename(filename)
+    # Render timeout: 1200s. Same rationale as render_full.
     result = await bridge.evaluate(f"""async () => {{
         const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
@@ -5732,9 +5733,11 @@ Returns the path to the exported WAV and audio metadata.
                     range: {{ start: startPos, end: endPos }}
                 }};
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = h.project.copy();
+                // No project.copy() — OfflineEngineRenderer.start() manages loopArea
+                // internally and restores it. The worker gets its own snapshot via
+                // source.toArrayBuffer() inside create(). Deep-copy was the bottleneck.
                 const audioData = await OfflineEngineRenderer.start(
-                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                    h.project, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
 
                 const wav = WavFile.encodeFloats(audioData);
@@ -5770,7 +5773,7 @@ Returns the path to the exported WAV and audio metadata.
                 resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
             }}
         }});
-    }}""")
+    }}""", timeout=1200000)
     # Save WAV file if export succeeded
     if isinstance(result, dict) and result.get("success"):
         import base64 as b64mod
@@ -5799,6 +5802,9 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
     Returns the path to the exported WAV and audio metadata.
     """
     safe_name = _safe_filename(filename)
+    # Render timeout: 1200s (20 min). Default bridge timeout is 30s, which kills
+    # any non-trivial render. A 272s song with 7 stems in a Web Worker takes real
+    # time. The worker does 12M+ sample operations. Headroom prevents premature kill.
     result = await bridge.evaluate(f"""async () => {{
         const h = window.DAW_HELPERS;
         const OfflineEngineRenderer = window.DAW_OfflineEngineRenderer;
@@ -5809,11 +5815,18 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
             try {{
                 // Option.None = no stems config → full mix (1 stem, all AUs mixed)
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = h.project.copy();
+                console.time("project.copy");
+                // No project.copy() — OfflineEngineRenderer.start() manages loopArea
+                // internally (disables loop, restores after). Deep-copying 364MB of
+                // audio data was the #1 bottleneck. The worker gets its own snapshot
+                // via source.toArrayBuffer() inside create().
+                console.timeEnd("project.copy");
+                console.time("render");
                 const audioData = await OfflineEngineRenderer.start(
-                    copiedProject, Option.None, progress, undefined, {sample_rate}
+                    h.project, Option.None, progress, undefined, {sample_rate}
                 );
-
+                console.timeEnd("render");
+                console.time("encode");
                 const wav = WavFile.encodeFloats(audioData);
                 const bytes = new Uint8Array(wav);
                 const chunks = [];
@@ -5822,6 +5835,7 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
                 chunks.push(String.fromCharCode.apply(null, bytes.subarray(ci, ci + chunkSize)));
             }}
             const binary = chunks.join("");
+                console.timeEnd("encode");
                 window.__lastExportB64 = btoa(binary);
 
                 let maxSample = 0;
@@ -5846,7 +5860,7 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
                 resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
             }}
         }});
-    }}""")
+    }}""", timeout=1200000)
     # Save WAV file if export succeeded
     if isinstance(result, dict) and result.get("success"):
         import base64 as b64mod
@@ -5861,6 +5875,7 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
             result["filepath"] = filepath
             result["file_size_mb"] = round(os.path.getsize(filepath) / (1024*1024), 2)
     return _wrap_eval(result)
+
 
 @mcp.tool()
 async def mcp_opendaw_export_stems(filename_prefix: str, sample_rate: int) -> str:
@@ -5906,9 +5921,9 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
             try {{
                 const exportConfig = {{stems: stemsConfig}};
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = h.project.copy();
+                
                 const audioData = await OfflineEngineRenderer.start(
-                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                    h.project, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
 
                 const wav = WavFile.encodeFloats(audioData);
@@ -5942,7 +5957,7 @@ Workflow: create_instrument_track(s) → load_audio → place_audio_region(s) �
                 resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
             }}
         }});
-    }}""")
+    }}""", timeout=1200000)
     # Save WAV file if export succeeded
     if isinstance(result, dict) and result.get("success"):
         import base64 as b64mod
@@ -6009,9 +6024,9 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
             try {{
                 const exportConfig = {{stems: stemsConfig}};
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = h.project.copy();
+                
                 const audioData = await OfflineEngineRenderer.start(
-                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                    h.project, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
 
                 const wav = WavFile.encodeFloats(audioData);
@@ -6045,7 +6060,7 @@ The stem includes all effects on that AU's chain (EQ, compression, reverb, etc).
                 resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
             }}
         }});
-    }}""")
+    }}""", timeout=1200000)
     # Save WAV file if export succeeded
     if isinstance(result, dict) and result.get("success"):
         import base64 as b64mod
@@ -6112,9 +6127,9 @@ async def mcp_opendaw_export_dry_stem(unit_index: int, filename: str, sample_rat
             try {{
                 const exportConfig = {{stems: stemsConfig}};
                 const progress = {{setValue: (v) => {{}}}};
-                const copiedProject = h.project.copy();
+                
                 const audioData = await OfflineEngineRenderer.start(
-                    copiedProject, Option.wrap(exportConfig), progress, undefined, {sample_rate}
+                    h.project, Option.wrap(exportConfig), progress, undefined, {sample_rate}
                 );
 
                 const wav = WavFile.encodeFloats(audioData);
@@ -6149,7 +6164,7 @@ async def mcp_opendaw_export_dry_stem(unit_index: int, filename: str, sample_rat
                 resolve({{error: e.message, stack: e.stack?.slice(0, 400)}});
             }}
         }});
-    }}""")
+    }}""", timeout=1200000)
     if isinstance(result, dict) and result.get("success"):
         import base64 as b64mod
         export_dir = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "exports"))
@@ -7938,8 +7953,7 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
             return new Promise(async (resolve) => {{
                 try {{
                     const progress = {{setValue: (v) => {{}}}};
-                    const copied = h.project.copy();
-                    const audioData = await OfflineEngineRenderer.start(copied, Option.None, progress, undefined, {sample_rate});
+                    const audioData = await OfflineEngineRenderer.start(h.project, Option.None, progress, undefined, {sample_rate});
                     const wav = WavFile.encodeFloats(audioData);
                     const bytes = new Uint8Array(wav);
                     const chunks = [];
@@ -7954,7 +7968,7 @@ async def mcp_opendaw_auto_gain(target_lufs: float, filename: str = "auto_gain_m
                     resolve({{error: e.message}});
                 }}
             }});
-        }}""")
+        }}""", timeout=1200000)
         if isinstance(render_result, dict) and render_result.get("error"):
             iterations.append({"iteration": i+1, "error": render_result["error"]})
             break
@@ -59604,5 +59618,235 @@ async def mcp_opendaw_create_cadence(
         "deceptive": "V-vi, expected V-I but lands on vi, surprise redirect, dramatic detour",
         "phrygian": "bII-i, Neapolitan resolution, dark exotic, Spanish/flamenco, minor key only",
     }.get(cadence_type, "")
+
+    return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_intro(
+    intro_type: str = "ambient",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 4,
+    velocity: float = 0.6,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create an intro section — the opening that sets the mood before the main body.
+
+    An intro establishes tonality, tempo, and atmosphere. It can be a single
+    sustained note, a rhythmic build-up, an emerging arpeggio, or a cinematic
+    drone. The intro's job is to pull the listener in and set expectations for
+    what follows.
+
+    - **ambient**: Sustained pad notes that slowly swell — root and fifth held
+      across the full intro, gentle velocity ramp from soft to moderate. Good
+      for ballads, film, ambient, dream pop.
+    - **drum**: Rhythmic build — starts with kick alone, adds snare, then hats.
+      Each bar adds one more element. Velocity crescendos. Good for rock, pop,
+      EDM, hip-hop intros that build energy.
+    - **melodic**: Arpeggio that emerges from silence — starts with single notes
+      spaced wide, gradually fills in with more frequent notes. Good for synth
+      tracks, progressive, electronic intros.
+    - **minimalist**: Note repetition a la Reich/Glass — single tonic repeated,
+      then adds a second note, then a third. Layers build one at a time. Good
+      for art music, post-rock, experimental intros.
+    - **cinematic**: Drone + riser + impact — low root drone sustained, a rising
+      chromatic line builds tension, ends with an impact chord. Good for film
+      scores, trailers, epic intros, metal.
+
+    intro_type: ambient | drum | melodic | minimalist | cinematic
+    key_root: Root note name (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (2-8)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_intro(intro_type="ambient", key_root="D", scale_type="minor", bars=4)
+      create_intro(intro_type="drum", key_root="A", scale_type="major", bars=4)
+      create_intro(intro_type="cinematic", key_root="E", scale_type="minor", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["ambient", "drum", "melodic", "minimalist", "cinematic"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if intro_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid intro_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+    if not (2 <= bars <= 8):
+        return json.dumps({"error": "bars must be 2-8"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    def chrom_pitch(semitone, octave_shift=0):
+        return base + octave_shift * 12 + semitone
+
+    bar_len = 4.0
+
+    if intro_type == "ambient":
+        root_pitch = deg_to_pitch(0)
+        fifth_pitch = deg_to_pitch(4)
+        third_pitch = deg_to_pitch(2)
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            progress = bar / max(bars - 1, 1)
+            swell = 0.5 + 0.5 * (0.5 * 3.14159265 * progress)
+            v = velocity * (0.4 + 0.5 * swell)
+            notes.append({"pitch": root_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+            notes.append({"pitch": fifth_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.85, 3)})
+            if bar >= bars // 2:
+                notes.append({"pitch": third_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.7, 3)})
+
+    elif intro_type == "drum":
+        kick_pitch = 36
+        snare_pitch = 38
+        hat_pitch = 42
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            bar_vel = velocity * (0.5 + 0.5 * bar / max(bars - 1, 1))
+            kick_density = 1 + bar
+            for i in range(kick_density):
+                pos = i * (bar_len / kick_density)
+                notes.append({"pitch": kick_pitch, "start": round(start_beat + bar_start + pos, 4),
+                              "duration": 0.5, "velocity": round(bar_vel, 3)})
+            if bar >= 1:
+                notes.append({"pitch": snare_pitch, "start": round(start_beat + bar_start + 1.0, 4),
+                              "duration": 0.5, "velocity": round(bar_vel * 0.85, 3)})
+                notes.append({"pitch": snare_pitch, "start": round(start_beat + bar_start + 3.0, 4),
+                              "duration": 0.5, "velocity": round(bar_vel * 0.85, 3)})
+            if bar >= 2:
+                for i in range(8):
+                    pos = i * 0.5
+                    notes.append({"pitch": hat_pitch, "start": round(start_beat + bar_start + pos, 4),
+                                  "duration": 0.25, "velocity": round(bar_vel * 0.6, 3)})
+
+    elif intro_type == "melodic":
+        arp_degrees = [0, 5, 3, 4]
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            bar_vel = velocity * (0.5 + 0.5 * bar / max(bars - 1, 1))
+            chord_idx = bar % len(arp_degrees)
+            root_deg = arp_degrees[chord_idx]
+            notes_per_bar = 2 * (bar + 1)
+            step = bar_len / notes_per_bar
+            for i in range(notes_per_bar):
+                arp_offset = [0, 2, 4, 7][i % 4]
+                pitch = deg_to_pitch(root_deg + arp_offset, i // 4)
+                pos = i * step
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + pos, 4),
+                              "duration": step * 0.9, "velocity": round(bar_vel * (0.8 + 0.2 * next(rng)), 3)})
+
+    elif intro_type == "minimalist":
+        layer_pitches = [deg_to_pitch(0), deg_to_pitch(2), deg_to_pitch(4),
+                         deg_to_pitch(0, 1), deg_to_pitch(2, 1)]
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            bar_vel = velocity * (0.5 + 0.5 * bar / max(bars - 1, 1))
+            num_layers = min(bar + 1, len(layer_pitches))
+            for layer in range(num_layers):
+                pitch = layer_pitches[layer]
+                if layer == 0:
+                    for i in range(8):
+                        notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 0.5, 4),
+                                      "duration": 0.4, "velocity": round(bar_vel, 3)})
+                elif layer == 1:
+                    for i in range(4):
+                        notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 1.0, 4),
+                                      "duration": 0.8, "velocity": round(bar_vel * 0.85, 3)})
+                elif layer == 2:
+                    for i in range(2):
+                        notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 2.0, 4),
+                                      "duration": 1.6, "velocity": round(bar_vel * 0.8, 3)})
+                else:
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                                  "duration": bar_len, "velocity": round(bar_vel * 0.75, 3)})
+
+    elif intro_type == "cinematic":
+        drone_pitch = deg_to_pitch(0, -1)
+        total_beats = bars * bar_len
+        notes.append({"pitch": drone_pitch, "start": round(start_beat, 4),
+                      "duration": total_beats, "velocity": round(velocity * 0.6, 3)})
+        riser_steps = bars * 4
+        for i in range(riser_steps):
+            semitone = i
+            pitch = chrom_pitch(semitone % 12, semitone // 12)
+            pos = i * (total_beats / riser_steps)
+            v = velocity * (0.3 + 0.5 * i / riser_steps)
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": 0.4, "velocity": round(v, 3)})
+        impact_pitches = [deg_to_pitch(0), deg_to_pitch(2), deg_to_pitch(4), deg_to_pitch(0, 1)]
+        for pitch in impact_pitches:
+            notes.append({"pitch": pitch, "start": round(start_beat + total_beats - 2.0, 4),
+                          "duration": 2.0, "velocity": round(velocity, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["intro"] = True
+    data["intro_type"] = intro_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "ambient": "sustained pad swell, root+fifth held, gentle velocity ramp, ballad/film/dream",
+        "drum": "rhythmic build, kick to snare to hats layering, crescendo, rock/pop/EDM",
+        "melodic": "emerging arpeggio, sparse to dense, I-vi-IV-V cycling, synth/progressive",
+        "minimalist": "layered repetition, Reich/Glass style, one note to layers, art/post-rock",
+        "cinematic": "drone+riser+impact, chromatic ascent, low root+full chord, film/trailer/epic",
+    }.get(intro_type, "")
 
     return json.dumps(data, indent=2)
