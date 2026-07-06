@@ -261,6 +261,9 @@ class Processor {
 | `werkstatt_thermal_comp.js` | Optical compressor (LA-2A style) | peak_reduce, gain, tube, speed, mix | |
 | `werkstatt_fet_comp.js` | FET compressor (1176 style) | input, attack, release, ratio, mode, output, mix | |
 | `werkstatt_ssl_bus_comp.js` | SSL G-series bus compressor (the glue) | threshold, ratio, attack, release, makeup, mix, auto_release | |
+| `werkstatt_true_peak_limiter.js` | True peak limiter with inter-sample detection (4x oversampling, -1 dBTP streaming compliance) | ceiling, release, lookahead, mix | Spotify/Apple/YouTube |
+| `werkstatt_aire.js` | Stereo air exciter (M/S widener + HF harmonic exciter, 2-12kHz crossover) | drive, crossover, harmonic_mix, width, mix | |
+| `werkstatt_lufs_meter.js` | LUFS meter (ITU-R BS.1770-4, K-weighting, integrated/short-term/momentary, read-only) | integrated, short_term, momentary, true_peak (read-only) | Mastering verification |
 | `werkstatt_nyquist_comp.js` | Parallel/New York compression | threshold, ratio, attack, release, blend, makeup | |
 | `werkstatt_bx_saturator.js` | 3-band multi-band saturator (BX style) | drive, low_sat, mid_sat, high_sat, blend, output | |
 | `werkstatt_psycho_bass.js` | Psychoacoustic bass enhancer (MaxxBass/RBass) | frequency, harmonics, intensity, mix | |
@@ -376,6 +379,9 @@ class Processor {
 | Optical comp (LA-2A) | `werkstatt_thermal_comp.js` | Werkstatt |
 | FET comp (1176) | `werkstatt_fet_comp.js` | Werkstatt |
 | SSL bus comp (G-series glue) | `werkstatt_ssl_bus_comp.js` | Werkstatt |
+| True peak limiter (streaming) | `werkstatt_true_peak_limiter.js` | Werkstatt |
+| Stereo air exciter | `werkstatt_aire.js` | Werkstatt |
+| LUFS meter (ITU-R BS.1770-4) | `werkstatt_lufs_meter.js` | Werkstatt |
 | Parallel comp (New York) | `werkstatt_nyquist_comp.js` | Werkstatt |
 | Multi-band saturator (BX) | `werkstatt_bx_saturator.js` | Werkstatt |
 | Psychoacoustic bass (MaxxBass) | `werkstatt_psycho_bass.js` | Werkstatt |
