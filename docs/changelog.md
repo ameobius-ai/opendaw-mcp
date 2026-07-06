@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.298.0 (2026-07-06)
+
+- **`create_irish_trad`** — Irish traditional music accompaniment: bodhrán + feet stomp for session tunes. 6 tune types: reel (4/4 straight 8ths), jig (6/8 triplet feel), hornpipe (4/4 swung/dotted), slip jig (9/8 ethereal), polka (2/4 fast), slide (12/8 Sliabh Luachra). Bodhrán on accented beats, brush hi-hat on every beat, feet stomp on every other bar. Hornpipe is the only swung type (swing=0.6). Ireland / Celtic tradition.
+
 ## v1.297.0 (2026-07-06)
 
 - **`create_balkan_meter`** — Balkan additive meter: asymmetric time signatures (7/8, 9/8, 11/16, 13/8) with unequal beat groupings (2+2+3, 2+2+2+3, etc.). 6 meters: 7_8 (standard), 9_8 (horo), 11_16 (krivo), 13_8 (elenino), 7_8_sand (reversed 3+2+2), 9_8_ska (2+3+2+2). 3 variations: classic (tapan), modern (fusion, ghost snares), wedding (tapan rolls). Accents at group starts create the "limping" feel. Bulgarian, Macedonian, Greek, Serbian tradition.

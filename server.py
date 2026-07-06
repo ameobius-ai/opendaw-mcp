@@ -40427,6 +40427,191 @@ async def mcp_opendaw_create_balkan_meter(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_irish_trad(
+    tune_type: str = "reel",
+    bars: int = 8,
+    velocity: float = 0.7,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    bodhran_pitch: int = 36,
+    feet_pitch: int = 40,
+    hh_pitch: int = 42,
+) -> str:
+    """Create an Irish traditional music accompaniment — bodhrán + feet for session tunes.
+
+    Irish traditional music (trad) is defined by its tune types, each with a
+    characteristic meter and feel. The bodhrán (frame drum) and feet stomp
+    provide the rhythmic foundation in a session. Unlike most percussion
+    patterns, Irish accompaniment is minimal — the rhythm is carried by the
+    melody's phrasing, and the bodhrán supports rather than drives.
+
+    tune types:
+      "reel"      — 4/4, straight 8th notes. The most common tune type.
+                    Bodhrán: downbeat + offbeat pattern. 4 beats per bar.
+                    2 bars per phrase (AA pattern). Bright, driving.
+      "jig"       — 6/8, triplet feel. Groups of 3 eighth notes.
+                    Bodhrán: accent on beat 1 and 4 (the two downbeats of 6/8).
+                    2 bars per phrase. Lilting, rolling feel.
+      "hornpipe"  — 4/4, dotted rhythm. 8ths are swung (long-short).
+                    Bodhrán: similar to reel but with swung feel.
+                    2 bars per phrase. Bouncy, maritime feel.
+      "slip_jig"  — 9/8, triplet feel in 3 groups of 3. Rare, ethereal.
+                    Bodhrán: accent on 1, 4, 7. 2 bars per phrase.
+                    Dancing on air, Turlough O'Carolan style.
+      "polka"     — 2/4, fast and punchy. Common in Kerry/Sliabh Luachra.
+                    Bodhrán: strong 1 and 2. Simple, driving.
+                    2 bars per phrase. Fast dance, march-like.
+      "slide"     — 12/8, similar to jig but faster and longer groups.
+                    Bodhrán: accent on 1, 4, 7, 10. 2 bars per phrase.
+                    Sliabh Luachra region. Fast, lilting.
+
+    Args:
+        tune_type: Tune type (reel, jig, hornpipe, slip_jig, polka, slide).
+        bars: Number of bars (4-32, even).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        bodhran_pitch: Bodhrán (frame drum) MIDI pitch (36 = C1).
+        feet_pitch: Feet stomp MIDI pitch (40 = E1).
+        hh_pitch: Hi-hat/brush MIDI pitch (42 = F#1).
+
+    Returns notes created, tune type info, meter, and pattern breakdown.
+    """
+    if not (4 <= bars <= 32) or bars % 2 != 0:
+        return f"Error: bars must be even and 4-32, got {bars}"
+    if tune_type not in ("reel", "jig", "hornpipe", "slip_jig", "polka", "slide"):
+        return f"Error: tune_type must be reel, jig, hornpipe, slip_jig, polka, or slide, got {tune_type}"
+
+    TUNES = {
+        "reel": {
+            "meter": "4/4",
+            "beats_per_bar": 4,
+            "beat_step": 0.5,  # 8th notes
+            "accents": [0, 2],  # beats 1 and 3 (0-indexed in 8th grid)
+            "bodhran_pattern": "downbeat_offbeat",
+            "swing": 0.0,  # straight
+        },
+        "jig": {
+            "meter": "6/8",
+            "beats_per_bar": 6,
+            "beat_step": 0.333333,  # triplet 8ths
+            "accents": [0, 3],  # beat 1 and 4
+            "bodhran_pattern": "jig_pattern",
+            "swing": 0.0,
+        },
+        "hornpipe": {
+            "meter": "4/4",
+            "beats_per_bar": 4,
+            "beat_step": 0.5,
+            "accents": [0, 2],
+            "bodhran_pattern": "dotted",
+            "swing": 0.6,  # swung 8ths (long-short)
+        },
+        "slip_jig": {
+            "meter": "9/8",
+            "beats_per_bar": 9,
+            "beat_step": 0.333333,
+            "accents": [0, 3, 6],
+            "bodhran_pattern": "slip_jig_pattern",
+            "swing": 0.0,
+        },
+        "polka": {
+            "meter": "2/4",
+            "beats_per_bar": 2,
+            "beat_step": 0.5,
+            "accents": [0, 1],
+            "bodhran_pattern": "polka_pattern",
+            "swing": 0.0,
+        },
+        "slide": {
+            "meter": "12/8",
+            "beats_per_bar": 12,
+            "beat_step": 0.333333,
+            "accents": [0, 3, 6, 9],
+            "bodhran_pattern": "slide_pattern",
+            "swing": 0.0,
+        },
+    }
+
+    tune = TUNES[tune_type]
+    bpb = tune["beats_per_bar"]
+    step = tune["beat_step"]
+    accents = set(tune["accents"])
+    swing = tune["swing"]
+
+    pitch_map = {"bodhran": bodhran_pitch, "feet": feet_pitch, "hh": hh_pitch}
+
+    all_notes = []
+    inst_counts = {"bodhran": 0, "feet": 0, "hh": 0}
+
+    for bar in range(bars):
+        bar_start = bar * bpb * step
+
+        for beat_idx in range(bpb):
+            # Apply swing: shift odd 8th notes slightly later
+            swing_offset = 0.0
+            if swing > 0 and beat_idx % 2 == 1:
+                swing_offset = step * swing * 0.5
+
+            pos = round(start_beat + bar_start + beat_idx * step + swing_offset, 4)
+            is_accent = beat_idx in accents
+
+            # Bodhrán on accented beats
+            if is_accent:
+                all_notes.append({
+                    "pitch": pitch_map["bodhran"],
+                    "start": pos,
+                    "duration": 0.2,
+                    "velocity": round(min(1.0, velocity * 1.0), 3),
+                })
+                inst_counts["bodhran"] += 1
+
+            # Hi-hat/brush on every beat
+            hh_vel = min(1.0, velocity * 0.55) if not is_accent else min(1.0, velocity * 0.65)
+            all_notes.append({
+                "pitch": pitch_map["hh"],
+                "start": pos,
+                "duration": 0.06,
+                "velocity": round(hh_vel, 3),
+            })
+            inst_counts["hh"] += 1
+
+        # Feet stomp on beat 1 of every other bar
+        if bar % 2 == 0:
+            feet_pos = round(start_beat + bar_start, 4)
+            all_notes.append({
+                "pitch": pitch_map["feet"],
+                "start": feet_pos,
+                "duration": 0.15,
+                "velocity": round(min(1.0, velocity * 0.8), 3),
+            })
+            inst_counts["feet"] += 1
+
+    # Sort by start time
+    all_notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["irish_trad"] = True
+        data["tune_type"] = tune_type
+        data["meter"] = tune["meter"]
+        data["bars"] = bars
+        data["beats_per_bar"] = bpb
+        data["accents"] = tune["accents"]
+        data["swing"] = swing
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,
