@@ -62335,3 +62335,175 @@ async def mcp_opendaw_produce_and_master(
     results["pipeline"] = "set_bpm → arrange → drums → bass → genre_effects → auto_master → render"
 
     return json.dumps(results, indent=2)
+
+
+async def mcp_opendaw_create_industrial_arrangement(
+    key_root: str = "D",
+    bpm: int = 135,
+    bars: int = 16,
+    velocity: float = 0.85,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create an industrial arrangement — 135 BPM dark mechanical aggression.
+
+    Industrial music (NIN, Ministry, Einstürzende Neubauten, Skinny Puppy):
+    - Distorted 4-on-floor kick with mechanical feel
+    - Metallic percussion (anvil hits, pipe strikes, clangs)
+    - Gritty distorted bass in minor key
+    - Dissonant chord stabs (tritone, minor 2nd clusters)
+    - Dark atmospheric drone/pad
+    - Aggressive, mechanical, dehumanized energy
+
+    Creates 4 tracks:
+    1. Drums: Distorted kick on every beat, metallic clang on 2&4,
+       industrial hats (uneven, mechanical), noise bursts
+    2. Bass: Distorted bass following root with chromatic passing tones,
+       low octave, staccato mechanical feel
+    3. Stabs: Dissonant chord stabs — tritone (b5), minor 2nd clusters,
+       atonal hits on beat 1 and offbeat 2.5
+    4. Drone: Sustained dark pad — root + b5 + octave, minor 2nd shimmer
+
+    Default key: D minor (common industrial key, dark and low).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    # MIDI pitches (GM) — industrial uses metallic percussion
+    KICK = 36       # distorted kick
+    SNARE = 38      # metallic clang (use snare as anvil)
+    CLOSED_HAT = 42 # industrial hat
+    OPEN_HAT = 46   # noise burst
+    RIDE = 59       # ride bell (metallic shimmer)
+
+    # D minor scale
+    minor_scale = [0, 2, 3, 5, 7, 8, 10]
+    bass_oct = (2 + 1) * 12 + root_pc
+    stab_oct = (3 + 1) * 12 + root_pc
+    drone_oct = (4 + 1) * 12 + root_pc
+
+    notes = []
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+
+        # === DRUMS (track_index) ===
+        # Distorted 4-on-floor
+        for beat in range(4):
+            notes.append({"pitch": KICK, "start": round(bar_start + beat, 4),
+                          "duration": 0.5, "velocity": velocity,
+                          "track": track_index})
+        # Metallic clang on 2 & 4 (industrial snare = anvil)
+        for beat in [1, 3]:
+            notes.append({"pitch": SNARE, "start": round(bar_start + beat, 4),
+                          "duration": 0.3, "velocity": velocity * 0.9,
+                          "track": track_index})
+        # Industrial hats — uneven, mechanical
+        for beat_idx in range(8):
+            beat = beat_idx * 0.5
+            # Skip some for mechanical unevenness
+            if beat_idx % 3 == 1:
+                continue
+            notes.append({"pitch": CLOSED_HAT, "start": round(bar_start + beat, 4),
+                          "duration": 0.15, "velocity": velocity * 0.4,
+                          "track": track_index})
+        # Noise burst (open hat) on offbeat 3.5
+        notes.append({"pitch": OPEN_HAT, "start": round(bar_start + 3.5, 4),
+                      "duration": 0.25, "velocity": velocity * 0.5,
+                      "track": track_index})
+        # Metallic ride shimmer every 4 bars
+        if bar % 4 == 3:
+            for beat in range(4):
+                notes.append({"pitch": RIDE, "start": round(bar_start + beat + 0.25, 4),
+                              "duration": 0.1, "velocity": velocity * 0.3,
+                              "track": track_index})
+
+        # === BASS (track_index + 1) ===
+        # Distorted bass — root with chromatic passing tones
+        bass_degrees = [0, 0, 1, 0, 0, 0, -1, 0]  # root with chromatic neighbors
+        for i, deg in enumerate(bass_degrees):
+            idx = deg % 7
+            if deg < 0:
+                idx = (deg + 7) % 7
+            pitch = bass_oct + minor_scale[idx] if deg >= 0 else bass_oct + minor_scale[(deg + 7) % 7] - 12
+            # Mechanical staccato
+            beat = i * 0.5
+            dur = 0.4 if i % 2 == 0 else 0.2
+            notes.append({"pitch": pitch, "start": round(bar_start + beat, 4),
+                          "duration": dur, "velocity": velocity * 0.85,
+                          "track": track_index + 1})
+
+        # === STABS (track_index + 2) ===
+        # Dissonant chord stabs — tritone (b5) and minor 2nd clusters
+        if bar % 2 == 0:
+            # Tritone stab: root + b5
+            for interval in [0, 6]:
+                pitch = stab_oct + interval
+                notes.append({"pitch": pitch, "start": round(bar_start, 4),
+                              "duration": 0.3, "velocity": velocity * 0.7,
+                              "track": track_index + 2})
+        else:
+            # Minor 2nd cluster: root + b2
+            for interval in [0, 1]:
+                pitch = stab_oct + interval
+                notes.append({"pitch": pitch, "start": round(bar_start + 2.5, 4),
+                              "duration": 0.25, "velocity": velocity * 0.6,
+                              "track": track_index + 2})
+        # Occasional atonal hit
+        if bar % 4 == 2:
+            atonal_pitch = stab_oct + 11  # major 7th (dissonant)
+            notes.append({"pitch": atonal_pitch, "start": round(bar_start + 3, 4),
+                          "duration": 0.15, "velocity": velocity * 0.5,
+                          "track": track_index + 2})
+
+        # === DRONE (track_index + 3) ===
+        # Sustained dark pad — root + b5 + octave, minor 2nd shimmer
+        drone_pitches = [drone_oct, drone_oct + 6, drone_oct + 12, drone_oct + 1]
+        for pitch in drone_pitches:
+            notes.append({"pitch": pitch, "start": round(bar_start, 4),
+                          "duration": 4.0, "velocity": velocity * 0.3,
+                          "track": track_index + 3})
+
+    # Sort by start time
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    # Batch create notes per track
+    results_per_track = {}
+    for track_idx in range(track_index, track_index + 4):
+        track_notes = [n for n in notes if n["track"] == track_idx]
+        if track_notes:
+            # Remove track field before sending
+            clean_notes = [{k: v for k, v in n.items() if k != "track"} for n in track_notes]
+            r = await mcp_opendaw_create_notes_batch(
+                json.dumps(clean_notes), unit_index, track_idx)
+            try:
+                d = json.loads(r)
+                results_per_track[track_idx] = d.get("notes_created", len(clean_notes))
+            except Exception:
+                results_per_track[track_idx] = len(clean_notes)
+
+    return json.dumps({
+        "industrial_arrangement": True,
+        "key_root": key_root,
+        "scale": "minor",
+        "bpm": bpm,
+        "bars": n_bars,
+        "tracks_created": 4,
+        "notes_created": len(notes),
+        "track_notes": results_per_track,
+        "characteristics": "distorted 4-on-floor, metallic percussion, dissonant tritone stabs, dark drone, mechanical aggression",
+        "references": "Nine Inch Nails, Ministry, Einstürzende Neubauten, Skinny Puppy",
+        "next_steps": [
+            "Use add_genre_effects('industrial') for distortion + compression chain",
+            "Use add_waveshaper on bass track for extra grit",
+            "Use render_full to render the arrangement",
+        ],
+    }, indent=2)

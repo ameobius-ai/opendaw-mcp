@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.359.0 (2026-07-06)
+
+- **`create_industrial_arrangement`** — Industrial music arrangement (NIN/Ministry/Skinny Puppy/Einstürzende Neubauten style). Distorted 4-on-floor, metallic percussion (anvil clangs, ride shimmer), chromatic bass with passing tones, dissonant tritone stabs (root+b5), minor 2nd clusters, dark drone pad. D minor, 135 BPM, 16 bars, 4 tracks. 20 unit tests. 524 MCP tools. 36 genre arrangements.
+
 ## v1.358.0 (2026-07-06)
 
 - **`produce_and_master`** — The single most powerful tool. Chains 7 steps in one call: set_bpm → arrange_full_song → create_drum_pattern → create_bassline → add_genre_effects → auto_master → render_full. One call = a fully produced and mastered track ready for streaming. Replaces 30-40 individual tool calls. 15 genres, 6 platform targets, 4 mastering styles. 22 unit tests. 523 MCP tools.
