@@ -56171,3 +56171,181 @@ async def mcp_opendaw_create_garage_arrangement(
         return json.dumps(data, indent=2)
     except Exception:
         return results[0]
+
+
+@mcp.tool()
+async def mcp_opendaw_create_acid_arrangement(
+    key_root: str = "A",
+    bpm: int = 125,
+    bars: int = 16,
+    velocity: float = 0.75,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create an acid house arrangement — TB-303 squelch bassline.
+
+    Acid house is a subgenre of house music born in Chicago (1985-87)
+    defined by the Roland TB-303 bass synthesizer with its distinctive
+    squelchy, resonant filter sweeps. Key characteristics:
+
+    - TB-303 bassline: monophonic, sequenced 16th notes with filter
+      cutoff sweeps (open↔closed), accent and glide (slide) between
+      notes. The signature "squelch" sound.
+    - 909 drum machine: 4-on-floor kick, open hat on offbeats,
+      clap on 2&4, ride cymbal
+    - 125 BPM, 4/4 time
+    - Minimal, hypnotic, repetitive structure with gradual evolution
+    - Often in minor key with chromatic bassline movement
+
+    Creates 3 tracks:
+    1. Drums (track_index): 909-style — kick on every beat, clap on 2&4,
+       open hat on offbeats, closed hat on 16ths, ride on quarter notes
+    2. Bass (track_index+1): TB-303-style 16th note pattern with
+       chromatic movement, octave jumps, and accent patterns. Notes
+       have varied velocity to simulate filter envelope.
+    3. Lead (track_index+2): Sparse, hypnotic stab on beat 1 of every
+       4 bars, minor key pad-like sustained note
+
+    Default key: A minor (classic acid key).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    KICK = 36
+    CLAP = 39
+    CLOSED_HAT = 42
+    OPEN_HAT = 46
+    RIDE = 59
+
+    minor_scale = [0, 2, 3, 5, 7, 8, 10]
+    bass_oct = (2 + 1) * 12 + root_pc
+    lead_oct = (4 + 1) * 12 + root_pc
+
+    def deg_to_pitch(degree, root_note, sc):
+        ns = len(sc)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return root_note + oct_shift * 12 + sc[idx]
+
+    drums = []
+    bass = []
+    lead = []
+
+    # TB-303 bassline pattern: 16th notes, chromatic movement
+    # Pattern cycles every 2 bars (32 sixteenth notes)
+    # Degrees: scale degrees + chromatic passing tones
+    bass_pattern = [
+        0, 0, 3, 0, 0, 0, -1, 0,    # bar 1: riff around root
+        0, 5, 3, 2, 0, -1, 0, 7,    # bar 1 continued
+        3, 3, 0, 3, 3, 3, 2, 3,     # bar 2: riff around 3rd
+        3, 0, -1, 0, 3, 5, 7, 10,   # bar 2 continued
+    ]
+
+    # Accent pattern: some notes accented (higher velocity = filter open)
+    accent_pattern = [
+        1, 0, 0, 0, 1, 0, 0, 1,
+        0, 1, 0, 0, 1, 0, 1, 0,
+        1, 0, 0, 0, 1, 0, 0, 1,
+        0, 1, 0, 1, 0, 0, 1, 1,
+    ]
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+
+        # --- Drums (909-style) ---
+        for beat in range(4):
+            drums.append({
+                "pitch": KICK, "start": round(bar_start + beat, 4),
+                "duration": 0.5, "velocity": round(velocity, 3),
+            })
+        for beat in [1.0, 3.0]:
+            drums.append({
+                "pitch": CLAP, "start": round(bar_start + beat, 4),
+                "duration": 0.2, "velocity": round(velocity * 0.85, 3),
+            })
+        for beat in range(4):
+            drums.append({
+                "pitch": OPEN_HAT, "start": round(bar_start + beat + 0.5, 4),
+                "duration": 0.3, "velocity": round(velocity * 0.6, 3),
+            })
+        for h in range(16):
+            drums.append({
+                "pitch": CLOSED_HAT, "start": round(bar_start + h * 0.25, 4),
+                "duration": 0.08, "velocity": round(velocity * 0.35, 3),
+            })
+        for beat in range(4):
+            drums.append({
+                "pitch": RIDE, "start": round(bar_start + beat, 4),
+                "duration": 0.4, "velocity": round(velocity * 0.4, 3),
+            })
+
+        # --- Bass (TB-303-style) ---
+        for i in range(16):
+            pat_idx = (bar * 16 + i) % len(bass_pattern)
+            deg = bass_pattern[pat_idx]
+            pitch = deg_to_pitch(deg, bass_oct, minor_scale)
+            accent = accent_pattern[pat_idx]
+            # Accent notes have higher velocity (simulates filter open)
+            vel = velocity * (0.95 if accent else 0.55)
+            bass.append({
+                "pitch": pitch, "start": round(bar_start + i * 0.25, 4),
+                "duration": 0.22, "velocity": round(vel, 3),
+            })
+
+        # --- Lead (sparse hypnotic stab) ---
+        if bar % 4 == 0:
+            lead.append({
+                "pitch": deg_to_pitch(0, lead_oct, minor_scale),
+                "start": round(bar_start, 4),
+                "duration": 2.0, "velocity": round(velocity * 0.6, 3),
+            })
+            lead.append({
+                "pitch": deg_to_pitch(7, lead_oct, minor_scale),
+                "start": round(bar_start + 2.0, 4),
+                "duration": 2.0, "velocity": round(velocity * 0.55, 3),
+            })
+
+    drums.sort(key=lambda n: (n["start"], n["pitch"]))
+    bass.sort(key=lambda n: (n["start"], n["pitch"]))
+    lead.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    results = []
+    for i, (notes, label) in enumerate([
+        (drums, "drums"), (bass, "bass"), (lead, "lead")
+    ]):
+        notes_json = json.dumps(notes)
+        result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index + i)
+        results.append(result)
+
+    try:
+        data = json.loads(results[0])
+        data["acid_arrangement"] = True
+        data["bpm"] = bpm
+        data["bars"] = n_bars
+        data["key_root"] = key_root
+        data["tracks"] = {
+            "drums": {"track": track_index, "notes": len(drums),
+                       "style": "909: 4-on-floor + clap 2&4 + hats + ride"},
+            "bass": {"track": track_index + 1, "notes": len(bass),
+                      "style": "TB-303: 16th notes, chromatic, accent pattern, filter sweep simulation"},
+            "lead": {"track": track_index + 2, "notes": len(lead),
+                      "style": "sparse hypnotic stab every 4 bars"},
+        }
+        data["total_notes"] = len(drums) + len(bass) + len(lead)
+        data["all_tracks_created"] = all(
+            json.loads(r).get("success", False) if r else False for r in results
+        )
+        return json.dumps(data, indent=2)
+    except Exception:
+        return results[0]

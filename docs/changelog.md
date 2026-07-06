@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.321.0 (2026-07-06)
+
+- **`create_acid_arrangement`** — Acid house: 125 BPM TB-303 squelch bassline. 3 tracks: 909 drums (4-on-floor kick, clap 2&4, open hat offbeats, 16th closed hats, ride), TB-303 bass (16th note pattern with chromatic movement, accent pattern simulating filter sweeps, 2-bar cycle), sparse hypnotic lead stab every 4 bars. A minor default. Phuture, DJ Pierre, 808 State. 22 unit tests. 496 MCP tools.
+
 ## v1.320.0 (2026-07-06)
 
 - **`create_garage_arrangement`** — UK garage: 130 BPM 2-step swing. 4 tracks: 2-step kick (alternating syncopated patterns), snare on 2&4, swung 16th hats (+0.08 swing), rim ghost notes, melodic bassline with octave jumps and syncopation, minor 7th chord stabs on offbeats, vocal-chop lead (short rhythmic phrases with gaps). G minor default. MJ Cole, Disclosure, Burial. 21 unit tests. 495 MCP tools.
