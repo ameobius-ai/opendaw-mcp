@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.382.0 (2026-07-06)
+
+- **Phase-based tool loading** — `OPENDAW_MCP_MODE=phase` env var. Agent calls `switch_phase("compose"|"mix"|"render"|"inspect")` to activate only relevant tools. 4 phases: inspect (18 read-only tools), compose (54 creation tools), mix (23 effect/mastering tools), render (10 export tools). Meta-tools (evaluate_raw, get_full_project_state, switch_phase) always available. Reduces schema payload per phase by ~90%. 18 unit tests.
+
 ## v1.381.0 (2026-07-06)
 
 - **Lite mode** — `OPENDAW_MCP_MODE=lite` env var. Registers only 39 essential tools instead of 504, reducing tool schema payload by 92%. Lite includes: project info, tracks, instruments, notes, effects, mixing, BPM, render, export, compositional building blocks (drums/bass/melody/chords), scriptable devices, audio I/O, markers. Full mode (default) unchanged. `--version` and `--help` updated to show mode info. 19 unit tests. Also adds `__version__` to server.py.
