@@ -2,6 +2,8 @@
 
 ## v1.337.0 (2026-07-06)
 
+- **`werkstatt_cassette_sim.js`** — Cassette Tape Simulator. Full tape machine modeling: wow (0.5-2Hz slow speed variation) + flutter (13-33Hz fast flutter) via delay-line interpolation pitch modulation, asymmetric tape saturation (tanh soft clipping), 80Hz head bump resonance, high-frequency loss from tape head gap, pink tape hiss with age control, DC blocker. RC-20/SketchCassette aesthetic. 8 parameters. node --check ✅. **120 DSP scripts**.
+- **CI sync** — 28 missing Werkstatt scripts added to CI validation list (73 → 101 scripts checked).
 - **`create_cadence`** — Harmonic phrase conclusion generator. 5 types: authentic (V-I, strongest closure, leading tone resolves), plagal (IV-I, Amen cadence, warm soft closure), half (I-V, no closure, musical comma, expectation), deceptive (V-vi, surprise redirect, dramatic detour), phrygian (bII-i, Neapolitan resolution, dark exotic, minor key only). 3 scales. Chromatic pitch helper for non-diatonic chords. Seeded PRNG. 33 unit tests. 510 MCP tools. Bach to Miles Davis.
 - **Skills sync** — composition-patterns SKILL.md decision tree updated with 7 new tools (riff, hook, lick, turnaround, solo, drum_solo, etude), description 178+ → 509 tools. dsp-script-authoring SKILL.md: 26 → 122 example scripts.
 - **Example** — create_melodic_vocabulary.py: riff+hook+lick+turnaround+etude pipeline demo.
