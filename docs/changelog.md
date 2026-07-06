@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.355.0 (2026-07-06)
+
+- **`werkstatt_true_peak_limiter.js`** — True peak limiter with inter-sample peak detection (4x oversampling). Lookahead delay line, fast attack, adjustable release, hard clip safety. -1 dBTP ceiling for streaming compliance (Spotify/Apple/YouTube). 130 DSP scripts. Essential for mastering — prevents codec distortion on streaming platforms.
+
 ## v1.354.0 (2026-07-06)
 
 - **`create_descant`** — Descant counter-melody generator. 5 types: soaring (long sustained rising notes, anthemic), weaving (interlocking phrases filling melody gaps), pedal_tone (sustained high 5th/tonic), call_response (short answering phrases), ornamental (fast decorative runs, baroque). 3 scales, octave 5+, 2-8 bars. Seeded PRNG. 26 unit tests. 520 MCP tools. Secondary melody above the main tune — choral, worship, folk, ballads.
