@@ -1,6 +1,6 @@
 ---
 name: dsp-script-authoring
-description: "How to author custom DSP scripts for openDAW scriptable devices (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). Processor API, @param/@sample declarations, DSP patterns, validation, compilation, pitfalls. 26 example scripts as reference. For writing new DSP, not using existing."
+description: "How to author custom DSP scripts for openDAW scriptable devices (Werkstatt audio effects, Apparat instruments, Spielwerk MIDI effects). Processor API, @param/@sample declarations, DSP patterns, validation, compilation, pitfalls. 122 example scripts as reference (100 Werkstatt + 9 Apparat + 10 Spielwerk + 3 misc). For writing new DSP, not using existing."
 tags: [dsp, scripting, werkstatt, apparat, spielwerk, javascript, audio-programming, custom-effects, openDAW]
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 178+ orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.328.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 509 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riffs, hooks, licks, turnarounds, solos, etudes, world rhythms, DSP chains, stem splitting, offline render. Decision tree: which tool for which musical goal. v1.336.0"
 ---
 
 # openDAW Composition Patterns
@@ -57,6 +57,13 @@ What do you want to create?
 ├── Diatonic transpose (scale steps) → diatonic_transpose_notes (up/down by N steps within scale, preserves key, skips out-of-scale)
 │
 ├── Melody → create_melody (scale-based, pattern notation 1-7)
+├── Riff (song identity) → create_riff (5 styles: rock/funk/metal/blues/hip_hop, power chords, gallop, shuffle)
+├── Hook (earworm) → create_hook (5 styles: pop/rock/dance/rnb/country, singable, climax leap)
+├── Lick (vocabulary) → create_lick (5 styles: bebop/blues/funk/rock/jazz_minor, enclosures, blue notes)
+├── Turnaround (resolution) → create_turnaround (5 styles: jazz/blues/gospel/rock/pop, I-vi-ii-V, axis)
+├── Solo (melodic) → create_solo (5 styles: bebop/blues/rock/jazz_swing/fusion, chromatic approaches)
+├── Drum solo → create_drum_solo (5 styles: rock/jazz/funk/latin/marching, rudimental vocabulary)
+├── Etude (technical study) → create_etude (5 types: scale/arpeggio/interval/rhythm/chromatic, Czerny/Chopin)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)
 ├── Bassline (walking jazz) → create_walking_bass (chord progression input)
 ├── Arpeggio → create_arpeggio (up/down/updown/random, octaves)
