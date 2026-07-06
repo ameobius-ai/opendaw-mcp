@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.375.0 (2026-07-06)
+
+- **`werkstatt_spectrum_analyzer.js`** — FFT Spectrum Analyzer. Cooley-Tukey radix-2 FFT with Hann window. Reports peak frequency, spectral centroid (brightness), spectral rolloff (85% energy), low/mid/high band levels, and crest factor. Read-only meter — no audio modification. Closes the frequency verification gap: now you can verify spectral balance after EQ/mastering. 134 DSP scripts. Metering trio complete: LUFS + correlation + spectrum.
+
 ## v1.374.0 (2026-07-06)
 
 - **`werkstatt_correlation_meter.js`** — Stereo Correlation Meter. Reports correlation coefficient (-1 to +1), stereo width estimate, mono compatibility score, L/R balance, and peak negative correlation tracking. Read-only meter — no audio modification. Closes the stereo verification gap: now you can verify phase coherence after stereo widening. 133 DSP scripts.

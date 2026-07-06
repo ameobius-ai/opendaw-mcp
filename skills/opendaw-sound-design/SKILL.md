@@ -265,6 +265,7 @@ class Processor {
 | `werkstatt_aire.js` | Stereo air exciter (M/S widener + HF harmonic exciter, 2-12kHz crossover) | drive, crossover, harmonic_mix, width, mix | |
 | `werkstatt_lufs_meter.js` | LUFS meter (ITU-R BS.1770-4, K-weighting, integrated/short-term/momentary, read-only) | integrated, short_term, momentary, true_peak (read-only) | Mastering verification |
 | `werkstatt_correlation_meter.js` | Correlation meter (stereo phase, -1 to +1, width, mono compat, L/R balance, read-only) | correlation, width, mono_compat, balance, peak_corr (read-only) | Stereo verification |
+| `werkstatt_spectrum_analyzer.js` | Spectrum analyzer (FFT, peak freq, centroid, rolloff, band levels, crest factor, read-only) | peak_freq, centroid, rolloff, low/mid/high_level, crest (read-only) | Frequency verification |
 | `werkstatt_nyquist_comp.js` | Parallel/New York compression | threshold, ratio, attack, release, blend, makeup | |
 | `werkstatt_bx_saturator.js` | 3-band multi-band saturator (BX style) | drive, low_sat, mid_sat, high_sat, blend, output | |
 | `werkstatt_psycho_bass.js` | Psychoacoustic bass enhancer (MaxxBass/RBass) | frequency, harmonics, intensity, mix | |
@@ -384,6 +385,7 @@ class Processor {
 | Stereo air exciter | `werkstatt_aire.js` | Werkstatt |
 | LUFS meter (ITU-R BS.1770-4) | `werkstatt_lufs_meter.js` | Werkstatt |
 | Correlation meter (stereo phase) | `werkstatt_correlation_meter.js` | Werkstatt |
+| Spectrum analyzer (FFT) | `werkstatt_spectrum_analyzer.js` | Werkstatt |
 | Parallel comp (New York) | `werkstatt_nyquist_comp.js` | Werkstatt |
 | Multi-band saturator (BX) | `werkstatt_bx_saturator.js` | Werkstatt |
 | Psychoacoustic bass (MaxxBass) | `werkstatt_psycho_bass.js` | Werkstatt |

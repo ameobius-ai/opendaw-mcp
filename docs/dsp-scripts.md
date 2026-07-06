@@ -1,8 +1,8 @@
 # DSP Scripts
 
-114 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+115 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 114 scripts
+## Werkstatt (Audio Effects) — 115 scripts
 
 ### Dynamics (13)
 
@@ -34,6 +34,7 @@
 | `werkstatt_aire.js` | Aire (Stereo air exciter: M/S widener + HF harmonic exciter, adds brightness and width to dull/narrow mixes, 2-12kHz crossover, 2nd/3rd harmonic mix) |
 | `werkstatt_lufs_meter.js` | LUFS Meter (ITU-R BS.1770-4: K-weighting filter + RMS + gating, integrated/short-term/momentary LUFS, true peak tracking, read-only meter — no audio modification) |
 | `werkstatt_correlation_meter.js` | Correlation Meter (Stereo phase: correlation coefficient -1 to +1, width estimate, mono compatibility score, L/R balance, peak negative correlation tracking, read-only meter) |
+| `werkstatt_spectrum_analyzer.js` | Spectrum Analyzer (FFT: peak frequency, spectral centroid, spectral rolloff 85%, low/mid/high band levels, crest factor, Hann window, read-only meter) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |
