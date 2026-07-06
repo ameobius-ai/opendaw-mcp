@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.374.0 (2026-07-06)
+
+- **`werkstatt_correlation_meter.js`** — Stereo Correlation Meter. Reports correlation coefficient (-1 to +1), stereo width estimate, mono compatibility score, L/R balance, and peak negative correlation tracking. Read-only meter — no audio modification. Closes the stereo verification gap: now you can verify phase coherence after stereo widening. 133 DSP scripts.
+
 ## v1.373.0 (2026-07-06)
 
 - **`create_counter_melody`** — Counter-melody: secondary melody that complements the main one. 5 types: contrary (opposite direction, species counterpoint), oblique (sustained + moving), parallel (thirds/sixths below), rhythmic (offbeat entries, fills gaps), pedal (drone at chord changes). 3 scales, octave 3 (below melody), 4-16 bars. Seeded PRNG. 24 unit tests. 531 MCP tools. Pairs with create_descant (above) for full contrapuntal texture.
