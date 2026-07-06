@@ -63663,3 +63663,213 @@ async def mcp_opendaw_create_trade_solos(
             "Use auto_master for final mastering",
         ],
     }, indent=2)
+
+
+async def mcp_opendaw_create_jpop_arrangement(
+    key_root: str = "C",
+    bpm: int = 140,
+    bars: int = 16,
+    velocity: float = 0.78,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a J-pop arrangement — 140 BPM melodic energy pop.
+
+    J-pop (One Ok Rock, BABYMETAL, YOASOBI, LiSA, Kenshi Yonezu):
+    - Fast, energetic tempo (130-160 BPM, higher than K-pop)
+    - Melody-driven with memorable vocal-like lead lines
+    - Driving 4-on-floor with crisp rock-influenced drums
+    - Octave-jumping bassline with fast 16th runs
+    - Bright major scale with occasional modal mixture (iv chord)
+    - Syncopated chord stabs and arpeggiated picks
+    - High energy, emotional, anime opening / ending energy
+
+    Creates 4 tracks:
+    1. Drums (track_index): Fast 4-on-floor, double-time hats, snare on 2&4,
+       frequent fills on bar transitions, crash on section changes
+    2. Bass (track_index+1): Octave-jumping bassline with 16th note runs,
+       follows chord progression with passing tones
+    3. Lead (track_index+2): Emotional melodic lead with wide intervals,
+       fast runs, memorable vocal-like phrasing, higher register
+    4. Chords (track_index+3): Syncopated chord stabs + arpeggiated picks,
+       IV-V-vi-IV progression with modal mixture (minor iv)
+
+    Default key: C major (bright, energetic, J-pop standard).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    # MIDI pitches (GM)
+    KICK = 36
+    SNARE = 38
+    CLOSED_HAT = 42
+    OPEN_HAT = 46
+    CRASH = 49
+
+    # C major scale
+    major_scale = [0, 2, 4, 5, 7, 9, 11]
+    bass_oct = (2 + 1) * 12 + root_pc
+    lead_oct = (4 + 1) * 12 + root_pc
+    chord_oct = (3 + 1) * 12 + root_pc
+
+    # IV-V-vi-IV with modal mixture (minor iv on bar 3)
+    # In C: F, G, Am, Fm (modal mixture)
+    prog_degrees = [3, 4, 5, 3]  # IV, V, vi, IV
+    prog_minor = [False, False, False, True]  # Fm on last beat (minor iv)
+
+    notes = []
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+        prog_idx = bar % len(prog_degrees)
+        deg = prog_degrees[prog_idx]
+        is_minor_chord = prog_minor[prog_idx]
+
+        # === DRUMS (track_index) ===
+        # Fast 4-on-floor
+        for beat in range(4):
+            notes.append({"pitch": KICK, "start": round(bar_start + beat, 4),
+                          "duration": 0.4, "velocity": velocity,
+                          "track": track_index})
+        # Snare on 2 & 4
+        for beat in [1, 3]:
+            notes.append({"pitch": SNARE, "start": round(bar_start + beat, 4),
+                          "duration": 0.25, "velocity": velocity * 0.9,
+                          "track": track_index})
+        # Double-time hats (32nd notes = 32 per bar)
+        for h in range(32):
+            beat = h * 0.125
+            v = velocity * (0.2 + 0.1 * (h % 2) + 0.08 * (1 if h % 4 == 0 else 0))
+            if h % 8 == 6:
+                notes.append({"pitch": OPEN_HAT, "start": round(bar_start + beat, 4),
+                              "duration": 0.1, "velocity": round(v * 0.6, 3),
+                              "track": track_index})
+            else:
+                notes.append({"pitch": CLOSED_HAT, "start": round(bar_start + beat, 4),
+                              "duration": 0.06, "velocity": round(v, 3),
+                              "track": track_index})
+        # Crash on every 4 bars (section change feel)
+        if bar % 4 == 0:
+            notes.append({"pitch": CRASH, "start": round(bar_start, 4),
+                          "duration": 0.8, "velocity": velocity * 0.7,
+                          "track": track_index})
+        # Fill on last beat of every 4th bar
+        if bar % 4 == 3:
+            for f in range(4):
+                notes.append({"pitch": SNARE, "start": round(bar_start + 3 + f * 0.25, 4),
+                              "duration": 0.1, "velocity": velocity * (0.5 + 0.1 * f),
+                              "track": track_index})
+
+        # === BASS (track_index + 1) ===
+        # Octave-jumping with 16th runs
+        # Use minor third for minor iv chord
+        scale_note = major_scale[deg % 7] if not is_minor_chord else major_scale[deg % 7] - 1
+        bass_pattern = [
+            (scale_note, 0.0, 0.5),
+            (scale_note, 0.5, 0.25),
+            (scale_note + 7, 0.75, 0.25),  # octave
+            (scale_note, 1.0, 0.5),
+            (scale_note + 5, 1.5, 0.25),   # 4th above
+            (scale_note + 7, 1.75, 0.25),  # octave
+            (scale_note, 2.0, 0.5),
+            (scale_note, 2.5, 0.125),
+            (scale_note + 2, 2.625, 0.125),
+            (scale_note + 5, 2.75, 0.125),
+            (scale_note + 7, 2.875, 0.125),  # fast 16th run
+            (scale_note, 3.0, 0.5),
+            (scale_note + 7, 3.5, 0.25),
+            (scale_note, 3.75, 0.25),
+        ]
+        for b_note, beat, dur in bass_pattern:
+            notes.append({"pitch": bass_oct + b_note, "start": round(bar_start + beat, 4),
+                          "duration": dur, "velocity": velocity * 0.85,
+                          "track": track_index + 1})
+
+        # === LEAD (track_index + 2) ===
+        # Emotional melodic lead with wide intervals and fast runs
+        lead_pattern = [
+            (deg, 0.0, 0.5),          # chord tone
+            (deg + 7, 0.5, 0.25),     # octave (wide jump)
+            (deg + 4, 0.75, 0.25),    # 5th above
+            (deg + 2, 1.0, 0.5),      # 3rd
+            (deg, 1.5, 0.25),
+            (deg + 9, 1.75, 0.25),    # 6th (emotional interval)
+            # Rest on beat 2-2.5
+            (deg + 4, 2.5, 0.125),    # fast run start
+            (deg + 5, 2.625, 0.125),
+            (deg + 7, 2.75, 0.125),
+            (deg + 9, 2.875, 0.125),
+            (deg + 11, 3.0, 0.5),     # 7th (tension)
+            (deg + 7, 3.5, 0.25),
+            (deg + 4, 3.75, 0.25),
+        ]
+        for l_deg, beat, dur in lead_pattern:
+            l_note = major_scale[l_deg % 7] if not is_minor_chord else major_scale[l_deg % 7] - 1
+            v = velocity * (0.7 + 0.12 * (l_deg % 4))
+            notes.append({"pitch": lead_oct + l_note, "start": round(bar_start + beat, 4),
+                          "duration": dur, "velocity": round(v, 3),
+                          "track": track_index + 2})
+
+        # === CHORDS (track_index + 3) ===
+        # Syncopated stabs + arpeggiated picks
+        chord_intervals = [0, 2, 4]  # root, 3rd, 5th
+        if is_minor_chord:
+            chord_intervals = [0, 1, 4]  # root, minor 3rd, 5th
+
+        # Stab on beat 1.5
+        for interval in chord_intervals:
+            c_note = major_scale[(deg + interval) % 7] if not (is_minor_chord and interval == 2) else major_scale[(deg + interval) % 7] - 1
+            notes.append({"pitch": chord_oct + c_note, "start": round(bar_start + 1.5, 4),
+                          "duration": 0.2, "velocity": velocity * 0.55,
+                          "track": track_index + 3})
+        # Arpeggiated picks on beats 2.75, 3.0, 3.25, 3.5
+        for i, interval in enumerate([0, 2, 4, 7]):
+            c_note = major_scale[(deg + interval) % 7] if not (is_minor_chord and interval == 2) else major_scale[(deg + interval) % 7] - 1
+            beat = 2.75 + i * 0.25
+            notes.append({"pitch": chord_oct + c_note, "start": round(bar_start + beat, 4),
+                          "duration": 0.15, "velocity": velocity * 0.5,
+                          "track": track_index + 3})
+
+    # Sort by start time
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    # Batch create notes per track
+    results_per_track = {}
+    for track_idx in range(track_index, track_index + 4):
+        track_notes = [n for n in notes if n["track"] == track_idx]
+        if track_notes:
+            clean_notes = [{k: v for k, v in n.items() if k != "track"} for n in track_notes]
+            r = await mcp_opendaw_create_notes_batch(
+                json.dumps(clean_notes), unit_index, track_idx)
+            try:
+                d = json.loads(r)
+                results_per_track[track_idx] = d.get("notes_created", len(clean_notes))
+            except Exception:
+                results_per_track[track_idx] = len(clean_notes)
+
+    return json.dumps({
+        "jpop_arrangement": True,
+        "key_root": key_root,
+        "scale": "major with modal mixture (minor iv)",
+        "bpm": bpm,
+        "bars": n_bars,
+        "tracks_created": 4,
+        "notes_created": len(notes),
+        "track_notes": results_per_track,
+        "progression": "IV-V-vi-iv (F-G-Am-Fm in C major, minor iv modal mixture)",
+        "characteristics": "fast energetic, melody-driven, octave-jumping bass, double-time hats, modal mixture, anime energy",
+        "references": "One Ok Rock, BABYMETAL, YOASOBI, LiSA, Kenshi Yonezu",
+        "next_steps": [
+            "Use add_genre_effects('pop') for compression + reverb chain",
+            "Use auto_master for final mastering",
+            "Use render_full to render the arrangement",
+        ],
+    }, indent=2)

@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-529 MCP tools for headless openDAW control via Playwright bridge.
+530 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -427,6 +427,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `create_chorus` — Chorus section generator: the emotional peak, the hook. 5 types: anthemic (big wide sustained notes, octave jumps, stadium-filling, I-V-vi-IV), hooky (short catchy 2-bar phrase repeated, earworm), driving (relentless 16th notes, no letup), soaring (melody climbs higher, peak note near end, crescendo), call_response (antecedent-consequent, question then answer). 3 scales, 4-16 bars. Seeded PRNG. Higher energy than verse — what listeners remember.
 - `create_kpop_arrangement` — K-pop arrangement (BTS/Blackpink/Stray Kids style): polished maximalist pop, 4-on-floor with clap+snare layering, driving bassline with octave jumps, catchy wide-interval lead with call-response, bright I-V-vi-IV chord stabs. C major, 128 BPM, 16 bars, 4 tracks.
 - `create_trade_solos` — Trade solos: two soloists trading phrases back and forth ("trading fours/eights"). Jazz/rock convention — each builds on the previous, intensity increases, second responds higher/denser. Bluesy chromatic passing tones. 2-16 bars per trade, seeded PRNG. Coltrane & Miles, blues battles, rock guitar battles.
+- `create_jpop_arrangement` — J-pop arrangement (One Ok Rock/BABYMETAL/YOASOBI/LiSA style): fast energetic 140 BPM, melody-driven lead with wide intervals and fast runs, octave-jumping bass with 16th runs, double-time hats, IV-V-vi-iv with modal mixture (minor iv), syncopated chord stabs + arpeggiated picks. C major, 16 bars, 4 tracks.
 - `create_cross_rhythm` — Cross-rhythm: multiple voices with independent period lengths creating shifting alignment. Unlike polyrhythm (divides one bar into n+m parts), cross-rhythm gives each voice its own period in beats. Voices cycle independently, only realign at LCM of all periods. 2-6 voices, velocity attenuation. African cross-rhythms, Steve Reich, Talking Heads.
 - `create_clave` — Afro-Cuban clave pattern: 5-note rhythmic skeleton across 2 bars. 6 clave types (son 3-2, son 2-3, rumba 3-2, rumba 2-3, bossa nova, 6/8). Direction (3-2 or 2-3) determines feel. All other rhythms align to clave.
 - `create_euclidean_rhythm` — Euclidean rhythm: distributes k onsets across n steps maximally evenly via Björklund's algorithm. Generates world rhythms: E(3,8)=tresillo, E(5,8)=cinquillo, E(7,16)=samba, E(7,12)=bembé, E(4,9)=Aksak. Rotation shifts pattern.

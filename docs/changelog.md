@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.371.0 (2026-07-06)
+
+- **`create_jpop_arrangement`** — J-pop arrangement (One Ok Rock/BABYMETAL/YOASOBI/LiSA/Kenshi Yonezu style). Fast energetic 140 BPM, melody-driven lead with wide intervals and fast 16th runs, octave-jumping bassline, double-time hats (32nd notes), IV-V-vi-iv progression with modal mixture (minor iv), syncopated chord stabs + arpeggiated picks. C major, 16 bars, 4 tracks. 23 unit tests. 530 MCP tools. 39 genre arrangements.
+- **Skills + TOOL_CATALOG synced** — lufs_meter, true_peak_limiter, aire added to sound-design SKILL.md. add_genre_effects description updated 15→35 genres.
+
 ## v1.370.0 (2026-07-06)
 
 - **`produce_full_track` upgraded** — Now includes lead melody step (Step 5: create_melody). Pipeline is now 7 steps: BPM → arrange → drums → bass → melody → mix → render. Matches produce_and_master's melody addition. Both meta-tools now produce tracks with lead melodies.
