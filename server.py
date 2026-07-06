@@ -44,6 +44,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _transcribe_drums,
     _transcribe_melody,
     _analyze_spectrum,
+    _analyze_stereo,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -7148,6 +7149,86 @@ async def mcp_opendaw_analyze_spectrum(filename: str) -> str:
         return json.dumps(result, indent=2)
     except Exception as e:
         return _err(f"Spectrum analysis error: {e}")
+
+@mcp.tool()
+async def mcp_opendaw_analyze_stereo(filename: str) -> str:
+    """Stereo analysis of audio — width, L/R balance, mono compatibility, mid/side energy.
+
+    Analyzes the stereo field of a track:
+    - stereo_width: Side/Mid RMS ratio (0 = mono, 0.5+ = wide, 1.0 = hard panned)
+    - lr_balance: L/R energy difference (-1 = fully left, 0 = centered, +1 = fully right)
+    - phase_correlation: -1 to +1 (+1 = mono safe, 0 = uncorrelated, -1 = out of phase)
+    - mono_compatible: True if phase correlation > 0 (collapses to mono without cancellation)
+    - phase_issues_pct: % of samples where L and R have opposite polarity
+    - Per-region width: low (<250Hz), mid (250-4000Hz), high (4000+Hz)
+      Helps identify if stereo width is well-distributed or concentrated in one region
+
+    Mix decision guidance:
+    - stereo_width < 0.1 → narrow/mono mix, consider widening
+    - stereo_width > 0.8 → very wide, check mono compatibility
+    - phase_correlation < 0 → phase issues, will cancel in mono
+    - lr_balance > 0.2 → right-heavy, consider rebalancing
+    - lr_balance < -0.2 → left-heavy, consider rebalancing
+    - Low-freq width > 0.3 → bass is wide (usually undesirable, keep bass mono)
+
+    Args:
+        filename: Name of the WAV file in the exports directory (without path),
+                  or absolute path to any WAV file.
+
+    Returns stereo descriptors, per-region width, and mix suggestions.
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        result = _analyze_stereo(wav["channels"], wav["sample_rate"])
+
+        # Generate mix suggestions
+        suggestions = []
+        if not result.get("is_stereo", False):
+            suggestions.append("Mono audio — no stereo information to analyze")
+        else:
+            sw = result.get("stereo_width", 0)
+            if sw < 0.1:
+                suggestions.append("Very narrow stereo field — consider panning elements or adding stereo width")
+            elif sw > 0.8:
+                suggestions.append("Very wide stereo field — verify mono compatibility")
+
+            pc = result.get("phase_correlation", 1.0)
+            if pc < 0:
+                suggestions.append(f"Phase issues detected (correlation {pc}) — will cancel in mono, check polarity")
+            elif pc < 0.3:
+                suggestions.append(f"Low phase correlation ({pc}) — mono compatibility at risk")
+
+            lr = result.get("lr_balance", 0.0)
+            if lr > 0.2:
+                suggestions.append(f"Right channel dominant (balance {lr}) — consider rebalancing")
+            elif lr < -0.2:
+                suggestions.append(f"Left channel dominant (balance {lr}) — consider rebalancing")
+
+            # Check low-freq width
+            regions = result.get("regions", [])
+            if regions:
+                low_region = regions[0]
+                if low_region["width"] > 0.3:
+                    suggestions.append(f"Wide low-frequency content (width {low_region['width']}) — bass should typically be mono/centered")
+
+        result["mix_suggestions"] = suggestions
+        result["success"] = True
+        result["file"] = filepath
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return _err(f"Stereo analysis error: {e}")
 
 @mcp.tool()
 async def mcp_opendaw_transcribe_drums(

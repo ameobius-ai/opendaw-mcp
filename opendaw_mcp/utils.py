@@ -1013,3 +1013,157 @@ def _empty_spectrum() -> dict:
         "frames_analyzed": 0,
         "sample_rate": 0,
     }
+
+
+def _analyze_stereo(channels: list, sample_rate: int) -> dict:
+    """Stereo analysis of audio — width, L/R balance, mono compatibility, mid/side energy.
+
+    Pure Python (no numpy):
+    1. Requires stereo (2 channels) input — mono returns special status
+    2. Compute per-sample Mid (L+R)/2 and Side (L-R)/2
+    3. RMS of Mid and Side across entire track
+    4. Stereo width = Side RMS / Mid RMS (0 = mono, 1 = hard panned)
+    5. L/R balance: difference in RMS between left and right
+    6. Mono compatibility: phase correlation coefficient (-1 to +1)
+       +1 = perfectly in phase (mono safe), 0 = uncorrelated, -1 = out of phase
+    7. Per-band stereo width: divide Side/Mid ratio into 3 frequency regions
+       (low <250Hz, mid 250-4000Hz, high >4000Hz) using simple lowpass/highpass
+    8. Phase issues: count samples where L and R have opposite signs
+
+    Returns dict with stereo descriptors and per-region width.
+    """
+    import math as _m
+
+    if not channels or not channels[0]:
+        return {
+            "is_stereo": False, "stereo_width": 0.0, "lr_balance": 0.0,
+            "phase_correlation": 0.0, "mid_rms": 0.0, "side_rms": 0.0,
+            "mono_compatible": True, "phase_issues_pct": 0.0,
+            "regions": [], "sample_rate": sample_rate,
+        }
+
+    n_ch = len(channels)
+    n_frames = len(channels[0])
+
+    # Mono input — no stereo information
+    if n_ch < 2:
+        return {
+            "is_stereo": False,
+            "stereo_width": 0.0,
+            "lr_balance": 0.0,
+            "phase_correlation": 1.0,
+            "mid_rms": round(_m.sqrt(sum(s * s for s in channels[0][:min(n_frames, sample_rate * 10)]) / max(1, min(n_frames, sample_rate * 10))), 6),
+            "side_rms": 0.0,
+            "mono_compatible": True,
+            "phase_issues_pct": 0.0,
+            "regions": [],
+            "message": "Mono audio — no stereo information available",
+            "sample_rate": sample_rate,
+        }
+
+    left = channels[0]
+    right = channels[1]
+
+    # Compute Mid and Side
+    mid = [(left[i] + right[i]) / 2.0 for i in range(n_frames)]
+    side = [(left[i] - right[i]) / 2.0 for i in range(n_frames)]
+
+    # RMS calculations (sample entire track, or first 10 seconds if very long)
+    analysis_len = min(n_frames, sample_rate * 30)  # cap at 30 seconds
+    mid_rms = _m.sqrt(sum(mid[i] * mid[i] for i in range(analysis_len)) / analysis_len)
+    side_rms = _m.sqrt(sum(side[i] * side[i] for i in range(analysis_len)) / analysis_len)
+    left_rms = _m.sqrt(sum(left[i] * left[i] for i in range(analysis_len)) / analysis_len)
+    right_rms = _m.sqrt(sum(right[i] * right[i] for i in range(analysis_len)) / analysis_len)
+
+    # Stereo width: Side/Mid ratio (0 = mono, higher = wider)
+    stereo_width = side_rms / mid_rms if mid_rms > 0 else 0.0
+
+    # L/R balance: -1 = fully left, 0 = centered, +1 = fully right
+    lr_balance = 0.0
+    if left_rms + right_rms > 0:
+        lr_balance = (right_rms - left_rms) / (left_rms + right_rms)
+
+    # Phase correlation coefficient
+    # corr = sum(L*R) / sqrt(sum(L^2) * sum(R^2))
+    lr_dot = sum(left[i] * right[i] for i in range(analysis_len))
+    l_sq = sum(left[i] * left[i] for i in range(analysis_len))
+    r_sq = sum(right[i] * right[i] for i in range(analysis_len))
+    if l_sq > 0 and r_sq > 0:
+        phase_corr = lr_dot / _m.sqrt(l_sq * r_sq)
+    else:
+        phase_corr = 1.0
+
+    # Phase issues: samples where L and R have opposite signs
+    phase_issues = sum(1 for i in range(analysis_len) if left[i] * right[i] < 0)
+    phase_issues_pct = 100.0 * phase_issues / analysis_len
+
+    # Mono compatibility: phase correlation > 0 means mono-safe
+    mono_compatible = phase_corr > 0.0
+
+    # Per-region stereo width using simple band splitting
+    # Use one-pole filters to split into low/mid/high
+    def _one_pole_lowpass(data, cutoff_hz, sr):
+        alpha = 2.0 * _m.pi * cutoff_hz / sr
+        alpha = min(alpha, 0.95)
+        out = [0.0] * len(data)
+        out[0] = data[0]
+        for i in range(1, len(data)):
+            out[i] = out[i - 1] + alpha * (data[i] - out[i - 1])
+        return out
+
+    def _one_pole_highpass(data, cutoff_hz, sr):
+        alpha = 2.0 * _m.pi * cutoff_hz / sr
+        alpha = min(alpha, 0.95)
+        out = [0.0] * len(data)
+        out[0] = data[0]
+        for i in range(1, len(data)):
+            out[i] = alpha * (out[i - 1] + data[i] - data[i - 1])
+        return out
+
+    regions = []
+    region_cutoffs = [("low", 250.0), ("mid", 4000.0), ("high", 20000.0)]
+
+    # Split side signal into frequency regions
+    lp_side = _one_pole_lowpass(side, 250.0, sample_rate)
+    hp_from_low = _one_pole_highpass(side, 250.0, sample_rate)
+    mid_band = _one_pole_lowpass(hp_from_low, 4000.0, sample_rate)
+    high_band = _one_pole_highpass(hp_from_low, 4000.0, sample_rate)
+
+    # Same for mid
+    lp_mid = _one_pole_lowpass(mid, 250.0, sample_rate)
+    hp_mid_from_low = _one_pole_highpass(mid, 250.0, sample_rate)
+    mid_mid_band = _one_pole_lowpass(hp_mid_from_low, 4000.0, sample_rate)
+    high_mid_band = _one_pole_highpass(hp_mid_from_low, 4000.0, sample_rate)
+
+    band_sides = [lp_side, mid_band, high_band]
+    band_mids = [lp_mid, mid_mid_band, high_mid_band]
+
+    for idx, (name, cutoff) in enumerate(region_cutoffs):
+        bs = band_sides[idx]
+        bm = band_mids[idx]
+        bs_rms = _m.sqrt(sum(bs[i] * bs[i] for i in range(analysis_len)) / analysis_len)
+        bm_rms = _m.sqrt(sum(bm[i] * bm[i] for i in range(analysis_len)) / analysis_len)
+        w = bs_rms / bm_rms if bm_rms > 0 else 0.0
+        regions.append({
+            "name": name,
+            "freq_range": "20-250 Hz" if name == "low" else ("250-4000 Hz" if name == "mid" else "4000+ Hz"),
+            "width": round(w, 3),
+            "side_rms": round(bs_rms, 6),
+            "mid_rms": round(bm_rms, 6),
+        })
+
+    return {
+        "is_stereo": True,
+        "stereo_width": round(stereo_width, 3),
+        "lr_balance": round(lr_balance, 3),
+        "phase_correlation": round(phase_corr, 3),
+        "mid_rms": round(mid_rms, 6),
+        "side_rms": round(side_rms, 6),
+        "left_rms": round(left_rms, 6),
+        "right_rms": round(right_rms, 6),
+        "mono_compatible": mono_compatible,
+        "phase_issues_pct": round(phase_issues_pct, 1),
+        "regions": regions,
+        "frames_analyzed": analysis_len,
+        "sample_rate": sample_rate,
+    }

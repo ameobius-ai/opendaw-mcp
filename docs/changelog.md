@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.303.0 (2026-07-06)
+
+- **`analyze_stereo`** — Stereo field analysis: width (Side/Mid RMS ratio), L/R balance, phase correlation (-1 to +1), mono compatibility, phase issues %, per-region width (low/mid/high). Auto mix suggestions (narrow, wide, phase issues, L/R imbalance, wide bass). Pure Python one-pole filters for band splitting. Complements analyze_spectrum for complete mix diagnosis.
+
 ## v1.302.0 (2026-07-06)
 
 - **`analyze_spectrum`** — Spectral analysis across 7 ISO frequency bands (sub_bass/bass/low_mids/mids/high_mids/presence/brilliance). Per band: RMS, peak dB, energy %. Global: spectral centroid (brightness), spectral spread (variance), spectral rolloff (95%), low/high ratio (tonal balance), spectral crest (tonal vs noisy). Auto mix suggestions (bass-heavy, dark, bright, muddy, harsh). Pure Python STFT, 8192-point Hann window.
