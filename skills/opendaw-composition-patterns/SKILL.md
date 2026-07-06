@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 90 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.282.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 91 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.283.0"
 ---
 
 # openDAW Composition Patterns
@@ -128,6 +128,7 @@ What do you want to create?
 ├── Microtonal Control → set_note_cents (deterministic cent offsets, 7 targeting modes: all/pitch/beats/indices/alternating/gradient/scale_degree, -100 to +100 cents)
 ├── Stochastic Melody → create_random_walk_melody (random walk through scale, stepwise dependency, max_step/direction_bias/boundary behavior, seeded PRNG, Eno/Xenakis generative)
 ├── Markov Melody → create_markov_melody (Markov chain interval transitions, order 1/2, custom weights, regression to mean, stylistic memory)
+├── L-system Melody → create_l_system_melody (deterministic rewriting system, 5 presets: fibonacci/cantor/dragon/koch/sierpinski, fractal self-similar structure, custom rules)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

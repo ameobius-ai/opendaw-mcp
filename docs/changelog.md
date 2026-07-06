@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.283.0 (2026-07-06)
+
+### Added
+- `create_l_system_melody` — L-system (Lindenmayer system) melody generation. Deterministic rewriting system with recursive production rules. 5 presets: fibonacci (golden ratio self-similarity), cantor (Cantor set gaps), dragon (dragon curve), koch (Koch snowflake), sierpinski (Sierpinski triangle). Custom axiom/rules/symbol_map via JSON. Self-similar fractal melodic structure. Fully deterministic — same input always produces same melody. Completes stochastic trio (random walk + Markov + L-system).
+
 ## v1.282.0 (2026-07-06)
 
 ### Added

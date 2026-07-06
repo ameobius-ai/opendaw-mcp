@@ -35938,6 +35938,265 @@ async def mcp_opendaw_create_markov_melody(
     return _wrap_eval(result)
 
 
+@mcp.tool()
+async def mcp_opendaw_create_l_system_melody(
+    root: str = "C",
+    scale: str = "minor",
+    bars: int = 4,
+    octave: int = 4,
+    preset: str = "fibonacci",
+    axiom: str = "",
+    rules: str = "",
+    symbol_map: str = "",
+    iterations: int = 6,
+    duration: float = 0.25,
+    velocity: float = 0.7,
+    rest_symbol: str = "",
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a melody using an L-system (Lindenmayer system) — a deterministic rewriting system.
+
+    L-systems generate self-similar, fractal patterns through recursive production rules.
+    Each symbol in the expanded string maps to a scale step interval. The cumulative
+    sum of intervals determines the melodic contour.
+
+    Unlike Markov chains (stochastic, memory-based) or random walk (zero-order),
+    L-systems are fully deterministic — same axiom + rules + iterations always
+    produce the same melody. This makes them ideal for:
+    - Self-similar melodic structures (fractal music)
+    - Deterministic generative composition
+    - Algorithmic music based on mathematical systems
+
+    Presets:
+      fibonacci — Fibonacci word (A->AB, B->A), golden ratio self-similarity
+      cantor    — Cantor set (A->ABA, B->BBB), gaps and self-similar structure
+      dragon    — Dragon curve (A->A+B, B->A-B), jagged contour
+      koch      — Koch snowflake (A->A+A-A-A+A), angular melody
+      sierpinski — Sierpinski triangle (A->BA, B->BA), binary pattern
+
+    Custom: provide axiom, rules (JSON), and symbol_map (JSON) to define your own L-system.
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, dorian, phrygian, lydian, mixolydian,
+            harmonic_minor, melodic_minor, pentatonic_major, pentatonic_minor, blues).
+        bars: Number of bars (1-32).
+        octave: Starting MIDI octave (1-6).
+        preset: Preset name (fibonacci, cantor, dragon, koch, sierpinski).
+        axiom: Custom axiom string (overrides preset).
+        rules: Custom rules as JSON {"A": "AB", "B": "A"}.
+        symbol_map: Custom symbol-to-interval map as JSON {"A": 1, "B": -1}.
+        iterations: Number of rule applications (1-8). Higher = more complex.
+        duration: Note duration in beats (0.0625-4.0).
+        velocity: Base velocity 0-1.
+        rest_symbol: Symbol that produces a rest (skip note, advance position).
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, L-system string length, and fractal statistics.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["minor"])
+
+    if not (1 <= bars <= 32):
+        return f"Error: bars must be 1-32, got {bars}"
+    if not (1 <= iterations <= 8):
+        return f"Error: iterations must be 1-8, got {iterations}"
+    if not (0.0625 <= duration <= 4.0):
+        return f"Error: duration must be 0.0625-4.0, got {duration}"
+
+    # L-system presets
+    PRESETS = {
+        "fibonacci": {"axiom": "A", "rules": {"A": "AB", "B": "A"}, "symbol_map": {"A": 1, "B": -1}},
+        "cantor": {"axiom": "A", "rules": {"A": "ABA", "B": "BBB"}, "symbol_map": {"A": 2, "B": 0}},
+        "dragon": {"axiom": "A", "rules": {"A": "A+B", "B": "A-B"}, "symbol_map": {"A": 1, "B": 1, "+": 3, "-": -3}},
+        "koch": {"axiom": "A", "rules": {"A": "A+A-A-A+A"}, "symbol_map": {"A": 1, "+": 2, "-": -2}},
+        "sierpinski": {"axiom": "A", "rules": {"A": "BA", "B": "BA"}, "symbol_map": {"A": 1, "B": -1}},
+    }
+
+    # Use custom or preset
+    if axiom or rules or symbol_map:
+        ls_axiom = axiom if axiom else "A"
+        try:
+            ls_rules = json.loads(rules) if rules else {"A": "AB", "B": "A"}
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return "Error: invalid rules JSON. Use format like {\"A\": \"AB\", \"B\": \"A\"}"
+        try:
+            ls_map_raw = json.loads(symbol_map) if symbol_map else {"A": 1, "B": -1}
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return "Error: invalid symbol_map JSON. Use format like {\"A\": 1, \"B\": -1}"
+        ls_map = {k: int(v) for k, v in ls_map_raw.items()}
+    else:
+        preset_data = PRESETS.get(preset, PRESETS["fibonacci"])
+        ls_axiom = preset_data["axiom"]
+        ls_rules = preset_data["rules"]
+        ls_map = preset_data["symbol_map"]
+
+    # Expand L-system
+    current = ls_axiom
+    for _ in range(iterations):
+        parts = []
+        for ch in current:
+            parts.append(ls_rules.get(ch, ch))
+        current = "".join(parts)
+        if len(current) > 2000:
+            current = current[:2000]
+            break
+
+    # Build scale pitch list spanning 3 octaves
+    scale_pitches = []
+    for oct_shift in range(-1, 2):
+        for iv in intervals:
+            pitch = (octave + 1 + oct_shift) * 12 + (root_num + iv) % 12
+            scale_pitches.append(pitch)
+    scale_pitches = sorted(set(scale_pitches))
+
+    # Map L-system string to notes
+    total_notes_target = int(bars * 4 / duration)
+    start_idx = len(scale_pitches) // 2
+    current_idx = start_idx
+
+    notes = []
+    symbol_counts = {}
+    step_sequence = []
+    note_position_counter = 0
+
+    for i, ch in enumerate(current):
+        if note_position_counter >= total_notes_target:
+            break
+
+        if rest_symbol and ch == rest_symbol:
+            note_position_counter += 1
+            continue
+
+        step = ls_map.get(ch, 0)
+        symbol_counts[ch] = symbol_counts.get(ch, 0) + 1
+
+        new_idx = current_idx + step
+        # Boundary: reflect
+        if new_idx < 0:
+            new_idx = abs(new_idx)
+        elif new_idx >= len(scale_pitches):
+            new_idx = 2 * len(scale_pitches) - new_idx - 2
+        new_idx = max(0, min(len(scale_pitches) - 1, new_idx))
+
+        actual_step = new_idx - current_idx
+        step_sequence.append(actual_step)
+
+        pitch = scale_pitches[new_idx]
+        pos = note_position_counter * duration
+
+        notes.append({
+            "pitch": pitch,
+            "pos": round(pos, 4),
+            "dur": duration,
+            "vel": velocity,
+        })
+        current_idx = new_idx
+        note_position_counter += 1
+
+    # Statistics
+    if notes:
+        pitch_range = max(n["pitch"] for n in notes) - min(n["pitch"] for n in notes)
+    else:
+        pitch_range = 0
+    avg_step = sum(abs(s) for s in step_sequence) / len(step_sequence) if step_sequence else 0
+    direction_changes = 0
+    for i in range(1, len(step_sequence)):
+        if step_sequence[i] * step_sequence[i - 1] < 0:
+            direction_changes += 1
+
+    # L-system preview (first 80 chars)
+    ls_preview = current[:80]
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            bars: {bars},
+            preset: "{preset}",
+            iterations: {iterations},
+            l_system_length: {len(current)},
+            notes_created: created,
+            fractal_stats: {{
+                pitch_range: {pitch_range},
+                avg_step: Math.round({avg_step} * 100) / 100,
+                direction_changes: {direction_changes},
+                self_similar: {len(current) > 10},
+            }},
+            symbol_distribution: {json.dumps(symbol_counts)},
+            l_system_preview: "{ls_preview}",
+            note_preview: noteEvents.slice(0, 10),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 

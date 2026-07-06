@@ -1,6 +1,6 @@
 # openDAW MCP Tool Catalog
 
-438 MCP tools for headless openDAW control via Playwright bridge.
+458 MCP tools for headless openDAW control via Playwright bridge.
 
 ## Project & Info (12)
 - `get_full_project_state` — Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
@@ -478,6 +478,7 @@ Designed for agents — reduce token usage and round-trips when building musical
 - `set_note_cents` — Deterministic microtonal pitch control. Set specific cent offsets on targeted notes: all/pitch/beats/indices/alternating/gradient/scale_degree modes. Piano honky-tonk (+/-8 alt), quarter-tone (+50), just intonation corrections, Arabic maqam, synth drift, MIDI chorus. Unlike humanize_pitch (random), this is deterministic and pattern-based. -100 to +100 cents.
 - `create_random_walk_melody` — Stochastic melody via random walk through a scale. Each note depends on the previous (stepwise motion). max_step (1-7 scale degrees), direction_bias (-1 to +1), boundary behavior (reflect/wrap/clamp), duration and velocity variation, rest probability, seeded PRNG. Brian Eno generative, Xenakis stochastic, ambient, IDM. Unlike generate_melody (contour-guided), produces melodic continuity through stepwise dependency.
 - `create_markov_melody` — Markov chain melody generation. Next interval depends on previous interval(s) via transition probability matrix. Order 1 or 2. Default matrix favors smooth motion with regression to mean. Custom weights as JSON. Unlike random_walk (zero-order), captures interval-to-interval tendencies — stylistic memory.
+- `create_l_system_melody` — L-system (Lindenmayer) melody generation. Deterministic rewriting system with recursive production rules. 5 presets (fibonacci, cantor, dragon, koch, sierpinski). Custom axiom/rules/symbol_map via JSON. Self-similar fractal structure. Unlike Markov (stochastic) or random_walk (zero-order), fully deterministic — same input always produces same melody. Ideal for algorithmic and fractal music.
 - `scale_durations` — Scale duration of all notes in a region — MIDI note length control. 5 modes: multiply (×0.5 staccato), add (+0.5 beats), set (uniform), quantize (snap to 16th/8th/quarter/half grid), legato (extend to next note with gap). Returns original + new duration min/max/avg. Clamp via min_duration/max_duration.
 - `groove_transfer` — Transfer groove (timing + velocity feel) from a source region to a destination region. Extracts groove template (per-grid-slot timing offsets + velocity ratios) from source notes, then applies to destination notes. Groove cycles every groove_length beats (4=1 bar, 3=waltz). timing_strength + velocity_strength control blend. 16th/8th grid. NOT copying notes — transfers the feel.
 - `time_warp_notes` — Warp note positions AND durations by a factor — true half-time (0.5×) or double-time (2.0×) feel without changing BPM. Unlike scale_durations (only duration), this moves notes in time. 1-bar pattern → 2 bars (half-time) or 1 bar (from 2-bar, double-time). origin: "start" (region start) or "zero" (absolute). Range 0.1-8.0.
