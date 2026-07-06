@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.366.0 (2026-07-06)
+
+- **`add_genre_effects` expanded** — 15 → 35 genres. Added 20 new genre effect chains: industrial, breakbeat, kpop, hardstyle, garage, acid, psytrance, downtempo, phonk, future_bass, trance, disco, afrobeat, soul, rnb, blues, country, gospel, liquid_dnb, neurofunk. Each with character-appropriate effect routing and parameter values. Now matches all 38 arrangement genres (minus 3 that share chains). No more "Invalid genre" errors when calling add_genre_effects after create_*_arrangement.
+
 ## v1.365.0 (2026-07-06)
 
 - **`create_kpop_arrangement`** — K-pop arrangement (BTS/Blackpink/Stray Kids/TWICE/EXO style). Polished maximalist pop: 4-on-floor with clap+snare layering, driving bassline with octave jumps, catchy wide-interval lead with call-response phrasing, bright I-V-vi-IV chord stabs. C major, 128 BPM, 16 bars, 4 tracks. 21 unit tests. 528 MCP tools. 38 genre arrangements.

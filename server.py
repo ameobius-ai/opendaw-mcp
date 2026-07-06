@@ -62031,7 +62031,11 @@ async def mcp_opendaw_add_genre_effects(
       Delay on plucks, Maximizer (loud)
 
     genre: house | techno | dnb | trap | dubstep | synthwave | ambient |
-           lofi | rock | pop | funk | reggae | jazz | metal | edm
+           lofi | rock | pop | funk | reggae | jazz | metal | edm |
+           industrial | breakbeat | kpop | hardstyle | garage | acid |
+           psytrance | downtempo | phonk | future_bass | trance | disco |
+           afrobeat | soul | rnb | blues | country | gospel |
+           liquid_dnb | neurofunk
     unit_index: AU index to apply effects to (-1 = apply to all AUs)
     vocal_unit_index: AU index for vocal treatment (-1 = skip)
 
@@ -62126,6 +62130,129 @@ async def mcp_opendaw_add_genre_effects(
             {"effect": "Compressor", "params": {"threshold": 0.15, "ratio": 8, "attack": 0.001, "release": 0.05, "mix": 0.9}, "target": "bass"},
             {"effect": "DattorroReverb", "params": {"decay": 0.5, "mix": 0.3}, "target": "lead"},
             {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.3, "mix": 0.2}, "target": "plucks"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.90, "release": 0.02, "mix": 0.97}, "target": "output"},
+        ],
+        "industrial": [
+            {"effect": "Waveshaper", "params": {"drive": 0.7, "mix": 0.85}, "target": "bass"},
+            {"effect": "Compressor", "params": {"threshold": 0.1, "ratio": 10, "attack": 0.001, "release": 0.03, "mix": 0.95}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.2, "mix": 0.1}, "target": "drums"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.88, "release": 0.02, "mix": 0.95}, "target": "output"},
+        ],
+        "breakbeat": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 4, "attack": 0.003, "release": 0.08, "mix": 0.85}, "target": "drums"},
+            {"effect": "Waveshaper", "params": {"drive": 0.3, "mix": 0.5}, "target": "bass"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.25, "mix": 0.2}, "target": "lead"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.93, "release": 0.03, "mix": 0.9}, "target": "output"},
+        ],
+        "kpop": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 4, "attack": 0.005, "release": 0.1, "mix": 0.9}, "target": "vocals"},
+            {"effect": "Reverb", "params": {"decay": 0.35, "mix": 0.2}, "target": "vocals"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.4, "mix": 0.25}, "target": "lead"},
+            {"effect": "StereoTool", "params": {"width": 1.3, "mix": 0.85}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.04, "mix": 0.92}, "target": "output"},
+        ],
+        "hardstyle": [
+            {"effect": "Waveshaper", "params": {"drive": 0.6, "mix": 0.8}, "target": "bass"},
+            {"effect": "Compressor", "params": {"threshold": 0.15, "ratio": 8, "attack": 0.001, "release": 0.04, "mix": 0.95}, "target": "drums"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.4, "mix": 0.2}, "target": "lead"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.88, "release": 0.02, "mix": 0.98}, "target": "output"},
+        ],
+        "garage": [
+            {"effect": "Compressor", "params": {"threshold": 0.25, "ratio": 3, "attack": 0.003, "release": 0.06, "mix": 0.8}, "target": "drums"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.3, "mix": 0.15}, "target": "lead"},
+            {"effect": "Reverb", "params": {"decay": 0.3, "mix": 0.2}, "target": "vocals"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.94, "release": 0.04, "mix": 0.9}, "target": "output"},
+        ],
+        "acid": [
+            {"effect": "Waveshaper", "params": {"drive": 0.5, "mix": 0.7}, "target": "bass"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.4, "mix": 0.25}, "target": "lead"},
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 6, "attack": 0.002, "release": 0.05, "mix": 0.9}, "target": "drums"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.91, "release": 0.03, "mix": 0.95}, "target": "output"},
+        ],
+        "psytrance": [
+            {"effect": "Compressor", "params": {"threshold": 0.15, "ratio": 6, "attack": 0.001, "release": 0.04, "mix": 0.9}, "target": "drums"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.5, "mix": 0.2}, "target": "lead"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.7, "mix": 0.3}, "target": "atmos"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.92, "release": 0.02, "mix": 0.95}, "target": "output"},
+        ],
+        "downtempo": [
+            {"effect": "Compressor", "params": {"threshold": 0.35, "ratio": 2, "attack": 0.01, "release": 0.15, "mix": 0.7}, "target": "all"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.5, "mix": 0.35}, "target": "all"},
+            {"effect": "Delay", "params": {"time": 0.5, "feedback": 0.3, "mix": 0.2}, "target": "lead"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.96, "release": 0.08, "mix": 0.8}, "target": "output"},
+        ],
+        "phonk": [
+            {"effect": "Waveshaper", "params": {"drive": 0.4, "mix": 0.6}, "target": "bass"},
+            {"effect": "Compressor", "params": {"threshold": 0.15, "ratio": 6, "attack": 0.002, "release": 0.05, "mix": 0.9}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.4, "mix": 0.25}, "target": "atmos"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.92, "release": 0.03, "mix": 0.93}, "target": "output"},
+        ],
+        "future_bass": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 4, "attack": 0.003, "release": 0.08, "mix": 0.85}, "target": "drums"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.5, "mix": 0.3}, "target": "lead"},
+            {"effect": "StereoTool", "params": {"width": 1.4, "mix": 0.9}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.93, "release": 0.03, "mix": 0.92}, "target": "output"},
+        ],
+        "trance": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 4, "attack": 0.003, "release": 0.06, "mix": 0.85}, "target": "drums"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.6, "mix": 0.35}, "target": "lead"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.4, "mix": 0.25}, "target": "plucks"},
+            {"effect": "StereoTool", "params": {"width": 1.5, "mix": 0.9}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.92, "release": 0.03, "mix": 0.95}, "target": "output"},
+        ],
+        "disco": [
+            {"effect": "Compressor", "params": {"threshold": 0.25, "ratio": 3, "attack": 0.003, "release": 0.08, "mix": 0.8}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.3, "mix": 0.2}, "target": "vocals"},
+            {"effect": "Delay", "params": {"time": 0.25, "feedback": 0.2, "mix": 0.15}, "target": "strings"},
+            {"effect": "StereoTool", "params": {"width": 1.3, "mix": 0.85}, "target": "all"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.94, "release": 0.04, "mix": 0.88}, "target": "output"},
+        ],
+        "afrobeat": [
+            {"effect": "Compressor", "params": {"threshold": 0.3, "ratio": 3, "attack": 0.005, "release": 0.1, "mix": 0.8}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.35, "mix": 0.2}, "target": "horns"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.25, "mix": 0.15}, "target": "guitar"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.05, "mix": 0.85}, "target": "output"},
+        ],
+        "soul": [
+            {"effect": "Compressor", "params": {"threshold": 0.25, "ratio": 3, "attack": 0.005, "release": 0.1, "mix": 0.85}, "target": "vocals"},
+            {"effect": "Reverb", "params": {"decay": 0.35, "mix": 0.2}, "target": "vocals"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.3, "mix": 0.15}, "target": "horns"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.05, "mix": 0.85}, "target": "output"},
+        ],
+        "rnb": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 3, "attack": 0.005, "release": 0.12, "mix": 0.9}, "target": "vocals"},
+            {"effect": "Reverb", "params": {"decay": 0.4, "mix": 0.25}, "target": "vocals"},
+            {"effect": "Delay", "params": {"time": 0.5, "feedback": 0.2, "mix": 0.1}, "target": "vocals"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.06, "mix": 0.85}, "target": "output"},
+        ],
+        "blues": [
+            {"effect": "Compressor", "params": {"threshold": 0.3, "ratio": 2, "attack": 0.008, "release": 0.15, "mix": 0.7}, "target": "guitar"},
+            {"effect": "Reverb", "params": {"decay": 0.3, "mix": 0.2}, "target": "guitar"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.3, "mix": 0.15}, "target": "guitar"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.96, "release": 0.08, "mix": 0.8}, "target": "output"},
+        ],
+        "country": [
+            {"effect": "Compressor", "params": {"threshold": 0.3, "ratio": 2, "attack": 0.005, "release": 0.1, "mix": 0.75}, "target": "vocals"},
+            {"effect": "Reverb", "params": {"decay": 0.25, "mix": 0.15}, "target": "vocals"},
+            {"effect": "Delay", "params": {"time": 0.375, "feedback": 0.2, "mix": 0.1}, "target": "guitar"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.96, "release": 0.07, "mix": 0.82}, "target": "output"},
+        ],
+        "gospel": [
+            {"effect": "Compressor", "params": {"threshold": 0.25, "ratio": 3, "attack": 0.005, "release": 0.1, "mix": 0.85}, "target": "vocals"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.5, "mix": 0.3}, "target": "vocals"},
+            {"effect": "Reverb", "params": {"decay": 0.3, "mix": 0.2}, "target": "piano"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.95, "release": 0.05, "mix": 0.88}, "target": "output"},
+        ],
+        "liquid_dnb": [
+            {"effect": "Compressor", "params": {"threshold": 0.2, "ratio": 4, "attack": 0.003, "release": 0.08, "mix": 0.85}, "target": "drums"},
+            {"effect": "DattorroReverb", "params": {"decay": 0.6, "mix": 0.35}, "target": "lead"},
+            {"effect": "Reverb", "params": {"decay": 0.4, "mix": 0.25}, "target": "vocals"},
+            {"effect": "Maximizer", "params": {"ceiling": 0.93, "release": 0.04, "mix": 0.9}, "target": "output"},
+        ],
+        "neurofunk": [
+            {"effect": "Waveshaper", "params": {"drive": 0.6, "mix": 0.8}, "target": "bass"},
+            {"effect": "Compressor", "params": {"threshold": 0.1, "ratio": 10, "attack": 0.001, "release": 0.02, "mix": 0.95}, "target": "drums"},
+            {"effect": "Reverb", "params": {"decay": 0.2, "mix": 0.1}, "target": "atmos"},
             {"effect": "Maximizer", "params": {"ceiling": 0.90, "release": 0.02, "mix": 0.97}, "target": "output"},
         ],
     }
