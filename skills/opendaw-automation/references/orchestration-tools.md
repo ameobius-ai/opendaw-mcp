@@ -221,6 +221,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 208. `create_l_system_melody` — L-system melody: deterministic rewriting system, 5 presets (fibonacci/cantor/dragon/koch/sierpinski), custom rules, fractal self-similar structure
 209. `create_montuno` — Latin/jazz piano montuno: 2-3/3-2 clave, guajira, charanga patterns, syncopated chord stabs + melodic passages, I-vi-IV-V auto or custom chords
 210. `create_voice_exchange` — imitative counterpoint: 6 modes (imitation/inversion/retrograde/retrograde-inversion/augmentation/diminution), optional swap for true voice crossing, time offset for response entry
+211. `create_bariolage` — Baroque string crossing: pedal pitch alternates with moving notes, 5 patterns (scale_asc/scale_desc/scale_wave/arpeggio/chromatic), 3 subdivisions, two-voice illusion from single voice
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

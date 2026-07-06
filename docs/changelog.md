@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.286.0 (2026-07-06)
+
+### Added
+- `create_bariolage` — Baroque string crossing technique: rapid alternation between fixed pedal pitch and moving notes. 5 moving patterns (scale_asc, scale_desc, scale_wave, arpeggio, chromatic). 3 subdivisions (8th/16th/32nd). Creates two-voice illusion from single voice — pedal as drone anchor, moving notes as melodic interest. Bach, Vivaldi, Handel bariolage passages.
+
 ## v1.285.0 (2026-07-06)
 
 ### Added

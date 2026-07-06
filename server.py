@@ -36731,6 +36731,265 @@ async def mcp_opendaw_create_voice_exchange(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_bariolage(
+    root: str = "G",
+    scale: str = "major",
+    bars: int = 2,
+    octave: int = 4,
+    pedal_pitch: int = -1,
+    moving_pattern: str = "scale_asc",
+    subdivision: str = "16th",
+    velocity: float = 0.6,
+    pedal_velocity: float = 0.7,
+    accent_pedal: bool = True,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a bariolage — rapid alternation between a fixed pedal pitch and moving notes.
+
+    Bariolage is a Baroque string technique (Bach, Vivaldi, Handel) where a
+    fixed note (typically an open string) rapidly alternates with moving notes
+    that ascend, descend, or follow a melodic pattern. This creates a layered,
+    cross-register texture — two streams of sound perceived simultaneously.
+
+    Unlike arpeggiator (cycles chord tones) or montuno (syncopated chord stabs),
+    bariolage creates a two-voice illusion from a single voice: the pedal pitch
+    acts as a drone/anchor while the moving notes create melodic interest above
+    or below it.
+
+    Moving patterns:
+      scale_asc  — ascending scale notes
+      scale_desc — descending scale notes
+      scale_wave — alternating ascending/descending
+      arpeggio   — chord tones rotating
+      chromatic  — chromatic approach notes
+
+    Subdivisions:
+      8th, 16th, 32nd — determines speed of alternation
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, dorian, mixolydian, harmonic_minor).
+        bars: Number of bars (1-8).
+        octave: Starting MIDI octave (2-6).
+        pedal_pitch: MIDI pitch for the fixed pedal note. If -1, uses root at
+            the specified octave (e.g., G4 = 67).
+        moving_pattern: Pattern for moving notes (scale_asc, scale_desc,
+            scale_wave, arpeggio, chromatic).
+        subdivision: Note subdivision (8th, 16th, 32nd).
+        velocity: Base velocity for moving notes 0-1.
+        pedal_velocity: Velocity for pedal notes 0-1 (usually louder).
+        accent_pedal: If True, pedal notes get accent (slightly louder).
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, pedal/moving note counts, and pattern info.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS, CHORD_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["major"])
+
+    if not (1 <= bars <= 8):
+        return f"Error: bars must be 1-8, got {bars}"
+    if not (2 <= octave <= 6):
+        return f"Error: octave must be 2-6, got {octave}"
+    if moving_pattern not in ("scale_asc", "scale_desc", "scale_wave", "arpeggio", "chromatic"):
+        return f"Error: moving_pattern must be scale_asc, scale_desc, scale_wave, arpeggio, or chromatic, got {moving_pattern}"
+    if subdivision not in ("8th", "16th", "32nd"):
+        return f"Error: subdivision must be 8th, 16th, or 32nd, got {subdivision}"
+
+    # Subdivision values
+    subdiv_map = {"8th": 0.5, "16th": 0.25, "32nd": 0.125}
+    subdiv = subdiv_map[subdivision]
+
+    # Determine pedal pitch
+    if pedal_pitch < 0:
+        pedal = (octave + 1) * 12 + root_num
+    else:
+        pedal = pedal_pitch
+
+    # Build moving note sequence
+    # Scale pitches spanning 2 octaves above the pedal
+    scale_pitches = []
+    for oct_shift in range(0, 2):
+        for iv in intervals:
+            pitch = (octave + 1 + oct_shift) * 12 + (root_num + iv) % 12
+            if pitch > pedal:
+                scale_pitches.append(pitch)
+    scale_pitches = sorted(set(scale_pitches))
+
+    # Also build descending notes below pedal
+    scale_below = []
+    for oct_shift in range(-1, 0):
+        for iv in reversed(intervals):
+            pitch = (octave + 1 + oct_shift) * 12 + (root_num + iv) % 12
+            if pitch < pedal:
+                scale_below.append(pitch)
+    scale_below = sorted(set(scale_below), reverse=True)
+
+    # Arpeggio tones (I chord)
+    chord_intervals = CHORD_INTERVALS.get("maj", [0, 4, 7])
+    arpeggio_pitches = [(octave + 1) * 12 + (root_num + ci) % 12 for ci in chord_intervals]
+    # Extend arpeggio up
+    for ci in chord_intervals:
+        p = (octave + 2) * 12 + (root_num + ci) % 12
+        if p > pedal:
+            arpeggio_pitches.append(p)
+
+    # Total notes
+    total_slots = int(bars * 4 / subdiv)
+
+    # Generate bariolage: alternate pedal and moving notes
+    notes = []
+    moving_idx = 0
+    direction = 1  # 1=ascending, -1=descending
+
+    for slot in range(total_slots):
+        beat_pos = slot * subdiv
+        is_pedal = slot % 2 == 0  # even slots = pedal, odd = moving
+
+        if is_pedal:
+            vel = pedal_velocity
+            if accent_pedal:
+                vel = min(1.0, vel * 1.1)
+            notes.append({
+                "pitch": pedal,
+                "pos": round(beat_pos, 4),
+                "dur": subdiv * 0.9,
+                "vel": vel,
+            })
+        else:
+            # Moving note
+            vel = velocity
+
+            if moving_pattern == "scale_asc":
+                if moving_idx >= len(scale_pitches):
+                    moving_idx = 0
+                pitch = scale_pitches[moving_idx]
+                moving_idx += 1
+
+            elif moving_pattern == "scale_desc":
+                if moving_idx >= len(scale_below):
+                    moving_idx = 0
+                pitch = scale_below[moving_idx]
+                moving_idx += 1
+
+            elif moving_pattern == "scale_wave":
+                # Alternate ascending and descending
+                if direction == 1:
+                    if moving_idx >= len(scale_pitches):
+                        direction = -1
+                        moving_idx = 0
+                    pitch = scale_pitches[moving_idx]
+                else:
+                    if moving_idx >= len(scale_below):
+                        direction = 1
+                        moving_idx = 0
+                    pitch = scale_below[moving_idx]
+                moving_idx += 1
+
+            elif moving_pattern == "arpeggio":
+                if moving_idx >= len(arpeggio_pitches):
+                    moving_idx = 0
+                pitch = arpeggio_pitches[moving_idx]
+                moving_idx += 1
+
+            else:  # chromatic
+                # Chromatic approach: start from pedal+1, go up chromatically
+                pitch = pedal + 1 + (moving_idx % 12)
+                moving_idx += 1
+
+            notes.append({
+                "pitch": pitch,
+                "pos": round(beat_pos, 4),
+                "dur": subdiv * 0.85,
+                "vel": vel,
+            })
+
+    pedal_count = sum(1 for i, n in enumerate(notes) if i % 2 == 0)
+    moving_count = len(notes) - pedal_count
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            bars: {bars},
+            pedal_pitch: {pedal},
+            moving_pattern: "{moving_pattern}",
+            subdivision: "{subdivision}",
+            notes_created: created,
+            pedal_notes: {pedal_count},
+            moving_notes: {moving_count},
+            note_preview: noteEvents.slice(0, 12),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 
