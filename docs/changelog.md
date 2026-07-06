@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.322.0 (2026-07-06)
+
+- **`create_psytrance_arrangement`** — Psytrance: 145 BPM hypnotic Goa/psychedelic. 4 tracks: 909 drums (kick 4-on-floor, snare 2&4, 16th hats, shaker, snare rolls at phrase ends), rolling 16th bassline (kick-aligned with offbeat gallop), hypnotic 16th lead motif (filter sweep velocity curve), sustained sci-fi atmosphere pad (minor 3rd + minor 7th). F minor default. Astrix, Vini Vici, Infected Mushroom. 23 unit tests. 497 MCP tools.
+
 ## v1.321.0 (2026-07-06)
 
 - **`create_acid_arrangement`** — Acid house: 125 BPM TB-303 squelch bassline. 3 tracks: 909 drums (4-on-floor kick, clap 2&4, open hat offbeats, 16th closed hats, ride), TB-303 bass (16th note pattern with chromatic movement, accent pattern simulating filter sweeps, 2-bar cycle), sparse hypnotic lead stab every 4 bars. A minor default. Phuture, DJ Pierre, 808 State. 22 unit tests. 496 MCP tools.
