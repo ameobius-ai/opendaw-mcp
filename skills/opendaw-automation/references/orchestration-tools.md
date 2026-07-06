@@ -224,6 +224,7 @@ Orchestration tools solve this by combining multiple low-level operations into a
 211. `create_bariolage` — Baroque string crossing: pedal pitch alternates with moving notes, 5 patterns (scale_asc/scale_desc/scale_wave/arpeggio/chromatic), 3 subdivisions, two-voice illusion from single voice
 212. `create_tuplet_group` — irrational rhythm subdivision: N notes in M-note span, triplets/quintuplets/septuplets up to 16, 5 pitch modes, rest positions, accent first, repeats
 213. `create_cadenza` — unmeasured virtuosic solo: 6 segment types (flourish/leap/trill/fermata/cascade/climb), 4 styles (classical/romantic/jazz/modern), rubato rhythm, accelerando, fermatas, breath marks, seeded PRNG
+214. `create_fugato` — fugal passage: subject entries + answer (real/tonal) + countersubject + episode, 2-4 voices, custom or auto subject, voice 3 octave lower
 
 ### create_notes_batch
 - **Replaces:** 10-50 × `create_note`

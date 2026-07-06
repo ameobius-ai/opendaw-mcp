@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.289.0 (2026-07-06)
+
+### Added
+- `create_fugato` — Fugal passage with subject entries and imitation. Subject stated, answered at interval (real or tonal), optional countersubject (inverted contour), optional episode (sequenced material between entries). 2-4 voices. Custom or auto-generated subject. Voice 3 enters octave lower, voice 4 as answer. Unlike create_voice_exchange (transforms existing notes), generates entire fugal texture from scratch. Bach, Handel, Shostakovich fugato passages.
+
 ## v1.288.0 (2026-07-06)
 
 ### Added

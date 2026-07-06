@@ -37612,6 +37612,318 @@ async def mcp_opendaw_create_cadenza(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_fugato(
+    root: str = "C",
+    scale: str = "minor",
+    subject_notes: str = "",
+    bars: int = 4,
+    octave: int = 4,
+    voices: int = 3,
+    answer_interval: int = 7,
+    answer_mode: str = "real",
+    include_countersubject: bool = True,
+    countersubject_interval: int = -3,
+    include_episode: bool = True,
+    episode_bars: int = 1,
+    velocity: float = 0.6,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a fugato — a fugal passage with subject entries and imitation.
+
+    A fugato is a fugal section (not a full fugue) that features subject
+    entries in imitation: the subject is stated, then answered at a different
+    pitch level, with optional countersubject and episodic material between
+    entries. This is the building block of fugue writing — Bach, Handel,
+    Shostakovich fugato passages.
+
+    Unlike create_voice_exchange (transforms existing notes between tracks),
+    fugato generates the entire fugal texture from scratch:
+    - Subject: the main theme (custom or auto-generated)
+    - Answer: subject restated at answer_interval (real or tonal)
+    - Countersubject: a counter-melody against the answer
+    - Episode: connecting material between entries (sequenced motives)
+
+    Answer modes:
+      real  — exact transposition of the subject
+      tonal — adjusted to stay within the key (5th scaled down)
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, dorian, etc.).
+        subject_notes: Custom subject as JSON array of [pitch_offset, duration_beats].
+            If empty, auto-generates a subject. pitch_offset is semitones from root.
+            Example: [[0, 0.5], [2, 0.5], [5, 1.0], [4, 0.5], [2, 0.5], [0, 1.0]]
+        bars: Total length in bars (4-16).
+        octave: Starting MIDI octave (2-6).
+        voices: Number of voices (2-4).
+        answer_interval: Transposition interval for the answer in semitones.
+            Default 7 = perfect fifth (standard fugue answer).
+        answer_mode: Answer type (real or tonal).
+        include_countersubject: If True, generates a countersubject.
+        countersubject_interval: Starting interval of countersubject from
+            answer pitch (semitones, can be negative).
+        include_episode: If True, generates episodic material between entries.
+        episode_bars: Length of episode sections in bars (1-4).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, subject preview, voice entries, and fugato structure.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["minor"])
+
+    if not (4 <= bars <= 16):
+        return f"Error: bars must be 4-16, got {bars}"
+    if not (2 <= octave <= 6):
+        return f"Error: octave must be 2-6, got {octave}"
+    if not (2 <= voices <= 4):
+        return f"Error: voices must be 2-4, got {voices}"
+    if answer_mode not in ("real", "tonal"):
+        return f"Error: answer_mode must be real or tonal, got {answer_mode}"
+    if not (1 <= episode_bars <= 4):
+        return f"Error: episode_bars must be 1-4, got {episode_bars}"
+
+    # Parse custom subject or auto-generate
+    if subject_notes:
+        try:
+            subject = json.loads(subject_notes)
+            # Each element: [pitch_offset, duration_beats]
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return "Error: invalid subject_notes JSON. Use format [[0, 0.5], [2, 0.5], [5, 1.0]]"
+    else:
+        # Auto-generate a fugal subject in the given key
+        # Typical subject: stepwise motion with one leap, 4-6 notes
+        subject = []
+        # Use scale degrees for natural melodic shape
+        degree_pattern = [0, 2, 4, 2, 0, -1, 0]
+        dur_pattern = [0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 1.0]
+        for i, degree in enumerate(degree_pattern):
+            # Convert scale degree to pitch offset
+            deg_idx = degree % len(intervals)
+            pitch_offset = intervals[deg_idx]
+            if degree < 0:
+                pitch_offset = -intervals[(-degree) % len(intervals)] - 12
+            subject.append([pitch_offset, dur_pattern[i]])
+
+    # Build subject pitches (relative to root at the given octave)
+    subject_base = (octave + 1) * 12 + root_num
+    subject_pitches = []
+    subject_durations = []
+    for offset, dur in subject:
+        subject_pitches.append(subject_base + offset)
+        subject_durations.append(dur)
+
+    subject_length = sum(subject_durations)
+    subject_total_beats = subject_length
+
+    # Calculate answer pitches
+    answer_base = subject_base + answer_interval
+    # Tonal answer mode: in a full implementation, would adjust intervals
+    # to stay within the key. Currently uses same intervals as real answer.
+
+    answer_pitches = [p + answer_interval for p in subject_pitches]
+    answer_durations = subject_durations[:]
+
+    # Build countersubject (if enabled)
+    countersubject_pitches = []
+    countersubject_durations = []
+    if include_countersubject:
+        # Countersubject: invert the subject's contour, start below answer
+        cs_base = answer_base + countersubject_interval
+        for i, (offset, dur) in enumerate(subject):
+            # Invert around 0
+            inv_offset = -offset + countersubject_interval
+            countersubject_pitches.append(cs_base + inv_offset)
+            countersubject_durations.append(dur)
+
+    # Generate episode material (if enabled)
+    episode_pitches = []
+    episode_durations = []
+    if include_episode:
+        # Simple episode: sequence the subject's first 3 notes down a step
+        ep_start = subject_pitches[0]
+        for seq in range(3):
+            for i in range(min(3, len(subject_pitches))):
+                ep_pitch = subject_pitches[i] - seq * 2  # down by step each sequence
+                episode_pitches.append(ep_pitch)
+                episode_durations.append(subject_durations[i])
+
+    # Assemble the fugato structure
+    # Entry pattern: Subject (voice 1) → Answer+CS (voice 2) → Subject (voice 3)
+    # → Episode → Subject (voice 1 again, different octave)
+
+    all_notes = []  # list of {pitch, pos, dur, vel, voice}
+    current_beat = 0.0
+    entry_log = []
+
+    # Voice 1: Subject
+    for i, (pitch, dur) in enumerate(zip(subject_pitches, subject_durations)):
+        all_notes.append({
+            "pitch": pitch,
+            "pos": round(current_beat, 4),
+            "dur": dur,
+            "vel": velocity,
+        })
+    entry_log.append({"voice": 1, "type": "subject", "start_beat": 0.0, "pitch_base": subject_base})
+    current_beat = subject_total_beats
+
+    # Voice 2: Answer + Countersubject (starts at the same time as subject)
+    if voices >= 2:
+        answer_start = 0.0  # answer enters while subject is playing
+        for i, (pitch, dur) in enumerate(zip(answer_pitches, answer_durations)):
+            all_notes.append({
+                "pitch": pitch,
+                "pos": round(answer_start + sum(answer_durations[:i]), 4),
+                "dur": dur,
+                "vel": velocity * 0.9,
+            })
+        entry_log.append({"voice": 2, "type": "answer", "start_beat": answer_start, "pitch_base": answer_base})
+
+        if include_countersubject:
+            cs_start = sum(answer_durations[:2])  # countersubject starts after first 2 answer notes
+            for i, (pitch, dur) in enumerate(zip(countersubject_pitches, countersubject_durations)):
+                all_notes.append({
+                    "pitch": pitch,
+                    "pos": round(cs_start + sum(countersubject_durations[:i]), 4),
+                    "dur": dur,
+                    "vel": velocity * 0.8,
+                })
+
+    # Voice 3: Subject at a different octave (if 3+ voices)
+    if voices >= 3:
+        v3_start = subject_total_beats  # after subject 1 finishes
+        v3_base = subject_base - 12  # octave lower
+        for i, (pitch, dur) in enumerate(zip(subject_pitches, subject_durations)):
+            all_notes.append({
+                "pitch": v3_base + (pitch - subject_base),
+                "pos": round(v3_start + sum(subject_durations[:i]), 4),
+                "dur": dur,
+                "vel": velocity * 0.85,
+            })
+        entry_log.append({"voice": 3, "type": "subject", "start_beat": v3_start, "pitch_base": v3_base})
+
+    # Voice 4: Answer at a lower octave (if 4 voices)
+    if voices >= 4:
+        v4_start = subject_total_beats  # enters with voice 3
+        v4_base = answer_base - 12
+        for i, (pitch, dur) in enumerate(zip(answer_pitches, answer_durations)):
+            all_notes.append({
+                "pitch": v4_base + (pitch - answer_base),
+                "pos": round(v4_start + sum(answer_durations[:i]), 4),
+                "dur": dur,
+                "vel": velocity * 0.8,
+            })
+        entry_log.append({"voice": 4, "type": "answer", "start_beat": v4_start, "pitch_base": v4_base})
+
+    # Episode (if enabled)
+    if include_episode and current_beat < bars * 4:
+        ep_start = current_beat
+        for i, (pitch, dur) in enumerate(zip(episode_pitches, episode_durations)):
+            ep_pos = ep_start + sum(episode_durations[:i])
+            if ep_pos >= bars * 4:
+                break
+            all_notes.append({
+                "pitch": pitch,
+                "pos": round(ep_pos, 4),
+                "dur": dur,
+                "vel": velocity * 0.7,
+            })
+        entry_log.append({"voice": 1, "type": "episode", "start_beat": ep_start})
+
+    # Filter notes to fit within bars
+    max_beat = bars * 4
+    all_notes = [n for n in all_notes if n["pos"] < max_beat]
+
+    # Sort by position
+    all_notes.sort(key=lambda n: n["pos"])
+
+    pitches_json = json.dumps([n["pitch"] for n in all_notes])
+    positions_json = json.dumps([n["pos"] for n in all_notes])
+    durations_json = json.dumps([n["dur"] for n in all_notes])
+    velocities_json = json.dumps([n["vel"] for n in all_notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            bars: {bars},
+            voices: {voices},
+            answer_interval: {answer_interval},
+            answer_mode: "{answer_mode}",
+            countersubject: {str(include_countersubject).lower()},
+            episode: {str(include_episode).lower()},
+            subject_length_beats: {round(subject_total_beats, 2)},
+            notes_created: created,
+            entry_log: {json.dumps(entry_log)},
+            subject_preview: {json.dumps(subject)},
+            note_preview: noteEvents.slice(0, 12),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 

@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 91 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.288.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 91 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.289.0"
 ---
 
 # openDAW Composition Patterns
@@ -134,6 +134,7 @@ What do you want to create?
 ├── Bariolage → create_bariolage (Baroque string crossing, pedal pitch + moving notes alternation, 5 patterns, 3 subdivisions, two-voice illusion)
 ├── Tuplet Group → create_tuplet_group (irrational rhythm subdivision, triplets/quintuplets/septuplets up to 16, 5 pitch modes, rest positions, accent first)
 ├── Cadenza → create_cadenza (unmeasured virtuosic solo, 6 segment types: flourish/leap/trill/fermata/cascade/climb, 4 styles, rubato rhythm, breath marks)
+├── Fugato → create_fugato (fugal passage, subject + answer + countersubject + episode, 2-4 voices, real/tonal answer, custom or auto subject)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
