@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.341.0 (2026-07-06)
+
+- **`create_interlude`** — Interlude section generator. 5 types: instrumental (solo melodic break over sparse bass), atmospheric (sustained I-IV-V-I pad chords), breakdown (single root → add fifth → add stabs, layer build), reprise (callback motif at different octave), contrapuntal (2-3 independent lines, contrary motion). 3 scales, 2-4 bars. Seeded PRNG. 31 unit tests. 514 MCP tools. Connective tissue between sections — shorter and more textural than bridge.
+
 ## v1.340.0 (2026-07-06)
 
 - **`create_bridge`** — Bridge section generator. 5 types: breakdown (sparse bass + stabs, tension through absence), modulation (key shift up m3, same rhythm new centre), solo (dense melodic line over I-IV-V-I chords, 8th notes), atmospheric (sustained chromatic tones, no clear harmony), surprise (staccato bursts at odd positions, rhythmic displacement). 3 scales, 2-8 bars. Seeded PRNG. 32 unit tests. 513 MCP tools. Completes the section framing trio: intro → body → bridge → outro.

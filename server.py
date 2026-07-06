@@ -60347,3 +60347,232 @@ async def mcp_opendaw_create_bridge(
     }.get(bridge_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_interlude(
+    interlude_type: str = "instrumental",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 4,
+    velocity: float = 0.6,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create an interlude — a short connective passage between song sections.
+
+    Interludes are brief breathing spaces. Unlike a bridge (which provides
+    contrast and development), an interlude is a transition: it moves the
+    listener from one section to another without establishing new material.
+    Short (2-4 bars), textural, and often instrumental.
+
+    - **instrumental**: Solo melodic break — a short instrumental melody over
+      minimal accompaniment. Good for connecting verse to chorus, or between
+      two verses. Keeps momentum without vocals.
+    - **atmospheric**: Ambient bed — sustained pad-like chords, slow attacks,
+      no rhythmic pulse. Good for creating space before a drop or after a
+      climactic section. Film/ambient/post-rock feel.
+    - **breakdown**: Drop to a single element — one sustained note or chord,
+      gradually adding layers. Minimal notes, maximum space. Good for building
+      tension before a re-entry.
+    - **reprise**: Callback — briefly restates a motif from an earlier section
+      (typically the intro or verse) at a different octave or register.
+      Creates coherence and familiarity. Good for concept albums, through-composed works.
+    - **contrapuntal**: Layered counterpoint — 2-3 independent melodic lines
+      entering sequentially. Lines weave around each other without clear
+      hierarchy. Good for jazz, classical, progressive.
+
+    interlude_type: instrumental | atmospheric | breakdown | reprise | contrapuntal
+    key_root: Root note name (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (2-4)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_interlude(interlude_type="instrumental", key_root="G", scale_type="major", bars=4)
+      create_interlude(interlude_type="atmospheric", key_root="D", scale_type="minor", bars=2)
+      create_interlude(interlude_type="contrapuntal", key_root="A", scale_type="minor", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["instrumental", "atmospheric", "breakdown", "reprise", "contrapuntal"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if interlude_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid interlude_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+    if not (2 <= bars <= 4):
+        return json.dumps({"error": "bars must be 2-4"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+
+    if interlude_type == "instrumental":
+        # Solo melodic break: melody over sparse bass
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # Bass root on beat 1
+            bass_pitch = deg_to_pitch(0, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(velocity * 0.4, 3)})
+            # Melodic line: 4-6 notes per bar, scale-wise with occasional skips
+            num_notes = 4 + int(next(rng) * 3)
+            prev_deg = bar
+            for i in range(num_notes):
+                if next(rng) > 0.7:
+                    deg = prev_deg + (3 if next(rng) > 0.5 else -2)
+                else:
+                    deg = prev_deg + (1 if next(rng) > 0.3 else 0)
+                deg = max(0, deg)
+                pitch = deg_to_pitch(deg)
+                beat_offset = i * (bar_len / num_notes)
+                v_note = velocity * (0.6 + 0.4 * next(rng))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat_offset, 4),
+                              "duration": round(bar_len / num_notes * 0.8, 3),
+                              "velocity": round(v_note, 3)})
+                prev_deg = deg
+
+    elif interlude_type == "atmospheric":
+        # Ambient bed: sustained chords, slow, no pulse
+        chord_roots = [0, 3, 4, 0]  # I-IV-V-I
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            chord_deg = chord_roots[bar % len(chord_roots)]
+            for deg in [chord_deg, chord_deg + 2, chord_deg + 4]:
+                pitch = deg_to_pitch(deg)
+                v = velocity * (0.3 + 0.2 * next(rng))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": round(bar_len * 1.5, 3),
+                              "velocity": round(v, 3)})
+
+    elif interlude_type == "breakdown":
+        # Single element gradually adding layers
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            layer_threshold = bar / max(bars - 1, 1)  # 0 to 1 across bars
+            # Layer 1: sustained root (always)
+            root_pitch = deg_to_pitch(0)
+            notes.append({"pitch": root_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(velocity * 0.3, 3)})
+            # Layer 2: fifth (after 30%)
+            if layer_threshold > 0.3:
+                fifth_pitch = deg_to_pitch(4)
+                notes.append({"pitch": fifth_pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(velocity * 0.4, 3)})
+            # Layer 3: rhythmic stabs (after 60%)
+            if layer_threshold > 0.6:
+                for beat in range(4):
+                    deg = int(next(rng) * ns)
+                    pitch = deg_to_pitch(deg)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                                  "duration": 0.5, "velocity": round(velocity * 0.6, 3)})
+
+    elif interlude_type == "reprise":
+        # Callback to earlier motif at different octave
+        motif_degrees = [0, 2, 4, 2, 0, -1, 0, 2]  # simple motif
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            oct_shift = -1 if bar < bars // 2 else 0  # lower first, original second
+            for i, deg in enumerate(motif_degrees):
+                if i >= bar_len * 2:
+                    break
+                pitch = deg_to_pitch(deg, oct_shift)
+                beat = i * 0.5
+                v = velocity * (0.5 + 0.2 * bar / max(bars - 1, 1))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": 0.4, "velocity": round(v, 3)})
+
+    elif interlude_type == "contrapuntal":
+        # 2-3 independent lines entering sequentially
+        num_voices = 2 + int(next(rng) * 2)  # 2 or 3
+        voice_starts = [0, bar_len / num_voices, bar_len * 2 / num_voices]
+        for voice in range(num_voices):
+            voice_start = voice_starts[voice]
+            voice_oct = -1 if voice == 0 else (0 if voice == 1 else 1)
+            for bar in range(bars):
+                bar_start = bar * bar_len
+                # Each voice: step-wise motion with different rhythm
+                step_dir = 1 if voice % 2 == 0 else -1
+                deg = voice * 2
+                for beat in range(0, int(bar_len * 2)):
+                    if next(rng) > 0.4:
+                        pitch = deg_to_pitch(deg, voice_oct)
+                        v = velocity * (0.4 + 0.3 * next(rng))
+                        notes.append({"pitch": pitch, "start": round(start_beat + bar_start + voice_start + beat * 0.5, 4),
+                                      "duration": 0.4, "velocity": round(v, 3)})
+                    deg = max(0, deg + step_dir)
+                    if deg >= ns:
+                        deg = ns - 1
+                        step_dir = -1
+                    elif deg <= 0:
+                        deg = 0
+                        step_dir = 1
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["interlude"] = True
+    data["interlude_type"] = interlude_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "instrumental": "solo melodic break over sparse bass, 4-6 notes/bar, scale-wise with skips",
+        "atmospheric": "sustained I-IV-V-I chords, slow attacks, no pulse, ambient/post-rock",
+        "breakdown": "single sustained root then add fifth then add rhythmic stabs, layers build gradually",
+        "reprise": "callback motif at different octave, lower first half then original register",
+        "contrapuntal": "2-3 independent lines entering sequentially, step-wise with contrary motion",
+    }.get(interlude_type, "")
+
+    return json.dumps(data, indent=2)
