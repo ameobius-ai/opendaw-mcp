@@ -45,6 +45,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _transcribe_melody,
     _analyze_spectrum,
     _analyze_stereo,
+    _analyze_dynamics,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -7229,6 +7230,79 @@ async def mcp_opendaw_analyze_stereo(filename: str) -> str:
         return json.dumps(result, indent=2)
     except Exception as e:
         return _err(f"Stereo analysis error: {e}")
+
+@mcp.tool()
+async def mcp_opendaw_analyze_dynamics(filename: str) -> str:
+    """Dynamics analysis — crest factor, loudness range, transient density, segment RMS.
+
+    Measures the dynamic character of a track:
+    - crest_factor_db: Peak/RMS ratio in dB (high = dynamic, low = compressed/squashed)
+    - loudness_range_db: LRA — 95th-10th percentile of short-term RMS (high = varied dynamics)
+    - dynamic_range_db: max-min window RMS (total loudness variation)
+    - transient_density: energy spikes per second (high = percussive/transient-rich)
+    - segment_variation_db: RMS variation across 10 segments of the track
+    - segments: per-segment RMS (dB) with time positions
+
+    Compression decision guidance:
+    - crest_factor < 6 dB → heavily compressed, low headroom
+    - crest_factor > 15 dB → very dynamic, may need compression
+    - loudness_range < 4 dB → flat/squashed, lacks dynamic interest
+    - loudness_range > 12 dB → very dynamic, may need leveling
+    - transient_density > 10 → percussive/transient-heavy content
+    - segment_variation > 6 dB → significant level changes between sections
+
+    Args:
+        filename: Name of the WAV file in the exports directory (without path),
+                  or absolute path to any WAV file.
+
+    Returns dynamics descriptors, 10-segment RMS contour, and compression suggestions.
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    filepath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(filepath):
+        filepath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(filepath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(filepath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        result = _analyze_dynamics(wav["channels"], wav["sample_rate"])
+
+        # Generate compression suggestions
+        suggestions = []
+        cf = result.get("crest_factor_db", 0)
+        if cf < 6:
+            suggestions.append(f"Heavily compressed (crest {cf} dB) — very low headroom, consider less compression")
+        elif cf > 15:
+            suggestions.append(f"Very dynamic (crest {cf} dB) — consider compression to control peaks")
+
+        lra = result.get("loudness_range_db", 0)
+        if lra < 4:
+            suggestions.append(f"Flat dynamics (LRA {lra} dB) — track lacks dynamic interest")
+        elif lra > 12:
+            suggestions.append(f"Very varied dynamics (LRA {lra} dB) — consider level automation or compression")
+
+        td = result.get("transient_density", 0)
+        if td > 10:
+            suggestions.append(f"Percussive content (transient density {td}/s) — fast attack compression for punch")
+        elif td < 2:
+            suggestions.append(f"Smooth content (transient density {td}/s) — slow attack compression for glue")
+
+        sv = result.get("segment_variation_db", 0)
+        if sv > 6:
+            suggestions.append(f"Significant level changes across track ({sv} dB) — consider automation or leveling")
+
+        result["compression_suggestions"] = suggestions
+        result["success"] = True
+        result["file"] = filepath
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return _err(f"Dynamics analysis error: {e}")
 
 @mcp.tool()
 async def mcp_opendaw_transcribe_drums(

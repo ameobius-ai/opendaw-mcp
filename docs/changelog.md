@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.304.0 (2026-07-06)
+
+- **`analyze_dynamics`** — Dynamics analysis: crest factor (peak/RMS), loudness range (LRA 95-10 percentile), dynamic range, transient density (spikes/sec), 10-segment RMS contour, segment variation. Auto compression suggestions (heavily compressed, very dynamic, flat, percussive, smooth, level changes). Pure Python 300ms RMS windows. Completes the analysis trilogy: track + spectrum + stereo + dynamics.
+
 ## v1.303.0 (2026-07-06)
 
 - **`analyze_stereo`** — Stereo field analysis: width (Side/Mid RMS ratio), L/R balance, phase correlation (-1 to +1), mono compatibility, phase issues %, per-region width (low/mid/high). Auto mix suggestions (narrow, wide, phase issues, L/R imbalance, wide bass). Pure Python one-pole filters for band splitting. Complements analyze_spectrum for complete mix diagnosis.

@@ -1167,3 +1167,150 @@ def _analyze_stereo(channels: list, sample_rate: int) -> dict:
         "frames_analyzed": analysis_len,
         "sample_rate": sample_rate,
     }
+
+
+def _analyze_dynamics(channels: list, sample_rate: int) -> dict:
+    """Dynamics analysis — crest factor, loudness range, transient density, segment RMS.
+
+    Pure Python (no numpy):
+    1. Mix to mono
+    2. Global peak and RMS → crest factor (peak/RMS ratio in dB)
+    3. Short-term RMS (300ms windows, 100ms hop) → loudness contour
+    4. Loudness range (LRA): difference between 95th and 10th percentile of RMS windows
+    5. Segment RMS: divide track into 10 equal segments, RMS per segment → variation
+    6. Transient density: count energy spikes (>2x local average) per second
+    7. Dynamic range: max window RMS - min window RMS (in dB)
+    8. PLR (Peak-to-Loudness Ratio): true peak dB - LUFS (approximate)
+
+    Returns dict with dynamics descriptors and compression suggestions.
+    """
+    import math as _m
+
+    if not channels or not channels[0]:
+        return {
+            "crest_factor_db": 0.0, "loudness_range_db": 0.0,
+            "transient_density": 0.0, "dynamic_range_db": 0.0,
+            "segment_rms variation": 0.0, "segments": [],
+            "sample_rate": sample_rate,
+        }
+
+    n_frames = len(channels[0])
+    n_ch = len(channels)
+
+    # 1. Mix to mono
+    mono = [sum(channels[c][i] for c in range(n_ch)) / n_ch for i in range(n_frames)]
+
+    # 2. Global peak and RMS
+    peak = max(abs(s) for s in mono)
+    analysis_len = min(n_frames, sample_rate * 30)
+    rms = _m.sqrt(sum(mono[i] * mono[i] for i in range(analysis_len)) / analysis_len)
+
+    peak_db = 20 * _m.log10(peak) if peak > 0 else -120.0
+    rms_db = 20 * _m.log10(rms) if rms > 0 else -120.0
+    crest_factor_db = peak_db - rms_db
+
+    # 3. Short-term RMS windows (300ms, 100ms hop)
+    win_size = int(0.3 * sample_rate)
+    hop_size = int(0.1 * sample_rate)
+    if win_size == 0 or hop_size == 0 or n_frames < win_size:
+        return {
+            "crest_factor_db": round(crest_factor_db, 1),
+            "loudness_range_db": 0.0,
+            "transient_density": 0.0,
+            "dynamic_range_db": 0.0,
+            "segment_variation_db": 0.0,
+            "segments": [],
+            "peak_db": round(peak_db, 1),
+            "rms_db": round(rms_db, 1),
+            "sample_rate": sample_rate,
+            "frames_analyzed": analysis_len,
+        }
+
+    rms_windows = []
+    pos = 0
+    while pos + win_size <= n_frames:
+        wr = _m.sqrt(sum(mono[pos + j] * mono[pos + j] for j in range(win_size)) / win_size)
+        rms_windows.append(wr)
+        pos += hop_size
+
+    if not rms_windows:
+        return {
+            "crest_factor_db": round(crest_factor_db, 1),
+            "loudness_range_db": 0.0,
+            "transient_density": 0.0,
+            "dynamic_range_db": 0.0,
+            "segment_variation_db": 0.0,
+            "segments": [],
+            "peak_db": round(peak_db, 1),
+            "rms_db": round(rms_db, 1),
+            "sample_rate": sample_rate,
+            "frames_analyzed": analysis_len,
+        }
+
+    # Convert to dB
+    rms_db_windows = [20 * _m.log10(r) if r > 0 else -120.0 for r in rms_windows]
+
+    # 4. Loudness range: 95th - 10th percentile
+    sorted_db = sorted(rms_db_windows)
+    n_w = len(sorted_db)
+    p10_idx = int(n_w * 0.10)
+    p95_idx = int(n_w * 0.95)
+    lra_db = sorted_db[p95_idx] - sorted_db[p10_idx] if p95_idx > p10_idx else 0.0
+
+    # 5. Dynamic range: max - min window RMS
+    max_win_db = max(rms_db_windows)
+    min_win_db = min(rms_db_windows)
+    dyn_range_db = max_win_db - min_win_db
+
+    # 6. Segment RMS: divide into 10 segments
+    n_segments = 10
+    seg_size = n_frames // n_segments
+    segments = []
+    if seg_size > 0:
+        for s in range(n_segments):
+            start = s * seg_size
+            end = min(start + seg_size, n_frames)
+            seg_rms = _m.sqrt(sum(mono[i] * mono[i] for i in range(start, end)) / (end - start))
+            seg_db = 20 * _m.log10(seg_rms) if seg_rms > 0 else -120.0
+            segments.append({
+                "index": s,
+                "start_sec": round(start / sample_rate, 1),
+                "end_sec": round(end / sample_rate, 1),
+                "rms_db": round(seg_db, 1),
+            })
+
+    # Segment variation
+    seg_dbs = [s["rms_db"] for s in segments] if segments else []
+    seg_variation = max(seg_dbs) - min(seg_dbs) if seg_dbs else 0.0
+
+    # 7. Transient density: count energy spikes per second
+    # Spike = sample where |amplitude| > 2 * local RMS (within 50ms window)
+    local_win = int(0.05 * sample_rate)
+    transient_count = 0
+    for i in range(local_win, analysis_len - local_win, hop_size):
+        local_rms = _m.sqrt(sum(mono[j] * mono[j] for j in range(i - local_win, i + local_win)) / (2 * local_win))
+        if local_rms > 0:
+            # Check if this window has a spike
+            local_peak = max(abs(mono[j]) for j in range(i - local_win, i + local_win))
+            if local_peak > 2.0 * local_rms:
+                transient_count += 1
+
+    duration_sec = analysis_len / sample_rate
+    transient_density = transient_count / duration_sec if duration_sec > 0 else 0.0
+
+    return {
+        "crest_factor_db": round(crest_factor_db, 1),
+        "loudness_range_db": round(lra_db, 1),
+        "dynamic_range_db": round(dyn_range_db, 1),
+        "transient_density": round(transient_density, 2),
+        "transient_count": transient_count,
+        "segment_variation_db": round(seg_variation, 1),
+        "segments": segments,
+        "peak_db": round(peak_db, 1),
+        "rms_db": round(rms_db, 1),
+        "max_window_db": round(max_win_db, 1),
+        "min_window_db": round(min_win_db, 1),
+        "n_windows": len(rms_windows),
+        "sample_rate": sample_rate,
+        "frames_analyzed": analysis_len,
+    }
