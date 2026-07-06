@@ -55962,3 +55962,212 @@ async def mcp_opendaw_create_hardstyle_arrangement(
         return json.dumps(data, indent=2)
     except Exception:
         return results[0]
+
+
+@mcp.tool()
+async def mcp_opendaw_create_garage_arrangement(
+    key_root: str = "G",
+    bpm: int = 130,
+    bars: int = 16,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a UK garage arrangement — 130 BPM 2-step swing.
+
+    UK garage (UKG) is a British electronic genre evolving from
+    US garage house with drum & bass influence. Key characteristics:
+    - 2-step drum pattern: kick on 1, snare on 2 & 4, skip beats
+    - Swing/shuffle feel (16th note swing)
+    - Chopped vocal stabs and chord stabs
+    - Deep bassline with melodic movement
+    - 130-138 BPM, 4/4 time
+    - Smooth, bumping, after-hours energy
+
+    Creates 4 tracks:
+    1. Drums (track_index): 2-step kick (beat 1, sometimes 3),
+       snare on 2 & 4, swung hats, skip-beat ghost notes
+    2. Bass (track_index+1): Melodic bassline with octave jumps
+       and syncopation, walking-ish movement
+    3. Chords (track_index+2): Stab chords on offbeats, major 7th
+       and minor 9th voicings, Rhodes-style
+    4. Lead (track_index+3): Vocal-chop-style melodic stabs,
+       short rhythmic phrases
+
+    Default key: G minor (common UKG key).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    KICK = 36
+    SNARE = 38
+    CLOSED_HAT = 42
+    OPEN_HAT = 46
+    RIM = 37
+
+    minor_scale = [0, 2, 3, 5, 7, 8, 10]
+    bass_oct = (2 + 1) * 12 + root_pc
+    chord_oct = (3 + 1) * 12 + root_pc
+    lead_oct = (4 + 1) * 12 + root_pc
+
+    def deg_to_pitch(degree, root_note, sc):
+        ns = len(sc)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return root_note + oct_shift * 12 + sc[idx]
+
+    drums = []
+    bass = []
+    chords = []
+    lead = []
+
+    # 2-step kick pattern (per 2 bars, repeating)
+    # Bar 1: kick on 1, skip 2, kick on 3.5 (syncopated)
+    # Bar 2: kick on 1, kick on 3
+    kick_patterns = [
+        [0.0, 3.5],   # bar 1: kick on 1, syncopated 3.5
+        [0.0, 3.0],   # bar 2: kick on 1, on 3
+    ]
+
+    # Bassline: melodic, syncopated, octave jumps
+    bass_degrees = [0, 0, 3, 0, 5, 3, 0, -2, 0, 0, 7, 5, 3, 0, -2, 0]
+    bass_rhythm = [0.5, 0.25, 0.25, 0.5, 0.5, 0.25, 0.25, 0.5,
+                   0.5, 0.25, 0.25, 0.5, 0.5, 0.25, 0.25, 0.5]
+    bass_beat_offsets = [0, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0,
+                         0, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0]
+
+    # Chord progression: ii-V-I-vi (Dm-G-Cm-Ab in G minor context)
+    # Using minor scale degrees: ii=2, V=7, i=0, VI=5
+    chord_roots = [2, 7, 0, 5]
+    # Extended voicings: root, minor 3rd, fifth, minor 7th
+    chord_intervals = [0, 3, 7, 10]
+
+    # Lead: vocal-chop style short stabs
+    lead_degrees = [0, 3, 5, 3, 7, 5, 3, 0]
+    lead_rhythm = [0.25, 0.25, 0.25, 0.25, 0.5, 0.25, 0.25, 0.5]
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+        kick_pat = kick_patterns[bar % 2]
+
+        # --- Drums ---
+        for kick_beat in kick_pat:
+            drums.append({
+                "pitch": KICK, "start": round(bar_start + kick_beat, 4),
+                "duration": 0.4, "velocity": round(velocity, 3),
+            })
+        # Snare on 2 and 4
+        for beat in [1.0, 3.0]:
+            drums.append({
+                "pitch": SNARE, "start": round(bar_start + beat, 4),
+                "duration": 0.2, "velocity": round(velocity * 0.9, 3),
+            })
+        # Swung hats: 16th notes with swing (delay odd 16ths)
+        for h in range(8):
+            hat_beat = h * 0.5
+            # Swing: delay every other hat by ~0.08
+            if h % 2 == 1:
+                hat_beat += 0.08
+            drums.append({
+                "pitch": CLOSED_HAT, "start": round(bar_start + hat_beat, 4),
+                "duration": 0.1, "velocity": round(velocity * (0.4 + 0.1 * (h % 2)), 3),
+            })
+        # Open hat on offbeat before snare
+        drums.append({
+            "pitch": OPEN_HAT, "start": round(bar_start + 2.75 + 0.08, 4),
+            "duration": 0.15, "velocity": round(velocity * 0.55, 3),
+        })
+        # Ghost/rim shot on skip beat
+        if bar % 2 == 0:
+            drums.append({
+                "pitch": RIM, "start": round(bar_start + 1.75 + 0.08, 4),
+                "duration": 0.08, "velocity": round(velocity * 0.35, 3),
+            })
+
+        # --- Bass ---
+        bass_idx_base = (bar % 2) * 8
+        for i in range(8):
+            idx = bass_idx_base + i
+            deg = bass_degrees[idx % len(bass_degrees)]
+            dur = bass_rhythm[idx % len(bass_rhythm)]
+            offset = bass_beat_offsets[idx % len(bass_beat_offsets)]
+            bass.append({
+                "pitch": deg_to_pitch(deg, bass_oct, minor_scale),
+                "start": round(bar_start + offset, 4),
+                "duration": round(dur * 0.85, 4),
+                "velocity": round(velocity * (0.8 + 0.1 * (i % 2)), 3),
+            })
+
+        # --- Chords (stab on offbeats) ---
+        chord_idx = (bar // 4) % len(chord_roots)
+        croot = chord_roots[chord_idx]
+        for beat in [1.5, 3.5]:
+            for ci in chord_intervals:
+                chords.append({
+                    "pitch": deg_to_pitch(croot + ci, chord_oct, minor_scale),
+                    "start": round(bar_start + beat, 4),
+                    "duration": 0.3, "velocity": round(velocity * 0.7, 3),
+                })
+
+        # --- Lead (vocal chops) ---
+        lead_start = bar_start
+        for i in range(len(lead_degrees)):
+            deg = lead_degrees[(bar + i) % len(lead_degrees)]
+            pitch = deg_to_pitch(deg, lead_oct, minor_scale)
+            dur = lead_rhythm[i % len(lead_rhythm)]
+            # Skip some notes for choppy feel
+            if (bar + i) % 5 != 4:
+                lead.append({
+                    "pitch": pitch, "start": round(lead_start, 4),
+                    "duration": round(dur * 0.8, 4),
+                    "velocity": round(velocity * 0.65, 3),
+                })
+            lead_start += dur
+
+    drums.sort(key=lambda n: (n["start"], n["pitch"]))
+    bass.sort(key=lambda n: (n["start"], n["pitch"]))
+    chords.sort(key=lambda n: (n["start"], n["pitch"]))
+    lead.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    results = []
+    for i, (notes, label) in enumerate([
+        (drums, "drums"), (bass, "bass"), (chords, "chords"), (lead, "lead")
+    ]):
+        notes_json = json.dumps(notes)
+        result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index + i)
+        results.append(result)
+
+    try:
+        data = json.loads(results[0])
+        data["garage_arrangement"] = True
+        data["bpm"] = bpm
+        data["bars"] = n_bars
+        data["key_root"] = key_root
+        data["tracks"] = {
+            "drums": {"track": track_index, "notes": len(drums),
+                       "pattern": "2-step swing, kick on 1 + syncopated"},
+            "bass": {"track": track_index + 1, "notes": len(bass),
+                      "style": "melodic syncopated octave jumps"},
+            "chords": {"track": track_index + 2, "notes": len(chords),
+                        "voicings": "minor 7th stabs on offbeats"},
+            "lead": {"track": track_index + 3, "notes": len(lead),
+                      "style": "vocal-chop short rhythmic phrases"},
+        }
+        data["total_notes"] = len(drums) + len(bass) + len(chords) + len(lead)
+        data["all_tracks_created"] = all(
+            json.loads(r).get("success", False) if r else False for r in results
+        )
+        return json.dumps(data, indent=2)
+    except Exception:
+        return results[0]

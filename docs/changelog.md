@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.320.0 (2026-07-06)
+
+- **`create_garage_arrangement`** — UK garage: 130 BPM 2-step swing. 4 tracks: 2-step kick (alternating syncopated patterns), snare on 2&4, swung 16th hats (+0.08 swing), rim ghost notes, melodic bassline with octave jumps and syncopation, minor 7th chord stabs on offbeats, vocal-chop lead (short rhythmic phrases with gaps). G minor default. MJ Cole, Disclosure, Burial. 21 unit tests. 495 MCP tools.
+
 ## v1.319.0 (2026-07-06)
 
 - **`create_hardstyle_arrangement`** — Hardstyle: 150 BPM Dutch festival hard dance. 4 tracks: hard kick on every beat + snare 2&4 + closed hats offbeat + open hat, reverse bass (offbeat boom-BM pattern), screechy sawtooth lead (wide intervals, octave jumps, high octave), stab chords on 1&3 (i-VI-III-VII). F minor default. Headhunterz, Brennan Heart, Wildstylez. 21 unit tests. 494 MCP tools.
