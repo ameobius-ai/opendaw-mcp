@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.360.0 (2026-07-06)
+
+- **`werkstatt_aire.js`** — Stereo air exciter (M/S widener + HF harmonic exciter combo). Adds brightness and width to dull/narrow mixes. 2-12kHz crossover, 2nd/3rd harmonic mix, width control. 131 DSP scripts. Inspired by "air" plugins (BX, Ozone Exciter).
+- **`produce_and_master_pipeline.py`** — Example: 5 genre demos (house/dnb/metal/ambient/industrial), each = 1 tool call = full track + mastering.
+- **Promo updated** — dev.to + HN showcase produce_and_master as killer feature.
+
 ## v1.359.0 (2026-07-06)
 
 - **`create_industrial_arrangement`** — Industrial music arrangement (NIN/Ministry/Skinny Puppy/Einstürzende Neubauten style). Distorted 4-on-floor, metallic percussion (anvil clangs, ride shimmer), chromatic bass with passing tones, dissonant tritone stabs (root+b5), minor 2nd clusters, dark drone pad. D minor, 135 BPM, 16 bars, 4 tracks. 20 unit tests. 524 MCP tools. 36 genre arrangements.
