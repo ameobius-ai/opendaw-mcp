@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.336.0 (2026-07-06)
+
+- **`create_etude`** — Technical study piece generator. 5 types: scale (ascending/descending scalar runs, 16th notes, direction changes), arpeggio (broken chord patterns root-3rd-5th-7th, inversions, octave spanning, I-IV-V-I), interval (parallel thirds, two voices, eighth notes, direction shifts), rhythm (syncopation, tied notes, rests, 4 varied patterns cycling), chromatic (chromatic runs with direction changes, chromatic thirds). 5 scales including harmonic_minor. Seeded PRNG. 39 unit tests. 509 MCP tools. Czerny to Chopin.
+
 ## v1.335.0 (2026-07-06)
 
 - **`create_hook`** — Melodic earworm phrase generator. 5 styles: pop (stepwise singable, I-V-vi-IV contour, repeated rhythmic motif, climax leap), rock (pentatonic with bluesy bends, power-note climaxes, root-fifth-root-octave motif), dance (rhythmic ostinato, syncopated off-beat stabs, octave jumps, 1-bar loop), rnb (melismatic neo-soul, chromatic turns, blue-note inflections b3/b7, syncopated 16ths), country (diatonic story-melody, 3rd/6th emphasis, pentatonic-adjacent, root resolution). 5 scales. Chromatic pitch helper. Seeded PRNG. 39 unit tests. 508 MCP tools.

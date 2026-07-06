@@ -59151,3 +59151,232 @@ async def mcp_opendaw_create_hook(
     }.get(hook_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_etude(
+    etude_type: str = "scale",
+    key_root: str = "C",
+    scale_type: str = "major",
+    bars: int = 8,
+    octave: int = 4,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create an etude — a technical study piece targeting a specific skill.
+
+    An etude is a composed exercise that develops a specific instrumental
+    technique while remaining musically satisfying. Unlike a scale drill
+    (pure repetition) or a solo (expressive improvisation), an etude combines
+    technical challenge with musical structure. Czerny, Cramer, Chopin,
+    Paganini, Ligeti all wrote etudes — from pedagogical to virtuosic.
+
+    - **scale**: Scalar runs ascending/descending through the range. Covers
+      scale degrees, direction changes, rhythmic variation. Czerny op. 599.
+    - **arpeggio**: Broken chord patterns spanning octaves. Root position,
+      inversions, direction shifts. Czerny op. 299, Chopin op. 10.
+    - **interval**: Two-voice intervals (thirds, sixths, octaves) building
+      finger independence and intonation. Brahms 51 exercises.
+    - **rhythm**: Rhythmic complexity study — syncopation, cross-rhythm,
+      polyrhythm embedded in melodic context. Czerny op. 821.
+    - **chromatic**: Chromatic runs, chromatic thirds, whole-tone and
+      octatonic patterns. Builds chromatic facility. Chopin op. 10/3.
+
+    etude_type: scale | arpeggio | interval | rhythm | chromatic
+    key_root: Root note name
+    scale_type: major | minor | dorian | mixolydian | harmonic_minor
+    bars: Etude length (4-16, default 8)
+    octave: MIDI octave (4 = C4=60)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_etude(etude_type="scale", key_root="C", bars=8)
+      create_etude(etude_type="arpeggio", key_root="A", scale_type="minor", bars=16)
+      create_etude(etude_type="chromatic", key_root="E", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["scale", "arpeggio", "interval", "rhythm", "chromatic"]
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if etude_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid etude_type. Valid: {VALID_TYPES}"})
+    if bars < 4 or bars > 16:
+        return json.dumps({"error": "bars must be 4-16"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+    bar_beats = 4.0
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    def chrom_pitch(semitone, octave_shift=0):
+        return base + octave_shift * 12 + semitone
+
+    if etude_type == "scale":
+        # Ascending/descending scalar runs, 2 bars per direction
+        notes_per_beat = 4  # 16th notes
+        step_dur = 0.25
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            direction = 1 if (bar // 2) % 2 == 0 else -1
+            # Start degree based on bar position
+            start_deg = (bar // 2) * ns
+            for beat in range(notes_per_beat * 4):
+                deg = start_deg + direction * beat
+                pos = beat * step_dur
+                pitch = deg_to_pitch(deg)
+                # Accent on downbeats
+                v_mult = 0.9 if beat % 4 == 0 else 0.7
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": step_dur, "velocity": round(velocity * v_mult, 3)})
+
+    elif etude_type == "arpeggio":
+        # Broken chord patterns: root-3rd-5th-7th, up and down
+        # Chord tones as scale degrees
+        chord_degrees = [0, 2, 4, 6]  # 7th chord
+        step_dur = 0.25
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            # Shift root each 2 bars: I, IV, V, I pattern
+            root_shifts = [0, 3, 4, 0]
+            root_shift = root_shifts[(bar // 2) % 4]
+            direction = 1 if (bar // 2) % 2 == 0 else -1
+            for beat in range(16):
+                chord_idx = beat % 4
+                if direction == 1:
+                    deg = root_shift + chord_degrees[chord_idx]
+                else:
+                    deg = root_shift + chord_degrees[3 - chord_idx]
+                # Octave shift for arpeggio spanning
+                oct_shift = beat // 4 if direction == 1 else -(beat // 4)
+                pitch = deg_to_pitch(deg, oct_shift)
+                pos = beat * step_dur
+                v_mult = 0.9 if beat % 4 == 0 else 0.7
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": step_dur, "velocity": round(velocity * v_mult, 3)})
+
+    elif etude_type == "interval":
+        # Thirds: two voices moving in parallel thirds
+        interval = 3  # diatonic third
+        step_dur = 0.5  # eighth notes
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            direction = 1 if (bar // 2) % 2 == 0 else -1
+            start_deg = (bar // 2) * 2
+            for beat in range(8):
+                deg = start_deg + direction * beat
+                lower_pitch = deg_to_pitch(deg)
+                upper_pitch = deg_to_pitch(deg + interval)
+                pos = beat * step_dur
+                v_mult = 0.85 if beat % 2 == 0 else 0.7
+                notes.append({"pitch": lower_pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": step_dur, "velocity": round(velocity * v_mult, 3)})
+                notes.append({"pitch": upper_pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": step_dur, "velocity": round(velocity * v_mult * 0.85, 3)})
+
+    elif etude_type == "rhythm":
+        # Rhythmic complexity: syncopation, tied notes, rests
+        # Pattern: 8th + 16th-16th + quarter + rest, repeated with variation
+        patterns = [
+            [(0.0, 0, 0.5), (0.5, 1, 0.25), (0.75, 2, 0.25), (1.0, 3, 1.0), (2.0, 4, 0.5), (2.5, 3, 0.5), (3.0, 2, 0.5), (3.5, 0, 0.5)],
+            [(0.0, 0, 0.25), (0.25, 2, 0.25), (0.5, 0, 0.5), (1.0, 4, 0.75), (1.75, 3, 0.25), (2.0, 2, 0.25), (2.25, 1, 0.25), (2.5, 0, 1.5)],
+            [(0.0, 0, 0.75), (0.75, 1, 0.25), (1.0, 2, 0.25), (1.25, 4, 0.25), (1.5, 5, 0.5), (2.0, 4, 0.25), (2.25, 3, 0.25), (2.5, 2, 0.5), (3.0, 0, 1.0)],
+            [(0.0, 0, 0.5), (0.5, 2, 0.5), (1.0, 0, 0.25), (1.25, 4, 0.25), (1.5, 2, 0.5), (2.0, 5, 0.75), (2.75, 4, 0.25), (3.0, 2, 0.5), (3.5, 0, 0.5)],
+        ]
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            pattern = patterns[bar % 4]
+            for pos, deg, dur in pattern:
+                pitch = deg_to_pitch(deg)
+                v = velocity * (0.75 + next(rng) * 0.2)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": dur, "velocity": round(v, 3)})
+
+    elif etude_type == "chromatic":
+        # Chromatic runs with direction changes
+        step_dur = 0.25
+        for bar in range(bars):
+            bar_off = bar * bar_beats
+            direction = 1 if (bar // 2) % 2 == 0 else -1
+            # Start from scale root, move chromatically
+            start_pitch = base + (bar // 2) * 12
+            for beat in range(16):
+                pitch = start_pitch + direction * beat
+                pos = beat * step_dur
+                v_mult = 0.9 if beat % 4 == 0 else 0.65
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_off + pos, 4),
+                              "duration": step_dur, "velocity": round(velocity * v_mult, 3)})
+            # Chromatic third at bar end
+            if bar % 2 == 1:
+                notes.append({"pitch": start_pitch + 3, "start": round(start_beat + bar_off + 3.5, 4),
+                              "duration": 0.5, "velocity": round(velocity * 0.8, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["etude"] = True
+    data["etude_type"] = etude_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "scale": "ascending/descending scalar runs, 16th notes, direction changes every 2 bars",
+        "arpeggio": "broken chord patterns (root-3rd-5th-7th), inversions, octave spanning, I-IV-V-I",
+        "interval": "parallel thirds, two voices, eighth notes, direction shifts",
+        "rhythm": "syncopation, tied notes, rests, 4 varied rhythmic patterns cycling",
+        "chromatic": "chromatic runs with direction changes, chromatic thirds, 16th notes",
+    }.get(etude_type, "")
+
+    return json.dumps(data, indent=2)
