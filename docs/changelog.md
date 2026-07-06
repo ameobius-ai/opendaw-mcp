@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.297.0 (2026-07-06)
+
+- **`create_balkan_meter`** — Balkan additive meter: asymmetric time signatures (7/8, 9/8, 11/16, 13/8) with unequal beat groupings (2+2+3, 2+2+2+3, etc.). 6 meters: 7_8 (standard), 9_8 (horo), 11_16 (krivo), 13_8 (elenino), 7_8_sand (reversed 3+2+2), 9_8_ska (2+3+2+2). 3 variations: classic (tapan), modern (fusion, ghost snares), wedding (tapan rolls). Accents at group starts create the "limping" feel. Bulgarian, Macedonian, Greek, Serbian tradition.
+
 ## v1.296.0 (2026-07-06)
 
 - **`create_flamenco_compas`** — Flamenco compás: the 12-beat cyclical rhythmic foundation of Flamenco. 6 palos: bulerias (fast festive, accents 12/3/6/8/10), solea (slow solemn, mother of Flamenco), alegrias (joyful from Cádiz), seguiriyas (tragic, asymmetric 3+2+3+2+2 grouping), tangos (simple 4/4), rumba (syncopated 4/4, Gypsy Kings). 4 instruments: palmas secas (sharp claps on accents), palmas sordas (muffled claps on non-accents), cajón (box drum on bass beats), golpe (table tap at cycle end). Andalusian / Spanish tradition.

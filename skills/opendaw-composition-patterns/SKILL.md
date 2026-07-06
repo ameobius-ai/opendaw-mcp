@@ -142,6 +142,7 @@ What do you want to create?
 ├── Djembe Ensemble → create_djembe_ensemble (West African, 6 instruments: kenkeni/sangban/dundunba/bell/djembe2/djembe1, 4 rhythms: danza/kuku/djole/doundounba, cyclical ostinato + call-response)
 ├── Arabic Percussion → create_arabic_percussion (Middle Eastern, 3 instruments: darbuka/daf/zills, 6 rhythms: maqsum/baladi/saidi/ayoub/malfouf/chiftetelli, dum/tek/ka strokes)
 ├── Flamenco Compás → create_flamenco_compas (Andalusian, 4 instruments: palmas secas/sordas/cajón/golpe, 6 palos: bulerias/solea/alegrias/siguiriyas/tangos/rumba, 12-beat cyclical)
+├── Balkan Meter → create_balkan_meter (additive meters 7/8/9/8/11/16/13/8, unequal groupings 2+2+3 etc, 6 meters + reversed, 3 variations: classic/modern/wedding)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)

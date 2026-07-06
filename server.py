@@ -40201,6 +40201,232 @@ async def mcp_opendaw_create_flamenco_compas(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_balkan_meter(
+    meter: str = "7_8",
+    cycles: int = 8,
+    variation: str = "classic",
+    velocity: float = 0.75,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    kick_pitch: int = 36,
+    snare_pitch: int = 40,
+    hh_pitch: int = 42,
+    tapan_pitch: int = 45,
+) -> str:
+    """Create a Balkan additive meter pattern — asymmetric time signatures with unequal beat groupings.
+
+    Balkan music uses "additive" meters: time signatures like 7/8, 9/8, 11/8, 13/8
+    where the measure is divided into unequal groups of 8th notes. Unlike Western
+    "odd time" (which counts uniformly), Balkan music groups beats into patterns
+    like 2+2+3 (7/8), 2+2+2+3 (9/8), 2+2+3+2+2 (11/8). Each group has a distinct
+    accent pattern, creating the characteristic "limping" feel.
+
+    The tapan (large frame drum, similar to daire/def) plays the bass pattern:
+    a low hit at the start of each group, high hits on the internal beats. The
+    accent structure is the defining feature — the groups are not equal, so the
+    listener perceives a lopsided, driving rhythm.
+
+    meters:
+      "7_8"      — 7/8: groups 2+2+3. The most common Balkan meter. Found in
+                    Macedonian, Bulgarian, Greek folk music. Accents on 1, 3, 5.
+      "9_8"      — 9/8: groups 2+2+2+3. Used in Bulgarian horo, Greek kalamatianos.
+                    Accents on 1, 3, 5, 7. Longer "limp" at the end.
+      "11_16"    — 11/16: groups 2+2+3+2+2. Bulgarian krivo horo. Very asymmetric.
+      "13_8"     — 13/8: groups 2+2+3+2+2+2. Bulgarian elenino horo. Longest
+                    common additive meter.
+      "7_8_sand" — 7/8: groups 3+2+2 (reversed). Sandansko oro, Macedonian.
+                    Different accent placement, "backwards" feel.
+      "9_8_ska"  — 9/8: groups 2+3+2+2. Deviationska variant.
+
+    variations:
+      "classic"  — Traditional tapan pattern. Kick on group starts, snare
+                    on internal beats, hi-hat on all 8ths.
+      "modern"   — Modern Balkan fusion (Shantel, Balkan Beat Box). Kick
+                    patterns more syncopated, added ghost snares.
+      "wedding"  — Wedding band style. Denser hi-hat, more snare fills,
+                    tapan rolls at cycle end.
+
+    Args:
+        meter: Meter name (7_8, 9_8, 11_16, 13_8, 7_8_sand, 9_8_ska).
+        cycles: Number of measure cycles (1-32).
+        variation: Pattern variation (classic, modern, wedding).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        kick_pitch: Kick/tapan low MIDI pitch (36 = C1).
+        snare_pitch: Snare/tapan high MIDI pitch (40 = E1).
+        hh_pitch: Hi-hat MIDI pitch (42 = F#1).
+        tapan_pitch: Tapan roll MIDI pitch (45 = A1).
+
+    Returns notes created, meter grouping, accent positions, and pattern info.
+    """
+    if not (1 <= cycles <= 32):
+        return f"Error: cycles must be 1-32, got {cycles}"
+    if variation not in ("classic", "modern", "wedding"):
+        return f"Error: variation must be classic, modern, or wedding, got {variation}"
+
+    METERS = {
+        "7_8": {
+            "total_beats": 7,
+            "groups": [2, 2, 3],
+            "accents": [0, 2, 4],  # start of each group (0-indexed)
+        },
+        "9_8": {
+            "total_beats": 9,
+            "groups": [2, 2, 2, 3],
+            "accents": [0, 2, 4, 6],
+        },
+        "11_16": {
+            "total_beats": 11,
+            "groups": [2, 2, 3, 2, 2],
+            "accents": [0, 2, 4, 7, 9],
+        },
+        "13_8": {
+            "total_beats": 13,
+            "groups": [2, 2, 3, 2, 2, 2],
+            "accents": [0, 2, 4, 7, 9, 11],
+        },
+        "7_8_sand": {
+            "total_beats": 7,
+            "groups": [3, 2, 2],
+            "accents": [0, 3, 5],
+        },
+        "9_8_ska": {
+            "total_beats": 9,
+            "groups": [2, 3, 2, 2],
+            "accents": [0, 2, 5, 7],
+        },
+    }
+
+    if meter not in METERS:
+        valid = ", ".join(METERS.keys())
+        return f"Error: meter must be one of {valid}, got {meter}"
+
+    meter_data = METERS[meter]
+    total_beats = meter_data["total_beats"]
+    groups = meter_data["groups"]
+    accents = set(meter_data["accents"])
+
+    # Build beat positions from groups (each beat = 0.5 in 4/4 terms, i.e. 8th notes)
+    # We use 8th-note grid: each beat = 0.5 quarter notes
+    beat_step = 0.5
+
+    pitch_map = {"kick": kick_pitch, "snare": snare_pitch, "hh": hh_pitch, "tapan": tapan_pitch}
+
+    all_notes = []
+    inst_counts = {"kick": 0, "snare": 0, "hh": 0, "tapan": 0}
+
+    for cycle in range(cycles):
+        cycle_start = cycle * total_beats * beat_step
+
+        for beat_idx in range(total_beats):
+            pos = round(start_beat + cycle_start + beat_idx * beat_step, 4)
+            is_accent = beat_idx in accents
+
+            # Kick on group starts (accent beats)
+            if is_accent:
+                if variation == "classic":
+                    all_notes.append({
+                        "pitch": pitch_map["kick"],
+                        "start": pos, "duration": 0.2,
+                        "velocity": round(min(1.0, velocity * 1.0), 3),
+                    })
+                    inst_counts["kick"] += 1
+                elif variation == "modern":
+                    # Syncopated: kick on accents + some off-accents
+                    all_notes.append({
+                        "pitch": pitch_map["kick"],
+                        "start": pos, "duration": 0.2,
+                        "velocity": round(min(1.0, velocity * 0.95), 3),
+                    })
+                    inst_counts["kick"] += 1
+                    # Ghost snare on beat after accent
+                    if beat_idx + 1 < total_beats and (beat_idx + 1) not in accents:
+                        ghost_pos = round(start_beat + cycle_start + (beat_idx + 1) * beat_step, 4)
+                        all_notes.append({
+                            "pitch": pitch_map["snare"],
+                            "start": ghost_pos, "duration": 0.08,
+                            "velocity": round(max(0.05, velocity * 0.4), 3),
+                        })
+                        inst_counts["snare"] += 1
+                elif variation == "wedding":
+                    all_notes.append({
+                        "pitch": pitch_map["kick"],
+                        "start": pos, "duration": 0.22,
+                        "velocity": round(min(1.0, velocity * 1.0), 3),
+                    })
+                    inst_counts["kick"] += 1
+            else:
+                # Snare on non-accent beats
+                if variation == "classic":
+                    all_notes.append({
+                        "pitch": pitch_map["snare"],
+                        "start": pos, "duration": 0.12,
+                        "velocity": round(velocity * 0.6, 3),
+                    })
+                    inst_counts["snare"] += 1
+                elif variation == "modern":
+                    all_notes.append({
+                        "pitch": pitch_map["snare"],
+                        "start": pos, "duration": 0.1,
+                        "velocity": round(velocity * 0.55, 3),
+                    })
+                    inst_counts["snare"] += 1
+                elif variation == "wedding":
+                    all_notes.append({
+                        "pitch": pitch_map["snare"],
+                        "start": pos, "duration": 0.12,
+                        "velocity": round(velocity * 0.65, 3),
+                    })
+                    inst_counts["snare"] += 1
+
+            # Hi-hat on every beat
+            hh_vel = min(1.0, velocity * 0.5) if not is_accent else min(1.0, velocity * 0.6)
+            hh_dur = 0.06 if variation != "wedding" else 0.04
+            all_notes.append({
+                "pitch": pitch_map["hh"],
+                "start": pos, "duration": hh_dur,
+                "velocity": round(hh_vel, 3),
+            })
+            inst_counts["hh"] += 1
+
+        # Tapan roll at end of cycle (last 2 beats) for wedding variation
+        if variation == "wedding":
+            roll_start = round(start_beat + cycle_start + (total_beats - 2) * beat_step, 4)
+            for r in range(4):
+                rpos = round(roll_start + r * 0.125, 4)
+                all_notes.append({
+                    "pitch": pitch_map["tapan"],
+                    "start": rpos, "duration": 0.05,
+                    "velocity": round(velocity * (0.5 + r * 0.1), 3),
+                })
+                inst_counts["tapan"] += 1
+
+    # Sort by start time
+    all_notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["balkan_meter"] = True
+        data["meter"] = meter
+        data["variation"] = variation
+        data["cycles"] = cycles
+        data["total_beats"] = total_beats
+        data["groups"] = groups
+        data["accents"] = meter_data["accents"]
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,
