@@ -6,7 +6,7 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.337.0, 510 total)
+## Tools Added (v1.10.0, 255 total → v1.346.0, 515 total)
 
 250+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
@@ -387,7 +387,7 @@ When adding a new orchestration tool:
 173. Run: `python -m pytest tests/ -q` to verify no regressions
 174. Commit with `feat: N orchestration tools — ...` message
 
-## Tools Added v1.199.0–v1.337.0 (cycles 199–361, 133 new tools)
+## Tools Added v1.199.0–v1.346.0 (cycles 199–371, 138 new tools)
 
 ### Multi-Track Genre Arrangements (35 genres, 3–5 tracks each)
 - `create_dnb_arrangement` / `create_liquid_dnb_arrangement` / `create_neurofunk_arrangement` — DnB family: classic, liquid, neurofunk (Reese bass, complex breaks, dark stabs)
@@ -418,6 +418,13 @@ When adding a new orchestration tool:
 - `create_hook` — Melodic earworm phrase: pop (stepwise singable, I-V-vi-IV contour), rock (pentatonic, power-note climaxes), dance (rhythmic ostinato, syncopated stabs), rnb (melismatic, blue-note inflections), country (diatonic story-melody, 3rd/6th emphasis). 5 scales, seeded PRNG.
 - `create_etude` — Technical study piece: scale (ascending/descending runs), arpeggio (broken chords, inversions), interval (parallel thirds, two voices), rhythm (syncopation, varied patterns), chromatic (chromatic runs, thirds). 5 scales, seeded PRNG.
 - `create_cadence` — Harmonic phrase conclusion: authentic (V-I), plagal (IV-I Amen), half (I-V no closure), deceptive (V-vi surprise), phrygian (bII-i Neapolitan). 3 scales, seeded PRNG.
+
+### Structural Section Generators (5 tools)
+- `create_intro` — Opening section: ambient (sustained pad swell), drum (rhythmic build), melodic (emerging arpeggio), minimalist (Reich/Glass layered repetition), cinematic (drone+riser+impact). 3 scales, 2-8 bars, seeded PRNG.
+- `create_outro` — Closing section: fade (gradual thinning), ritardando (slowing + fermata), recap (return to opening), pedal (V-I resolution), cadential (running notes to fermata). 3 scales, 2-8 bars, seeded PRNG. Pairs with create_intro.
+- `create_bridge` — Contrast section: breakdown (sparse bass + stabs), modulation (key shift up m3), solo (dense melodic over I-IV-V-I), atmospheric (sustained chromatic tones), surprise (staccato bursts at odd positions). 3 scales, 2-8 bars, seeded PRNG.
+- `create_interlude` — Connective tissue between sections: instrumental (solo melodic break), atmospheric (sustained I-IV-V-I pad), breakdown (single root → add layers), reprise (callback motif at different octave), contrapuntal (2-3 independent lines, contrary motion). 3 scales, 2-4 bars, seeded PRNG.
+- `create_coda` — Formal closing: theme (final statement, fermata), vamp (I-IV-V-I repeat fading), codetta (2-bar tag, scale run into tonic), postlude (instrumental winding down), fanfare (ascending arpeggios + tutti hits). 3 scales, 2-8 bars, seeded PRNG.
 
 ### World Rhythm (15 traditions)
 - `create_songo_pattern` / `create_samba_pattern` / `create_djembe_ensemble` — Afro-Cuban/Brazilian/West African
@@ -454,8 +461,8 @@ When adding a new orchestration tool:
 - `scale_velocity` / `copy_notes_to_track` / `scale_durations` / `groove_transfer` / `time_warp_notes` / `force_scale_notes` — transformation
 - `identify_chords` / `diatonic_transpose_notes` / `shift_mode` — harmony analysis
 
-### DSP Scripts (119 total: 98 Werkstatt + 9 Apparat + 10 Spielwerk)
-Key additions: `sidechain_comp`, `ott`, `soft_clipper`, `plate_reverb`, `ensemble`, `cabinet_sim`, `valve_preamp`, `synthetic_ir_reverb`
+### DSP Scripts (126 total: 107 Werkstatt + 9 Apparat + 10 Spielwerk)
+Key additions: `sidechain_comp`, `ott`, `soft_clipper`, `plate_reverb`, `ensemble`, `cabinet_sim`, `valve_preamp`, `synthetic_ir_reverb`, `tank_reverb` (spring tank), `bx_saturator` (3-band multi-band saturation), `nyquist_comp` (parallel/New York compression), `thermal_comp` (LA-2A optical compressor), `analog_delay` (BBD), `distortion_pedal` (DS-1/Rat), `cassette_sim`
 
 ## PyPI Publishing Workflow
 
