@@ -39774,6 +39774,254 @@ async def mcp_opendaw_create_djembe_ensemble(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_arabic_percussion(
+    bars: int = 4,
+    rhythm: str = "maqsum",
+    velocity: float = 0.75,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    darbuka_pitch: int = 36,
+    daf_pitch: int = 42,
+    zills_pitch: int = 50,
+) -> str:
+    """Create an Arabic/Middle Eastern percussion ensemble — darbuka, daf, and zills.
+
+    Middle Eastern percussion is built on the interplay between the darbuka
+    (tabla, goblet drum) playing the core rhythm with dum (low) and tek/ka
+    (high) strokes, the daf (frame drum) providing sustained resonance and
+    rolls, and zills (sagat, finger cymbals) adding shimmering accents. The
+    rhythms are cyclical with distinctive asymmetry — maqsum has a
+    characteristic gap between dum strokes that creates tension.
+
+    The stroke vocabulary:
+      DUM — Low, resonant center stroke on darbuka (bass register)
+      TEK — High, ringing rim stroke (right hand, accented)
+      KA  — High, snapping rim stroke (left hand, lighter)
+      SLAP — Sharp, accented stroke (mid register)
+
+    rhythms:
+      "maqsum"   — The most common Arabic rhythm: D-T- -T-D- -T-.
+                    4/4, 8 beats. Dum on 1 and 4.5, tek on 2, 3, 5.5, 7.
+                    The "mother of all Arabic rhythms". Used in almost all
+                    Arabic pop, classical, and folk music.
+      "baladi"   — Urban Egyptian version of maqsum: D-D- -T-D- -T-.
+                    Dum on 1 and 1.5 (double dum), tek on 3, 5.5, 7.
+                    Heavier, more driving. The "baladi groove" of Cairo.
+      "saidi"    — Upper Egyptian rhythm: D-T- -T-D-D- -T-. 4/4.
+                    Dum on 1, 4.5, and 5 (double dum). Tek on 2, 3, 6.5, 7.
+                    From the Said region. Used in Saidi dance and music.
+      "ayoub"    — 2/4 cyclical rhythm: D- -T- -D-D-. 4 beats.
+                    Dum on 1, 3, 3.5. Tek on 2. Used in Sufi trance,
+                    zar ceremonies, and religious processions.
+      "malfouf"  — 2/4 fast rhythm: D- -T- -T-. 3 beats.
+                    Dum on 1, tek on 2, 2.5. Used in fast entrances,
+                    processions, and folk dances. "Running" feel.
+      "chiftetelli" — 8/4 slow rhythm: D- -T- -T- -D- -T-. 8 beats.
+                    Dum on 1 and 5.5, tek on 2.5, 3.5, 7.5.
+                    Used in Turkish and Greek music, belly dance slow sections.
+
+    Args:
+        bars: Pattern length in bars (2-16, even).
+        rhythm: Rhythm name (maqsum, baladi, saidi, ayoub, malfouf, chiftetelli).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        darbuka_pitch: Darbuka MIDI pitch (36 = C1).
+        daf_pitch: Daf (frame drum) MIDI pitch (42 = F#1).
+        zills_pitch: Zills (finger cymbals) MIDI pitch (50 = D2).
+
+    Returns notes created, instrument breakdown, stroke types, and rhythm info.
+    """
+    if not (2 <= bars <= 16) or bars % 2 != 0:
+        return f"Error: bars must be even and 2-16, got {bars}"
+    if rhythm not in ("maqsum", "baladi", "saidi", "ayoub", "malfouf", "chiftetelli"):
+        return f"Error: rhythm must be one of maqsum, baladi, saidi, ayoub, malfouf, chiftetelli, got {rhythm}"
+
+    # Stroke types: D (dum), T (tek), K (ka), S (slap), - (rest)
+    # Each rhythm: (beat, stroke, instrument) per cycle
+    # instrument: "darbuka", "daf", "zills"
+    # cycle length varies per rhythm
+    RHYTHMS = {
+        "maqsum": {
+            "cycle_beats": 8.0,
+            "darbuka": [
+                (0.0, "D", 1.0, 0.4),    # dum
+                (1.0, "T", 0.6, 0.12),   # tek
+                (2.0, "K", 0.5, 0.1),    # ka
+                (3.5, "D", 0.9, 0.35),   # dum (syncopated)
+                (5.0, "T", 0.6, 0.12),   # tek
+                (6.0, "K", 0.5, 0.1),    # ka
+                (7.0, "T", 0.65, 0.12),  # tek
+            ],
+            "daf": [
+                (0.0, "D", 0.7, 0.5),
+                (3.5, "D", 0.6, 0.4),
+            ],
+            "zills": [
+                (1.0, "T", 0.4, 0.08),
+                (2.0, "T", 0.35, 0.08),
+                (5.0, "T", 0.4, 0.08),
+                (6.0, "T", 0.35, 0.08),
+            ],
+        },
+        "baladi": {
+            "cycle_beats": 8.0,
+            "darbuka": [
+                (0.0, "D", 1.0, 0.4),
+                (0.5, "D", 0.85, 0.35),  # double dum
+                (2.0, "T", 0.6, 0.12),
+                (3.5, "D", 0.9, 0.35),
+                (5.0, "T", 0.6, 0.12),
+                (6.0, "K", 0.5, 0.1),
+                (7.0, "T", 0.65, 0.12),
+            ],
+            "daf": [
+                (0.0, "D", 0.8, 0.5),
+                (0.5, "D", 0.7, 0.4),
+                (3.5, "D", 0.6, 0.4),
+            ],
+            "zills": [
+                (2.0, "T", 0.4, 0.08),
+                (5.0, "T", 0.4, 0.08),
+                (6.0, "T", 0.35, 0.08),
+            ],
+        },
+        "saidi": {
+            "cycle_beats": 8.0,
+            "darbuka": [
+                (0.0, "D", 1.0, 0.4),
+                (1.0, "T", 0.6, 0.12),
+                (2.0, "K", 0.5, 0.1),
+                (3.5, "D", 0.9, 0.35),
+                (4.0, "D", 0.85, 0.35),  # double dum
+                (5.5, "T", 0.6, 0.12),
+                (6.5, "K", 0.5, 0.1),
+                (7.0, "T", 0.65, 0.12),
+            ],
+            "daf": [
+                (0.0, "D", 0.8, 0.5),
+                (3.5, "D", 0.7, 0.4),
+                (4.0, "D", 0.7, 0.4),
+            ],
+            "zills": [
+                (1.0, "T", 0.4, 0.08),
+                (2.0, "T", 0.35, 0.08),
+                (5.5, "T", 0.4, 0.08),
+                (6.5, "T", 0.35, 0.08),
+            ],
+        },
+        "ayoub": {
+            "cycle_beats": 4.0,
+            "darbuka": [
+                (0.0, "D", 1.0, 0.4),
+                (1.0, "T", 0.6, 0.12),
+                (2.0, "D", 0.9, 0.35),
+                (2.5, "D", 0.85, 0.35),  # double dum
+            ],
+            "daf": [
+                (0.0, "D", 0.8, 0.4),
+                (2.0, "D", 0.7, 0.35),
+            ],
+            "zills": [
+                (1.0, "T", 0.4, 0.08),
+            ],
+        },
+        "malfouf": {
+            "cycle_beats": 4.0,
+            "darbuka": [
+                (0.0, "D", 1.0, 0.35),
+                (1.0, "T", 0.6, 0.12),
+                (1.5, "T", 0.5, 0.1),
+                (2.5, "T", 0.55, 0.12),
+                (3.0, "K", 0.5, 0.1),
+            ],
+            "daf": [
+                (0.0, "D", 0.7, 0.35),
+            ],
+            "zills": [
+                (1.0, "T", 0.4, 0.08),
+                (1.5, "T", 0.35, 0.08),
+                (2.5, "T", 0.4, 0.08),
+                (3.0, "T", 0.35, 0.08),
+            ],
+        },
+        "chiftetelli": {
+            "cycle_beats": 8.0,
+            "darbuka": [
+                (0.0, "D", 1.0, 0.5),
+                (1.5, "T", 0.55, 0.12),
+                (2.5, "T", 0.5, 0.1),
+                (4.5, "D", 0.85, 0.4),
+                (6.5, "T", 0.6, 0.12),
+            ],
+            "daf": [
+                (0.0, "D", 0.8, 0.6),
+                (4.5, "D", 0.7, 0.5),
+            ],
+            "zills": [
+                (1.5, "T", 0.35, 0.08),
+                (2.5, "T", 0.3, 0.08),
+                (6.5, "T", 0.35, 0.08),
+            ],
+        },
+    }
+
+    pitch_map = {"darbuka": darbuka_pitch, "daf": daf_pitch, "zills": zills_pitch}
+
+    # Dum = lower pitch, tek/ka = higher pitch on same instrument
+    stroke_pitch_offset = {"D": -5, "T": 2, "K": 4, "S": 0}
+
+    rhythm_data = RHYTHMS[rhythm]
+    cycle_beats = rhythm_data["cycle_beats"]
+    instruments = ["darbuka", "daf", "zills"]
+
+    # Calculate how many cycles fit in bars
+    beats_total = bars * 4  # assume 4/4
+    cycles = max(1, int(beats_total / cycle_beats))
+
+    all_notes = []
+    inst_counts = {"darbuka": 0, "daf": 0, "zills": 0}
+    stroke_counts = {"D": 0, "T": 0, "K": 0, "S": 0}
+
+    for inst in instruments:
+        strokes = rhythm_data[inst]
+        for c in range(cycles):
+            offset = c * cycle_beats
+            for beat, stroke, vel_mult, dur in strokes:
+                pos = round(start_beat + offset + beat, 4)
+                pitch = pitch_map[inst] + stroke_pitch_offset.get(stroke, 0)
+                vel = round(max(0.0, min(1.0, velocity * vel_mult)), 3)
+                all_notes.append({
+                    "pitch": max(0, min(127, pitch)),
+                    "start": pos,
+                    "duration": dur,
+                    "velocity": vel,
+                })
+                inst_counts[inst] += 1
+                if stroke in stroke_counts:
+                    stroke_counts[stroke] += 1
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["arabic_percussion"] = True
+        data["rhythm"] = rhythm
+        data["bars"] = bars
+        data["cycles"] = cycles
+        data["instruments"] = instruments
+        data["instrument_counts"] = inst_counts
+        data["stroke_counts"] = stroke_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.295.0 (2026-07-06)
+
+- **`create_arabic_percussion`** — Arabic/Middle Eastern percussion ensemble: darbuka (dum/tek/ka strokes), daf (frame drum), zills (finger cymbals). 6 rhythms: maqsum (the mother rhythm), baladi (urban Egyptian double-dum), saidi (Upper Egyptian), ayoub (Sufi trance 2/4), malfouf (fast running 2/4), chiftetelli (slow 8/4 belly dance). Dum = low center stroke, tek = high rim, ka = left-hand rim. Stroke-to-pitch offset: dum lowers, tek/ka raise pitch. Arabic, Turkish, Persian traditions.
+
 ## v1.294.0 (2026-07-06)
 
 - **`create_djembe_ensemble`** — West African djembe/dunun ensemble: cyclical ostinato with call-and-response. 6 instruments: kenkeni (high dunun), sangban (mid dunun), dundunba (low dunun), bell (timeline), djembe2 (accompaniment), djembe1 (lead/improvisation). 4 traditional rhythms: danza (Malian welcoming), kuku (Guinean celebration), djole (Sierra Leonean), doundounba (dance of the strong men). Unlike samba (parade) or songo (drum kit), West African drumming is cyclical ostinato under improvised lead. Mali, Guinea, Senegal tradition.
