@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 178 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.318.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 178+ orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.325.0"
 ---
 
 # openDAW Composition Patterns
@@ -158,9 +158,10 @@ What do you want to create?
 ├── Reggae percussion → create_reggae_percussion (Jamaican drum patterns, 6 styles: one_drop/rockers/steppers/ska/rocksteady/dancehall, GM percussion, swing)
 ├── Konokol (solkattu) → create_konokol (Indian Carnatic vocal percussion, 6 talas: adi_tala/roopaka/khanda_chapu/mishra_chapu/triputa/jhampa, syllable→pitch mapping)
 │
-├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
-│   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
-│   └── synthwave/trance/disco/afrobeat/rock/jazz/pop/funk/reggae (4 tracks)
+├── Multi-track genre arrangement → create_XXX_arrangement (32 genres)
+│   ├── dnb/liquid_dnb/neurofunk/house/trap/techno/dubstep (3-4 tracks: drums+bass+pad+stabs)
+│   ├── synthwave/trance/disco/afrobeat/rock/jazz/pop/funk/reggae (4 tracks)
+│   └── soul/rnb/blues/country/metal/gospel/edm/hardstyle/garage/acid/psytrance/breakbeat/downtempo/ambient (4-5 tracks)
 │
 ├── Genre-aware mix → apply_genre_mix (14 genres: comp/EQ/sat/reverb/sidechain)
 ├── Genre-aware humanize → apply_genre_humanization (14 genres: jazz=loose, techno=tight)

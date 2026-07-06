@@ -27,6 +27,7 @@ jobs:
           count = len(tools)
           print(f'MCP tools found: {count}')
           assert count >= 380, f'Expected at least 380 tools, got {count}'
+          print(f'MCP tools found: {count} (threshold: 380)')
           print('Tool count verification passed!')
           "
       - name: Validate DSP scripts exist and syntax

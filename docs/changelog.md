@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.325.0 (2026-07-06) — 500 MILESTONE
+
+- **`create_neurofunk_arrangement`** — Neurofunk DnB: 174 BPM dark technical DnB. 4 tracks: complex chopped breakbeat (extra kick placements, ghost note clusters/snare rolls at phrase ends), deep sustained sub-bass (syncopated gaps), Reese bass (detuned saw with chromatic slides and minor third jumps, rhythmic stabs), dark minor chord stabs (root+b3+tritone+b7). F minor default. Noisia, Spor, Phace. 22 unit tests. **500 MCP tools milestone.**
+
 ## v1.324.0 (2026-07-06)
 
 - **`create_ambient_arrangement`** — Ambient: 70 BPM atmospheric soundscape. 4 tracks: sustained pad (open voicings: root/fifth/octave/third, 8 bars per chord), sparse drifting melody (2-4 bar notes, starts bar 9), subliminal drums (kick every 8 bars, shaker every 4), sub-bass drone (root only, 8 bars per note). I-vi-IV-V harmony. C major default. Brian Eno, Stars of the Lid, Aphex Twin SAW. 21 unit tests. 499 MCP tools.
