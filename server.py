@@ -29884,6 +29884,210 @@ async def mcp_opendaw_create_konokol(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_comparsa(
+    style: str = "habanera",
+    bars: int = 2,
+    tempo_bpm: float = 100.0,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create Cuban comparsa — carnival procession percussion.
+
+    Comparsa is the percussion ensemble that accompanies Cuban carnival
+    street processions (conga line). Rooted in Afro-Cuban tradition,
+    it is the ancestor of salsa and modern Latin pop. The driving energy
+    comes from layered conga drums with interlocking patterns.
+
+    Instruments (GM percussion mapping):
+    - Conga low (54) — tumbadora, bass tone
+    - Conga high (63) — quinto, slap tone
+    - Conga open (64) — conga open tone
+    - Clave (75) — wooden claves, the timeline
+    - Cowbell (56) — cencerro, driving pulse
+    - Maracas (70) — shaker
+    - Guiro (73) — scraped gourd
+
+    Styles:
+      - habanera: Classic Havana carnival. Conga pattern with clave 3-2,
+        cowbell steady 8ths, maracas on offbeats. The street procession
+        feel. 90-110 BPM.
+      - santiago: Eastern Cuba, rumba-influenced. More syncopated conga
+        patterns, guiro scrapes, claves 2-3. Looser feel.
+      - matanzas: Rumba columbia roots. Quinto improvisation feel,
+        open conga tones, sparse cowbell. Afro-Cuban spiritual energy.
+      - conga_line: Street procession — marching feel. Steady bass
+        conga on every beat, quinto syncopation, cowbell accent pattern.
+        Designed for dancing in a line.
+      - comparsa_moderna: Modern carnival — faster, denser, 16th-note
+        maracas, driving cowbell, layered congas. Salsa-influenced energy.
+
+    Creates notes on track_index using GM percussion.
+    """
+    valid_styles = ["habanera", "santiago", "matanzas", "conga_line", "comparsa_moderna"]
+    if style not in valid_styles:
+        return json.dumps({"error": f"Invalid style '{style}'. Valid: {valid_styles}"})
+
+    CONGA_LOW = 54    # tumbadora (bass)
+    CONGA_HIGH = 63   # quinto (slap)
+    CONGA_OPEN = 64   # conga open tone
+    CLAVE = 75        # wooden claves
+    COWBELL = 56      # cencerro
+    MARACAS = 70      # shaker
+    GUIRO = 73        # scraped gourd
+
+    beats_per_bar = 4
+    total_beats = bars * beats_per_bar
+
+    notes = []
+
+    def add(pitch, beat_pos, dur, vel):
+        notes.append({
+            "pitch": pitch,
+            "start": round(start_beat + beat_pos, 4),
+            "duration": round(dur, 4),
+            "velocity": round(max(0.0, min(1.0, vel)), 3),
+        })
+
+    for bar in range(bars):
+        bar_start = bar * beats_per_bar
+
+        if style == "habanera":
+            # 3-2 clave: beats (2.5, 3, 4.5) in bar 1 (3 side), (1, 2.5) in bar 2 (2 side)
+            # Simplified: 3-2 pattern over 2 bars
+            clave_pattern = [(1.5, 0.3), (2.0, 0.3), (2.5, 0.3)] if bar == 0 else [(0.5, 0.3), (1.5, 0.3)]
+            for beat, dur in clave_pattern:
+                add(CLAVE, bar_start + beat, dur, velocity * 0.7)
+            # Conga: low on 1 and 3, open on 2 and 4, high slap on 2.5 and 4.5
+            add(CONGA_LOW, bar_start + 0.0, 0.5, velocity * 0.85)
+            add(CONGA_OPEN, bar_start + 1.0, 0.4, velocity * 0.7)
+            add(CONGA_LOW, bar_start + 2.0, 0.5, velocity * 0.85)
+            add(CONGA_OPEN, bar_start + 3.0, 0.4, velocity * 0.7)
+            add(CONGA_HIGH, bar_start + 2.5, 0.2, velocity * 0.6)  # slap
+            add(CONGA_HIGH, bar_start + 0.5, 0.2, velocity * 0.5)  # ghost slap
+            # Cowbell: steady 8ths
+            for h in range(8):
+                add(COWBELL, bar_start + h * 0.5, 0.25, velocity * (0.5 if h % 2 == 0 else 0.4))
+            # Maracas: offbeats
+            for h in range(4):
+                add(MARACAS, bar_start + h * 1.0 + 0.5, 0.2, velocity * 0.35)
+
+        elif style == "santiago":
+            # 2-3 clave
+            clave_pattern = [(0.5, 0.3), (1.5, 0.3)] if bar == 0 else [(1.5, 0.3), (2.0, 0.3), (2.5, 0.3)]
+            for beat, dur in clave_pattern:
+                add(CLAVE, bar_start + beat, dur, velocity * 0.7)
+            # More syncopated conga
+            add(CONGA_LOW, bar_start + 0.0, 0.5, velocity * 0.8)
+            add(CONGA_OPEN, bar_start + 0.75, 0.3, velocity * 0.6)
+            add(CONGA_HIGH, bar_start + 1.0, 0.2, velocity * 0.65)  # slap on 2
+            add(CONGA_OPEN, bar_start + 1.5, 0.3, velocity * 0.6)
+            add(CONGA_LOW, bar_start + 2.0, 0.5, velocity * 0.8)
+            add(CONGA_OPEN, bar_start + 2.75, 0.3, velocity * 0.6)
+            add(CONGA_HIGH, bar_start + 3.0, 0.2, velocity * 0.65)
+            add(CONGA_OPEN, bar_start + 3.5, 0.3, velocity * 0.6)
+            # Guiro: long and short scrapes
+            add(GUIRO, bar_start + 0.0, 0.5, velocity * 0.4)  # long scrape
+            add(GUIRO, bar_start + 1.5, 0.25, velocity * 0.35)  # short scrape
+            add(GUIRO, bar_start + 2.0, 0.5, velocity * 0.4)
+            add(GUIRO, bar_start + 3.5, 0.25, velocity * 0.35)
+            # Cowbell: accent pattern (1, 2.5, 3, 4)
+            for beat in [0, 2.5, 3.0, 3.5]:
+                add(COWBELL, bar_start + beat, 0.25, velocity * 0.5)
+
+        elif style == "matanzas":
+            # Sparse, rumba columbia feel — quinto improvisation
+            add(CONGA_LOW, bar_start + 0.0, 0.6, velocity * 0.75)
+            add(CONGA_OPEN, bar_start + 2.0, 0.5, velocity * 0.6)
+            # Quinto "improvisation" — syncopated slaps
+            quinto_hits = [0.75, 1.5, 1.75, 2.5, 3.25, 3.75]
+            for q in quinto_hits:
+                add(CONGA_HIGH, bar_start + q, 0.15, velocity * (0.5 + 0.1 * (q % 1)))
+            # Open tones fill
+            add(CONGA_OPEN, bar_start + 1.0, 0.4, velocity * 0.55)
+            add(CONGA_OPEN, bar_start + 3.0, 0.4, velocity * 0.55)
+            # Sparse cowbell — only on 1 and 3
+            add(COWBELL, bar_start + 0.0, 0.3, velocity * 0.5)
+            add(COWBELL, bar_start + 2.0, 0.3, velocity * 0.5)
+            # Maracas: steady but soft
+            for h in range(8):
+                add(MARACAS, bar_start + h * 0.5, 0.15, velocity * 0.3)
+
+        elif style == "conga_line":
+            # Marching feel — steady bass conga every beat
+            for beat in range(4):
+                add(CONGA_LOW, bar_start + beat, 0.5, velocity * 0.8)
+            # Quinto syncopation
+            add(CONGA_HIGH, bar_start + 0.5, 0.2, velocity * 0.6)
+            add(CONGA_HIGH, bar_start + 1.5, 0.2, velocity * 0.65)
+            add(CONGA_HIGH, bar_start + 2.5, 0.2, velocity * 0.6)
+            add(CONGA_HIGH, bar_start + 3.5, 0.2, velocity * 0.65)
+            # Open conga on offbeats
+            for beat in range(4):
+                add(CONGA_OPEN, bar_start + beat + 0.5, 0.3, velocity * 0.5)
+            # Cowbell: accent pattern (1, 3) strong
+            add(COWBELL, bar_start + 0.0, 0.3, velocity * 0.7)
+            add(COWBELL, bar_start + 2.0, 0.3, velocity * 0.7)
+            # Cowbell fill on beats 3.5, 3.75
+            add(COWBELL, bar_start + 3.5, 0.15, velocity * 0.45)
+            add(COWBELL, bar_start + 3.75, 0.15, velocity * 0.45)
+            # Clave: 3-2
+            clave_pattern = [(1.5, 0.3), (2.0, 0.3), (2.5, 0.3)] if bar == 0 else [(0.5, 0.3), (1.5, 0.3)]
+            for beat, dur in clave_pattern:
+                add(CLAVE, bar_start + beat, dur, velocity * 0.6)
+
+        else:  # comparsa_moderna
+            # Dense, fast, salsa-influenced
+            # 16th maracas
+            for h in range(16):
+                add(MARACAS, bar_start + h * 0.25, 0.1, velocity * (0.3 if h % 2 == 0 else 0.25))
+            # Driving cowbell 8ths with accent on 1
+            for h in range(8):
+                cv = velocity * (0.6 if h == 0 else 0.45)
+                add(COWBELL, bar_start + h * 0.5, 0.2, cv)
+            # Layered congas — low every beat, open syncopated
+            for beat in range(4):
+                add(CONGA_LOW, bar_start + beat, 0.4, velocity * 0.8)
+            # Open conga 16th syncopation
+            open_hits = [0.5, 1.25, 1.75, 2.5, 3.25, 3.75]
+            for oh in open_hits:
+                add(CONGA_OPEN, bar_start + oh, 0.2, velocity * 0.55)
+            # Quinto slams on 2 and 4
+            add(CONGA_HIGH, bar_start + 1.0, 0.2, velocity * 0.7)
+            add(CONGA_HIGH, bar_start + 3.0, 0.2, velocity * 0.7)
+            # Quinto ghost
+            add(CONGA_HIGH, bar_start + 1.75, 0.1, velocity * 0.4)
+            add(CONGA_HIGH, bar_start + 3.75, 0.1, velocity * 0.4)
+            # Clave 2-3
+            clave_pattern = [(0.5, 0.3), (1.5, 0.3)] if bar == 0 else [(1.5, 0.3), (2.0, 0.3), (2.5, 0.3)]
+            for beat, dur in clave_pattern:
+                add(CLAVE, bar_start + beat, dur, velocity * 0.55)
+
+    notes_json = json.dumps(notes)
+    result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+        data["comparsa"] = True
+        data["style"] = style
+        data["bars"] = bars
+        data["tempo_bpm"] = tempo_bpm
+        data["total_notes"] = len(notes)
+        data["cycle_beats"] = beats_per_bar
+        data["total_beats"] = total_beats
+        data["instruments"] = {
+            "conga_low": CONGA_LOW, "conga_high": CONGA_HIGH,
+            "conga_open": CONGA_OPEN, "clave": CLAVE,
+            "cowbell": COWBELL, "maracas": MARACAS, "guiro": GUIRO,
+        }
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""

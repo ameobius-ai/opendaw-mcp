@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.314.0 (2026-07-06)
+
+- **`create_comparsa`** — Cuban comparsa: carnival procession percussion. 7 instruments (conga low 54/high 63/open 64, claves 75, cowbell 56, maracas 70, guiro 73). 5 styles: habanera (classic 3-2 clave, cowbell 8ths), santiago (2-3 rumba-influenced, guiro scrapes), matanzas (rumba columbia, sparse, no claves, quinto improvisation), conga_line (marching, bass every beat), comparsa_moderna (16th maracas, salsa-influenced). Ancestor of salsa. 15th world rhythm tradition. Cuba. 25 unit tests. 489 MCP tools.
+
 ## v1.313.0 (2026-07-06)
 
 - **`create_konokol`** — Indian Carnatic konokol (solkattu): vocal percussion as MIDI. 6 tala structures: adi_tala (8-beat cycle, most common), roopaka_tala (6-beat 3/4), khanda_chapu (5-beat asymmetric), mishra_chapu (7-beat lyrical), triputa_tala (7-beat variant), jhampa_tala (10-beat). Syllable-to-pitch mapping (ta/ka→hat 42, dhi/nam→snare 38, mi→tom 43, thom/ghu→bass 36, khatam→tom 45). Subdivision emphasis — first syllable of each group = full velocity, others 0.65×. 14th world rhythm tradition. India. 26 unit tests. 488 MCP tools.
