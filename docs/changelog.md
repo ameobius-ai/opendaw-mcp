@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.344.0 (2026-07-06)
+
+- **`werkstatt_bx_saturator.js`** — BX-style multi-band saturator. 3-band crossover (200Hz/2kHz) with independent saturation per band: tube-style 2nd harmonic on lows, tape-style 3rd harmonic on mids, transformer-style odd harmonics on highs. Blend control, output trim. 124 DSP scripts. Mixing/mastering harmonic enhancement.
+
 ## v1.343.0 (2026-07-06)
 
 - **`werkstatt_tank_reverb.js`** — Spring tank reverb (Accutronics Type 9). 4 dispersive delay lines, allpass dispersion for metallic "boing" character, damping lowpass, drive saturation into tank, stereo spread, predelay, DC blocker. 5 params: decay, damp, spread, drive, mix. 123 DSP scripts. Surf rock, dub, reggae, guitar amp reverb.
