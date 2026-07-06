@@ -3,13 +3,13 @@
 // M/S stereo widener + HF harmonic exciter combo
 // Adds "air" and width to dull/narrow mixes — brightens highs with harmonics
 // while widening the stereo field. Inspired by plugin "air" tools (BX cleansweep, Ozone Exciter)
-// @param air 0.5 linear      // HF harmonic exciter amount (0=off, 1=max air)
-// @param width 0.5 linear    // stereo width (0=mono, 0.5=normal, 1=wide)
-// @param freq 0.3 linear     // crossover frequency for air band (2-12 kHz)
-// @param harmonics 0.5 linear // harmonic type (0=2nd, 0.5=mix, 1=3rd)
-// @param mix 1.0 linear      // wet/dry mix (0=dry, 1=full processed)
+// @param air 0.5 0 1 linear      // HF harmonic exciter amount (0=off, 1=max air)
+// @param width 0.5 0 1 linear    // stereo width (0=mono, 0.5=normal, 1=wide)
+// @param freq 0.3 0 1 linear     // crossover frequency for air band (2-12 kHz)
+// @param harmonics 0.5 0 1 linear // harmonic type (0=2nd, 0.5=mix, 1=3rd)
+// @param mix 1.0 0 1 linear      // wet/dry mix (0=dry, 1=full processed)
 
-class Aire {
+class Processor {
     constructor(sampleRate, blockSize) {
         this.sampleRate = sampleRate;
         this.blockSize = blockSize;

@@ -27,9 +27,20 @@ from server import (
     mcp_opendaw_set_effect_parameter,
     mcp_opendaw_set_track_volume,
     mcp_opendaw_set_track_panning,
+    mcp_opendaw_set_script_device_code,
+    mcp_opendaw_set_script_param,
     mcp_opendaw_render_full,
 )
 from opendaw_mcp.bridge import HeadlessDawBridge
+
+SCRIPTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts")
+
+
+def _load_script(name):
+    """Load a Werkstatt DSP script by name (without werkstatt_ prefix and .js suffix)."""
+    path = os.path.join(SCRIPTS_DIR, f"werkstatt_{name}.js")
+    with open(path, "r") as f:
+        return f.read()
 
 # === EDIT THIS SECTION ===
 STEMS_DIR = "/mnt/c/Users/admin/Downloads"
@@ -39,8 +50,8 @@ STEMS = [
     ("anchor",  f"{STEMS_DIR}/Last Light of Summer.wav",                  -6.0,  0.0,  True),
     ("vocal_1", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal).wav",      -2.0, -0.3, False),
     ("vocal_2", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal)(1).wav",   -3.0,  0.3, False),
-    ("acoustic",f"{STEMS_DIR}/Last Light of Summer (Acoustic Guitar).wav", -4.0, -0.2, False),
-    ("guitar",  f"{STEMS_DIR}/Last Light of Summer (Guitar).wav",          -5.0,  0.25, False),
+    ("acoustic",f"{STEMS_DIR}/Last Light of Summer (Acoustic Guitar).wav", -4.0, -0.7, False),
+    ("guitar",  f"{STEMS_DIR}/Last Light of Summer (Guitar).wav",          -5.0,  0.7, False),
     ("bass",    f"{STEMS_DIR}/Last Light of Summer (Bass).wav",            -3.0,  0.0, False),
     ("drums",   f"{STEMS_DIR}/Last Light of Summer (Drum Kit).wav",        -4.0,  0.0, False),
 ]
@@ -48,9 +59,21 @@ STEMS = [
 # Effects: (stem_index, effect_type, {param: value})
 # stem_index = position in STEMS list (0=anchor, 1=vocal_1, ...)
 EFFECTS = [
+    # Vocals: HPF 100Hz + lowmid 350Hz +2dB + presence 3kHz +2.5dB + air 12kHz +5dB
+    (1, "Werkstatt", {"__script__": "paraeq", "hp_freq": 100, "band1_freq": 350, "band1_gain": 2.0, "band1_q": 1.0, "band2_freq": 3000, "band2_gain": 2.5, "band2_q": 1.2, "band3_freq": 12000, "band3_gain": 5.0, "band3_q": 0.7}),
+    (2, "Werkstatt", {"__script__": "paraeq", "hp_freq": 100, "band1_freq": 350, "band1_gain": 2.0, "band1_q": 1.0, "band2_freq": 3000, "band2_gain": 2.5, "band2_q": 1.2, "band3_freq": 12000, "band3_gain": 5.0, "band3_q": 0.7}),
+    # Acoustic: HPF 120Hz + lowmid 350Hz +1.5dB + presence 3kHz +2dB + air 12kHz +4dB
+    (3, "Werkstatt", {"__script__": "paraeq", "hp_freq": 120, "band1_freq": 350, "band1_gain": 1.5, "band1_q": 1.0, "band2_freq": 3000, "band2_gain": 2.0, "band2_q": 1.2, "band3_freq": 12000, "band3_gain": 4.0, "band3_q": 0.7}),
+    # Guitar: HPF 120Hz + lowmid 400Hz +1.5dB + presence 4kHz +2dB + air 10kHz +4dB
+    (4, "Werkstatt", {"__script__": "paraeq", "hp_freq": 120, "band1_freq": 400, "band1_gain": 1.5, "band1_q": 1.0, "band2_freq": 4000, "band2_gain": 2.0, "band2_q": 1.0, "band3_freq": 10000, "band3_gain": 4.0, "band3_q": 0.7}),
+    # Bass: HPF 30Hz + slight cut at 250Hz to reduce mud
+    (5, "Werkstatt", {"__script__": "paraeq", "hp_freq": 30, "band1_freq": 250, "band1_gain": -1.5, "band1_q": 1.2}),
+    # Vocals: compressor
     (1, "Compressor", {"threshold": -18, "ratio": 3, "attack": 0.003, "release": 0.25}),
     (2, "Compressor", {"threshold": -18, "ratio": 3, "attack": 0.003, "release": 0.25}),
+    # Drums: compressor
     (6, "Compressor", {"threshold": -12, "ratio": 4, "attack": 0.001, "release": 0.15}),
+    # Reverb on vocals + acoustic
     (1, "Reverb",     {"wet": 0.35, "dry": 0.8}),
     (2, "Reverb",     {"wet": 0.35, "dry": 0.8}),
     (3, "Reverb",     {"wet": 0.20, "dry": 0.8}),
@@ -58,7 +81,8 @@ EFFECTS = [
 
 # Mastering on primary bus (unit 0)
 MASTERING = [
-    ("Maximizer", {"ceiling": -1.0, "gain": 2.0}),
+    # Maximizer: gain 0dB (post-prod will handle LUFS)
+    ("Maximizer", {"ceiling": -0.5, "gain": 0.0}),
 ]
 
 OUTPUT_NAME = "last_light_of_summer"
@@ -123,25 +147,57 @@ async def main():
             continue
         uid = unit_indices[stem_idx]
         add_d = _parse(await mcp_opendaw_add_effect(effect_type=effect_type, unit_index=uid))
-        if add_d and add_d.get("success"):
-            fx_idx = add_d.get("effect_index", 0)
+        if not add_d or not add_d.get("success"):
+            print(f"  unit {uid}: {effect_type} ❌ {add_d}")
+            continue
+        fx_idx = add_d.get("effect_index", 0)
+
+        # Werkstatt: load script, set code, then set params
+        if effect_type == "Werkstatt" and "__script__" in params:
+            script_name = params.pop("__script__")
+            code = _load_script(script_name)
+            code_d = _parse(await mcp_opendaw_set_script_device_code(
+                device_type="werkstatt", unit_index=uid, device_index=fx_idx, code=code
+            ))
+            if not code_d or not code_d.get("success"):
+                print(f"  unit {uid}: {script_name} code ❌ {code_d}")
+                continue
+            # Set params via set_script_param
+            for pname, value in params.items():
+                await mcp_opendaw_set_script_param("werkstatt", uid, fx_idx, pname, value)
+            print(f"  unit {uid}: {script_name} ✅")
+        else:
+            # Regular effect: set params via set_effect_parameter
             for pname, value in params.items():
                 await mcp_opendaw_set_effect_parameter(uid, fx_idx, pname, value)
             print(f"  unit {uid}: {effect_type} ✅")
-        else:
-            print(f"  unit {uid}: {effect_type} ❌ {add_d}")
 
     # Step 3: Mastering
     print("\n=== Step 3: Mastering on primary bus ===")
     for effect_type, params in MASTERING:
         add_d = _parse(await mcp_opendaw_add_effect(effect_type=effect_type, unit_index=0))
-        if add_d and add_d.get("success"):
-            fx_idx = add_d.get("effect_index", 0)
+        if not add_d or not add_d.get("success"):
+            print(f"  {effect_type} ❌ {add_d}")
+            continue
+        fx_idx = add_d.get("effect_index", 0)
+
+        # Werkstatt: load script, set code, then set params
+        if effect_type == "Werkstatt" and "__script__" in params:
+            script_name = params.pop("__script__")
+            code = _load_script(script_name)
+            code_d = _parse(await mcp_opendaw_set_script_device_code(
+                device_type="werkstatt", unit_index=0, device_index=fx_idx, code=code
+            ))
+            if not code_d or not code_d.get("success"):
+                print(f"  {script_name} code ❌ {code_d}")
+                continue
+            for pname, value in params.items():
+                await mcp_opendaw_set_script_param("werkstatt", 0, fx_idx, pname, value)
+            print(f"  {script_name} ✅")
+        else:
             for pname, value in params.items():
                 await mcp_opendaw_set_effect_parameter(0, fx_idx, pname, value)
             print(f"  {effect_type} ✅")
-        else:
-            print(f"  {effect_type} ❌ {add_d}")
 
     # Step 4: Render (NO start_engine!)
     print("\n=== Step 4: Render ===")

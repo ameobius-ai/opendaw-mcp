@@ -14,13 +14,16 @@
 // @param mix 1 0 1 linear
 
 class Processor {
-  p = {
-    band1_freq: 200, band1_gain: 0, band1_q: 1,
-    band2_freq: 1000, band2_gain: 0, band2_q: 1,
-    band3_freq: 5000, band3_gain: 0, band3_q: 1,
-    hp_freq: 20, lp_freq: 20000, mix: 1,
+  constructor(sampleRate, blockSize) {
+    this.sr = sampleRate || 48000
+    this.p = {
+      band1_freq: 200, band1_gain: 0, band1_q: 1,
+      band2_freq: 1000, band2_gain: 0, band2_q: 1,
+      band3_freq: 5000, band3_gain: 0, band3_q: 1,
+      hp_freq: 20, lp_freq: 20000, mix: 1,
+    }
+    this._initState()
   }
-  sr = sampleRate
 
   // Peaking filter state (biquad, per-band, per-channel)
   // Each band: {x1, x2, y1, y2} for L and R
@@ -35,10 +38,6 @@ class Processor {
     this.hpR = {x1:0, x2:0, y1:0, y2:0}
     this.lpL = {x1:0, x2:0, y1:0, y2:0}
     this.lpR = {x1:0, x2:0, y1:0, y2:0}
-  }
-
-  constructor() {
-    this._initState()
   }
 
   paramChanged(name, value) {

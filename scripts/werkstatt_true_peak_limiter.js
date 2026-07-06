@@ -3,13 +3,13 @@
 // Inter-sample peak detection limiter with 4x oversampling
 // Prevents inter-sample peaks that cause codec distortion on streaming platforms
 // Spotify/Apple Music require -1 dBTP (true peak)
-// @param ceiling 0.96 linear   // true peak ceiling (0.5=-6dB to 1.0=0dBTP)
-// @param release 0.3 linear    // release time (50 to 500 ms)
-// @param lookahead 0.5 linear  // lookahead (1 to 10 ms, higher = cleaner)
-// @param oversample 1.0 linear // oversample factor (1=2x, 2=4x, higher CPU)
-// @param mix 1.0 linear        // wet/dry mix (0=dry, 1=full limited)
+// @param ceiling 0.96 0.5 1 linear   // true peak ceiling (0.5=-6dB to 1.0=0dBTP)
+// @param release 0.3 0 1 linear    // release time (50 to 500 ms)
+// @param lookahead 0.5 0 1 linear  // lookahead (1 to 10 ms, higher = cleaner)
+// @param oversample 1.0 0 2 linear // oversample factor (1=2x, 2=4x, higher CPU)
+// @param mix 1.0 0 1 linear        // wet/dry mix (0=dry, 1=full limited)
 
-class TruePeakLimiter {
+class Processor {
     constructor(sampleRate, blockSize) {
         this.sampleRate = sampleRate;
         this.blockSize = blockSize;
