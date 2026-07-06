@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.323.0 (2026-07-06)
+
+- **`create_downtempo_arrangement`** — Downtempo/trip-hop: 85 BPM Bristol sound. 5 tracks: boom-bap drums (heavy swing, ghost notes, vinyl aesthetic), deep sub-bass (sustained melodic, octave 1), minor 7th/9th chords (sparse every 2 bars, Rhodes-style), sparse melancholic melody (starts bar 5, wide intervals), sustained atmosphere pad (root+fifth, cinematic). D minor default. Massive Attack, Portishead, DJ Shadow. 24 unit tests. 498 MCP tools.
+
 ## v1.322.1 (2026-07-06)
 
 - **3 new DSP scripts**: `werkstatt_cabinet_sim.js` (guitar cabinet speaker sim: 4x12/open-back/tweed, resonance, speaker rolloff, cone soft clip), `werkstatt_valve_preamp.js` (12AX7 triode preamp: asymmetric waveshaper, even-order harmonics, Miller capacitance, output transformer), `werkstatt_synthetic_ir_reverb.js` (synthetic IR reverb: algorithmic impulse response generation, exponential decay × filtered noise, early reflections, truncated convolution). 114 DSP scripts total.

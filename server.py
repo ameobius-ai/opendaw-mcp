@@ -56535,3 +56535,238 @@ async def mcp_opendaw_create_psytrance_arrangement(
         return json.dumps(data, indent=2)
     except Exception:
         return results[0]
+
+
+@mcp.tool()
+async def mcp_opendaw_create_downtempo_arrangement(
+    key_root: str = "D",
+    bpm: int = 85,
+    bars: int = 16,
+    velocity: float = 0.6,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a downtempo/trip-hop arrangement — 85 BPM Bristol sound.
+
+    Downtempo/trip-hop emerged from Bristol, UK (early 1990s) — a
+    fusion of hip-hop breaks, dub bass, atmospheric samples, and
+    melancholic vocals. Key characteristics:
+    - 80-90 BPM, laid-back, heavy groove
+    - Boom-bap drums with swing, vinyl crackle aesthetic
+    - Deep, melodic sub-bass with long notes
+    - Minor key, dark/jazzy harmony (m7, m9, half-diminished)
+    - Atmospheric pads, Rhodes piano, sparse melodies
+    - Sample-based, cinematic, nocturnal mood
+
+    Creates 5 tracks:
+    1. Drums (track_index): Boom-bap pattern — kick on 1 & 3, snare
+       on 2 & 4, swung hats, ghost notes, occasional fills
+    2. Bass (track_index+1): Deep sub-bass with long sustained notes,
+       melodic movement, octave drops
+    3. Chords (track_index+2): Minor 7th/9th Rhodes-style chords,
+       sparse, on beat 1 of every 2 bars
+    4. Melody (track_index+3): Sparse, melancholic minor key melody
+       with wide intervals and long rests
+    5. Atmosphere (track_index+4): Sustained pad notes, root and fifth,
+       very low velocity, cinematic texture
+
+    Default key: D minor (classic trip-hop key — Portishead, Massive Attack).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    KICK = 36
+    SNARE = 38
+    CLOSED_HAT = 42
+    OPEN_HAT = 46
+    RIM = 37
+
+    minor_scale = [0, 2, 3, 5, 7, 8, 10]
+    bass_oct = (1 + 1) * 12 + root_pc  # octave 1 — deep sub
+    chord_oct = (3 + 1) * 12 + root_pc
+    mel_oct = (4 + 1) * 12 + root_pc
+    atm_oct = (3 + 1) * 12 + root_pc
+
+    def deg_to_pitch(degree, root_note, sc):
+        ns = len(sc)
+        oct_shift = degree // ns
+        idx = degree % ns
+        if idx < 0:
+            idx += ns
+            oct_shift -= 1
+        return root_note + oct_shift * 12 + sc[idx]
+
+    import random as _rng
+    rng = _rng.Random(55)
+
+    drums = []
+    bass = []
+    chords = []
+    melody = []
+    atmosphere = []
+
+    # Boom-bap kick: beat 1 and 3, sometimes syncopated
+    kick_patterns = [
+        [0.0, 2.0],        # bar 1: classic boom-bap
+        [0.0, 2.5],        # bar 2: syncopated kick on 3.5
+        [0.0, 2.0, 3.5],   # bar 3: extra kick
+        [0.0, 2.0],        # bar 4: back to classic
+    ]
+
+    # Bass: long sustained notes, melodic
+    bass_degrees = [0, 0, 5, 3, 0, 0, 7, 5]
+    bass_durations = [2.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 2.0]
+
+    # Chord progression: i - iv - VI - v (Dm-Gm-Bb-Am)
+    # Using minor scale degrees: i=0, iv=5, VI=8, v=7
+    chord_roots = [0, 5, 8, 7]
+    # Voicings: root, minor 3rd, fifth, minor 7th, ninth
+    chord_intervals = [0, 3, 7, 10, 14]
+
+    # Melody: sparse, melancholic, wide intervals
+    mel_degrees = [0, 7, 5, 12, 7, 3, 0, -1, 5, 10, 7, 3]
+    mel_rhythm = [2.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 1.0, 1.0]
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+
+        # --- Drums ---
+        kick_pat = kick_patterns[bar % 4]
+        for kb in kick_pat:
+            drums.append({
+                "pitch": KICK, "start": round(bar_start + kb, 4),
+                "duration": 0.5, "velocity": round(velocity, 3),
+            })
+        # Snare on 2 & 4
+        for beat in [1.0, 3.0]:
+            drums.append({
+                "pitch": SNARE, "start": round(bar_start + beat, 4),
+                "duration": 0.3, "velocity": round(velocity * 0.85, 3),
+            })
+        # Swung hats
+        for h in range(8):
+            hb = h * 0.5
+            if h % 2 == 1:
+                hb += 0.1  # heavy swing for trip-hop
+            drums.append({
+                "pitch": CLOSED_HAT, "start": round(bar_start + hb, 4),
+                "duration": 0.08, "velocity": round(velocity * (0.35 + 0.1 * (h % 2)), 3),
+            })
+        # Open hat occasionally
+        if bar % 2 == 1:
+            drums.append({
+                "pitch": OPEN_HAT, "start": round(bar_start + 2.75, 4),
+                "duration": 0.15, "velocity": round(velocity * 0.45, 3),
+            })
+        # Ghost notes
+        if rng.random() < 0.3:
+            ghost_pos = rng.choice([0.75, 1.75, 2.75, 3.75]) + 0.1
+            drums.append({
+                "pitch": RIM, "start": round(bar_start + ghost_pos, 4),
+                "duration": 0.06, "velocity": round(velocity * 0.25, 3),
+            })
+
+        # --- Bass (long sustained notes) ---
+        bass_idx = bar % len(bass_degrees)
+        bass_deg = bass_degrees[bass_idx]
+        bass_dur = bass_durations[bass_idx % len(bass_durations)]
+        bass.append({
+            "pitch": deg_to_pitch(bass_deg, bass_oct, minor_scale),
+            "start": round(bar_start, 4),
+            "duration": round(bass_dur, 4),
+            "velocity": round(velocity * 0.9, 3),
+        })
+        # If shorter than bar, add second note
+        if bass_dur < 4.0:
+            bass_deg2 = bass_degrees[(bass_idx + 1) % len(bass_degrees)]
+            bass.append({
+                "pitch": deg_to_pitch(bass_deg2, bass_oct, minor_scale),
+                "start": round(bar_start + bass_dur, 4),
+                "duration": round(4.0 - bass_dur, 4),
+                "velocity": round(velocity * 0.85, 3),
+            })
+
+        # --- Chords (sparse, every 2 bars) ---
+        if bar % 2 == 0:
+            chord_idx = (bar // 2) % len(chord_roots)
+            croot = chord_roots[chord_idx]
+            for ci in chord_intervals:
+                chords.append({
+                    "pitch": deg_to_pitch(croot + ci, chord_oct, minor_scale),
+                    "start": round(bar_start, 4),
+                    "duration": 3.5, "velocity": round(velocity * 0.55, 3),
+                })
+
+        # --- Melody (sparse, starts after 4 bars) ---
+        if bar >= 4:
+            mel_idx = (bar - 4) % len(mel_degrees)
+            mel_deg = mel_degrees[mel_idx]
+            mel_dur = mel_rhythm[mel_idx % len(mel_rhythm)]
+            melody.append({
+                "pitch": deg_to_pitch(mel_deg, mel_oct, minor_scale),
+                "start": round(bar_start + 1.0, 4),  # start on beat 2
+                "duration": round(mel_dur * 0.9, 4),
+                "velocity": round(velocity * 0.7, 3),
+            })
+
+        # --- Atmosphere (sustained pad) ---
+        if bar % 4 == 0:
+            atmosphere.append({
+                "pitch": deg_to_pitch(0, atm_oct, minor_scale),
+                "start": round(bar_start, 4),
+                "duration": 8.0, "velocity": round(velocity * 0.25, 3),
+            })
+            atmosphere.append({
+                "pitch": deg_to_pitch(7, atm_oct, minor_scale),
+                "start": round(bar_start + 4.0, 4),
+                "duration": 4.0, "velocity": round(velocity * 0.2, 3),
+            })
+
+    drums.sort(key=lambda n: (n["start"], n["pitch"]))
+    bass.sort(key=lambda n: (n["start"], n["pitch"]))
+    chords.sort(key=lambda n: (n["start"], n["pitch"]))
+    melody.sort(key=lambda n: (n["start"], n["pitch"]))
+    atmosphere.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    results = []
+    for i, (notes, label) in enumerate([
+        (drums, "drums"), (bass, "bass"), (chords, "chords"),
+        (melody, "melody"), (atmosphere, "atmosphere")
+    ]):
+        notes_json = json.dumps(notes)
+        result = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index + i)
+        results.append(result)
+
+    try:
+        data = json.loads(results[0])
+        data["downtempo_arrangement"] = True
+        data["bpm"] = bpm
+        data["bars"] = n_bars
+        data["key_root"] = key_root
+        data["tracks"] = {
+            "drums": {"track": track_index, "notes": len(drums),
+                       "style": "boom-bap with heavy swing, ghost notes, vinyl aesthetic"},
+            "bass": {"track": track_index + 1, "notes": len(bass),
+                      "style": "deep sub-bass, sustained melodic notes, octave 1"},
+            "chords": {"track": track_index + 2, "notes": len(chords),
+                        "voicings": "minor 7th/9th, sparse every 2 bars, Rhodes-style"},
+            "melody": {"track": track_index + 3, "notes": len(melody),
+                        "style": "sparse melancholic, wide intervals, starts bar 5"},
+            "atmosphere": {"track": track_index + 4, "notes": len(atmosphere),
+                            "style": "sustained pad, root+fifth, cinematic, very low velocity"},
+        }
+        data["total_notes"] = len(drums) + len(bass) + len(chords) + len(melody) + len(atmosphere)
+        data["all_tracks_created"] = all(
+            json.loads(r).get("success", False) if r else False for r in results
+        )
+        return json.dumps(data, indent=2)
+    except Exception:
+        return results[0]
