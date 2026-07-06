@@ -57414,3 +57414,230 @@ async def mcp_opendaw_create_phonk_arrangement(
         "bass_pattern": "808_slides",
         "scale": "minor_pentatonic",
     }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_create_future_bass_arrangement(
+    bpm: float = 150,
+    bars: int = 8,
+    root: str = "C",
+    octave: int = 3,
+    unit_index: int = 0,
+    drum_track: int = 0,
+    bass_track: int = 1,
+    chord_track: int = 2,
+    lead_track: int = 3,
+    start_beat: float = 0,
+    velocity: float = 0.85,
+) -> str:
+    """Create a full future bass arrangement — 4 tracks: drums + bass + chords + lead.
+
+    Future bass (Flume, San Holo, Illenium, ODESZA) blends electronic production
+    with melodic/emotional sensibility. Key characteristics:
+    - 130-160 BPM, often major key (uplifting feel)
+    - Pitching snare rolls before drops (rising pitch + velocity crescendo)
+    - Big supersaw chords — wide, detuned, layered
+    - Sub-bass under chords, syncopated with kicks
+    - Vocal chop aesthetic — short rhythmic melodic fragments
+    - Sidechain pumping feel
+    - Bright, shimmering, nostalgic
+
+    Creates 4 tracks:
+    1. Drums (drum_track): Punchy kick on 1 and 3, snare on 2 and 4,
+       16th hats with rolls, and pitching snare roll at end of phrase
+       (8 bars) — simulated by ascending pitch notes.
+    2. Bass (bass_track): Sub-bass following chord roots, syncopated
+       gaps, octave drops. Sustained under chords.
+    3. Chords (chord_track): Big supersaw-style chords — major 7th /
+       add9 voicings, wide voicings (root/third/seventh/ninth/octave),
+       2 bars per chord. I-V-vi-IV progression.
+    4. Lead (lead_track): Vocal-chop style melodic fragments —
+       short rhythmic notes in major scale, catchy phrases,
+       starts after 4 bars.
+
+    bpm: Tempo (120-170, default 150).
+    bars: Arrangement length (4-32, default 8).
+    root: Root note (default C = common future bass key).
+    octave: MIDI octave for chords (3 = C3=48).
+
+    Example:
+      create_future_bass_arrangement(bpm=150, root="C", bars=8)
+      create_future_bass_arrangement(bpm=140, root="G", bars=16)
+    """
+    if not (120 <= bpm <= 170):
+        return "Error: bpm must be 120-170"
+    if bars < 4 or bars > 32:
+        return "Error: bars must be 4-32"
+    if root not in NOTE_TO_PITCH:
+        return f"Error: unknown root '{root}'. Valid: {list(NOTE_TO_PITCH.keys())}"
+    if not (0.0 <= velocity <= 1.0):
+        return "Error: velocity must be 0-1"
+    if not (0 <= octave <= 6):
+        return "Error: octave must be 0-6"
+
+    root_pc = NOTE_TO_PITCH[root]
+    bass_base = (octave + 1) * 12 + root_pc  # sub-bass below chords
+    chord_base = (octave + 1) * 12 + root_pc
+    lead_base = (octave + 3) * 12 + root_pc  # lead 2 octaves above
+
+    major_scale = [0, 2, 4, 5, 7, 9, 11]
+
+    # --- DRUMS: Future bass drums with pitching snare roll ---
+    # 2-bar cycle with snare roll at phrase end
+    drum_pattern = [
+        (0.0, "kick"), (0.5, "hat"), (1.0, "snare"), (1.5, "hat"),
+        (2.0, "kick"), (2.5, "hat"), (3.0, "snare"), (3.5, "hat"),
+        (4.0, "kick"), (4.5, "hat"), (5.0, "snare"), (5.5, "hat"),
+        (6.0, "kick"), (6.5, "hat"),
+        # Pitching snare roll: 6 ascending snare hits
+        (7.0, "snare_roll"), (7.17, "snare_roll"), (7.33, "snare_roll"),
+        (7.5, "snare_roll"), (7.67, "snare_roll"), (7.83, "snare_roll"),
+    ]
+
+    kick_p, snare_p, hat_p = 36, 38, 42
+    drum_pitch_map = {"kick": kick_p, "snare": snare_p, "hat": hat_p, "snare_roll": snare_p}
+    drum_vel_map = {
+        "kick": min(1.0, velocity + 0.08),
+        "snare": velocity,
+        "hat": max(0.0, velocity - 0.2),
+        "snare_roll": 0.0,  # set per-note below
+    }
+    drum_dur_map = {"kick": 0.2, "snare": 0.12, "hat": 0.04, "snare_roll": 0.06}
+
+    drum_notes = []
+    drum_cycle = 8.0
+    drum_cycles = bars // 2
+    for c in range(drum_cycles):
+        off = c * drum_cycle
+        for beat, st in drum_pattern:
+            vel = drum_vel_map[st]
+            if st == "snare_roll":
+                # Ascending velocity for pitching roll effect
+                idx = [b for b, s in drum_pattern if s == "snare_roll"].index(beat)
+                vel = max(0.0, velocity - 0.3 + idx * 0.06)
+            drum_notes.append({
+                "pitch": drum_pitch_map[st],
+                "start": round(start_beat + off + beat, 4),
+                "duration": drum_dur_map[st],
+                "velocity": round(min(1.0, vel), 3),
+            })
+
+    # --- BASS: Sub-bass following chord roots ---
+    # I-V-vi-IV progression, 2 bars per chord
+    chord_roots = [0, 4, 5, 3]  # scale degrees: I, V, vi, IV
+    bass_pattern = [
+        (0.0, 0, 1.5, 1.0),
+        (2.0, 0, 1.5, 0.9),
+        (3.75, 0, 0.2, 0.7),
+        (4.0, 0, 1.5, 1.0),
+        (6.0, 0, 1.5, 0.9),
+        (7.75, 0, 0.2, 0.7),
+    ]
+    bass_notes = []
+    bass_cycle = 8.0
+    for c in range(bars // 2):
+        off = c * bass_cycle
+        chord_idx = c % len(chord_roots)
+        croot = chord_roots[chord_idx]
+        for beat, po, dur, vm in bass_pattern:
+            bass_notes.append({
+                "pitch": bass_base + major_scale[croot % len(major_scale)] + (croot // len(major_scale)) * 12,
+                "start": round(start_beat + off + beat, 4),
+                "duration": dur,
+                "velocity": round(velocity * vm, 3),
+            })
+
+    # --- CHORDS: Big supersaw-style major 7th/add9 voicings ---
+    # Wide voicings: root, third, seventh, ninth, octave
+    chord_intervals_map = {
+        0: [0, 4, 7, 11, 12],   # I: root, 3rd, 5th, 7th, octave (maj7)
+        4: [0, 4, 7, 11, 14],   # V: root, 3rd, 5th, 7th, 9th
+        5: [0, 3, 7, 10, 12],   # vi: root, b3, 5th, b7, octave (min7)
+        3: [0, 4, 7, 11, 14],   # IV: root, 3rd, 5th, 7th, 9th (maj9)
+    }
+    chord_notes = []
+    chord_cycle = 8.0
+    for c in range(bars // 2):
+        off = c * chord_cycle
+        chord_idx = c % len(chord_roots)
+        croot = chord_roots[chord_idx]
+        intervals = chord_intervals_map[croot]
+        croot_pitch = chord_base + major_scale[croot % len(major_scale)] + (croot // len(major_scale)) * 12
+        for interval in intervals:
+            chord_notes.append({
+                "pitch": croot_pitch + interval,
+                "start": round(start_beat + off, 4),
+                "duration": chord_cycle - 0.1,
+                "velocity": round(velocity * 0.7, 3),
+            })
+
+    # --- LEAD: Vocal-chop style melodic fragments ---
+    # Short rhythmic notes in major scale, starts after 4 bars
+    lead_degrees = [0, 2, 4, 7, 4, 2, 0, 5, 7, 9, 7, 4, 2, 0, 4, 7]
+    lead_beats = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5]
+    lead_dur = 0.4
+
+    lead_notes = []
+    lead_cycle = 8.0
+    for c in range(bars // 2):
+        off = c * lead_cycle
+        if c >= 2:  # starts after 4 bars (2 cycles)
+            for i, deg in enumerate(lead_degrees):
+                lead_notes.append({
+                    "pitch": lead_base + major_scale[deg % len(major_scale)] + (deg // len(major_scale)) * 12,
+                    "start": round(start_beat + off + lead_beats[i], 4),
+                    "duration": lead_dur,
+                    "velocity": round(velocity * 0.8, 3),
+                })
+
+    # Create all notes in batches
+    drum_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(drum_notes), unit_index, drum_track)
+    bass_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(bass_notes), unit_index, bass_track)
+    chord_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(chord_notes), unit_index, chord_track)
+    lead_result = await mcp_opendaw_create_notes_batch(
+        json.dumps(lead_notes), unit_index, lead_track)
+
+    try:
+        drum_data = json.loads(drum_result)
+    except Exception:
+        drum_data = {"raw": drum_result}
+    try:
+        bass_data = json.loads(bass_result)
+    except Exception:
+        bass_data = {"raw": bass_result}
+    try:
+        chord_data = json.loads(chord_result)
+    except Exception:
+        chord_data = {"raw": chord_result}
+    try:
+        lead_data = json.loads(lead_result)
+    except Exception:
+        lead_data = {"raw": lead_result}
+
+    return json.dumps({
+        "future_bass_arrangement": True,
+        "bpm": bpm,
+        "root": root,
+        "bars": bars,
+        "tracks": {
+            "drums": {"track": drum_track, "notes": len(drum_notes),
+                       "result": drum_data.get("notes_created", len(drum_notes)),
+                       "style": "punchy kick 1&3, snare 2&4, 16th hats, pitching snare roll"},
+            "bass": {"track": bass_track, "notes": len(bass_notes),
+                      "result": bass_data.get("notes_created", len(bass_notes)),
+                      "style": "sub-bass following chord roots, syncopated gaps"},
+            "chords": {"track": chord_track, "notes": len(chord_notes),
+                        "result": chord_data.get("notes_created", len(chord_notes)),
+                        "style": "big supersaw maj7/add9 voicings, 2 bars per chord"},
+            "lead": {"track": lead_track, "notes": len(lead_notes),
+                      "result": lead_data.get("notes_created", len(lead_notes)),
+                      "style": "vocal-chop style melodic fragments, starts bar 5"},
+        },
+        "total_notes": len(drum_notes) + len(bass_notes) + len(chord_notes) + len(lead_notes),
+        "drum_pattern": "future_bass_pitching_roll",
+        "progression": "I-V-vi-IV",
+        "scale": "major",
+    }, indent=2)

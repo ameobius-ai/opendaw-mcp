@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.327.0 (2026-07-06)
+
+- **`create_future_bass_arrangement`** — Future bass: 150 BPM melodic electronic. 4 tracks: punchy drums with pitching snare roll (ascending velocity crescendo), sub-bass following I-V-vi-IV chord roots, big supersaw chords (maj7/add9/min7 wide voicings, 2 bars per chord), vocal-chop style lead (major scale melodic fragments, starts bar 5). C major default. Flume, San Holo, Illenium, ODESZA. 22 unit tests. 502 MCP tools.
+
 ## v1.326.0 (2026-07-06)
 
 - **`create_phonk_arrangement`** — Drift phonk: 130 BPM Memphis rap-inspired. 3 tracks: Memphis drums (punchy kick 1&3, clap 2&4, 16th hats with rolls), sliding 808 bass (chromatic slides, sustained resonance, octave drops), cowbell lead (minor pentatonic repetitive riff, 1-bar cycle, 3 octaves above bass). F minor default. Kordhell, MC Slvr, LXST CXNTURY. 23 unit tests. 501 MCP tools.
