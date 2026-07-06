@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.361.0 (2026-07-06)
+
+- **`create_breakbeat_arrangement`** — Breakbeat/big beat arrangement (Prodigy/Chemical Brothers/Fatboy Slim style). Syncopated Amen-style broken beat with ghost notes, rolling bassline with octave jumps, acid riff with call-response phrasing, vocal chop stabs on offbeats. E minor, 130 BPM, 16 bars, 4 tracks. 20 unit tests. 525 MCP tools. 37 genre arrangements.
+
 ## v1.360.0 (2026-07-06)
 
 - **`werkstatt_aire.js`** — Stereo air exciter (M/S widener + HF harmonic exciter combo). Adds brightness and width to dull/narrow mixes. 2-12kHz crossover, 2nd/3rd harmonic mix, width control. 131 DSP scripts. Inspired by "air" plugins (BX, Ozone Exciter).

@@ -62507,3 +62507,204 @@ async def mcp_opendaw_create_industrial_arrangement(
             "Use render_full to render the arrangement",
         ],
     }, indent=2)
+
+
+async def mcp_opendaw_create_breakbeat_arrangement(
+    key_root: str = "E",
+    bpm: int = 130,
+    bars: int = 16,
+    velocity: float = 0.85,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a breakbeat/big beat arrangement — 130 BPM broken-beat energy.
+
+    Breakbeat / big beat (The Prodigy, Chemical Brothers, Fatboy Slim,
+    Crystal Method, Meat Beat Manifesto):
+    - Syncopated "broken" drum pattern (Amen-style chopped breaks)
+    - Heavy rolling bassline with filter modulation feel
+    - Acid-style lead riff (303 squelch character)
+    - Vocal chop / sample hit stabs on offbeats
+    - 125-135 BPM, 4/4 time but drums play broken patterns
+    - High energy, party/warehouse feel
+
+    Creates 4 tracks:
+    1. Drums (track_index): Syncopated breakbeat — kick on 1 and 3.5,
+       snare on 2 and 4, ghost notes, hats on offbeats, amen-style chops
+    2. Bass (track_index+1): Rolling bassline — root on beat 1, walking
+       to 5th, octave jumps, 16th note syncopation
+    3. Lead (track_index+2): Acid riff — minor scale, 16th note pattern,
+       wide intervals, call-response phrasing
+    4. Stabs (track_index+3): Vocal chop hits on offbeat 2.5 and 3.5,
+       occasional filter sweep hits
+
+    Default key: E minor (common breakbeat key, resonant and punchy).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    n_bars = max(4, bars)
+
+    # MIDI pitches (GM)
+    KICK = 36
+    SNARE = 38
+    CLOSED_HAT = 42
+    OPEN_HAT = 46
+    GHOST_SNARE = 37
+
+    # E minor scale
+    minor_scale = [0, 2, 3, 5, 7, 8, 10]
+    bass_oct = (2 + 1) * 12 + root_pc
+    lead_oct = (4 + 1) * 12 + root_pc
+    stab_oct = (3 + 1) * 12 + root_pc
+
+    notes = []
+
+    for bar in range(n_bars):
+        bar_start = start_beat + bar * 4.0
+
+        # === DRUMS (track_index) — Amen-style broken beat ===
+        # Kick: 1 and 3.5 (syncopated)
+        notes.append({"pitch": KICK, "start": round(bar_start + 0, 4),
+                      "duration": 0.5, "velocity": velocity,
+                      "track": track_index})
+        notes.append({"pitch": KICK, "start": round(bar_start + 3.5, 4),
+                      "duration": 0.5, "velocity": velocity * 0.9,
+                      "track": track_index})
+        # Extra kick on bar 2 and 4 for rolling feel
+        if bar % 2 == 1:
+            notes.append({"pitch": KICK, "start": round(bar_start + 1.5, 4),
+                          "duration": 0.4, "velocity": velocity * 0.7,
+                          "track": track_index})
+
+        # Snare: 2 and 4 (backbeat)
+        notes.append({"pitch": SNARE, "start": round(bar_start + 1, 4),
+                      "duration": 0.3, "velocity": velocity * 0.9,
+                      "track": track_index})
+        notes.append({"pitch": SNARE, "start": round(bar_start + 3, 4),
+                      "duration": 0.3, "velocity": velocity * 0.9,
+                      "track": track_index})
+
+        # Ghost snare on offbeat 2.75 for Amen chop feel
+        notes.append({"pitch": GHOST_SNARE, "start": round(bar_start + 2.75, 4),
+                      "duration": 0.1, "velocity": velocity * 0.4,
+                      "track": track_index})
+
+        # Hats: 16th notes with velocity variation
+        for h in range(16):
+            beat = h * 0.25
+            v = velocity * (0.3 + 0.2 * (h % 2))  # accent on even
+            if h % 4 == 2:
+                # Open hat on offbeat
+                notes.append({"pitch": OPEN_HAT, "start": round(bar_start + beat, 4),
+                              "duration": 0.2, "velocity": v * 0.6,
+                              "track": track_index})
+            else:
+                notes.append({"pitch": CLOSED_HAT, "start": round(bar_start + beat, 4),
+                              "duration": 0.1, "velocity": v,
+                              "track": track_index})
+
+        # === BASS (track_index + 1) — rolling bassline ===
+        # Root on 1, walk to 5th, octave jumps, 16th syncopation
+        bass_pattern = [
+            (0, 0.0, 0.5),     # root on 1
+            (0, 0.5, 0.25),    # root 16th
+            (4, 0.75, 0.25),   # 5th
+            (0, 1.0, 0.5),     # root on 2
+            (7, 1.5, 0.25),    # octave
+            (0, 1.75, 0.25),   # root
+            (4, 2.0, 0.5),     # 5th on 3
+            (4, 2.5, 0.25),    # 5th 16th
+            (0, 2.75, 0.25),   # root
+            (0, 3.0, 0.5),     # root on 4
+            (2, 3.5, 0.25),    # 3rd
+            (0, 3.75, 0.25),   # root
+        ]
+        for deg, beat, dur in bass_pattern:
+            pitch = bass_oct + minor_scale[deg % 7]
+            notes.append({"pitch": pitch, "start": round(bar_start + beat, 4),
+                          "duration": dur, "velocity": velocity * 0.85,
+                          "track": track_index + 1})
+
+        # === LEAD (track_index + 2) — acid riff ===
+        # Minor scale, 16th note pattern, call-response phrasing
+        lead_pattern = [
+            (0, 0.0, 0.25),    # root
+            (2, 0.25, 0.25),   # 3rd
+            (4, 0.5, 0.25),    # 5th
+            (2, 0.75, 0.25),   # 3rd
+            (0, 1.0, 0.5),     # root (longer)
+            (7, 1.5, 0.25),    # octave
+            (5, 1.75, 0.25),   # 6th
+            # Rest on beat 2-2.5 (call-response gap)
+            (4, 2.5, 0.25),    # 5th
+            (2, 2.75, 0.25),   # 3rd
+            (0, 3.0, 0.25),    # root
+            (2, 3.25, 0.25),   # 3rd
+            (4, 3.5, 0.25),    # 5th
+            (7, 3.75, 0.25),   # octave
+        ]
+        for deg, beat, dur in lead_pattern:
+            pitch = lead_oct + minor_scale[deg % 7]
+            v = velocity * (0.6 + 0.15 * (deg % 3))  # slight variation
+            notes.append({"pitch": pitch, "start": round(bar_start + beat, 4),
+                          "duration": dur, "velocity": round(v, 3),
+                          "track": track_index + 2})
+
+        # === STABS (track_index + 3) — vocal chop / sample hits ===
+        # Offbeat hits on 2.5 and 3.5
+        stab_degrees = [0, 7, 4]  # root, octave, 5th
+        for beat in [2.5, 3.5]:
+            deg = stab_degrees[bar % len(stab_degrees)]
+            pitch = stab_oct + minor_scale[deg % 7]
+            notes.append({"pitch": pitch, "start": round(bar_start + beat, 4),
+                          "duration": 0.15, "velocity": velocity * 0.6,
+                          "track": track_index + 3})
+        # Filter sweep hit every 4 bars
+        if bar % 4 == 3:
+            for deg in [0, 2, 4, 7]:
+                pitch = stab_oct + minor_scale[deg % 7]
+                notes.append({"pitch": pitch, "start": round(bar_start + 3.75, 4),
+                              "duration": 0.1, "velocity": velocity * 0.5,
+                              "track": track_index + 3})
+
+    # Sort by start time
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    # Batch create notes per track
+    results_per_track = {}
+    for track_idx in range(track_index, track_index + 4):
+        track_notes = [n for n in notes if n["track"] == track_idx]
+        if track_notes:
+            clean_notes = [{k: v for k, v in n.items() if k != "track"} for n in track_notes]
+            r = await mcp_opendaw_create_notes_batch(
+                json.dumps(clean_notes), unit_index, track_idx)
+            try:
+                d = json.loads(r)
+                results_per_track[track_idx] = d.get("notes_created", len(clean_notes))
+            except Exception:
+                results_per_track[track_idx] = len(clean_notes)
+
+    return json.dumps({
+        "breakbeat_arrangement": True,
+        "key_root": key_root,
+        "scale": "minor",
+        "bpm": bpm,
+        "bars": n_bars,
+        "tracks_created": 4,
+        "notes_created": len(notes),
+        "track_notes": results_per_track,
+        "characteristics": "syncopated Amen-style breakbeat, rolling bass, acid riff, vocal chop stabs, big beat energy",
+        "references": "The Prodigy, Chemical Brothers, Fatboy Slim, Crystal Method",
+        "next_steps": [
+            "Use add_genre_effects('techno') for pumping compression + delay chain",
+            "Add Waveshaper on bass for extra grit",
+            "Use render_full to render the arrangement",
+        ],
+    }, indent=2)
