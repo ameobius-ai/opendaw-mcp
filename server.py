@@ -29532,6 +29532,192 @@ async def mcp_opendaw_create_soli(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_rondo(
+    key_root: str = "C",
+    scale_name: str = "major",
+    form_type: str = "classical",
+    bars_per_section: int = 4,
+    tempo_bpm: float = 120.0,
+    velocity: float = 0.7,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a rondo — recurring theme alternating with contrasting episodes.
+
+    A rondo is a structural form where a principal theme (A) alternates
+    with contrasting episodes (B, C, D). The theme always returns,
+    providing unity while episodes provide contrast and development.
+
+    Form types:
+      - simple: ABA (3 sections). Miniature rondo, common in character pieces.
+      - classical: ABACA (5 sections). Standard classical rondo
+        (Mozart, Beethoven). A=tonic, B=dominant/relative, C=more distant.
+      - seven_part: ABACABA (7 sections). Large rondo, Beethoven Op.51,
+        Chopin Op.16. Extended with second return of B before final A.
+      - pop_rock: ABABCB (6 sections). Pop/rock structure masquerading as
+        rondo — verse-chorus-verse-chorus-bridge-chorus. A=verse, B=chorus,
+        C=bridge.
+      - jazz: ABAC (4 sections). Jazz standard form — theme, improvisation
+        feel, theme, contrast. A=head, B=solo section, C=trading.
+
+    Key root: C, C#, Db, D, ... B.
+    Scale: major, minor, dorian, phrygian, lydian, mixolydian, aeolian,
+    locrian, harmonic_minor, melodic_minor, pentatonic_major, pentatonic_minor,
+    blues, whole_tone.
+
+    The A theme uses tonic scale degrees (0, 2, 4, 2, 0).
+    B episode uses dominant/relative degrees (4, 6, 2, 6, 4) — brighter.
+    C episode uses more distant degrees (5, 1, 3, 1, 5) — contrasting.
+    Each section is bars_per_section bars long.
+
+    Creates sections sequentially on track_index (melody on track_index,
+    bass on track_index+1).
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALE_INTERVALS = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],
+        "lydian": [0, 2, 4, 6, 7, 9, 11],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "aeolian": [0, 2, 3, 5, 7, 8, 10],
+        "locrian": [0, 1, 3, 5, 6, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+        "melodic_minor": [0, 2, 3, 5, 7, 9, 11],
+        "pentatonic_major": [0, 2, 4, 7, 9],
+        "pentatonic_minor": [0, 3, 5, 7, 10],
+        "blues": [0, 3, 5, 6, 7, 10],
+        "whole_tone": [0, 2, 4, 6, 8, 10],
+    }
+
+    if scale_name not in SCALE_INTERVALS:
+        return json.dumps({"error": f"Invalid scale '{scale_name}'. Valid: {list(SCALE_INTERVALS.keys())}"})
+
+    FORM_MAP = {
+        "simple": ["A", "B", "A"],
+        "classical": ["A", "B", "A", "C", "A"],
+        "seven_part": ["A", "B", "A", "C", "A", "B", "A"],
+        "pop_rock": ["A", "B", "A", "B", "C", "B"],
+        "jazz": ["A", "B", "A", "C"],
+    }
+
+    if form_type not in FORM_MAP:
+        return json.dumps({"error": f"Invalid form_type '{form_type}'. Valid: {list(FORM_MAP.keys())}"})
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root '{key_root}'"})
+
+    scale = SCALE_INTERVALS[scale_name]
+    root_pitch = (3 + 1) * 12 + root_pc  # C3=48
+    beats_per_bar = 4
+    section_beats = bars_per_section * beats_per_bar
+
+    # Melody patterns per section type (scale degrees)
+    SECTION_PATTERNS = {
+        "A": [0, 2, 4, 2, 0, 1, 2, 0],      # tonic, stepwise
+        "B": [4, 6, 2, 6, 4, 5, 6, 4],      # dominant/relative, wider
+        "C": [5, 1, 3, 1, 5, 3, 1, 5],      # more distant, contrast
+        "D": [3, 0, 2, 0, 3, 1, 0, 3],      # optional 4th section
+    }
+
+    # Bass patterns per section
+    BASS_PATTERNS = {
+        "A": [0, 0, 4, 4, 0, 0, 4, 0],      # I-V-I-V
+        "B": [4, 4, 0, 0, 4, 4, 0, 4],      # V-I alternation
+        "C": [5, 5, 1, 1, 5, 5, 1, 5],      # IV-I contrast
+        "D": [3, 3, 0, 0, 3, 3, 0, 3],      # iii-I
+    }
+
+    def degree_to_pitch(degree):
+        n_intervals = len(scale)
+        octave = degree // n_intervals
+        index = degree % n_intervals
+        if index < 0:
+            index += n_intervals
+            octave -= 1
+        return octave * 12 + scale[index]
+
+    import random as _rng
+    rng = _rng.Random(42)
+
+    sections = FORM_MAP[form_type]
+    all_melody_notes = []
+    all_bass_notes = []
+
+    for sec_idx, section_type in enumerate(sections):
+        sec_start = start_beat + sec_idx * section_beats
+        melody_pat = SECTION_PATTERNS.get(section_type, SECTION_PATTERNS["A"])
+        bass_pat = BASS_PATTERNS.get(section_type, BASS_PATTERNS["A"])
+
+        for bar in range(bars_per_section):
+            bar_start = sec_start + bar * beats_per_bar
+            # Melody: 8th notes, 8 per bar
+            for h in range(8):
+                deg = melody_pat[h % len(melody_pat)]
+                # Add slight variation per bar
+                if bar > 0 and rng.random() < 0.3:
+                    deg = deg + rng.choice([-1, 1, 0])
+                pitch = root_pitch + 12 + degree_to_pitch(deg)  # +12 = one octave up
+                beat_pos = bar_start + h * 0.5
+                all_melody_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat_pos, 4),
+                    "duration": 0.45,
+                    "velocity": round(velocity * (0.6 + 0.05 * (h % 4)), 3),
+                })
+
+            # Bass: one note per beat
+            for b in range(4):
+                deg = bass_pat[b % len(bass_pat)]
+                pitch = root_pitch + degree_to_pitch(deg) - 12  # bass below root
+                beat_pos = bar_start + b * 1.0
+                all_bass_notes.append({
+                    "pitch": pitch,
+                    "start": round(beat_pos, 4),
+                    "duration": 0.9,
+                    "velocity": round(velocity * 0.7, 3),
+                })
+
+    # Create notes
+    melody_json = json.dumps(all_melody_notes)
+    melody_result = await mcp_opendaw_create_notes_batch(melody_json, unit_index, track_index)
+
+    bass_json = json.dumps(all_bass_notes)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, track_index + 1)
+
+    try:
+        data = json.loads(melody_result)
+        data["rondo"] = True
+        data["form_type"] = form_type
+        data["sections"] = sections
+        data["num_sections"] = len(sections)
+        data["bars_per_section"] = bars_per_section
+        data["total_bars"] = len(sections) * bars_per_section
+        data["total_beats"] = len(sections) * section_beats
+        data["tempo_bpm"] = tempo_bpm
+        data["key_root"] = key_root
+        data["scale_name"] = scale_name
+        data["melody_notes_created"] = len(all_melody_notes)
+        data["bass_notes_created"] = len(all_bass_notes)
+        data["melody_track"] = track_index
+        data["bass_track"] = track_index + 1
+        try:
+            data["bass_result_status"] = json.loads(bass_result).get("success", False) if bass_result else False
+        except Exception:
+            data["bass_result_status"] = False
+        return json.dumps(data, indent=2)
+    except Exception:
+        return melody_result
+
+
+
 
 def main():
     """Entry point for opendaw-mcp command."""

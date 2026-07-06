@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.310.0 (2026-07-06)
+
+- **`create_rondo`** — Rondo form: recurring theme (A) alternating with contrasting episodes (B, C). 5 form types: simple (ABA, 3 sections), classical (ABACA, 5 sections), seven_part (ABACABA, 7 sections), pop_rock (ABABCB — verse/chorus/bridge structure), jazz (ABAC — head/solo/head/contrast). Each section has distinct melodic pattern (A=tonic stepwise, B=dominant wider intervals, C=distant contrast) and bass pattern (I-V, V-I, IV-I). Adjustable bars_per_section. 14 scales. Mozart/Beethoven classical rondo, pop/rock song structure, jazz standard form. 32 unit tests. 485 MCP tools.
+
 ## v1.309.0 (2026-07-06)
 
 - **`create_soli`** — Ensemble unison passage with octave doublings. All voices play the same melodic line in rhythmic unison at different octaves. 2-5 voices, adjustable octave spread (1-4). 14 scales (major through whole_tone). Scale degree input (0=root, 2=2nd, -1=7th below). Jazz big band soli (Basie/Ellington), orchestral tutti, rock/metal unison riffs. Outer voices full velocity, inner voices slightly reduced (0.85×). Unlike fugue (polyphonic imitation) or canon (delayed entry) — soli is simultaneous and homorhythmic. 32 unit tests. 484 MCP tools.
