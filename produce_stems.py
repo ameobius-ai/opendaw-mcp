@@ -47,13 +47,13 @@ STEMS_DIR = "/mnt/c/Users/admin/Downloads"
 
 STEMS = [
     # (name, file_path, volume_db, panning, muted)
-    ("anchor",  f"{STEMS_DIR}/Last Light of Summer.wav",                  -6.0,  0.0,  True),
-    ("vocal_1", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal).wav",      -2.0, -0.3, False),
-    ("vocal_2", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal)(1).wav",   -3.0,  0.3, False),
-    ("acoustic",f"{STEMS_DIR}/Last Light of Summer (Acoustic Guitar).wav", -4.0, -0.9, False),
-    ("guitar",  f"{STEMS_DIR}/Last Light of Summer (Guitar).wav",          -5.0,  0.9, False),
-    ("bass",    f"{STEMS_DIR}/Last Light of Summer (Bass).wav",            -3.0,  0.0, False),
-    ("drums",   f"{STEMS_DIR}/Last Light of Summer (Drum Kit).wav",        -4.0,  0.0, False),
+    ("anchor",  f"{STEMS_DIR}/Last Light of Summer(1).wav",                   -6.0,  0.0,  True),
+    ("vocal_1", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal)(2).wav",       -2.0, -0.3, False),
+    ("vocal_2", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal)(3).wav",       -3.0,  0.3, False),
+    ("guitar_1",f"{STEMS_DIR}/Last Light of Summer (Guitar)(1).wav",           -5.0, -0.9, False),
+    ("guitar_2",f"{STEMS_DIR}/Last Light of Summer (Guitar)(2).wav",           -5.0,  0.9, False),
+    ("bass",    f"{STEMS_DIR}/Last Light of Summer (Bass)(1).wav",             -3.0,  0.0, False),
+    ("drums",   f"{STEMS_DIR}/Last Light of Summer (Drum Kit)(1).wav",         -4.0,  0.0, False),
 ]
 
 # Effects: (stem_index, effect_type, {param: value})
