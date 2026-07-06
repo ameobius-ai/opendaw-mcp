@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.340.0 (2026-07-06)
+
+- **`create_bridge`** — Bridge section generator. 5 types: breakdown (sparse bass + stabs, tension through absence), modulation (key shift up m3, same rhythm new centre), solo (dense melodic line over I-IV-V-I chords, 8th notes), atmospheric (sustained chromatic tones, no clear harmony), surprise (staccato bursts at odd positions, rhythmic displacement). 3 scales, 2-8 bars. Seeded PRNG. 32 unit tests. 513 MCP tools. Completes the section framing trio: intro → body → bridge → outro.
+
 ## v1.339.0 (2026-07-06)
 
 - **`create_outro`** — Outro section generator. 5 types: fade (gradual thinning, velocity decreases), ritardando (slowing, durations increase, fermata), recap (return to opening, descending swell), pedal (V-I resolution, sustained tonic, octave finality), cadential (running notes to fermata chord, Beethoven close). 3 scales, 2-8 bars. Seeded PRNG. 35 unit tests. 512 MCP tools. Pairs with create_intro for full song framing.

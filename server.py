@@ -60125,3 +60125,225 @@ async def mcp_opendaw_create_outro(
     }.get(outro_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_bridge(
+    bridge_type: str = "breakdown",
+    key_root: str = "C",
+    scale_type: str = "minor",
+    octave: int = 4,
+    bars: int = 4,
+    velocity: float = 0.65,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a bridge section — the contrast that breaks repetition.
+
+    A bridge provides contrast after verse-chorus cycles. It can strip
+    everything down (breakdown), shift key (modulation), spotlight an
+    instrument (solo), float without harmony (atmospheric), or throw
+    something unexpected (surprise). The bridge's job is to prevent
+    fatigue and re-engage the listener before the final chorus returns.
+
+    - **breakdown**: Strip to essentials — sparse notes, low velocity,
+      lots of space. Drum drops out, only bass + occasional stabs.
+      Good for EDM, pop, rock bridges that create tension through absence.
+    - **modulation**: Key shift — same rhythm but different tonal centre.
+      Raises or lowers the emotional stakes. Common in pop, jazz, Broadway.
+    - **solo**: Instrumental spotlight — melodic line with rhythmic backing.
+      Dense single-voice melody over sparse chords. Good for rock, jazz, fusion.
+    - **atmospheric**: Textural, no clear harmony — sustained tones,
+      chromatic clusters, random-ish notes. Good for ambient, post-rock,
+      experimental, film.
+    - **surprise**: Unexpected change — rhythmic displacement, odd meter
+      feel, staccato bursts. Breaks expectations. Good for prog, math rock,
+      avant-garde pop.
+
+    bridge_type: breakdown | modulation | solo | atmospheric | surprise
+    key_root: Root note name (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (2-8)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_bridge(bridge_type="breakdown", key_root="A", scale_type="minor", bars=4)
+      create_bridge(bridge_type="modulation", key_root="F", scale_type="major", bars=4)
+      create_bridge(bridge_type="solo", key_root="E", scale_type="minor", bars=4)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["breakdown", "modulation", "solo", "atmospheric", "surprise"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if bridge_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid bridge_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+    if not (2 <= bars <= 8):
+        return json.dumps({"error": "bars must be 2-8"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    bar_len = 4.0
+
+    if bridge_type == "breakdown":
+        # Sparse: bass root + occasional stabs, lots of space
+        bass_pitch = deg_to_pitch(0, -1)  # low octave
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * 0.5  # intentionally quiet
+            # Bass on beat 1 and 3 only
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": 2.0, "velocity": round(v, 3)})
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start + 2.0, 4),
+                          "duration": 2.0, "velocity": round(v * 0.85, 3)})
+            # Occasional stab (random beat)
+            if next(rng) > 0.5:
+                stab_deg = int(next(rng) * ns)
+                stab_pitch = deg_to_pitch(stab_deg)
+                stab_beat = int(next(rng) * 4)
+                notes.append({"pitch": stab_pitch, "start": round(start_beat + bar_start + stab_beat, 4),
+                              "duration": 0.5, "velocity": round(v * 0.6, 3)})
+
+    elif bridge_type == "modulation":
+        # Key shift: first half in original key, second half shifted up a minor third
+        shift = 3  # minor third up
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            use_shift = bar >= bars // 2
+            current_base = base + (shift if use_shift else 0)
+            v = velocity * (0.6 + 0.4 * bar / max(bars - 1, 1))
+            # Chord: root + third + fifth
+            for deg in [0, 2, 4]:
+                idx = deg % ns
+                pitch = current_base + (deg // ns) * 12 + scale[idx]
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.8, 3)})
+            # Melodic line walking up
+            for i in range(4):
+                deg = (bar + i) % ns
+                idx = deg % ns
+                pitch = current_base + (deg // ns) * 12 + scale[idx]
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 1.0, 4),
+                              "duration": 0.8, "velocity": round(v, 3)})
+
+    elif bridge_type == "solo":
+        # Instrumental spotlight: dense melodic line over sparse chords
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # Sparse chord on beat 1 only
+            chord_deg = bar % 4  # I-IV-V-I cycle
+            for deg in [chord_deg, chord_deg + 2, chord_deg + 4]:
+                pitch = deg_to_pitch(deg % ns)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len * 0.8, "velocity": round(velocity * 0.5, 3)})
+            # Dense melodic line (8th notes)
+            for i in range(8):
+                # Scale-wise with occasional skips
+                if next(rng) > 0.7:
+                    deg = int(next(rng) * ns * 2) - ns  # can go negative (lower octave)
+                else:
+                    deg = (bar + i) % ns
+                pitch = deg_to_pitch(deg)
+                v_note = velocity * (0.7 + 0.3 * next(rng))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 0.5, 4),
+                              "duration": 0.4, "velocity": round(v_note, 3)})
+
+    elif bridge_type == "atmospheric":
+        # Textural: sustained tones, chromatic clusters, no clear harmony
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            # 2-3 sustained random-ish tones per bar
+            num_tones = 2 + int(next(rng) * 2)
+            for i in range(num_tones):
+                # Chromatic, not diatonic
+                semitone = int(next(rng) * 12)
+                oct_shift = -1 if next(rng) > 0.5 else 0
+                pitch = base + oct_shift * 12 + semitone
+                dur = 2.0 + next(rng) * 2.0
+                v = velocity * (0.3 + 0.4 * next(rng))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 0.5, 4),
+                              "duration": round(dur, 3), "velocity": round(v, 3)})
+
+    elif bridge_type == "surprise":
+        # Rhythmic displacement: staccato bursts in unexpected places
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            v = velocity * (0.7 + 0.3 * bar / max(bars - 1, 1))
+            # Staccato bursts at odd positions
+            burst_positions = [0.0, 0.75, 1.5, 2.25, 3.0, 3.5]  # irregular
+            for pos in burst_positions:
+                deg = int(next(rng) * ns)
+                pitch = deg_to_pitch(deg)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + pos, 4),
+                              "duration": 0.25, "velocity": round(v, 3)})
+            # Low bass note anchoring
+            notes.append({"pitch": deg_to_pitch(0, -1), "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v * 0.5, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["bridge"] = True
+    data["bridge_type"] = bridge_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "breakdown": "sparse, bass + stabs, low velocity, lots of space, tension through absence",
+        "modulation": "key shift up m3, same rhythm new tonal centre, raises emotional stakes",
+        "solo": "dense melodic line over sparse chords, instrumental spotlight, I-IV-V-I backing",
+        "atmospheric": "sustained chromatic tones, no clear harmony, textural, ambient/post-rock",
+        "surprise": "staccato bursts at odd positions, rhythmic displacement, breaks expectations",
+    }.get(bridge_type, "")
+
+    return json.dumps(data, indent=2)
