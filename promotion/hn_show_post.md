@@ -14,10 +14,10 @@ I built **opendaw-mcp**, an MCP (Model Context Protocol) server that gives AI ag
 - Audio: loading, regions, clips, time/pitch stretch, fades
 - Mixing: sends, buses, sidechain, automation, LUFS targeting
 - Rendering: mix export, per-stem export, offline render
-- **130 DSP scripts**: hardware compressor emulations (LA-2A, 1176, SSL G-bus), true peak limiter, psychoacoustic bass enhancer, spring reverb, vocoder, and more
+- **132 DSP scripts**: hardware compressor emulations (LA-2A, 1176, SSL G-bus), true peak limiter, LUFS meter (ITU-R BS.1770-4), psychoacoustic bass enhancer, spring reverb, vocoder, stereo air exciter, and more
 - **8 structural section generators**: intro, prechorus, interlude, transition, bridge, outro, coda — each with 5 style variants
 - **Meta-tools**: `arrange_full_song` (one call = MIDI skeleton), `produce_full_track` (one call = full track), `produce_and_master` (one call = produced + mastered track, 7 steps: BPM → arrange → drums → bass → genre FX → mastering → render), `auto_master` (one call = adaptive mastering)
-- **35+ genre arrangements**: house, techno, DnB, trap, dubstep, synthwave, jazz, rock, metal, ambient, lofi, and more
+- **38 genre arrangements**: house, techno, DnB, trap, dubstep, synthwave, jazz, rock, metal, ambient, lofi, industrial, breakbeat, K-pop, and more
 - **Stem splitter**: 7 SOTA open-source models (BS-Roformer, HTDemucs FT, SCNet, MelBand Roformer) running locally on GPU
 - **Preset management**: save/load .opb preset bundles
 

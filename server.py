@@ -62345,7 +62345,10 @@ async def mcp_opendaw_produce_and_master(
     scale_type: major | minor | harmonic_minor
     octave: MIDI octave (4 = C4=60)
     velocity: Base velocity 0-1
-    genre: 15 genres (house/techno/dnb/trap/dubstep/synthwave/ambient/lofi/rock/pop/funk/reggae/jazz/metal/edm)
+    genre: 35 genres (house/techno/dnb/trap/dubstep/synthwave/ambient/lofi/rock/
+           pop/funk/reggae/jazz/metal/edm/industrial/breakbeat/kpop/hardstyle/
+           garage/acid/psytrance/downtempo/phonk/future_bass/trance/disco/
+           afrobeat/soul/rnb/blues/country/gospel/liquid_dnb/neurofunk)
     bpm: Tempo (60-200)
     platform: spotify | apple | youtube | tidal | soundcloud | club
     master_style: balanced | warm | loud | transparent

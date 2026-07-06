@@ -52,7 +52,7 @@ await server.mcp_opendaw_produce_and_master(
 
 This replaces 30-40 individual tool calls. The agent specifies structure, key, genre, tempo, and platform — everything else is automatic.
 
-## What 520 tools looks like
+## What 528 tools looks like
 
 The tools cover every aspect of music production:
 
@@ -91,7 +91,7 @@ await server.mcp_opendaw_arrange_full_song(
 
 ## Hardware compressor emulations
 
-130 DSP scripts include faithful emulations of legendary hardware:
+132 DSP scripts include faithful emulations of legendary hardware:
 
 | Compressor | Model | Character |
 |------------|-------|-----------|
