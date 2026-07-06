@@ -1,13 +1,13 @@
-# Show HN: opendaw-mcp — 520 MCP tools for agent-native DAW control
+# Show HN: opendaw-mcp — 531 MCP tools for agent-native DAW control
 
 ## Title (≤80 chars)
-Show HN: opendaw-mcp – 520 MCP tools for AI agents to produce music in a browser DAW
+Show HN: opendaw-mcp – 531 MCP tools for AI agents to produce music in a browser DAW
 
 ## Body
 
 I built **opendaw-mcp**, an MCP (Model Context Protocol) server that gives AI agents full programmatic control over [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
 
-**520 MCP tools** cover the entire production pipeline:
+**531 MCP tools** cover the entire production pipeline:
 - Tracks, instruments (Vaporisateur synth, Playfield sampler, Tape/Nano/Soundfont)
 - Effects (Compressor, Delay, Reverb, Maximizer, Waveshaper, Vocoder, NeuralAmp, + scriptable Werkstatt DSP)
 - MIDI: note editing, drum patterns, chord progressions, arpeggiators, descants, counter-melodies

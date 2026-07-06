@@ -2,7 +2,7 @@
 
 > What if your AI agent could arrange a full song, mix it, and master to -1 dBTP — all in one call?
 
-**opendaw-mcp** gives an LLM agent full control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation. **520 MCP tools**, 130 DSP scripts, 12 agent skills, 35+ genre arrangements, stem separation, and a full docs site.
+**opendaw-mcp** gives an LLM agent full control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation. **531 MCP tools**, 134 DSP scripts, 12 agent skills, 39 genre arrangements, stem separation, and a full docs site.
 
 📖 **Full docs**: https://ameobius.github.io/opendaw-mcp/
 📦 **PyPI**: `pip install opendaw-mcp`
@@ -149,9 +149,9 @@ function processAudio(inputs, outputs, parameters) {
 }
 ```
 
-130 ready-made DSP scripts ship with the project: tape saturation, wavefolding, bitcrush, spring reverb, chorus, phaser, shimmer, granular stretch, FM synth, ring mod, vocoder, psychoacoustic bass enhancer, SSL bus compressor, true peak limiter, and more.
+134 ready-made DSP scripts ship with the project: tape saturation, wavefolding, bitcrush, spring reverb, chorus, phaser, shimmer, granular stretch, FM synth, ring mod, vocoder, psychoacoustic bass enhancer, SSL bus compressor, true peak limiter, LUFS meter, correlation meter, spectrum analyzer, and more.
 
-## 35+ genre arrangements
+## 39 genre arrangements
 
 Want to start from a genre? 35+ multi-track arrangements are tested:
 
