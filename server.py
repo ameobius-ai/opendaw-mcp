@@ -36990,6 +36990,246 @@ async def mcp_opendaw_create_bariolage(
 
 
 
+@mcp.tool()
+async def mcp_opendaw_create_tuplet_group(
+    root: str = "C",
+    scale: str = "major",
+    tuplet_number: int = 3,
+    span_beats: float = 1.0,
+    base_division: int = 2,
+    repeats: int = 4,
+    octave: int = 4,
+    pitch_mode: str = "scale_asc",
+    rest_positions: str = "",
+    velocity: float = 0.7,
+    accent_first: bool = True,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+) -> str:
+    """Create a tuplet group — irrational rhythm subdivision within a time span.
+
+    A tuplet divides a time span into N equal parts instead of the normal
+    subdivision. Triplets (3 in 2), quintuplets (5 in 4), septuplets (7 in 4)
+    create rhythmic tension by violating the expected duple meter.
+
+    Unlike polyrhythm (multiple voices with different periods) or additive
+    rhythm (unequal groupings), tuplets subdivide a single time span into
+    an irrational number of equal parts — creating a "squeezed" or "stretched"
+    feel within one voice.
+
+    Common tuplets:
+      3 in 2  — triplet (most common, jazz swing, Irish jigs)
+      5 in 4  — quintuplet (Chopin, Ligeti, modern jazz)
+      7 in 4  — septuplet (Ferneyhough, new complexity)
+      11 in 4 — undecuplet (extreme irrational meter)
+      2 in 3  — duplet (2 notes in triplet space, compound meter)
+
+    Args:
+        root: Root note name (C, C#, D, ...).
+        scale: Scale name (major, minor, dorian, etc.).
+        tuplet_number: Number of notes to fit in the span (2-16).
+            3=triplet, 5=quintuplet, 7=septuplet, etc.
+        span_beats: Time span in beats that the tuplet occupies (0.25-8.0).
+            1.0 = quarter note span, 2.0 = half note span.
+        base_division: The normal subdivision the tuplet replaces (1-8).
+            2 = duplet (normal), so triplet = 3 in 2. 4 = sixteenths, so
+            quintuplet = 5 in 4.
+        repeats: Number of times the tuplet repeats (1-16).
+        octave: Starting MIDI octave (1-6).
+        pitch_mode: Pitch assignment mode (scale_asc, scale_desc, chord,
+            repeated, alternating).
+        rest_positions: Comma-separated tuplet positions that are rests
+            (0-indexed). E.g., "2,4" = positions 2 and 4 are rests.
+        velocity: Base velocity 0-1.
+        accent_first: If True, first note of each tuplet gets accent.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+
+    Returns notes created, tuplet ratio, and timing info.
+    """
+    from opendaw_mcp.music_theory import SCALE_INTERVALS, CHORD_INTERVALS
+
+    NOTE_NAMES = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5,
+                  "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    root_num = NOTE_NAMES.get(root, 0)
+    intervals = SCALE_INTERVALS.get(scale, SCALE_INTERVALS["major"])
+
+    if not (2 <= tuplet_number <= 16):
+        return f"Error: tuplet_number must be 2-16, got {tuplet_number}"
+    if not (0.25 <= span_beats <= 8.0):
+        return f"Error: span_beats must be 0.25-8.0, got {span_beats}"
+    if not (1 <= base_division <= 8):
+        return f"Error: base_division must be 1-8, got {base_division}"
+    if not (1 <= repeats <= 16):
+        return f"Error: repeats must be 1-16, got {repeats}"
+    if not (1 <= octave <= 6):
+        return f"Error: octave must be 1-6, got {octave}"
+    if pitch_mode not in ("scale_asc", "scale_desc", "chord", "repeated", "alternating"):
+        return f"Error: pitch_mode must be scale_asc, scale_desc, chord, repeated, or alternating, got {pitch_mode}"
+
+    # Parse rest positions
+    rest_set = set()
+    if rest_positions:
+        try:
+            for p in rest_positions.split(","):
+                rest_set.add(int(p.strip()))
+        except (ValueError, TypeError):
+            rest_set = set()
+
+    # Build scale pitches
+    scale_pitches = []
+    for oct_shift in range(0, 2):
+        for iv in intervals:
+            pitch = (octave + 1 + oct_shift) * 12 + (root_num + iv) % 12
+            scale_pitches.append(pitch)
+    scale_pitches = sorted(set(scale_pitches))
+
+    # Build chord pitches
+    chord_intervals = CHORD_INTERVALS.get("maj", [0, 4, 7])
+    chord_pitches = [(octave + 1) * 12 + (root_num + ci) % 12 for ci in chord_intervals]
+
+    # Tuplet note duration
+    note_dur = span_beats / tuplet_number
+
+    # Generate notes
+    notes = []
+    scale_idx = 0
+    chord_idx = 0
+
+    for rep in range(repeats):
+        rep_start = rep * span_beats
+
+        for pos in range(tuplet_number):
+            beat_pos = rep_start + pos * note_dur
+            is_rest = pos in rest_set
+
+            if is_rest:
+                continue
+
+            # Determine pitch
+            if pitch_mode == "scale_asc":
+                if scale_idx >= len(scale_pitches):
+                    scale_idx = 0
+                pitch = scale_pitches[scale_idx]
+                scale_idx += 1
+            elif pitch_mode == "scale_desc":
+                if scale_idx >= len(scale_pitches):
+                    scale_idx = 0
+                pitch = list(reversed(scale_pitches))[scale_idx]
+                scale_idx += 1
+            elif pitch_mode == "chord":
+                if chord_idx >= len(chord_pitches):
+                    chord_idx = 0
+                pitch = chord_pitches[chord_idx]
+                chord_idx += 1
+            elif pitch_mode == "repeated":
+                pitch = scale_pitches[0]
+            else:  # alternating
+                if scale_idx >= len(scale_pitches):
+                    scale_idx = 0
+                if pos % 2 == 0:
+                    pitch = scale_pitches[scale_idx]
+                else:
+                    pitch = scale_pitches[(scale_idx + 3) % len(scale_pitches)]
+                scale_idx += 1
+
+            # Velocity
+            vel = velocity
+            if accent_first and pos == 0:
+                vel = min(1.0, vel * 1.2)
+
+            notes.append({
+                "pitch": pitch,
+                "pos": round(beat_pos, 4),
+                "dur": note_dur * 0.9,
+                "vel": vel,
+            })
+
+    # Statistics
+    actual_notes = len(notes)
+    total_positions = repeats * tuplet_number
+    rest_count = total_positions - actual_notes
+
+    pitches_json = json.dumps([n["pitch"] for n in notes])
+    positions_json = json.dumps([n["pos"] for n in notes])
+    durations_json = json.dumps([n["dur"] for n in notes])
+    velocities_json = json.dumps([n["vel"] for n in notes])
+    _ = (pitches_json, positions_json, durations_json, velocities_json, start_beat)
+
+    result = await bridge.evaluate(f"""async () => {{
+        const h = window.DAW_HELPERS;
+        const Quarter = h.ppqn.Quarter;
+        const unitIdx = {unit_index};
+        const trackIdx = {track_index};
+        const startPos = {start_beat};
+
+        const allUnits = h.allAUBoxes();
+        if (unitIdx < 0 || unitIdx >= allUnits.length) return {{error: "unit_index out of range"}};
+        const au = allUnits[unitIdx];
+        const noteTracks = h.noteTrackBoxes(au);
+        if (trackIdx < 0 || trackIdx >= noteTracks.length) return {{error: "track_index out of range"}};
+        const trackBox = noteTracks[trackIdx];
+
+        const regions = h.regionBoxes(trackBox);
+        let collection = null;
+        if (regions.length > 0) {{
+            try {{
+                const vertex = regions[0].events.targetVertex.unwrap();
+                collection = vertex.box || vertex;
+            }} catch(e) {{}}
+        }}
+        if (!collection) return {{error: "No region/collection on track"}};
+
+        const pitches = {pitches_json};
+        const positions = {positions_json};
+        const durations = {durations_json};
+        const velocities = {velocities_json};
+
+        let created = 0;
+        const noteEvents = [];
+
+        h.modify(() => {{
+            let NoteEventBox = h.NoteEventBox;
+            if (!NoteEventBox) return;
+            for (let i = 0; i < pitches.length; i++) {{
+                const posTicks = Math.round((startPos + positions[i]) * Quarter);
+                const durTicks = Math.round(durations[i] * Quarter);
+                NoteEventBox.create(h.boxGraph, h.uuid.generate(), (box) => {{
+                    box.position.setValue(posTicks);
+                    box.duration.setValue(durTicks);
+                    box.pitch.setValue(pitches[i]);
+                    box.velocity.setValue(velocities[i]);
+                    box.events.refer(collection.events);
+                }});
+                created++;
+                noteEvents.push({{pitch: pitches[i], pos: positions[i]}});
+            }}
+        }});
+
+        return {{
+            success: true,
+            root: "{root}",
+            scale: "{scale}",
+            tuplet_number: {tuplet_number},
+            span_beats: {span_beats},
+            base_division: {base_division},
+            repeats: {repeats},
+            tuplet_ratio: "{tuplet_number}:{base_division}",
+            note_duration: {round(note_dur, 4)},
+            pitch_mode: "{pitch_mode}",
+            notes_created: created,
+            rest_count: {rest_count},
+            total_positions: {total_positions},
+            note_preview: noteEvents.slice(0, 12),
+        }};
+    }}""")
+    return _wrap_eval(result)
+
+
+
+
 if __name__ == "__main__":
     main()
 

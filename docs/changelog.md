@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.287.0 (2026-07-06)
+
+### Added
+- `create_tuplet_group` — Irrational rhythm subdivision: N notes in a time span normally occupied by M notes. Triplets (3:2), quintuplets (5:4), septuplets (7:4), up to 16 notes. 5 pitch modes (scale_asc/desc, chord, repeated, alternating). Rest positions. Accent on first note. Repeats. Unlike polyrhythm (multiple voices), tuplets subdivide a single voice. Chopin, Ligeti, Ferneyhough.
+
 ## v1.286.0 (2026-07-06)
 
 ### Added

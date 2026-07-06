@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 91 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.286.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 91 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.287.0"
 ---
 
 # openDAW Composition Patterns
@@ -132,6 +132,7 @@ What do you want to create?
 ├── Montuno → create_montuno (Latin/jazz piano ostinato, 2-3/3-2 clave + guajira + charanga patterns, syncopated chord stabs + melodic passages, I-vi-IV-V auto or custom chords)
 ├── Voice Exchange → create_voice_exchange (imitative counterpoint, 6 modes: imitation/inversion/retrograde/retrograde-inversion/augmentation/diminution, optional swap for voice crossing)
 ├── Bariolage → create_bariolage (Baroque string crossing, pedal pitch + moving notes alternation, 5 patterns, 3 subdivisions, two-voice illusion)
+├── Tuplet Group → create_tuplet_group (irrational rhythm subdivision, triplets/quintuplets/septuplets up to 16, 5 pitch modes, rest positions, accent first)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
