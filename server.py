@@ -61621,12 +61621,8 @@ async def mcp_opendaw_produce_full_track(
 
     # Step 5.5: Chord progression (harmonic foundation)
     try:
-        if scale_type == "major":
-            chords = "Cmaj7,Fmaj7,Gmaj7,Am7"
-        else:
-            chords = f"{key_root}m7,{key_root}m7,Fm7,Gm7"
         chord_result = await mcp_opendaw_create_chord_progression(
-            chords, -1, 0, 0, 4.0)
+            _build_chord_prog(key_root, scale_type), -1, 0, 0, 4.0)
         chord_data = json.loads(chord_result)
         results["chords"] = {
             "notes": chord_data.get("notes_created", chord_data.get("notes_generated", 0)),
@@ -62368,6 +62364,35 @@ async def mcp_opendaw_add_genre_effects(
     }, indent=2)
 
 
+# Chord progression builder for meta-tools
+_CHORD_ROOTS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+_CHORD_ROOTS_FLAT = {"Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#"}
+
+
+def _build_chord_prog(key_root: str, scale_type: str) -> str:
+    """Build a 4-chord progression transposed to key_root.
+
+    Major: I-V-vi-IV (pop progression)
+    Minor: i-VI-III-VII (natural minor, same as relative major vi-IV-I-V)
+    Harmonic minor: i-iv-V-i (classical minor progression)
+    """
+    root = _CHORD_ROOTS_FLAT.get(key_root, key_root)
+    idx = _CHORD_ROOTS.index(root) if root in _CHORD_ROOTS else 0
+
+    def note(offset):
+        return _CHORD_ROOTS[(idx + offset) % 12]
+
+    if scale_type == "major":
+        # I-V-vi-IV
+        return f"{note(0)}maj7,{note(7)}7,{note(9)}m7,{note(5)}maj7"
+    elif scale_type == "harmonic_minor":
+        # i-iv-V-i
+        return f"{note(0)}m7,{note(5)}m7,{note(7)}7,{note(0)}m7"
+    else:
+        # minor: i-VI-III-VII
+        return f"{note(0)}m7,{note(8)}maj7,{note(3)}maj7,{note(10)}7"
+
+
 async def mcp_opendaw_produce_and_master(
     structure: str = "intro:4,verse:8,prechorus:2,chorus:8,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4",
     key_root: str = "C",
@@ -62471,14 +62496,10 @@ async def mcp_opendaw_produce_and_master(
 
     # Step 5.5: Chord progression (harmonic foundation)
     try:
-        if scale_type == "major":
-            chords = "Cmaj7,Fmaj7,Gmaj7,Am7"
-        else:
-            chords = f"{key_root}m7,{key_root}m7,Fm7,Gm7"
-        r = await mcp_opendaw_create_chord_progression(
-            chords, -1, 0, 0, 4.0)
-        d = json.loads(r)
-        results["chords"] = d.get("notes_created", d.get("notes_generated", 0))
+        r_chords = await mcp_opendaw_create_chord_progression(
+            _build_chord_prog(key_root, scale_type), -1, 0, 0, 4.0)
+        d_chords = json.loads(r_chords)
+        results["chords"] = d_chords.get("notes_created", d_chords.get("notes_generated", 0))
     except Exception as e:
         results["chords_error"] = str(e)[:100]
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.380.0 (2026-07-06)
+
+- **`_build_chord_prog` key-aware chord builder** — Fixed bug where `produce_and_master` and `produce_full_track` hardcoded C major chords regardless of `key_root`. Now builds I-V-vi-IV (major), i-VI-III-VII (minor), i-iv-V-i (harmonic minor) transposed to the actual key. D major → Dmaj7,A7,Bm7,Gmaj7. A minor → Am7,Fmaj7,Cmaj7,G7. 12 unit tests. Both meta-tools now produce harmonically correct progressions in any key.
+
 ## v1.379.0 (2026-07-06)
 
 - **`produce_and_master` + `produce_full_track` upgraded** — Both meta-tools now include chord progression step (harmonic foundation). produce_and_master is now 10 steps, produce_full_track is 8 steps. Tracks now have harmonic pads/chords alongside drums, bass, and melody. I-V-vi-IV for major, ii-V-i for minor. Full harmonic foundation in one call.
