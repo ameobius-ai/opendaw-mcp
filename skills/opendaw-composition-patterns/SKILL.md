@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 531 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riff"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 532 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riff"
 ---
 
 # openDAW Composition Patterns
@@ -77,7 +77,7 @@ What do you want to create?
 ├── Descant (counter-melody above) → create_descant (5 types: soaring/weaving/pedal_tone/call_response/ornamental, higher register)
 ├── Counter-melody (below/around) → create_counter_melody (5 types: contrary/oblique/parallel/rhythmic/pedal, lower register, quieter)
 ├── Adaptive mastering → auto_master (meta-tool: analyze → mastering chain → auto-gain → LUFS meter verification, 6 platforms, 4 styles, LUFS targeting)
-├── Ultimate pipeline → produce_and_master (8 steps: BPM → arrange → drums → bass → melody → genre FX → master → render, ONE CALL = complete mastered track)
+├── Ultimate pipeline → produce_and_master (9 steps: BPM → arrange → drums → bass → melody → genre FX → master → render → verify, ONE CALL = complete mastered+verified track)
 ├── Verse (storytelling) → create_verse (5 types: narrative/sparse/driving/conversational/build, lower energy, lyrics lead)
 ├── Chorus (emotional peak) → create_chorus (5 types: anthemic/hooky/driving/soaring/call_response, higher energy, the hook)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)

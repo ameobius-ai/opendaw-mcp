@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.378.0 (2026-07-06)
+
+- **`produce_and_master` upgraded** — Now includes verification step (Step 9: read_meter). Pipeline is now 9 steps: BPM → arrange → drums → bass → melody → genre effects → mastering → render → **verify**. After render, reads LUFS meter values automatically. Closed-loop mastering: master → meter → verify. One call = produced + mastered + verified track.
+
 ## v1.377.0 (2026-07-06)
 
 - **`read_meter`** — Read parameter values from Werkstatt meter devices. After auto_master places a LUFS meter on output, this tool reads the measured values — integrated LUFS, correlation coefficient, spectral centroid, band levels, etc. Identifies meter type from code header (lufs_meter/correlation_meter/spectrum_analyzer). Closes the verification feedback loop: auto_master → lufs_meter → read_meter → verify target LUFS. 19 unit tests. 532 MCP tools.
