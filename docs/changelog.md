@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.299.0 (2026-07-06)
+
+- **`create_taiko_ensemble`** — Japanese taiko ensemble: kumi-daiko group drumming with dramatic dynamics. 4 instruments: odaiko (thunderous bass), chu-daiko (mid-range workhorse), shime-daiko (high timekeeper), atarigane (metal gong). 5 styles: miyake (steady + dramatic odaiko), yatai (festival, joyful), edo (march-like, sparse odaiko), hachijo (soloistic, long rolls, ma/silence), omega (modern Kodo-style, maximum density). Dynamic contrast from near silence to thunder. Japanese tradition.
+
 ## v1.298.0 (2026-07-06)
 
 - **`create_irish_trad`** — Irish traditional music accompaniment: bodhrán + feet stomp for session tunes. 6 tune types: reel (4/4 straight 8ths), jig (6/8 triplet feel), hornpipe (4/4 swung/dotted), slip jig (9/8 ethereal), polka (2/4 fast), slide (12/8 Sliabh Luachra). Bodhrán on accented beats, brush hi-hat on every beat, feet stomp on every other bar. Hornpipe is the only swung type (swing=0.6). Ireland / Celtic tradition.

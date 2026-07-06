@@ -40612,6 +40612,246 @@ async def mcp_opendaw_create_irish_trad(
 
 
 @mcp.tool()
+async def mcp_opendaw_create_taiko_ensemble(
+    bars: int = 4,
+    style: str = "miyake",
+    velocity: float = 0.8,
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    odaiko_pitch: int = 35,
+    chu_daiko_pitch: int = 38,
+    shime_pitch: int = 42,
+    atarigane_pitch: int = 50,
+) -> str:
+    """Create a Japanese taiko ensemble — kumi-daiko group drumming with dramatic dynamics.
+
+    Taiko (literally "fat drum") is Japanese percussion with a history spanning
+    over a millennium. Modern kumi-daiko (group taiko) was created in the 1950s
+    by Daihachi Oguchi, combining multiple drum types into an ensemble. The
+    defining characteristic is dramatic dynamic contrast — from near silence
+    to thunderous power — and the use of silence (ma) as a structural element.
+
+    The four core instruments:
+
+    1. ODAIKO — The largest drum. Deep, resonant, thunderous. Plays sparse,
+       powerful hits that mark structural points. The "earthquake" of the
+       ensemble. Very low pitch.
+    2. CHU-DAIKO — Medium drum. The workhorse — plays the main rhythmic
+       patterns. Mid-range pitch, full-bodied tone. Most of the notes.
+    3. SHIME-DAIKO — Small, high-pitched drum. Plays fast, tight patterns
+       and timekeeping. The "metronome" of the ensemble. High, snappy.
+    4. ATARIGANE — Hand gong (metal). Plays accents and calls. Bright,
+       metallic, piercing. Used for dramatic punctuation.
+
+    Stroke vocabulary (kakegoe):
+      DON — Loud center hit (chu-daiko, odaiko)
+      KA  — Rim hit (shime-daiko)
+      DOKO — Double hit (don-ko)
+      TSU — Soft, muted stroke
+      SU  — Silence / rest (ma)
+
+    styles:
+      "miyake"   — Miyake-style: steady chu-daiko pulse with dramatic odaiko
+                    accents. Low stance, powerful, sustained. 4/4 with
+                    syncopated odaiko on 2.5 and 4. Shime plays continuous
+                    8th notes. Atarigane calls on bar starts.
+      "yatai"    — Yatai-bayashi: festival style. Faster, more joyous.
+                    Shime plays 16th notes, chu-daiko alternates don/doko,
+                    odaiko on downbeats. Atarigane on offbeats.
+      "edo"      — Edo-bayashi: Edo period festival. Steady, march-like.
+                    Chu-daiko on 1 and 3, shime on all 8ths, odaiko sparse
+                    (only on phrase ends). Atarigane sparse.
+      "hachijo"  — Hachijo-style: soloistic, dramatic. Long odaiko rolls
+                    with chu-daiko accents. Ma (silence) between phrases.
+                    Sparse but powerful. Slow tempo feel.
+      "omega"    — Modern taiko (Kodo-style). Dense, aggressive, contemporary.
+                    All four instruments at high density. Odaiko on every
+                    beat, chu-daiko 16ths, shime 32nd rolls, atarigane
+                    accents. Maximum energy.
+
+    Args:
+        bars: Pattern length in bars (4-32, even).
+        style: Style name (miyake, yatai, edo, hachijo, omega).
+        velocity: Base velocity 0-1.
+        unit_index: AU index.
+        track_index: Note track index.
+        start_beat: Starting beat position.
+        odaiko_pitch: Odaiko (large drum) MIDI pitch (35 = B0).
+        chu_daiko_pitch: Chu-daiko (medium drum) MIDI pitch (38 = D1).
+        shime_pitch: Shime-daiko (small drum) MIDI pitch (42 = F#1).
+        atarigane_pitch: Atarigane (gong) MIDI pitch (50 = D2).
+
+    Returns notes created, instrument breakdown, and style info.
+    """
+    if not (4 <= bars <= 32) or bars % 2 != 0:
+        return f"Error: bars must be even and 4-32, got {bars}"
+    if style not in ("miyake", "yatai", "edo", "hachijo", "omega"):
+        return f"Error: style must be miyake, yatai, edo, hachijo, or omega, got {style}"
+
+    STYLES = {
+        "miyake": {
+            "odaiko": [
+                (2.5, 1.0, 0.5), (4.0, 0.95, 0.5), (6.5, 0.9, 0.5),
+                (10.5, 1.0, 0.5), (12.0, 0.95, 0.5), (14.5, 0.9, 0.5),
+            ],
+            "chu_daiko": [
+                (0.0, 0.8, 0.2), (1.0, 0.7, 0.15), (2.0, 0.85, 0.2),
+                (3.0, 0.7, 0.15), (4.0, 0.8, 0.2), (5.0, 0.7, 0.15),
+                (6.0, 0.85, 0.2), (7.0, 0.7, 0.15),
+                (8.0, 0.8, 0.2), (9.0, 0.7, 0.15), (10.0, 0.85, 0.2),
+                (11.0, 0.7, 0.15), (12.0, 0.8, 0.2), (13.0, 0.7, 0.15),
+                (14.0, 0.85, 0.2), (15.0, 0.7, 0.15),
+            ],
+            "shime": [
+                (i * 0.5, 0.5 if i % 2 == 0 else 0.45, 0.06)
+                for i in range(32)
+            ],
+            "atarigane": [
+                (0.0, 0.7, 0.1), (8.0, 0.7, 0.1),
+            ],
+        },
+        "yatai": {
+            "odaiko": [
+                (0.0, 1.0, 0.4), (2.0, 0.9, 0.4), (4.0, 1.0, 0.4),
+                (6.0, 0.9, 0.4), (8.0, 1.0, 0.4), (10.0, 0.9, 0.4),
+                (12.0, 1.0, 0.4), (14.0, 0.9, 0.4),
+            ],
+            "chu_daiko": [
+                (0.0, 0.85, 0.15), (0.5, 0.6, 0.1), (1.0, 0.8, 0.15),
+                (1.5, 0.6, 0.1), (2.0, 0.85, 0.15), (2.5, 0.6, 0.1),
+                (3.0, 0.8, 0.15), (3.5, 0.6, 0.1),
+                (4.0, 0.85, 0.15), (4.5, 0.6, 0.1), (5.0, 0.8, 0.15),
+                (5.5, 0.6, 0.1), (6.0, 0.85, 0.15), (6.5, 0.6, 0.1),
+                (7.0, 0.8, 0.15), (7.5, 0.6, 0.1),
+                (8.0, 0.85, 0.15), (8.5, 0.6, 0.1), (9.0, 0.8, 0.15),
+                (9.5, 0.6, 0.1), (10.0, 0.85, 0.15), (10.5, 0.6, 0.1),
+                (11.0, 0.8, 0.15), (11.5, 0.6, 0.1),
+                (12.0, 0.85, 0.15), (12.5, 0.6, 0.1), (13.0, 0.8, 0.15),
+                (13.5, 0.6, 0.1), (14.0, 0.85, 0.15), (14.5, 0.6, 0.1),
+                (15.0, 0.9, 0.2), (15.5, 0.6, 0.1),
+            ],
+            "shime": [
+                (i * 0.25, 0.5 if i % 2 == 0 else 0.4, 0.04)
+                for i in range(64)
+            ],
+            "atarigane": [
+                (0.5, 0.6, 0.08), (2.5, 0.6, 0.08), (4.5, 0.6, 0.08),
+                (6.5, 0.6, 0.08), (8.5, 0.6, 0.08), (10.5, 0.6, 0.08),
+                (12.5, 0.6, 0.08), (14.5, 0.65, 0.08),
+            ],
+        },
+        "edo": {
+            "odaiko": [
+                (7.5, 1.0, 0.5), (15.5, 1.0, 0.5),
+            ],
+            "chu_daiko": [
+                (0.0, 0.85, 0.2), (2.0, 0.8, 0.2), (4.0, 0.85, 0.2),
+                (6.0, 0.8, 0.2), (8.0, 0.85, 0.2), (10.0, 0.8, 0.2),
+                (12.0, 0.85, 0.2), (14.0, 0.8, 0.2),
+            ],
+            "shime": [
+                (i * 0.5, 0.5, 0.06) for i in range(32)
+            ],
+            "atarigane": [
+                (0.0, 0.6, 0.1), (8.0, 0.6, 0.1),
+            ],
+        },
+        "hachijo": {
+            "odaiko": [
+                (0.0, 1.0, 1.0), (3.0, 0.85, 0.8), (7.0, 0.9, 0.9),
+                (8.0, 1.0, 1.0), (11.0, 0.85, 0.8), (15.0, 0.95, 0.9),
+            ],
+            "chu_daiko": [
+                (1.5, 0.8, 0.15), (2.5, 0.7, 0.12), (4.0, 0.85, 0.18),
+                (5.5, 0.7, 0.12), (6.5, 0.75, 0.15),
+                (9.5, 0.8, 0.15), (10.5, 0.7, 0.12), (12.0, 0.85, 0.18),
+                (13.5, 0.7, 0.12), (14.5, 0.8, 0.15),
+            ],
+            "shime": [
+                (0.0, 0.5, 0.08), (2.0, 0.5, 0.08),
+                (7.0, 0.5, 0.08), (9.0, 0.5, 0.08),
+                (14.0, 0.5, 0.08),
+            ],
+            "atarigane": [
+                (0.0, 0.75, 0.12), (8.0, 0.75, 0.12),
+            ],
+        },
+        "omega": {
+            "odaiko": [
+                (0.0, 1.0, 0.3), (1.0, 0.9, 0.3), (2.0, 1.0, 0.3),
+                (3.0, 0.9, 0.3), (4.0, 1.0, 0.3), (5.0, 0.9, 0.3),
+                (6.0, 1.0, 0.3), (7.0, 0.9, 0.3),
+                (8.0, 1.0, 0.3), (9.0, 0.9, 0.3), (10.0, 1.0, 0.3),
+                (11.0, 0.9, 0.3), (12.0, 1.0, 0.3), (13.0, 0.9, 0.3),
+                (14.0, 1.0, 0.3), (15.0, 0.95, 0.35),
+            ],
+            "chu_daiko": [
+                (i * 0.25, 0.75 if i % 2 == 0 else 0.6, 0.1)
+                for i in range(64)
+            ],
+            "shime": [
+                (i * 0.125, 0.5 if i % 2 == 0 else 0.4, 0.03)
+                for i in range(128)
+            ],
+            "atarigane": [
+                (0.0, 0.8, 0.1), (2.0, 0.7, 0.08), (4.0, 0.8, 0.1),
+                (6.0, 0.7, 0.08), (8.0, 0.8, 0.1), (10.0, 0.7, 0.08),
+                (12.0, 0.8, 0.1), (14.0, 0.85, 0.12),
+            ],
+        },
+    }
+
+    pitch_map = {
+        "odaiko": odaiko_pitch, "chu_daiko": chu_daiko_pitch,
+        "shime": shime_pitch, "atarigane": atarigane_pitch,
+    }
+
+    style_data = STYLES[style]
+    instruments = list(style_data.keys())
+    cycle_len = 16.0  # 4-bar cycle
+    cycles = bars // 4
+
+    all_notes = []
+    inst_counts = {}
+
+    for inst in instruments:
+        inst_counts[inst] = 0
+        strokes = style_data[inst]
+        for c in range(cycles):
+            offset = c * cycle_len
+            for beat, vel_mult, dur in strokes:
+                pos = round(start_beat + offset + beat, 4)
+                vel = round(max(0.0, min(1.0, velocity * vel_mult)), 3)
+                all_notes.append({
+                    "pitch": pitch_map[inst],
+                    "start": pos,
+                    "duration": dur,
+                    "velocity": vel,
+                })
+                inst_counts[inst] += 1
+
+    # Sort by start time
+    all_notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    notes_json = json.dumps(all_notes)
+    result_str = await mcp_opendaw_create_notes_batch(notes_json, unit_index, track_index)
+
+    try:
+        data = json.loads(result_str)
+        data["taiko_ensemble"] = True
+        data["style"] = style
+        data["bars"] = bars
+        data["cycles"] = cycles
+        data["instruments"] = instruments
+        data["instrument_counts"] = inst_counts
+        data["total_notes"] = len(all_notes)
+        return json.dumps(data, indent=2)
+    except Exception:
+        return result_str
+
+
+@mcp.tool()
 async def mcp_opendaw_create_dembow(
     dembow_type: str = "classic",
     bars: int = 2,

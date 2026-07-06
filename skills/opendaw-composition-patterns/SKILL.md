@@ -144,6 +144,7 @@ What do you want to create?
 ├── Flamenco Compás → create_flamenco_compas (Andalusian, 4 instruments: palmas secas/sordas/cajón/golpe, 6 palos: bulerias/solea/alegrias/siguiriyas/tangos/rumba, 12-beat cyclical)
 ├── Balkan Meter → create_balkan_meter (additive meters 7/8/9/8/11/16/13/8, unequal groupings 2+2+3 etc, 6 meters + reversed, 3 variations: classic/modern/wedding)
 ├── Irish Trad → create_irish_trad (bodhrán+feet, 6 tune types: reel/jig/hornpipe/slip_jig/polka/slide, hornpipe swung, Ireland/Celtic)
+├── Taiko Ensemble → create_taiko_ensemble (Japanese kumi-daiko, 4 instruments: odaiko/chu-daiko/shime/atarigane, 5 styles: miyake/yatai/edo/hachijo/omega, dramatic dynamics)
 │
 ├── Multi-track genre arrangement → create_XXX_arrangement (14 genres)
 │   ├── dnb/house/trap/techno/dubstep (3 tracks: drums+bass+pad)
