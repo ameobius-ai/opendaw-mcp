@@ -58,7 +58,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("opendaw-mcp")
-__version__ = "1.383.0"
+__version__ = "1.384.0"
 DAW_HOST_DIR = os.environ.get("OPENDAW_HOST_DIR", os.path.join(os.path.dirname(__file__), "..", "headless-daw"))
 EXPORT_DIR = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "..", "exports"))
 os.makedirs(EXPORT_DIR, exist_ok=True)

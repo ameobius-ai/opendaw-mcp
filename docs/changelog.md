@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.384.0 (2026-07-06)
+
+- **Trellis phase-specific guides** — 4 agent guides for phase-based workflow: `docs/phases/compose.md` (tracks, instruments, notes, sections, arrangements, 37 genres, chord progressions, scriptable devices), `docs/phases/mix.md` (effects, sends, buses, mastering, automation, genre chains, MIDI effects), `docs/phases/render.md` (render, export, audio I/O, time/pitch stretch, presets, one-call pipeline), `docs/phases/inspect.md` (project state, metering trio, analysis, verification workflow). Agents load only relevant phase guide.
+
 ## v1.383.0 (2026-07-06)
 
 - **Context-mode output sandboxing** — `OPENDAW_MCP_OUTPUT_LIMIT` env var. When set, tool responses are smartly truncated to N chars. Dicts get large fields truncated with `__truncated`/`__original_length` metadata. Lists get first N items with `total`/`shown` counts. Non-JSON gets simple truncation with omission count. Default 0 = unlimited (no change). Prevents bulky JSON from flooding agent context. 13 unit tests.
