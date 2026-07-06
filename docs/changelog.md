@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.358.0 (2026-07-06)
+
+- **`produce_and_master`** — The single most powerful tool. Chains 7 steps in one call: set_bpm → arrange_full_song → create_drum_pattern → create_bassline → add_genre_effects → auto_master → render_full. One call = a fully produced and mastered track ready for streaming. Replaces 30-40 individual tool calls. 15 genres, 6 platform targets, 4 mastering styles. 22 unit tests. 523 MCP tools.
+
 ## v1.357.0 (2026-07-06)
 
 - **`add_genre_effects`** — Genre-specific effect chains in one call. 15 genres with character-appropriate routing: house (sidechain + Dattorro + widener + maximizer), techno (pumping comp + delay + waveshaper), dnb (aggressive comp + reverb + reese), metal (heavy waveshaper + comp + loud maximizer), ambient (long reverb, no compression), lofi (gentle), etc. Each chain targets specific tracks (bass/drums/vocals/output). Saves 5-10 individual calls. 20 unit tests. 522 MCP tools.

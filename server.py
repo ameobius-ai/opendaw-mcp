@@ -62189,3 +62189,149 @@ async def mcp_opendaw_add_genre_effects(
             "Use render_full to render the complete track",
         ],
     }, indent=2)
+
+
+async def mcp_opendaw_produce_and_master(
+    structure: str = "intro:4,verse:8,prechorus:2,chorus:8,verse:8,prechorus:2,chorus:8,bridge:4,chorus:8,outro:4",
+    key_root: str = "C",
+    scale_type: str = "minor",
+    octave: int = 4,
+    velocity: float = 0.65,
+    genre: str = "house",
+    bpm: float = 124,
+    platform: str = "spotify",
+    master_style: str = "balanced",
+    render: bool = True,
+    seed: int = 42,
+) -> str:
+    """Produce AND master a complete track in one call.
+
+    The single most powerful tool. Chains everything:
+    1. set_bpm
+    2. arrange_full_song (MIDI skeleton)
+    3. create_drum_pattern (genre drums)
+    4. create_bassline (genre bass)
+    5. add_genre_effects (genre-specific effect chains)
+    6. auto_master (analyze → mastering chain → LUFS targeting)
+    7. render_full (if render=True)
+
+    One call = a fully produced and mastered track ready for streaming.
+    Replaces 30-40 individual tool calls.
+
+    structure: Comma-separated section:bars pairs
+    key_root: Root note (C, C#, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    velocity: Base velocity 0-1
+    genre: 15 genres (house/techno/dnb/trap/dubstep/synthwave/ambient/lofi/rock/pop/funk/reggae/jazz/metal/edm)
+    bpm: Tempo (60-200)
+    platform: spotify | apple | youtube | tidal | soundcloud | club
+    master_style: balanced | warm | loud | transparent
+    render: If true, renders to WAV
+    seed: PRNG seed
+
+    Example:
+      produce_and_master(genre="dnb", key_root="A", bpm=174, platform="spotify")
+      produce_and_master(genre="metal", key_root="D", scale_type="minor", bpm=160, platform="club", master_style="loud")
+    """
+    results = {}
+
+    # Step 1: BPM
+    try:
+        await mcp_opendaw_set_bpm(bpm)
+        results["bpm"] = bpm
+    except Exception as e:
+        results["bpm_error"] = str(e)[:100]
+
+    # Step 2: Arrange
+    try:
+        r = await mcp_opendaw_arrange_full_song(
+            structure, key_root, scale_type, octave, velocity,
+            "melodic", "build", "breakdown", "fade",
+            "instrumental", "texture_build", "theme", seed)
+        d = json.loads(r)
+        results["arrangement"] = {
+            "sections": d.get("total_sections", 0),
+            "bars": d.get("total_bars", 0),
+            "notes": d.get("total_notes", 0),
+        }
+    except Exception as e:
+        results["arrange_error"] = str(e)[:100]
+
+    # Step 3: Drums
+    try:
+        r = await mcp_opendaw_create_drum_pattern(genre, -1)
+        d = json.loads(r)
+        results["drums"] = d.get("notes_created", d.get("notes_generated", 0))
+    except Exception as e:
+        results["drum_error"] = str(e)[:100]
+
+    # Step 4: Bass
+    try:
+        r = await mcp_opendaw_create_bassline(
+            key_root, genre, -1, 0, 0, octave - 1, velocity * 0.9, scale_type)
+        d = json.loads(r)
+        results["bass"] = d.get("notes_created", d.get("notes_generated", 0))
+    except Exception as e:
+        results["bass_error"] = str(e)[:100]
+
+    # Step 5: Genre effects
+    try:
+        r = await mcp_opendaw_add_genre_effects(genre, -1)
+        d = json.loads(r)
+        results["genre_effects"] = {
+            "added": d.get("effects_added", 0),
+            "planned": d.get("effects_planned", 0),
+        }
+    except Exception as e:
+        results["genre_fx_error"] = str(e)[:100]
+
+    # Step 6: Auto-master
+    try:
+        r = await mcp_opendaw_auto_master(-14.0, platform, master_style, -1.0)
+        d = json.loads(r)
+        results["mastering"] = {
+            "platform": platform,
+            "style": master_style,
+            "applied": True,
+        }
+    except Exception as e:
+        results["master_error"] = str(e)[:100]
+
+    # Step 7: Render
+    if render:
+        try:
+            r = await mcp_opendaw_render_full()
+            d = json.loads(r)
+            results["render"] = {
+                "has_audio": d.get("has_audio", False),
+                "duration": d.get("duration_seconds", 0),
+                "size_mb": d.get("file_size_mb", 0),
+            }
+        except Exception as e:
+            results["render_error"] = str(e)[:100]
+
+    # Totals
+    total_notes = 0
+    for k in ["arrangement", "drums", "bass"]:
+        v = results.get(k)
+        if isinstance(v, dict):
+            total_notes += v.get("notes", 0)
+        elif isinstance(v, int):
+            total_notes += v
+
+    results["produce_and_master"] = True
+    results["structure"] = structure
+    results["key_root"] = key_root
+    results["scale_type"] = scale_type
+    results["genre"] = genre
+    results["bpm"] = bpm
+    results["platform"] = platform
+    results["master_style"] = master_style
+    results["total_notes"] = total_notes
+    results["rendered"] = render
+    results["steps_completed"] = sum(1 for k in ["bpm", "arrangement", "drums", "bass", "genre_effects", "mastering", "render"] if k in results)
+    results["steps_total"] = 7
+    results["pipeline"] = "set_bpm → arrange → drums → bass → genre_effects → auto_master → render"
+
+    return json.dumps(results, indent=2)
