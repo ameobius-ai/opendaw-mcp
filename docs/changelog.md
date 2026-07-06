@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.367.0 (2026-07-06)
+
+- **`werkstatt_lufs_meter.js`** — LUFS Meter (ITU-R BS.1770-4). K-weighting filter (shelving + highpass) + RMS + gating. Reports integrated, short-term (3s), and momentary (400ms) LUFS. True peak tracking. Read-only meter — no audio modification. Closes the mastering verification gap: `auto_master` targets LUFS, now you can verify it. 132 DSP scripts.
+
 ## v1.366.0 (2026-07-06)
 
 - **`add_genre_effects` expanded** — 15 → 35 genres. Added 20 new genre effect chains: industrial, breakbeat, kpop, hardstyle, garage, acid, psytrance, downtempo, phonk, future_bass, trance, disco, afrobeat, soul, rnb, blues, country, gospel, liquid_dnb, neurofunk. Each with character-appropriate effect routing and parameter values. Now matches all 38 arrangement genres (minus 3 that share chains). No more "Invalid genre" errors when calling add_genre_effects after create_*_arrangement.

@@ -1,8 +1,8 @@
 # DSP Scripts
 
-112 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+113 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 112 scripts
+## Werkstatt (Audio Effects) — 113 scripts
 
 ### Dynamics (13)
 
@@ -32,6 +32,7 @@
 | `werkstatt_ssl_bus_comp.js` | SSL Bus Comp (SSL G-series bus compressor: VCA-based, RMS detection, stepped ratio 2:1/4:1/10:1, stepped attack 0.1-30ms, auto-release mode, makeup gain, the "glue" compressor for mix bus) |
 | `werkstatt_true_peak_limiter.js` | True Peak Limiter (inter-sample peak detection via 4x oversampling, lookahead delay line, fast attack, adjustable release, hard clip safety, -1 dBTP ceiling for streaming compliance — Spotify/Apple/YouTube) |
 | `werkstatt_aire.js` | Aire (Stereo air exciter: M/S widener + HF harmonic exciter, adds brightness and width to dull/narrow mixes, 2-12kHz crossover, 2nd/3rd harmonic mix) |
+| `werkstatt_lufs_meter.js` | LUFS Meter (ITU-R BS.1770-4: K-weighting filter + RMS + gating, integrated/short-term/momentary LUFS, true peak tracking, read-only meter — no audio modification) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |
