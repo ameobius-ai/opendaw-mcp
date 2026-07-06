@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 515 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riff"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 516 MCP tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, riff"
 ---
 
 # openDAW Composition Patterns
@@ -70,6 +70,7 @@ What do you want to create?
 ├── Bridge (contrast section) → create_bridge (5 types: breakdown/modulation/solo/atmospheric/surprise, key shift, sparse, staccato)
 ├── Interlude (connective tissue) → create_interlude (5 types: instrumental/atmospheric/breakdown/reprise/contrapuntal, callback motif, layer build)
 ├── Coda (formal closing) → create_coda (5 types: theme/vamp/codetta/postlude/fanfare, fermata, triumphant, scale run)
+├── Transition (active movement) → create_transition (5 types: key_shift/tempo_ramp/texture_build/texture_thin/drop, modulation, accel/ritard, dramatic drop)
 ├── Bassline (static) → create_bassline (root-fifth, octave, walk-up)
 ├── Bassline (walking jazz) → create_walking_bass (chord progression input)
 ├── Arpeggio → create_arpeggio (up/down/updown/random, octaves)

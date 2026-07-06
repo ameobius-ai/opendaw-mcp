@@ -60830,3 +60830,279 @@ async def mcp_opendaw_create_coda(
     }.get(coda_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_transition(
+    transition_type: str = "key_shift",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    bars: int = 4,
+    velocity: float = 0.6,
+    direction: str = "up",
+    interval: int = 5,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a transition — a passage that moves between two sections.
+
+    Transitions are different from interludes. An interlude is connective
+    tissue (a pause between sections). A transition is an active *movement*
+    between two states: modulating key, changing tempo, building texture,
+    thinning out, or dropping everything for dramatic effect before
+    re-entry. Transitions create forward momentum.
+
+    - **key_shift**: Modulation — gradually shifts the tonal centre from
+      the starting key to a new key (up or down by a specified interval).
+      Uses a pivot chord (common tone) in the middle bar for smooth
+      modulation. Good for pop, jazz, Broadway key changes.
+    - **tempo_ramp**: Tempo change — notes get progressively faster
+      (accel) or slower (ritardando) across bars. Durations shrink or
+      grow. Creates excitement (accel) or gravity (ritard). Good for
+      classical, film, progressive.
+    - **texture_build**: Sparse → dense — starts with 1-2 notes per bar,
+      adds voices and density until full texture. Good for builds, drops,
+      EDM risers, orchestral crescendos.
+    - **texture_thin**: Dense → sparse — starts full, gradually removes
+      voices until only 1-2 notes remain. Good for wind-downs, fades to
+      silence before a re-entry, dramatic pauses.
+    - **drop**: Everything out then back — 1 bar of activity, 1 bar of
+      silence (or single sustained note), then full re-entry. The drop
+      creates maximum contrast. Good for EDM, rock, pop pre-chorus → chorus.
+
+    transition_type: key_shift | tempo_ramp | texture_build | texture_thin | drop
+    key_root: Root note name (C, C#, Db, D, ... B)
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    bars: Number of bars (2-8)
+    velocity: Base velocity 0-1
+    direction: up | down (for key_shift and tempo_ramp)
+    interval: Semitone interval for key_shift (1-7, default 5 = perfect fourth)
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_transition(transition_type="key_shift", key_root="C", direction="up", interval=5, bars=4)
+      create_transition(transition_type="tempo_ramp", key_root="A", direction="down", bars=4)
+      create_transition(transition_type="drop", key_root="D", scale_type="minor", bars=3)
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["key_shift", "tempo_ramp", "texture_build", "texture_thin", "drop"]
+    VALID_DIRECTIONS = ["up", "down"]
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if transition_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid transition_type. Valid: {VALID_TYPES}"})
+    if direction not in VALID_DIRECTIONS:
+        return json.dumps({"error": f"Invalid direction. Valid: {VALID_DIRECTIONS}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+    if not (2 <= bars <= 8):
+        return json.dumps({"error": "bars must be 2-8"})
+    if not (1 <= interval <= 7):
+        return json.dumps({"error": "interval must be 1-7 semitones"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    # Direction multiplier
+    dir_mult = 1 if direction == "up" else -1
+    shift = interval * dir_mult
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0, pitch_offset=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx] + pitch_offset
+
+    bar_len = 4.0
+
+    if transition_type == "key_shift":
+        # Gradual modulation: half in old key, half in new key
+        # Pivot bar in the middle uses common tone
+        pivot_bar = bars // 2
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            if bar < pivot_bar:
+                pitch_offset = 0
+            elif bar == pivot_bar:
+                pitch_offset = 0  # pivot bar (common tone)
+            else:
+                pitch_offset = shift  # new key
+            v = velocity * (0.5 + 0.5 * bar / max(bars - 1, 1))
+            # Chord
+            for deg in [0, 2, 4]:
+                pitch = deg_to_pitch(deg, 0, pitch_offset)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v * 0.6, 3)})
+            # Bass root
+            bass_pitch = deg_to_pitch(0, -1, pitch_offset)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(v, 3)})
+            # Melodic line
+            for i in range(4):
+                deg = (bar + i) % ns
+                pitch = deg_to_pitch(deg, 0, pitch_offset)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i, 4),
+                              "duration": 0.8, "velocity": round(v * 0.7, 3)})
+
+    elif transition_type == "tempo_ramp":
+        # Durations change across bars: accel = shorter, ritard = longer
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            progress = bar / max(bars - 1, 1)  # 0 to 1
+            if direction == "up":
+                # Accelerando: durations shrink
+                dur_factor = 1.0 - 0.6 * progress  # 1.0 → 0.4
+                num_notes = int(4 / dur_factor)
+            else:
+                # Ritardando: durations grow
+                dur_factor = 1.0 + 1.5 * progress  # 1.0 → 2.5
+                num_notes = max(2, int(4 / dur_factor))
+            note_dur = bar_len / num_notes * dur_factor
+            for i in range(num_notes):
+                deg = (bar + i) % ns
+                pitch = deg_to_pitch(deg)
+                beat = i * (bar_len / num_notes)
+                v = velocity * (0.5 + 0.5 * progress)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                              "duration": round(note_dur, 3), "velocity": round(v, 3)})
+            # Bass root
+            bass_pitch = deg_to_pitch(0, -1)
+            notes.append({"pitch": bass_pitch, "start": round(start_beat + bar_start, 4),
+                          "duration": bar_len, "velocity": round(velocity * 0.5, 3)})
+
+    elif transition_type == "texture_build":
+        # Sparse → dense: 1 note first bar, add voices each bar
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            num_voices = min(bar + 1, 4)  # 1, 2, 3, 4 voices
+            for voice in range(num_voices):
+                deg = voice * 2  # root, third, fifth, seventh
+                pitch = deg_to_pitch(deg, voice // 2)
+                v = velocity * (0.4 + 0.6 * bar / max(bars - 1, 1))
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v, 3)})
+                # Add rhythmic notes as density increases
+                if bar >= 2:
+                    for beat in range(1, 4):
+                        if next(rng) > 0.5:
+                            deg2 = int(next(rng) * ns)
+                            pitch2 = deg_to_pitch(deg2, voice // 2)
+                            notes.append({"pitch": pitch2, "start": round(start_beat + bar_start + beat, 4),
+                                          "duration": 0.5, "velocity": round(v * 0.6, 3)})
+
+    elif transition_type == "texture_thin":
+        # Dense → sparse: start full, remove voices
+        for bar in range(bars):
+            bar_start = bar * bar_len
+            num_voices = max(1, 4 - bar)  # 4, 3, 2, 1 voices
+            v = velocity * (1.0 - 0.5 * bar / max(bars - 1, 1))
+            for voice in range(num_voices):
+                deg = voice * 2
+                pitch = deg_to_pitch(deg, voice // 2)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(v, 3)})
+            # Rhythmic notes only in early bars
+            if bar < bars // 2:
+                for beat in range(4):
+                    deg = int(next(rng) * ns)
+                    pitch = deg_to_pitch(deg)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start + beat, 4),
+                                  "duration": 0.5, "velocity": round(v * 0.5, 3)})
+
+    elif transition_type == "drop":
+        # Activity → silence → re-entry
+        if bars < 3:
+            actual_bars = 3
+        else:
+            actual_bars = bars
+        for bar in range(actual_bars):
+            bar_start = bar * bar_len
+            if bar == 0:
+                # Full activity
+                for deg in [0, 2, 4]:
+                    pitch = deg_to_pitch(deg)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                                  "duration": bar_len, "velocity": round(velocity, 3)})
+                for i in range(4):
+                    deg = (i) % ns
+                    pitch = deg_to_pitch(deg)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i, 4),
+                                  "duration": 0.8, "velocity": round(velocity * 0.7, 3)})
+            elif bar == 1:
+                # Silence: single sustained note
+                pitch = deg_to_pitch(0, -1)
+                notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                              "duration": bar_len, "velocity": round(velocity * 0.3, 3)})
+            else:
+                # Re-entry: full force, ascending
+                for deg in [0, 2, 4, 6]:
+                    pitch = deg_to_pitch(deg)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start, 4),
+                                  "duration": bar_len, "velocity": round(velocity, 3)})
+                for i in range(8):
+                    deg = i % ns
+                    pitch = deg_to_pitch(deg, i // ns)
+                    notes.append({"pitch": pitch, "start": round(start_beat + bar_start + i * 0.5, 4),
+                                  "duration": 0.4, "velocity": round(velocity, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["transition"] = True
+    data["transition_type"] = transition_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["bars"] = bars
+    data["direction"] = direction
+    data["interval"] = interval
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "key_shift": "modulation via pivot chord, first half old key, second half new key, smooth tonal centre move",
+        "tempo_ramp": "durations shrink (accel) or grow (ritard) across bars, note density changes, tempo transition",
+        "texture_build": "sparse to dense, voices added each bar, rhythmic notes increase, crescendo effect",
+        "texture_thin": "dense to sparse, voices removed each bar, rhythmic notes stop early, decrescendo effect",
+        "drop": "full activity then silence then full re-entry, dramatic contrast, EDM/rock pre-chorus to chorus",
+    }.get(transition_type, "")
+
+    return json.dumps(data, indent=2)

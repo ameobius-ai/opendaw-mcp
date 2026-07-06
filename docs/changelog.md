@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.348.0 (2026-07-06)
+
+- **`create_transition`** — Transition section generator. 5 types: key_shift (modulation via pivot chord, up/down 1-7 semitones), tempo_ramp (accel/ritardando via duration scaling), texture_build (sparse→dense, voices added), texture_thin (dense→sparse, voices removed), drop (full→silence→re-entry). 3 scales, 2-8 bars. Direction + interval params. Seeded PRNG. 32 unit tests. 516 MCP tools. Active movement between sections — unlike interlude (passive connective tissue).
+
 ## v1.347.0 (2026-07-06)
 
 - **`werkstatt_fet_comp.js`** — FET compressor (Urei 1176 style). Lightning-fast 0.02-4ms attack, program-dependent release (faster after loud peaks), 4 ratio modes (4:1/8:1/12:1/20:1 all-buttons-in), soft knee, output transformer saturation. 7 params. 127 DSP scripts. Drums, vocals, bass, aggressive rock compression.
