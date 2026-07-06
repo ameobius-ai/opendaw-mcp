@@ -6,9 +6,9 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.198.0, 377 total)
+## Tools Added (v1.10.0, 255 total → v1.331.0, 504 total)
 
-120+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
+250+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
 ### Full orchestration tool list (v1.198.0)
 1. `create_notes_batch` — batch note creation from JSON
@@ -386,6 +386,70 @@ When adding a new orchestration tool:
 172. Run: `python3 -c "import ast; ..."` to verify AST tool count
 173. Run: `python -m pytest tests/ -q` to verify no regressions
 174. Commit with `feat: N orchestration tools — ...` message
+
+## Tools Added v1.199.0–v1.331.0 (cycles 199–352, 127 new tools)
+
+### Multi-Track Genre Arrangements (35 genres, 3–5 tracks each)
+- `create_dnb_arrangement` / `create_liquid_dnb_arrangement` / `create_neurofunk_arrangement` — DnB family: classic, liquid, neurofunk (Reese bass, complex breaks, dark stabs)
+- `create_house_arrangement` / `create_acid_arrangement` — house family: Chicago 4-on-floor, TB-303 acid squelch
+- `create_trap_arrangement` / `create_phonk_arrangement` — trap family: trap hi-hat rolls, drift phonk cowbell
+- `create_techno_arrangement` / `create_hardstyle_arrangement` — techno family: Detroit, Dutch hard dance
+- `create_dubstep_arrangement` / `create_future_bass_arrangement` — bass family: wobble, supersaw+pitching snares
+- `create_synthwave_arrangement` / `create_trance_arrangement` / `create_psytrance_arrangement` — electronic: 80s, uplifting, Goa
+- `create_disco_arrangement` / `create_garage_arrangement` / `create_breakbeat_arrangement` — groove: disco, 2-step, breaks
+- `create_afrobeat_arrangement` / `create_reggae_arrangement` — world: Fela, Marley
+- `create_rock_arrangement` / `create_metal_arrangement` / `create_country_arrangement` / `create_blues_arrangement` — guitar family
+- `create_jazz_arrangement` / `create_pop_arrangement` / `create_funk_arrangement` / `create_soul_arrangement` / `create_rnb_arrangement` — commercial
+- `create_lofi_arrangement` / `create_downtempo_arrangement` / `create_ambient_arrangement` — chill: lofi, trip-hop, ambient
+- `create_gospel_arrangement` / `create_edm_arrangement` — gospel + EDM
+
+### Composition Forms (11 tools)
+- `create_ground_bass` / `create_chaconne` / `create_passacaglia` — ostinato trio (bass → +harmony → +melody)
+- `create_chorale` / `create_fugue` / `create_fugato` / `create_soli` — polyphonic
+- `create_rondo` / `create_binary_form` / `create_ternary_form` / `create_sonata_form` — structural forms (AB, ABA, ABACA, exp-dev-recap)
+- `create_call_and_response` — dialogue (echo/transpose/variation/complementary/fill)
+
+### Solo Generators (2 tools)
+- `create_solo` — 5 melodic solo styles: bebop (chromatic approaches, enclosures), blues (blue notes, 12-bar), rock (pentatonic, register climaxes), jazz_swing (swung 8ths, guide tones), fusion (wide intervals, displacement). 6 scales, seeded PRNG.
+- `create_drum_solo` — 5 drum solo styles: rock (double kick, tom fills), jazz (ride, comping, press rolls), funk (ghost-note 16ths), latin (cascara, mambo bell, timbale), marching (paradiddles, flams, drags, open rolls). Rudiment helpers. Seeded PRNG.
+
+### World Rhythm (15 traditions)
+- `create_songo_pattern` / `create_samba_pattern` / `create_djembe_ensemble` — Afro-Cuban/Brazilian/West African
+- `create_arabic_percussion` / `create_flamenco_compas` / `create_balkan_meter` — Mediterranean/Balkan
+- `create_irish_trad` / `create_taiko_ensemble` / `create_korean_percussion` — Celtic/Japanese/Korean
+- `create_second_line` / `create_reggae_percussion` / `create_konokol` / `create_comparsa` — NOLA/Jamaica/India/Cuba
+
+### Analysis (5 tools)
+- `analyze_track` — BPM + key + LUFS + dynamic_range
+- `analyze_spectrum` / `analyze_stereo` / `analyze_dynamics` — 7-band freq, width/L-R/phase, crest/LRA/transients
+- `analyze_mix` — composite: all 4 + prioritized suggestions + master_check
+
+### Creative Transformations (14 tools)
+- `create_stutter` / `create_chop` / `create_scratch` / `create_tape_stop` — glitch/turntablism
+- `create_phase_shift` / `create_metric_modulation` / `create_additive_rhythm` / `create_tuplet_group` — rhythmic
+- `create_cadenza` / `create_colotomic` / `create_tala` — classical/world
+- `create_montuno` / `create_voice_exchange` / `create_bariolage` — Latin/baroque
+
+### Note Operations (30+ tools)
+- `humanize_pitch` / `set_note_cents` / `randomize_note_chance` / `randomize_note_durations` — stochastic
+- `subdivide_notes` / `merge_consecutive_notes` / `repeat_notes` / `rotate_notes` — phrase ops
+- `expand_intervals` / `insert_rests` / `shuffle_notes` / `apply_contour` — transformation
+- `explode_chords` / `add_passing_tones` / `add_suspension` / `add_neighbor_tones` / `add_anticipation` — ornamentation
+- `repeat_phrase` / `clone_track` / `merge_note_tracks` / `create_melodic_polyrhythm` — structural
+- `extract_motifs` / `analyze_song_structure` / `classify_drum_pattern` / `create_motif_variations` — analysis+gen
+- `create_harmony_line` / `create_voice_led_progression` / `reharmonize_progression` — harmony
+- `displace_rhythm` / `thin_notes` / `strum_notes` / `constrain_note_range` / `set_articulation` — articulation
+- `generate_melody` / `double_melody` / `split_note_region` / `merge_note_regions` / `filter_notes` — melody ops
+- `note_stats` / `accent_beats` / `analyze_melody` / `extract_rhythm` / `apply_rhythm_pattern` — analysis
+- `detect_scale_from_notes` / `analyze_harmonic_rhythm` / `map_velocity_by_pitch` / `balance_track_velocities` — analysis
+- `create_midi_echo` / `quantize_velocities` / `move_notes` / `apply_velocity_lfo` — dynamics
+- `create_ratchet` / `swap_sections` / `invert_chord_notes` / `reorder_sections` / `spread_voicing` — creative
+- `add_chord_tension` / `create_random_walk_melody` / `create_markov_melody` / `create_l_system_melody` — generative
+- `scale_velocity` / `copy_notes_to_track` / `scale_durations` / `groove_transfer` / `time_warp_notes` / `force_scale_notes` — transformation
+- `identify_chords` / `diatonic_transpose_notes` / `shift_mode` — harmony analysis
+
+### DSP Scripts (119 total: 98 Werkstatt + 9 Apparat + 10 Spielwerk)
+Key additions: `sidechain_comp`, `ott`, `soft_clipper`, `plate_reverb`, `ensemble`, `cabinet_sim`, `valve_preamp`, `synthetic_ir_reverb`
 
 ## PyPI Publishing Workflow
 
