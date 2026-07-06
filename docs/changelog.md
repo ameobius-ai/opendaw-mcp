@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.334.0 (2026-07-06)
+
+- **`create_lick`** — Short melodic vocabulary phrase generator. 5 styles: bebop (enclosures, chromatic passing, chord-tone targeting, 8th-note linear flow), blues (pentatonic + blue notes b3/b5/b7, bends, call-response micro-phrases), funk (staccato 16th syncopation, octave jumps, ghost notes, accent pattern), rock (pentatonic position, bending aesthetic, climax note), jazz_minor (diminished arpeggio + chromatic descent over minor ii-V-i, altered scale). 5 scales. Chromatic pitch helper. Seeded PRNG. 38 unit tests. 507 MCP tools.
+
 ## v1.333.0 (2026-07-06)
 
 - **`create_turnaround`** — 2-bar resolution phrase generator. 5 styles: jazz (I-vi-ii-V with chromatic approach tones, guide tones, 7ths), blues (I-IV-IVdim-I walkup, shuffle feel, dominant 7ths, pentatonic), gospel (ii-V-I with chromatic approach, plagal Amen cadence, melisma), rock (bVII-IV-I mixolydian descent, power chords, octave accents, passing tones), pop (I-V-vi-IV axis progression, diatonic stepwise melody). 4 scales (major/minor/mixolydian/dorian). Chromatic pitch helper for non-diatonic chords. Seeded PRNG. 42 unit tests. 506 MCP tools.

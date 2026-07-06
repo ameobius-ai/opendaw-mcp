@@ -58681,3 +58681,243 @@ async def mcp_opendaw_create_turnaround(
     }.get(turnaround_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_lick(
+    lick_type: str = "bebop",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    velocity: float = 0.75,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a short melodic lick — a 1-2 bar phrase that fits a chord context.
+
+    A lick is a short, reusable melodic fragment (2-8 notes) that a musician
+    plays over a specific chord or progression. Unlike a solo (which develops
+    through a full section) or a riff (which repeats as a hook), a lick is a
+    vocabulary element — a building block you insert into improvisations or
+    use as melodic decoration. Jazz musicians memorize hundreds of licks;
+    blues guitarists have a toolkit of turnarounds and fills.
+
+    - **bebop**: Parker/Gillespie vocabulary. Enclosures (target-chromatic-
+      approach), chromatic passing tones, chord-tone targeting, 8th-note
+      linear flow. Works over ii-V-I.
+    - **blues**: Pentatonic + blue notes (b3, b5, b7). Bends, slides,
+      call-response micro-phrases. B.B. King, Albert King, Clapton.
+    - **funk**: Staccato 16th-note patterns, syncopated rests, octave jumps,
+      ghost notes. James Brown, Funkadelic, Tower of Power horns.
+    - **rock**: Pentatonic position playing, string-bending aesthetic,
+      power-note climaxes, blues-rock cliche licks. Page, Clapton, Slash.
+    - **jazz_minor**: Melodic minor vocabulary over minor ii-V-i. Altered
+      scale fragments, tri-tone substitution licks, diminished arpeggios.
+      Coltrane, Shorter, Hancock.
+
+    lick_type: bebop | blues | funk | rock | jazz_minor
+    key_root: Root note name
+    scale_type: major | minor | dorian | mixolydian | blues
+    octave: MIDI octave (4 = C4=60)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_lick(lick_type="bebop", key_root="C", scale_type="major")
+      create_lick(lick_type="blues", key_root="A", scale_type="minor")
+      create_lick(lick_type="funk", key_root="D", scale_type="dorian")
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "dorian": [0, 2, 3, 5, 7, 9, 10],
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        "blues": [0, 3, 5, 6, 7, 10],
+    }
+
+    VALID_TYPES = ["bebop", "blues", "funk", "rock", "jazz_minor"]
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if lick_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid lick_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    rng = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        ns = len(scale)
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    def chrom_pitch(semitone, octave_shift=0):
+        return base + octave_shift * 12 + semitone
+
+    if lick_type == "bebop":
+        # Bebop enclosure: target note, approach from above and below chromatically
+        # Pattern: C-D-Eb-E (enclosure of E), then E-G-A-B-C (8th note line)
+        # Classic Parker/Gillespie vocabulary over I chord
+        positions = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+        # Enclosure of 3rd (E): D (below), Eb (chromatic below), E (target)
+        # Then continue up scale: G, A, B, C (octave), chromatic approach to next
+        degrees = [1, 2, -1, 2, 4, 5, 6, 0, 1]  # -1 = chromatic
+        # Enclosure: D (below target), Eb (chromatic below), E (target)
+        # Then scale ascent: G, A, B, C(octave), chromatic approach to next
+        durs = [0.25] * 9
+        for i, (pos, deg, dur) in enumerate(zip(positions, degrees, durs)):
+            if deg == -1:
+                # Chromatic approach: half step below target (E = scale[2]=4, so Eb = 3)
+                pitch = chrom_pitch(3, 0)
+            else:
+                pitch = deg_to_pitch(deg)
+            v = velocity * (0.8 + next(rng) * 0.2)
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(v, 3)})
+        # End with encircled target note
+        notes.append({"pitch": deg_to_pitch(2), "start": round(start_beat + 2.25, 4),
+                      "duration": 0.75, "velocity": round(velocity * 0.9, 3)})
+
+    elif lick_type == "blues":
+        # Blues lick: pentatonic + blue notes, call-response
+        # Pattern: root, b3 bend, 4th, b5 (blue note), 5th, b7, octave root
+        # Call: root-b3-4, Response: b5-5-b7-octave
+        call_positions = [0.0, 0.3, 0.6]
+        call_degrees = [0, -1, 2]  # -1 = b3 (blue note)
+        call_durs = [0.3, 0.3, 0.3]
+        for pos, deg, dur in zip(call_positions, call_degrees, call_durs):
+            if deg == -1:
+                pitch = chrom_pitch(3, 0)  # b3 = blue note
+            else:
+                pitch = deg_to_pitch(deg)
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.85, 3)})
+        # Rest (call-response space)
+        # Response
+        resp_positions = [1.0, 1.3, 1.6, 1.9]
+        resp_degrees = [-1, 4, -1, 0]  # b5, 5th, b7, octave root
+        resp_chrom = [6, 0, 10, 12]  # chrom offsets for blue notes
+        resp_durs = [0.3, 0.3, 0.3, 0.5]
+        for i, (pos, deg, dur) in enumerate(zip(resp_positions, resp_degrees, resp_durs)):
+            if deg == -1:
+                pitch = chrom_pitch(resp_chrom[i], 0)
+            else:
+                pitch = deg_to_pitch(deg)
+            v = velocity * (0.75 + next(rng) * 0.2)
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(v, 3)})
+
+    elif lick_type == "funk":
+        # Funk lick: staccato 16th syncopation, octave jumps, ghost notes
+        # Pattern: 16 positions, sparse placement with accents
+        positions = [i * 0.25 for i in range(16)]
+        # Sparse funk pattern: accents on 1, &2, &3, 4e
+        accent_pattern = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0]
+        deg_sequence = [0, -1, -1, 3, -1, 2, 0, -1, -1, 4, -1, 2, 0, -1, 3, -1]
+        for i, (pos, deg, acc) in enumerate(zip(positions, deg_sequence, accent_pattern)):
+            if deg == -1:
+                continue
+            pitch = deg_to_pitch(deg)
+            dur = 0.1 if not acc else 0.18
+            v = velocity * (0.9 if acc else 0.5)
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(v, 3)})
+        # Octave jump accent at end
+        notes.append({"pitch": deg_to_pitch(0, 1), "start": round(start_beat + 3.5, 4),
+                      "duration": 0.25, "velocity": round(velocity * 0.95, 3)})
+
+    elif lick_type == "rock":
+        # Rock lick: pentatonic position, bending aesthetic, climax note
+        # Pattern: root, b3 bend up to 3, 5, b7, octave root (climax), descend
+        positions = [0.0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8]
+        degrees = [0, -1, 2, 4, -1, 0, 4, 2]  # -1 = bent note (b3→3 or b7→7)
+        chrom_vals = [0, 3, 0, 0, 10, 0, 0, 0]  # b3 and b7 as chromatic
+        durs = [0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.4, 0.4]
+        for i, (pos, deg, dur) in enumerate(zip(positions, degrees, durs)):
+            if deg == -1:
+                pitch = chrom_pitch(chrom_vals[i], 0)
+            else:
+                pitch = deg_to_pitch(deg)
+            v = velocity * (0.8 + next(rng) * 0.15)
+            # Climax note (octave root) gets higher velocity
+            if i == 5:
+                v = velocity * 0.95
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(v, 3)})
+
+    elif lick_type == "jazz_minor":
+        # Jazz minor lick: melodic minor / altered scale over minor ii-V-i
+        # Diminished arpeggio over V, resolve to minor tonic
+        # Pattern: diminished arpeggio (C-Eb-Gb-A), then descend to minor tonic
+        dim_positions = [0.0, 0.25, 0.5, 0.75]
+        dim_pitches = [chrom_pitch(0, 0), chrom_pitch(3, 0), chrom_pitch(6, 0), chrom_pitch(9, 0)]
+        for pos, pitch in zip(dim_positions, dim_pitches):
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": 0.25, "velocity": round(velocity * 0.8, 3)})
+        # Chromatic descent to minor tonic
+        descent = [chrom_pitch(11, 0), chrom_pitch(10, 0), chrom_pitch(9, 0), chrom_pitch(8, 0)]
+        desc_positions = [1.0, 1.25, 1.5, 1.75]
+        for pos, pitch in zip(desc_positions, descent):
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": 0.25, "velocity": round(velocity * 0.75, 3)})
+        # Resolve to minor tonic
+        notes.append({"pitch": deg_to_pitch(0), "start": round(start_beat + 2.0, 4),
+                      "duration": 1.0, "velocity": round(velocity * 0.9, 3)})
+        # Minor 3rd color tone
+        notes.append({"pitch": chrom_pitch(3, 0), "start": round(start_beat + 2.5, 4),
+                      "duration": 0.5, "velocity": round(velocity * 0.7, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["lick"] = True
+    data["lick_type"] = lick_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "bebop": "enclosures, chromatic passing, chord-tone targeting, 8th-note linear flow",
+        "blues": "pentatonic + blue notes (b3/b5/b7), bends, call-response micro-phrases",
+        "funk": "staccato 16th syncopation, octave jumps, ghost notes, tight pocket",
+        "rock": "pentatonic position, bending aesthetic, climax note, blues-rock cliche",
+        "jazz_minor": "altered/diminished over minor ii-V-i, chromatic descent, tri-tone sub",
+    }.get(lick_type, "")
+
+    return json.dumps(data, indent=2)
