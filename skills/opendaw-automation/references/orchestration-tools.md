@@ -6,7 +6,7 @@
 
 Orchestration tools solve this by combining multiple low-level operations into a single call. They are **composers**, not replacements — each one calls the same underlying DAW APIs but batches the work into one `editing.modify()` block and one bridge round-trip.
 
-## Tools Added (v1.10.0, 255 total → v1.336.0, 509 total)
+## Tools Added (v1.10.0, 255 total → v1.337.0, 510 total)
 
 250+ orchestration tools total. See `skills/opendaw-composition-patterns/SKILL.md` for agent-facing decision tree and recipes.
 
@@ -387,7 +387,7 @@ When adding a new orchestration tool:
 173. Run: `python -m pytest tests/ -q` to verify no regressions
 174. Commit with `feat: N orchestration tools — ...` message
 
-## Tools Added v1.199.0–v1.336.0 (cycles 199–358, 132 new tools)
+## Tools Added v1.199.0–v1.337.0 (cycles 199–361, 133 new tools)
 
 ### Multi-Track Genre Arrangements (35 genres, 3–5 tracks each)
 - `create_dnb_arrangement` / `create_liquid_dnb_arrangement` / `create_neurofunk_arrangement` — DnB family: classic, liquid, neurofunk (Reese bass, complex breaks, dark stabs)
@@ -417,6 +417,7 @@ When adding a new orchestration tool:
 - `create_lick` — Short melodic vocabulary phrase: bebop (enclosures, chromatic passing), blues (blue notes, call-response), funk (16th syncopation, octave jumps), rock (pentatonic, bending, climax), jazz_minor (diminished + chromatic descent over minor ii-V-i). 5 scales, seeded PRNG.
 - `create_hook` — Melodic earworm phrase: pop (stepwise singable, I-V-vi-IV contour), rock (pentatonic, power-note climaxes), dance (rhythmic ostinato, syncopated stabs), rnb (melismatic, blue-note inflections), country (diatonic story-melody, 3rd/6th emphasis). 5 scales, seeded PRNG.
 - `create_etude` — Technical study piece: scale (ascending/descending runs), arpeggio (broken chords, inversions), interval (parallel thirds, two voices), rhythm (syncopation, varied patterns), chromatic (chromatic runs, thirds). 5 scales, seeded PRNG.
+- `create_cadence` — Harmonic phrase conclusion: authentic (V-I), plagal (IV-I Amen), half (I-V no closure), deceptive (V-vi surprise), phrygian (bII-i Neapolitan). 3 scales, seeded PRNG.
 
 ### World Rhythm (15 traditions)
 - `create_songo_pattern` / `create_samba_pattern` / `create_djembe_ensemble` — Afro-Cuban/Brazilian/West African

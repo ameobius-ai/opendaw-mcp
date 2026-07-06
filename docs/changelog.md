@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.337.0 (2026-07-06)
+
+- **`create_cadence`** — Harmonic phrase conclusion generator. 5 types: authentic (V-I, strongest closure, leading tone resolves), plagal (IV-I, Amen cadence, warm soft closure), half (I-V, no closure, musical comma, expectation), deceptive (V-vi, surprise redirect, dramatic detour), phrygian (bII-i, Neapolitan resolution, dark exotic, minor key only). 3 scales. Chromatic pitch helper for non-diatonic chords. Seeded PRNG. 33 unit tests. 510 MCP tools. Bach to Miles Davis.
+- **Skills sync** — composition-patterns SKILL.md decision tree updated with 7 new tools (riff, hook, lick, turnaround, solo, drum_solo, etude), description 178+ → 509 tools. dsp-script-authoring SKILL.md: 26 → 122 example scripts.
+- **Example** — create_melodic_vocabulary.py: riff+hook+lick+turnaround+etude pipeline demo.
+
 ## v1.336.0 (2026-07-06)
 
 - **`create_etude`** — Technical study piece generator. 5 types: scale (ascending/descending scalar runs, 16th notes, direction changes), arpeggio (broken chord patterns root-3rd-5th-7th, inversions, octave spanning, I-IV-V-I), interval (parallel thirds, two voices, eighth notes, direction shifts), rhythm (syncopation, tied notes, rests, 4 varied patterns cycling), chromatic (chromatic runs with direction changes, chromatic thirds). 5 scales including harmonic_minor. Seeded PRNG. 39 unit tests. 509 MCP tools. Czerny to Chopin.

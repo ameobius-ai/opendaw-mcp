@@ -59380,3 +59380,229 @@ async def mcp_opendaw_create_etude(
     }.get(etude_type, "")
 
     return json.dumps(data, indent=2)
+
+
+async def mcp_opendaw_create_cadence(
+    cadence_type: str = "authentic",
+    key_root: str = "C",
+    scale_type: str = "major",
+    octave: int = 4,
+    velocity: float = 0.8,
+    unit_index: int = -1,
+    track_index: int = 0,
+    start_beat: float = 0,
+    seed: int = 42,
+) -> str:
+    """Create a cadence — a harmonic conclusion that ends a phrase or section.
+
+    A cadence is a harmonic-melodic formula that creates a sense of arrival
+    or closure at the end of a phrase. Unlike a turnaround (which propels
+    back to the beginning), a cadence CONCLUDES — it says "this section is
+    done." Cadences are classified by their harmonic motion and closure
+    strength. Understanding cadences is fundamental to classical, jazz, and
+    pop composition.
+
+    - **authentic**: V-I (or V7-I). The strongest cadence. Full closure,
+      dominant tension resolving to tonic stability. Bach, Mozart, Beatles.
+    - **plagal**: IV-I. The "Amen" cadence. Softer, subdominant-to-tonic.
+      Gospel, hymns, pop ballad endings. Less tension, more warmth.
+    - **half**: I-V (or any-to-V). No closure — ends on dominant, creates
+      expectation. The musical comma. Used mid-phrase to signal continuation.
+    - **deceptive**: V-vi (expected V-I but lands on vi). Surprise redirect.
+      Bach chorales, jazz standards, film scores. Creates dramatic detour.
+    - **phrygian**: bII-i. Neapolitan-style resolution. Dark, exotic,
+      Spanish/flamenco flavor. Minor key only. Dies Irae, Miles Davis.
+
+    cadence_type: authentic | plagal | half | deceptive | phrygian
+    key_root: Root note name
+    scale_type: major | minor | harmonic_minor
+    octave: MIDI octave (4 = C4=60)
+    velocity: Base velocity 0-1
+    seed: PRNG seed for reproducibility
+
+    Example:
+      create_cadence(cadence_type="authentic", key_root="C", scale_type="major")
+      create_cadence(cadence_type="deceptive", key_root="A", scale_type="minor")
+      create_cadence(cadence_type="phrygian", key_root="E", scale_type="minor")
+    """
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+                "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+                "A#": 10, "Bb": 10, "B": 11}
+
+    SCALES = {
+        "major": [0, 2, 4, 5, 7, 9, 11],
+        "minor": [0, 2, 3, 5, 7, 8, 10],
+        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11],
+    }
+
+    VALID_TYPES = ["authentic", "plagal", "half", "deceptive", "phrygian"]
+
+    root_pc = NOTE_MAP.get(key_root)
+    if root_pc is None:
+        return json.dumps({"error": f"Invalid key_root {key_root!r}"})
+    if scale_type not in SCALES:
+        return json.dumps({"error": f"Invalid scale_type. Valid: {list(SCALES.keys())}"})
+    if cadence_type not in VALID_TYPES:
+        return json.dumps({"error": f"Invalid cadence_type. Valid: {VALID_TYPES}"})
+    if not (0.0 <= velocity <= 1.0):
+        return json.dumps({"error": "velocity must be 0-1"})
+    if not (0 <= octave <= 7):
+        return json.dumps({"error": "octave must be 0-7"})
+
+    scale = SCALES[scale_type]
+    base = (octave + 1) * 12 + root_pc
+    ns = len(scale)
+
+    def mulberry32(s):
+        a = s & 0xFFFFFFFF
+        while True:
+            a = (a + 0x6D2B79F5) & 0xFFFFFFFF
+            t = a
+            t = ((t ^ (t >> 15)) * (t | 1)) & 0xFFFFFFFF
+            t ^= t + ((t ^ (t >> 7)) & 0xFFFFFFFF)
+            yield (t & 0xFFFFFFFF) / 0x100000000
+
+    _ = mulberry32(seed)
+    notes = []
+
+    def deg_to_pitch(degree, octave_shift=0):
+        idx = degree % ns
+        oct_s = degree // ns + octave_shift
+        if idx < 0:
+            idx += ns
+            oct_s -= 1
+        return base + oct_s * 12 + scale[idx]
+
+    def chrom_pitch(semitone, octave_shift=0):
+        return base + octave_shift * 12 + semitone
+
+    # Cadence = 2 beats penultimate chord + 2 beats final chord
+    # Each chord: root, 3rd, 5th (triad) with melodic line on top
+
+    if cadence_type == "authentic":
+        # V-I: dominant chord (scale degree 4) → tonic (degree 0)
+        # V chord: root=4, 3rd=4+2=6, 5th=4+4=8 (scale degrees)
+        # Melody: leading tone (degree 6) resolves to tonic (degree 0)
+        v_root = deg_to_pitch(4)
+        i_root = deg_to_pitch(0)
+        # V chord (beats 0-2): root, 3rd, 5th, 7th
+        v_chord = [(v_root, 0.0, 2.0), (deg_to_pitch(6), 0.0, 2.0), (deg_to_pitch(8), 0.0, 2.0)]
+        if scale_type in ("major", "harmonic_minor"):
+            v_chord.append((deg_to_pitch(10) if scale_type == "major" else chrom_pitch(11, 0), 0.5, 1.5))
+        # Melody: leading tone → tonic
+        v_chord.append((deg_to_pitch(6), 1.0, 0.5))
+        v_chord.append((deg_to_pitch(6), 1.5, 0.5))
+        for pitch, pos, dur in v_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.8, 3)})
+        # I chord (beats 2-4): root, 3rd, 5th, octave
+        i_chord = [(i_root, 2.0, 2.0), (deg_to_pitch(2), 2.0, 2.0), (deg_to_pitch(4), 2.0, 2.0)]
+        # Melody resolves to tonic
+        i_chord.append((deg_to_pitch(0, 1), 2.0, 2.0))
+        for pitch, pos, dur in i_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.9, 3)})
+
+    elif cadence_type == "plagal":
+        # IV-I: subdominant → tonic
+        iv_root = deg_to_pitch(3)
+        i_root = deg_to_pitch(0)
+        # IV chord (beats 0-2)
+        iv_chord = [(iv_root, 0.0, 2.0), (deg_to_pitch(5), 0.0, 2.0), (deg_to_pitch(7), 0.0, 2.0)]
+        # Melody: 6th or 4th degree
+        iv_chord.append((deg_to_pitch(5), 1.0, 0.5))
+        iv_chord.append((deg_to_pitch(3), 1.5, 0.5))
+        for pitch, pos, dur in iv_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.8, 3)})
+        # I chord (beats 2-4)
+        i_chord = [(i_root, 2.0, 2.0), (deg_to_pitch(2), 2.0, 2.0), (deg_to_pitch(4), 2.0, 2.0)]
+        i_chord.append((deg_to_pitch(0, 1), 2.0, 2.0))
+        for pitch, pos, dur in i_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.9, 3)})
+
+    elif cadence_type == "half":
+        # I-V: tonic → dominant (no closure)
+        i_root = deg_to_pitch(0)
+        v_root = deg_to_pitch(4)
+        # I chord (beats 0-2)
+        i_chord = [(i_root, 0.0, 2.0), (deg_to_pitch(2), 0.0, 2.0), (deg_to_pitch(4), 0.0, 2.0)]
+        i_chord.append((deg_to_pitch(0, 1), 1.0, 0.5))
+        i_chord.append((deg_to_pitch(2), 1.5, 0.5))
+        for pitch, pos, dur in i_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.75, 3)})
+        # V chord (beats 2-4) — ends with tension (no resolution)
+        v_chord = [(v_root, 2.0, 2.0), (deg_to_pitch(6), 2.0, 2.0), (deg_to_pitch(8), 2.0, 2.0)]
+        v_chord.append((deg_to_pitch(6), 2.5, 0.5))
+        v_chord.append((deg_to_pitch(7), 3.0, 1.0))
+        for pitch, pos, dur in v_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.85, 3)})
+
+    elif cadence_type == "deceptive":
+        # V-vi: dominant → submediant (surprise)
+        v_root = deg_to_pitch(4)
+        vi_root = deg_to_pitch(5)
+        # V chord (beats 0-2)
+        v_chord = [(v_root, 0.0, 2.0), (deg_to_pitch(6), 0.0, 2.0), (deg_to_pitch(8), 0.0, 2.0)]
+        v_chord.append((deg_to_pitch(6), 1.0, 0.5))
+        v_chord.append((deg_to_pitch(6), 1.5, 0.5))
+        for pitch, pos, dur in v_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.8, 3)})
+        # vi chord (beats 2-4) — unexpected
+        vi_chord = [(vi_root, 2.0, 2.0), (deg_to_pitch(7), 2.0, 2.0), (deg_to_pitch(9), 2.0, 2.0)]
+        vi_chord.append((deg_to_pitch(5), 2.5, 0.5))
+        vi_chord.append((deg_to_pitch(7), 3.0, 1.0))
+        for pitch, pos, dur in vi_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.85, 3)})
+
+    elif cadence_type == "phrygian":
+        # bII-i: Neapolitan → tonic (minor only)
+        # bII = root + 1 semitone (flat second)
+        bii_root = chrom_pitch(1, 0)
+        i_root = deg_to_pitch(0)
+        # bII chord (beats 0-2): root, b3 (minor), 5th
+        bii_chord = [(bii_root, 0.0, 2.0), (chrom_pitch(4, 0), 0.0, 2.0), (chrom_pitch(7, 0), 0.0, 2.0)]
+        bii_chord.append((chrom_pitch(1, 1), 1.0, 0.5))
+        bii_chord.append((chrom_pitch(1, 0), 1.5, 0.5))
+        for pitch, pos, dur in bii_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.8, 3)})
+        # i chord (beats 2-4): minor tonic
+        i_chord = [(i_root, 2.0, 2.0), (deg_to_pitch(2), 2.0, 2.0), (deg_to_pitch(4), 2.0, 2.0)]
+        i_chord.append((deg_to_pitch(0, 1), 2.0, 2.0))
+        for pitch, pos, dur in i_chord:
+            notes.append({"pitch": pitch, "start": round(start_beat + pos, 4),
+                          "duration": dur, "velocity": round(velocity * 0.9, 3)})
+
+    notes.sort(key=lambda n: (n["start"], n["pitch"]))
+
+    for n in notes:
+        n["velocity"] = max(0.0, min(1.0, n["velocity"]))
+
+    result = await mcp_opendaw_create_notes_batch(
+        json.dumps(notes), unit_index, track_index)
+
+    try:
+        data = json.loads(result)
+    except Exception:
+        data = {"raw": result}
+
+    data["cadence"] = True
+    data["cadence_type"] = cadence_type
+    data["key_root"] = key_root
+    data["scale_type"] = scale_type
+    data["notes_generated"] = len(notes)
+    data["characteristics"] = {
+        "authentic": "V-I (or V7-I), strongest closure, dominant resolves to tonic, leading tone resolves up",
+        "plagal": "IV-I, Amen cadence, subdominant-to-tonic, warm soft closure, gospel/hymn",
+        "half": "I-V, no closure, ends on dominant, musical comma, expectation/continuation",
+        "deceptive": "V-vi, expected V-I but lands on vi, surprise redirect, dramatic detour",
+        "phrygian": "bII-i, Neapolitan resolution, dark exotic, Spanish/flamenco, minor key only",
+    }.get(cadence_type, "")
+
+    return json.dumps(data, indent=2)
