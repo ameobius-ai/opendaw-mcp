@@ -1,8 +1,8 @@
 # DSP Scripts
 
-108 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
+109 ready-made JavaScript DSP scripts for openDAW's scriptable devices.
 
-## Werkstatt (Audio Effects) — 108 scripts
+## Werkstatt (Audio Effects) — 109 scripts
 
 ### Dynamics (13)
 
@@ -28,6 +28,7 @@
 | `werkstatt_nyquist_comp.js` | Nyquist Comp (parallel/New York compression: dry + heavily compressed path blended, peak envelope detector, adjustable threshold/ratio/attack/release, makeup gain on compressed path, DC blocker) |
 | `werkstatt_thermal_comp.js` | Thermal Comp (optical compressor LA-2A style: photoresistor gain reduction with slow program-dependent attack/release, tube saturation on output, input gain drives threshold, peak reduce control, speed control) |
 | `werkstatt_fet_comp.js` | FET Comp (Urei 1176 style: FET gain reduction with lightning-fast 0.02-4ms attack, program-dependent release, 4 ratio modes 4:1/8:1/12:1/20:1, soft knee, output transformer saturation) |
+| `werkstatt_psycho_bass.js` | Psycho Bass (MaxxBass/RBass style: psychoacoustic bass enhancer, generates harmonics of sub-bass via polynomial nonlinearity, ear reconstructs missing fundamental, crossover 60-300Hz, 2-5 harmonics, makes bass audible on small speakers) |
 | `werkstatt_exciter.js` | Harmonic Exciter |
 | `werkstatt_deesser.js` | De-Esser |
 | `werkstatt_transient.js` | Transient Shaper |

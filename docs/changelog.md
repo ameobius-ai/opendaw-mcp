@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.350.0 (2026-07-06)
+
+- **`werkstatt_psycho_bass.js`** — Psychoacoustic bass enhancer (MaxxBass/RBass style). Generates harmonics of sub-bass frequencies via polynomial nonlinearity (x²→x⁵). Ear/brain reconstructs missing fundamental from harmonics. Crossover 60-300Hz, 2-5 harmonics, intensity control. 128 DSP scripts. Makes bass audible on laptop/phone speakers without subwoofer.
+
 ## v1.349.0 (2026-07-06)
 
 - **`create_prechorus`** — Pre-chorus section generator. 5 types: build (crescendo ii-IV-V-V, velocity and density increase), pedal (sustained V chord, melodic build over dominant), stall (rhythmic stasis on ii-V, repetition), lift (melodic ascent climbing scale degrees), suspending (sus4→sus2→resolve repeated, delays tonic). 3 scales, 2-4 bars. Seeded PRNG. 29 unit tests. 517 MCP tools. Tension builder before chorus — amplifies verse energy toward chorus impact.
