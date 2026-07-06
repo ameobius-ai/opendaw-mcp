@@ -28640,6 +28640,264 @@ async def mcp_opendaw_create_passacaglia(
     return _wrap_eval(result)
 
 
+
+@mcp.tool()
+async def mcp_opendaw_create_ground_bass(
+    bass_pattern: str = "A2 A2 E2 E2",
+    bass_rhythm: str = "2 2 2 2",
+    repeats: int = 8,
+    melody_style: str = "baroque",
+    unit_index: int = 0,
+    track_index: int = 0,
+    start_beat: float = 0,
+    velocity: float = 0.8,
+) -> str:
+    """Create a ground bass — a repeating ostinato bass line with optional melody.
+
+    The ground bass (basso ostinato) is one of the oldest composition techniques:
+    a short bass pattern repeats throughout the piece while melodies above it
+    change and develop. Used in baroque (Purcell's Dido's Lament, Bach's
+    Crucifixus), chaconne/passacaglia tradition, jazz modal vamps, and film
+    scoring (repeating tension ostinati).
+
+    Unlike passacaglia (which generates variations above the bass), ground_bass
+    creates the pure repeating bass ostinato + a melody line that develops
+    over the repetitions. The melody changes character per repetition cycle.
+
+    melody_styles:
+      "baroque"   — Stepwise descending lines over the ground. chromatic
+                    passing tones, suspensions on strong beats. Purcell/Bach
+                    style. Melody descends gradually across repetitions.
+      "modal"     — Modal jazz vamp style. Long sustained notes, sparse
+                    placement, emphasis on chord tones. Miles Davis / Kind
+                    of Blue aesthetic. Melody floats above the bass.
+      "minimalist" — Steve Reich / Philip Glass style. Phase-shifted
+                    melodic fragments, repetitive cells, gradual transformation.
+                    Melody uses small intervals and repeating patterns.
+      "film_tension" — Dark film scoring style. Minor 2nd and tritone
+                    intervals, dissonant suspensions, gradual crescendo.
+                    Melody builds tension across repetitions.
+      "folk"      — Strophic folk variation style. Pentatonic-leaning
+                    melody, simple rhythmic values, phrase repetition with
+                    slight variation. Celtic / English folk tradition.
+
+    Args:
+        bass_pattern: Space-separated bass notes (e.g. "A2 E2 C2 G2").
+                      Can use note names (A2, C3) or MIDI numbers (45, 52).
+        bass_rhythm: Space-separated durations in beats for each bass note
+                     (e.g. "2 2 2 2" = 4 notes each lasting 2 beats = 8-beat cycle).
+        repeats: Number of bass repetitions (2-32).
+        melody_style: Melody character above the ground.
+        unit_index: AU index.
+        track_index: Note track index (bass goes here, melody on track_index+1).
+        start_beat: Starting beat position.
+        velocity: Base velocity 0-1.
+
+    Returns bass notes created, melody notes, cycle info, and style.
+    """
+    if not (2 <= repeats <= 32):
+        return f"Error: repeats must be 2-32, got {repeats}"
+    if melody_style not in ("baroque", "modal", "minimalist", "film_tension", "folk"):
+        return f"Error: melody_style must be baroque, modal, minimalist, film_tension, or folk, got {melody_style}"
+    if not (0.0 <= velocity <= 1.0):
+        return f"Error: velocity must be 0-1, got {velocity}"
+
+    NOTE_MAP = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3,
+                "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8,
+                "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11}
+
+    def _parse_note(n):
+        n = n.strip()
+        if n.isdigit():
+            return int(n)
+        # Parse note name like "A2", "C#3"
+        for octave_len in (2, 1):
+            if len(n) > octave_len:
+                note_part = n[:-octave_len]
+                oct_part = n[-octave_len:]
+                try:
+                    octave = int(oct_part)
+                    pc = NOTE_MAP.get(note_part)
+                    if pc is not None:
+                        return (octave + 1) * 12 + pc
+                except ValueError:
+                    pass
+        return 48  # fallback
+
+    # Parse bass pattern
+    bass_notes_raw = bass_pattern.strip().split()
+    bass_durations_raw = bass_rhythm.strip().split()
+
+    if not bass_notes_raw:
+        return "Error: bass_pattern is empty"
+    if len(bass_durations_raw) != len(bass_notes_raw):
+        return f"Error: bass_pattern has {len(bass_notes_raw)} notes but bass_rhythm has {len(bass_durations_raw)} durations"
+
+    bass_pitches = [_parse_note(n) for n in bass_notes_raw]
+    bass_durs = []
+    for d in bass_durations_raw:
+        try:
+            bass_durs.append(float(d))
+        except ValueError:
+            return f"Error: invalid duration '{d}'"
+
+    cycle_len = sum(bass_durs)
+
+    # Generate bass notes (repeating ostinato)
+    all_bass_notes = []
+    for r in range(repeats):
+        pos = start_beat + r * cycle_len
+        beat_offset = 0.0
+        for i, pitch in enumerate(bass_pitches):
+            dur = bass_durs[i]
+            all_bass_notes.append({
+                "pitch": pitch,
+                "start": round(pos + beat_offset, 4),
+                "duration": dur * 0.9,  # slight gap for definition
+                "velocity": round(velocity * 0.9, 3),
+            })
+            beat_offset += dur
+
+    # Generate melody based on style
+    all_melody_notes = []
+    # Scale degrees relative to bass root
+    bass_root = bass_pitches[0]
+    # Determine scale from bass root (minor for baroque/film, major for folk, modal for modal/minimalist)
+    if melody_style == "baroque":
+        scale_intervals = [0, 2, 3, 5, 7, 8, 10, 12]  # natural minor
+        melody_octave = 12
+        desc_per_cycle = 1  # descend 1 semitone per cycle
+    elif melody_style == "modal":
+        scale_intervals = [0, 2, 3, 5, 7, 10, 12]  # dorian-ish
+        melody_octave = 12
+        desc_per_cycle = 0
+    elif melody_style == "minimalist":
+        scale_intervals = [0, 2, 3, 5, 7, 12]  # pentatonic minor
+        melody_octave = 12
+        desc_per_cycle = 0
+    elif melody_style == "film_tension":
+        scale_intervals = [0, 1, 3, 6, 7, 8, 12]  # minor 2nds + tritone
+        melody_octave = 12
+        desc_per_cycle = 0
+    else:  # folk
+        scale_intervals = [0, 2, 4, 7, 9, 12]  # pentatonic major
+        melody_octave = 12
+        desc_per_cycle = 0
+
+    import random as _r
+    rng = _r.Random(42)  # deterministic
+
+    for r in range(repeats):
+        cycle_start = start_beat + r * cycle_len
+        # Melody contour varies by style
+        if melody_style == "baroque":
+            # Descending stepwise line with suspensions
+            start_degree = len(scale_intervals) - 1 - min(r, 4)
+            if start_degree < 0:
+                start_degree = 0
+            n_melody_notes = int(cycle_len / 1.0)  # 1 beat per note
+            for m in range(n_melody_notes):
+                deg = max(0, start_degree - m)
+                if deg >= len(scale_intervals):
+                    deg = len(scale_intervals) - 1
+                pitch = bass_root + melody_octave + scale_intervals[deg] - desc_per_cycle * r
+                all_melody_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 1.0, 4),
+                    "duration": 0.9,
+                    "velocity": round(velocity * 0.6 * (0.8 + 0.04 * r), 3),
+                })
+        elif melody_style == "modal":
+            # Sparse sustained notes on chord tones
+            n_notes = max(1, int(cycle_len / 2.0))
+            for m in range(n_notes):
+                deg = rng.choice([0, 2, 4, 4, 5])  # emphasis on 3rd and 5th
+                if deg >= len(scale_intervals):
+                    deg = 0
+                pitch = bass_root + melody_octave + scale_intervals[deg]
+                all_melody_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 2.0, 4),
+                    "duration": 1.8,
+                    "velocity": round(velocity * 0.55, 3),
+                })
+        elif melody_style == "minimalist":
+            # Repeating cells with slight phase shift
+            cell = [0, 1, 2, 1]  # scale degree pattern
+            n_cells = int(cycle_len / 1.0)
+            for m in range(n_cells):
+                deg = cell[m % len(cell)]
+                if deg >= len(scale_intervals):
+                    deg = 0
+                pitch = bass_root + melody_octave + scale_intervals[deg]
+                shift = (r % 3) * 0.25  # phase shift per cycle
+                all_melody_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 1.0 + shift, 4),
+                    "duration": 0.9,
+                    "velocity": round(velocity * 0.5, 3),
+                })
+        elif melody_style == "film_tension":
+            # Dissonant suspensions, building intensity
+            n_notes = max(1, int(cycle_len / 1.5))
+            for m in range(n_notes):
+                deg = rng.choice([1, 1, 3, 3, 4, 6])  # dissonant degrees
+                if deg >= len(scale_intervals):
+                    deg = 0
+                pitch = bass_root + melody_octave + scale_intervals[deg]
+                vel = round(velocity * (0.4 + 0.05 * r), 3)  # crescendo
+                vel = min(1.0, vel)
+                all_melody_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 1.5, 4),
+                    "duration": 1.3,
+                    "velocity": vel,
+                })
+        else:  # folk
+            # Simple phrases with slight variation
+            phrase = [0, 2, 4, 2, 0]
+            n_notes = int(cycle_len / 1.0)
+            for m in range(n_notes):
+                deg = phrase[m % len(phrase)]
+                if r % 2 == 1:
+                    deg = (deg + 1) % len(scale_intervals)
+                if deg >= len(scale_intervals):
+                    deg = 0
+                pitch = bass_root + melody_octave + scale_intervals[deg]
+                all_melody_notes.append({
+                    "pitch": pitch,
+                    "start": round(cycle_start + m * 1.0, 4),
+                    "duration": 0.85,
+                    "velocity": round(velocity * 0.6, 3),
+                })
+
+    # Create bass notes on track_index
+    bass_json = json.dumps(all_bass_notes)
+    bass_result = await mcp_opendaw_create_notes_batch(bass_json, unit_index, track_index)
+
+    # Create melody on track_index + 1
+    melody_json = json.dumps(all_melody_notes)
+    melody_result = await mcp_opendaw_create_notes_batch(melody_json, unit_index, track_index + 1)
+
+    try:
+        data = json.loads(bass_result)
+        data["ground_bass"] = True
+        data["melody_style"] = melody_style
+        data["repeats"] = repeats
+        data["cycle_len_beats"] = cycle_len
+        data["bass_pattern"] = bass_pattern
+        data["bass_rhythm"] = bass_rhythm
+        data["bass_notes_created"] = len(all_bass_notes)
+        data["melody_notes_created"] = len(all_melody_notes)
+        data["bass_track"] = track_index
+        data["melody_track"] = track_index + 1
+        data["melody_result_status"] = json.loads(melody_result).get("success", False) if melody_result else False
+        return json.dumps(data, indent=2)
+    except Exception:
+        return bass_result
+
+
+
 def main():
     """Entry point for opendaw-mcp command."""
     import sys

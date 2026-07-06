@@ -30,6 +30,9 @@ from .utils import (
     _detect_key,
     _transcribe_drums,
     _transcribe_melody,
+    _analyze_spectrum,
+    _analyze_stereo,
+    _analyze_dynamics,
 )
 from .music_theory import (
     NOTE_TO_PITCH,
@@ -64,6 +67,9 @@ __all__ = [
     "_detect_key",
     "_transcribe_drums",
     "_transcribe_melody",
+    "_analyze_spectrum",
+    "_analyze_stereo",
+    "_analyze_dynamics",
     "NOTE_TO_PITCH",
     "CHORD_INTERVALS",
     "SCALE_INTERVALS",

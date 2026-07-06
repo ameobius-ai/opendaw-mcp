@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.306.0 (2026-07-06)
+
+- **`create_ground_bass`** — Ground bass (basso ostinato): repeating bass pattern with developing melody above. 5 melody styles: baroque (descending stepwise, Purcell/Bach), modal (sparse sustained, Miles Davis), minimalist (phase-shifted cells, Reich/Glass), film_tension (dissonant crescendo), folk (pentatonic variation). Bass on track_index, melody on track_index+1. Fixed __init__.py exports for analysis functions. 23 unit tests. 481 MCP tools.
+
 ## v1.305.0 (2026-07-06)
 
 - **`analyze_mix`** — Complete mix diagnosis in one call. Combines track (BPM/key/LUFS) + spectrum (7-band) + stereo (width/phase) + dynamics (crest/LRA/transients) into a single prioritized report. Mix suggestions sorted by severity (HIGH/MEDIUM/LOW/INFO). Master check with platform LUFS targets (Spotify -14, Apple -16, YouTube -14). One call replaces four — agent gets complete mix picture for EQ, compression, stereo, and mastering decisions.
