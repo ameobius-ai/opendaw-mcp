@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.379.0 (2026-07-06)
+
+- **`produce_and_master` + `produce_full_track` upgraded** — Both meta-tools now include chord progression step (harmonic foundation). produce_and_master is now 10 steps, produce_full_track is 8 steps. Tracks now have harmonic pads/chords alongside drums, bass, and melody. I-V-vi-IV for major, ii-V-i for minor. Full harmonic foundation in one call.
+
 ## v1.378.0 (2026-07-06)
 
 - **`produce_and_master` upgraded** — Now includes verification step (Step 9: read_meter). Pipeline is now 9 steps: BPM → arrange → drums → bass → melody → genre effects → mastering → render → **verify**. After render, reads LUFS meter values automatically. Closed-loop mastering: master → meter → verify. One call = produced + mastered + verified track.

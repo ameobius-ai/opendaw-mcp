@@ -61537,8 +61537,9 @@ async def mcp_opendaw_produce_full_track(
     3. create_drum_track (genre-specific drum pattern)
     4. create_bass_track (genre-specific bassline)
     5. create_melody (lead melody)
-    6. apply_mix_preset (track levels and panning)
-    7. render_full (if render=True — renders the complete track to WAV)
+    6. create_chord_progression (harmonic foundation)
+    7. apply_mix_preset (track levels and panning)
+    8. render_full (if render=True — renders the complete track to WAV)
 
     One call replaces 15-20 individual tool calls. The agent specifies
     structure, key, genre, and tempo — everything else is automatic.
@@ -61618,6 +61619,21 @@ async def mcp_opendaw_produce_full_track(
     except Exception as e:
         results["melody_error"] = str(e)
 
+    # Step 5.5: Chord progression (harmonic foundation)
+    try:
+        if scale_type == "major":
+            chords = "Cmaj7,Fmaj7,Gmaj7,Am7"
+        else:
+            chords = f"{key_root}m7,{key_root}m7,Fm7,Gm7"
+        chord_result = await mcp_opendaw_create_chord_progression(
+            chords, -1, 0, 0, 4.0)
+        chord_data = json.loads(chord_result)
+        results["chords"] = {
+            "notes": chord_data.get("notes_created", chord_data.get("notes_generated", 0)),
+        }
+    except Exception as e:
+        results["chords_error"] = str(e)
+
     # Step 6: Apply mix preset
     try:
         await mcp_opendaw_apply_mix_preset("balanced")
@@ -61648,6 +61664,8 @@ async def mcp_opendaw_produce_full_track(
         total_notes += results["bass"].get("notes", 0)
     if "melody" in results:
         total_notes += results["melody"].get("notes", 0)
+    if "chords" in results:
+        total_notes += results["chords"].get("notes", 0)
 
     results["produced"] = True
     results["structure"] = structure
@@ -62371,10 +62389,11 @@ async def mcp_opendaw_produce_and_master(
     3. create_drum_pattern (genre drums)
     4. create_bassline (genre bass)
     5. create_melody (lead melody)
-    6. add_genre_effects (genre-specific effect chains)
-    7. auto_master (analyze → mastering chain → LUFS targeting → meter placement)
-    8. render_full (if render=True)
-    9. read_meter (verification — read LUFS from meter)
+    6. create_chord_progression (harmonic foundation)
+    7. add_genre_effects (genre-specific effect chains)
+    8. auto_master (analyze → mastering chain → LUFS targeting → meter placement)
+    9. render_full (if render=True)
+    10. read_meter (verification — read LUFS from meter)
 
     One call = a fully produced, mastered, and verified track ready for streaming.
     Replaces 30-40 individual tool calls.
@@ -62450,6 +62469,19 @@ async def mcp_opendaw_produce_and_master(
     except Exception as e:
         results["melody_error"] = str(e)[:100]
 
+    # Step 5.5: Chord progression (harmonic foundation)
+    try:
+        if scale_type == "major":
+            chords = "Cmaj7,Fmaj7,Gmaj7,Am7"
+        else:
+            chords = f"{key_root}m7,{key_root}m7,Fm7,Gm7"
+        r = await mcp_opendaw_create_chord_progression(
+            chords, -1, 0, 0, 4.0)
+        d = json.loads(r)
+        results["chords"] = d.get("notes_created", d.get("notes_generated", 0))
+    except Exception as e:
+        results["chords_error"] = str(e)[:100]
+
     # Step 6: Genre effects
     try:
         r = await mcp_opendaw_add_genre_effects(genre, -1)
@@ -62501,7 +62533,7 @@ async def mcp_opendaw_produce_and_master(
 
     # Totals
     total_notes = 0
-    for k in ["arrangement", "drums", "bass"]:
+    for k in ["arrangement", "drums", "bass", "chords"]:
         v = results.get(k)
         if isinstance(v, dict):
             total_notes += v.get("notes", 0)
@@ -62518,9 +62550,9 @@ async def mcp_opendaw_produce_and_master(
     results["master_style"] = master_style
     results["total_notes"] = total_notes
     results["rendered"] = render
-    results["steps_completed"] = sum(1 for k in ["bpm", "arrangement", "drums", "bass", "melody", "genre_effects", "mastering", "render", "verification"] if k in results)
-    results["steps_total"] = 9
-    results["pipeline"] = "set_bpm → arrange → drums → bass → melody → genre_effects → auto_master → render → verify"
+    results["steps_completed"] = sum(1 for k in ["bpm", "arrangement", "drums", "bass", "melody", "chords", "genre_effects", "mastering", "render", "verification"] if k in results)
+    results["steps_total"] = 10
+    results["pipeline"] = "set_bpm → arrange → drums → bass → melody → chords → genre_effects → auto_master → render → verify"
 
     return json.dumps(results, indent=2)
 
