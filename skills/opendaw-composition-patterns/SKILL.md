@@ -1,6 +1,6 @@
 ---
 name: opendaw-composition-patterns
-description: "When and how to use openDAW MCP orchestration tools for musical composition. 177 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.317.0"
+description: "When and how to use openDAW MCP orchestration tools for musical composition. 178 orchestration tools: drum patterns, fills, melodies, basslines, arpeggios, harmony, counterpoint, ostinato, crescendo, swing, polyrhythm, scale runs, call-response, walking bass, sidechain, ghost notes, velocity curves, articulation, chord progressions, genre templates, song structure, automation, mastering chains, mix presets, humanize, pitch-based dynamics, cross-track balance, MIDI echo, scale detection, harmonic rhythm, rhythm extraction/application, motif analysis. Decision tree: which tool for which musical goal. v1.318.0"
 ---
 
 # openDAW Composition Patterns
@@ -47,6 +47,7 @@ What do you want to create?
 ├── Call-and-response → create_call_and_response (leader phrase + response, 5 types: echo/transpose/variation/complementary/fill, blues/gospel/African/jazz/hip-hop)
 ├── Binary form (AB) → create_binary_form (two contrasting sections, optional AABB repeats, 5 modulation types: dominant/relative/subdominant/parallel/no_modulation, Bach/folk/early jazz)
 ├── Sonata form → create_sonata_form (exposition: theme 1 tonic + transition + theme 2 dominant/relative; development: fragmentation + sequence + modulation + dominant pedal; recapitulation: both themes in tonic; Haydn-Mozart-Beethoven classical structure)
+├── Ternary form (ABA) → create_ternary_form (A-B-A' with contrasting middle, 5 B contrast types: trio/dominant/relative/episode/development, optional A' ornamentation, minuet & trio / da capo aria / Chopin nocturne / pop ABA)
 ├── Ghost notes (groove) → create_ghost_notes (after creating main pattern)
 ├── Swing (groove) → apply_swing (after creating pattern, 0.58 = hip-hop)
 ├── Groove transfer (feel cloning) → groove_transfer (source drum groove → destination programmed track, timing + velocity feel)

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.318.0 (2026-07-06)
+
+- **`create_ternary_form`** — Ternary form (ABA): outer A sections with contrasting B middle. 5 B-section contrast types: trio (subdominant, smoother rhythm, minuet & trio), dominant (V key, more active, Beethoven scherzo), relative (relative minor/major, Schubert impromptu), episode (same key, different material, Chopin nocturne), development (fragmentation of A material). Optional A' ornamentation with passing tones and trill-like neighbors. Da capo aria, minuet & trio, Chopin nocturnes, pop/jazz ABA. 33 unit tests. 493 MCP tools.
+
 ## v1.317.0 (2026-07-06)
 
 - **`create_sonata_form`** — Sonata form: exposition (theme 1 in tonic + transition + theme 2 in dominant/relative), development (fragmentation, sequence, modulation through iii/vi/ii/IV, dominant pedal retransition), recapitulation (both themes in tonic). The structural foundation of classical symphonies, sonatas, quartets from Haydn through Mahler. Major key modulates to dominant, minor to relative major. Development features rising sequences and crescendo. 27 unit tests. 492 MCP tools.
