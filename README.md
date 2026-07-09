@@ -1,8 +1,8 @@
-<!-- mcp-name: io.github.AMEOBIUS/opendaw-mcp -->
+<!-- mcp-name: io.github.aaameobius-crypto/opendaw-mcp -->
 # openDAW MCP
 
-[![CI](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/ci.yml)
-[![Docs](https://github.com/AMEOBIUS/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://ameobius.github.io/opendaw-mcp/)
+[![CI](https://github.com/aaameobius-crypto/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/aaameobius-crypto/opendaw-mcp/actions/workflows/ci.yml)
+[![Docs](https://github.com/aaameobius-crypto/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://aaameobius-crypto.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-532-brightgreen)](TOOL_CATALOG.md)
@@ -12,9 +12,9 @@
 [![Examples](https://img.shields.io/badge/Examples-125-blue)](examples/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](pyproject.toml)
 [![Lint](https://img.shields.io/badge/Lint-ruff%20✓-brightgreen)](pyproject.toml)
-[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.AMEOBIUS/opendaw-mcp)
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Published-blue)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.aaameobius-crypto/opendaw-mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
-[![Glama](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AMEOBIUS/opendaw-mcp)
+[![Glama](https://glama.ai/mcp/servers/aaameobius-crypto/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/aaameobius-crypto/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 
 **532 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**

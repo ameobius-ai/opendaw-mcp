@@ -27,11 +27,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/AMEOBIUS/opendaw-mcp"
-Documentation = "https://ameobius.github.io/opendaw-mcp/"
-Repository = "https://github.com/AMEOBIUS/opendaw-mcp"
-Issues = "https://github.com/AMEOBIUS/opendaw-mcp/issues"
-Changelog = "https://ameobius.github.io/opendaw-mcp/changelog/"
+Homepage = "https://github.com/aaameobius-crypto/opendaw-mcp"
+Documentation = "https://aaameobius-crypto.github.io/opendaw-mcp/"
+Repository = "https://github.com/aaameobius-crypto/opendaw-mcp"
+Issues = "https://github.com/aaameobius-crypto/opendaw-mcp/issues"
+Changelog = "https://aaameobius-crypto.github.io/opendaw-mcp/changelog/"
 
 [project.scripts]
 opendaw-mcp = "server:main"

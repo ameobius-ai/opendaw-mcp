@@ -39,7 +39,7 @@ executor.invoke({
 | `orchestration` | 7 | Drum patterns, chord progressions, mastering, song structure |
 | `stems` | 1 | Stem separation |
 
-→ See [`examples/langchain_integration.py`](https://github.com/AMEOBIUS/opendaw-mcp/blob/main/examples/langchain_integration.py)
+→ See [`examples/langchain_integration.py`](https://github.com/aaameobius-crypto/opendaw-mcp/blob/main/examples/langchain_integration.py)
 
 ## AutoGen
 
@@ -71,7 +71,7 @@ import asyncio
 asyncio.run(cleanup())
 ```
 
-→ See [`examples/autogen_integration.py`](https://github.com/AMEOBIUS/opendaw-mcp/blob/main/examples/autogen_integration.py)
+→ See [`examples/autogen_integration.py`](https://github.com/aaameobius-crypto/opendaw-mcp/blob/main/examples/autogen_integration.py)
 
 ## CrewAI
 
@@ -100,7 +100,7 @@ import asyncio
 asyncio.run(cleanup())
 ```
 
-→ See [`examples/crewai_integration.py`](https://github.com/AMEOBIUS/opendaw-mcp/blob/main/examples/crewai_integration.py)
+→ See [`examples/crewai_integration.py`](https://github.com/aaameobius-crypto/opendaw-mcp/blob/main/examples/crewai_integration.py)
 
 ## MCP protocol (direct)
 
