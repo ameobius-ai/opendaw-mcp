@@ -16,6 +16,7 @@
 [![Smithery](https://img.shields.io/badge/Smithery-Published-purple)](https://smithery.ai/server/@macar228228/opendaw-mcp)
 [![Glama](https://glama.ai/mcp/servers/aaameobius-crypto/opendaw-mcp/badges/score.svg)](https://glama.ai/mcp/servers/aaameobius-crypto/opendaw-mcp)
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
+[![Sponsor](https://img.shields.io/badge/Sponsor-☕-ea4aaa)](https://github.com/sponsors/aaameobius-crypto)
 
 **532 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
