@@ -13,7 +13,7 @@ import numpy as np
 from scipy.io import wavfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ["OPENDAW_URL"] = "http://[::1]:5174"
+os.environ["OPENDAW_URL"] = os.environ.get("OPENDAW_URL", "https://localhost:8082")
 
 from server import (
     mcp_opendaw_load_audio, mcp_opendaw_create_instrument_track,
@@ -70,7 +70,7 @@ async def main():
     wavfile.write("/tmp/dbg_tone.wav", sr, (stereo * 32767).astype(np.int16))
 
     bridge = HeadlessDawBridge()
-    bridge.daw_url = "http://[::1]:5174"
+    bridge.daw_url = os.environ.get("OPENDAW_URL", "https://localhost:8082")
     await bridge.start()
     print("Bridge ready.\n")
 

@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
 
-DAW_URL = os.environ.get("OPENDAW_URL", "http://localhost:5174")
+DAW_URL = os.environ.get("OPENDAW_URL", "https://localhost:8082")
 
 
 class HeadlessDawBridge:
@@ -32,6 +32,7 @@ class HeadlessDawBridge:
         launch_opts = dict(
             headless=True,
             args=[
+                "--no-sandbox",
                 "--use-fake-ui-for-media-stream",
                 "--autoplay-policy=no-user-gesture-required",
             ],
@@ -41,17 +42,25 @@ class HeadlessDawBridge:
         if chrome_path and os.path.exists(chrome_path):
             launch_opts["executable_path"] = chrome_path
         self.browser = await self.playwright.chromium.launch(**launch_opts)
-        self.page = await self.browser.new_page()
+        self.page = await self.browser.new_page(ignore_https_errors=True)
         await self.page.goto(DAW_URL, timeout=15000)
-        await self.page.wait_for_function("typeof window.DAW !== 'undefined'", timeout=30000)
         await self.page.wait_for_function(
-            "typeof window.DAW_InstrumentFactories !== 'undefined'", timeout=30000
+            "typeof window.opendaw !== 'undefined' && typeof window.opendaw.service !== 'undefined'",
+            timeout=30000,
         )
         # Inject helper functions into DAW context — eliminates boilerplate in every tool
         await self.page.evaluate(
-            """() => {
+            """async () => {
             if (window.DAW_HELPERS) return;  // already injected
-            const p = window.DAW;
+            const service = window.opendaw.service;
+
+            // Ensure a project is loaded (create default if none)
+            if (!service.hasProfile) {
+                await service.newProject();
+            }
+
+            const p = service.project;
+            const InstrumentFactories = window.opendaw.InstrumentFactories;
             window.DAW_HELPERS = {
                 // Get AU adapter by index (sorted by index field)
                 au: (i) => {
@@ -132,7 +141,10 @@ class HeadlessDawBridge:
                 },
                 // Safe evaluate — wraps in editing.modify
                 modify: (fn) => p.editing.modify(fn),
+                // Instrument factories for api.createInstrument()
+                factories: InstrumentFactories,
                 // Project shortcuts
+                service,
                 project: p,
                 api: p.api,
                 boxGraph: p.boxGraph,
@@ -145,8 +157,8 @@ class HeadlessDawBridge:
                 engine: p.engine,
                 primaryAudioUnitBox: p.primaryAudioUnitBox,
                 primaryAudioBusBox: p.primaryAudioBusBox,
-                uuid: window.DAW_UUID,
-                ppqn: window.DAW_PPQN,
+                uuid: p.rootBox.address.toString(),
+                ppqn: 384,
             };
         }"""
         )
