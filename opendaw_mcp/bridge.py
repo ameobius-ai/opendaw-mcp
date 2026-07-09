@@ -178,6 +178,7 @@ class HeadlessDawBridge:
             }
             if (!window.DAW_PPQN) window.DAW_PPQN = 384;
             if (!window.DAW_InstrumentFactories) window.DAW_InstrumentFactories = InstrumentFactories;
+            if (!window.DAW_EffectFactories) window.DAW_EffectFactories = window.opendaw.EffectFactories;
         }"""
         )
         logging.info("DAW engine ready!")
