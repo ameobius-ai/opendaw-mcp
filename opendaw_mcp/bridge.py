@@ -160,6 +160,24 @@ class HeadlessDawBridge:
                 uuid: p.rootBox.address.toString(),
                 ppqn: 384,
             };
+
+            // Compatibility shims — let existing tool code keep using old globals
+            if (!window.DAW) window.DAW = p;
+            if (!window.DAW_UUID) {
+                window.DAW_UUID = {
+                    generate: () => {
+                        const bytes = new Uint8Array(16);
+                        crypto.getRandomValues(bytes);
+                        return bytes;
+                    },
+                    toString: (bytes) => {
+                        const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+                        return hex.slice(0,8) + '-' + hex.slice(8,12) + '-' + hex.slice(12,16) + '-' + hex.slice(16,20) + '-' + hex.slice(20);
+                    },
+                };
+            }
+            if (!window.DAW_PPQN) window.DAW_PPQN = 384;
+            if (!window.DAW_InstrumentFactories) window.DAW_InstrumentFactories = InstrumentFactories;
         }"""
         )
         logging.info("DAW engine ready!")
