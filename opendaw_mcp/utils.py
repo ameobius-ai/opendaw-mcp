@@ -1363,3 +1363,35 @@ def _analyze_dynamics(channels: list, sample_rate: int) -> dict:
         "sample_rate": sample_rate,
         "frames_analyzed": analysis_len,
     }
+
+
+def _resolve_audio_file(filename: str, export_dir: str = None) -> str | None:
+    """Resolve audio filename to absolute path — DRY helper for all analysis tools.
+
+    Tries: export_dir/filename.wav → export_dir/filename → abs → cwd/filename.
+    Returns absolute path or None.
+    """
+    import os as _os
+    if export_dir is None:
+        export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                      _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "exports"))
+    fname = filename if filename.endswith(".wav") else filename + ".wav"
+    fpath = _os.path.join(export_dir, fname)
+    if _os.path.exists(fpath):
+        return fpath
+    fpath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    return fpath if _os.path.exists(fpath) else None
+
+
+def _load_wav_for_analysis(filename: str) -> tuple:
+    """Load + parse WAV file for analysis — DRY helper.
+
+    Returns (channels, sample_rate, fpath) or raises FileNotFoundError.
+    """
+    fpath = _resolve_audio_file(filename)
+    if fpath is None:
+        raise FileNotFoundError(f"Audio file not found: {filename}")
+    with open(fpath, "rb") as f:
+        raw = f.read()
+    wav = _parse_wav(raw)
+    return wav["channels"], wav["sample_rate"], fpath

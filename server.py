@@ -30618,6 +30618,10 @@ PHASE_TOOLS = {
         "mcp_opendaw_get_effect_state", "mcp_opendaw_detect_bpm",
         "mcp_opendaw_read_meter", "mcp_opendaw_evaluate_raw", "mcp_opendaw_analyze_mix",
         "mcp_opendaw_analyze_dynamics", "mcp_opendaw_analyze_spectrum", "mcp_opendaw_analyze_stereo",
+        "mcp_opendaw_analyze_phase", "mcp_opendaw_detect_problems",
+        "mcp_opendaw_detect_frequency_masking", "mcp_opendaw_compare_to_profile",
+        "mcp_opendaw_compare_to_reference", "mcp_opendaw_list_genre_profiles",
+        "mcp_opendaw_measure_lufs", "mcp_opendaw_render_and_analyze",
     },
     "compose": {
         "mcp_opendaw_create_audio_track", "mcp_opendaw_create_note_track",
@@ -30657,6 +30661,7 @@ PHASE_TOOLS = {
         "mcp_opendaw_load_audio", "mcp_opendaw_place_audio_region",
         "mcp_opendaw_create_audio_clip", "mcp_opendaw_set_audio_region_fade", "mcp_opendaw_set_audio_region_gain",
         "mcp_opendaw_save_preset", "mcp_opendaw_load_preset",
+        "mcp_opendaw_separate_stems", "mcp_opendaw_export_single_stem", "mcp_opendaw_export_dry_stem",
     },
 }
 

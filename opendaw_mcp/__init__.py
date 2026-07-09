@@ -33,6 +33,8 @@ from .utils import (
     _analyze_spectrum,
     _analyze_stereo,
     _analyze_dynamics,
+    _resolve_audio_file,
+    _load_wav_for_analysis,
 )
 from .music_theory import (
     NOTE_TO_PITCH,
@@ -70,6 +72,8 @@ __all__ = [
     "_analyze_spectrum",
     "_analyze_stereo",
     "_analyze_dynamics",
+    "_resolve_audio_file",
+    "_load_wav_for_analysis",
     "NOTE_TO_PITCH",
     "CHORD_INTERVALS",
     "SCALE_INTERVALS",
