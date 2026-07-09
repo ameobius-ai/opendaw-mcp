@@ -3,11 +3,11 @@
 // Based on the Haas (precedence) effect: delays < 30ms are perceived as spatial,
 // not as echo. Classic technique for widening mono sources.
 
-// @param delay linear 5 1 30   // Delay in ms (1-30, default 5). <10ms = subtle widen, 15-25ms = dramatic
-// @param width linear 0.8 0 1   // Width amount (0=mono, 0.5=original, 1=full Haas). Mix between dry mono and Haas stereo
-// @param channel int 1 0 1      // Which channel gets the delay (0=left, 1=right). Flips the stereo image
-// @param feedback linear 0 0 0.3 // Feedback into delay line (0-0.3). Subtle regeneration, 0=clean
-// @param mix linear 1 0 1       // Dry/wet mix (0=original, 1=full Haas effect)
+// @param delay 5 1 30 linear  // Delay in ms (1-30, default 5). <10ms = subtle widen, 15-25ms = dramatic
+// @param width 0.8 0 1 linear  // Width amount (0=mono, 0.5=original, 1=full Haas). Mix between dry mono and Haas stereo
+// @param channel 1 0 1 int  // Which channel gets the delay (0=left, 1=right). Flips the stereo image
+// @param feedback 0 0 0.3 linear  // Feedback into delay line (0-0.3). Subtle regeneration, 0=clean
+// @param mix 1 0 1 linear  // Dry/wet mix (0=original, 1=full Haas effect)
 
 class HaasProcessor {
     constructor() {

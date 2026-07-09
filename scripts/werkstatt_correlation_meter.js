@@ -4,12 +4,12 @@
 // Reports correlation coefficient (-1 to +1), width estimate, and mono compatibility
 // +1 = mono (perfectly correlated), 0 = wide stereo, -1 = out of phase
 // Also reports left/right level balance and peak correlation history
-// @param correlation 0.0 linear  // Current correlation (-1 to +1, read-only)
-// @param width 0.0 linear        // Stereo width estimate (0=mono, 1=narrow, 2=wide, read-only)
-// @param mono_compat 0.0 linear  // Mono compatibility score (0-1, 1=perfect, read-only)
-// @param balance 0.0 linear      // L/R balance (-1=full L, 0=center, +1=full R, read-only)
-// @param peak_corr 0.0 linear    // Peak negative correlation (worst phase moment, read-only)
-// @param mix 0.0 linear          // Not used (meter only, no audio modification)
+// @param correlation 0.0 -1 1 linear
+// @param width 0.0 0 1 linear
+// @param mono_compat 0.0 0 1 linear
+// @param balance 0.0 -1 1 linear
+// @param peak_corr 0.0 -1 1 linear
+// @param mix 0.0 0 1 linear
 
 class CorrelationMeter {
     constructor(sampleRate, blockSize) {

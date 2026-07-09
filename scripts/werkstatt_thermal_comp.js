@@ -3,11 +3,11 @@
 // Optical compressor (LA-2A style)
 // Photoresistor gain reduction element with slow, program-dependent attack/release
 // Tube-style saturation on output for warmth
-// @param peak_reduce 0.5 linear  // gain reduction amount (0=none, 1=heavy)
-// @param gain 0.5 linear         // input gain (drives tube and threshold)
-// @param tube 0.3 linear         // tube saturation amount (0=clean, 1=driven)
-// @param speed 0.5 linear        // opto speed (0=slow, 1=fast)
-// @param mix 1.0 linear          // wet/dry mix (0=dry, 1=full compressed)
+// @param peak_reduce 0.5 0 1 linear
+// @param gain 0.5 0 1 linear
+// @param tube 0.3 0 1 linear
+// @param speed 0.5 0 1 linear
+// @param mix 1.0 0 1 linear
 
 class ThermalComp {
     constructor(sampleRate, blockSize) {

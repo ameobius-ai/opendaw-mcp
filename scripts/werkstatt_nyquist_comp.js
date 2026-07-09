@@ -3,12 +3,12 @@
 // Parallel/New York compression
 // Blends dry signal with a heavily compressed parallel path
 // Increases perceived loudness and detail without killing transients
-// @param threshold 0.4 linear   // threshold for compressed path (-60 to 0 dB)
-// @param ratio 0.7 linear       // compression ratio (1:1 to 20:1)
-// @param attack 0.1 linear      // attack time (0.1 to 50 ms)
-// @param release 0.3 linear     // release time (50 to 500 ms)
-// @param blend 0.5 linear       // parallel blend (0=dry only, 1=full compressed)
-// @param makeup 0.5 linear      // makeup gain on compressed path (-12 to +24 dB)
+// @param threshold 0.4 0 1 linear
+// @param ratio 0.7 0 1 linear
+// @param attack 0.1 0 1 linear
+// @param release 0.3 0 1 linear
+// @param blend 0.5 0 1 linear
+// @param makeup 0.5 0 1 linear
 
 class NyquistComp {
     constructor(sampleRate, blockSize) {

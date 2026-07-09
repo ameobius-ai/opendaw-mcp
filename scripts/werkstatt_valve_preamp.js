@@ -25,12 +25,12 @@
 //   mix       0-1    dry/wet mix
 //   output   -24..6 dB output gain
 
-// @param gain linear 1 0 2
-// @param bias linear 0 -0.5 0.5
-// @param warmth linear 0.6 0 1
-// @param miller linear 0.4 0 1
-// @param mix linear 1 0 1
-// @param output exp 0 -24 6
+// @param gain 1 0 2 linear
+// @param bias 0 -0.5 0.5 linear
+// @param warmth 0.6 0 1 linear
+// @param miller 0.4 0 1 linear
+// @param mix 1 0 1 linear
+// @param output 0 -24 6 exp
 
 class ValvePreamp {
     constructor(sampleRate, blockSize) {

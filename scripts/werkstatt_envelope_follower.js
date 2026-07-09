@@ -2,10 +2,10 @@
 // Envelope follower — tracks input amplitude and outputs control signal
 // Used as building block for auto-wah, tremolo depth, ducking, sidechain
 //
-// @param attack linear 0.001 0.1 0.005   // rise time (fast = percussive, slow = smooth)
-// @param release linear 0.01 1.0 0.1     // fall time (fast = staccato, slow = legato)
-// @param gain linear 0.5 4.0 1.5         // output gain of control signal
-// @param mix linear 0.0 1.0 0.5          // 0=dry, 1=envelope only, 0.5=mixed
+// @param attack 0.001 0.1 0.005 linear  // rise time (fast = percussive, slow = smooth)
+// @param release 0.01 1.0 0.1 linear  // fall time (fast = staccato, slow = legato)
+// @param gain 0.5 4.0 1.5 linear  // output gain of control signal
+// @param mix 0.0 1.0 0.5 linear  // 0=dry, 1=envelope only, 0.5=mixed
 //
 // Influences: Mooger Fooger MF-101, Korg MS-20 EG, Sherman Filterbank
 

@@ -4,10 +4,10 @@
 // Generates harmonics of sub-bass frequencies that small speakers can't reproduce
 // The ear/brain reconstructs the missing fundamental from the harmonics
 // Result: bass sounds full on laptop/phone speakers even without subwoofer
-// @param frequency 0.3 linear   // crossover frequency (60-300 Hz, below this = needs harmonics)
-// @param harmonics 0.5 linear   // number of harmonics to generate (2-5)
-// @param intensity 0.5 linear   // harmonic intensity (0=subtle, 1=heavy)
-// @param mix 0.5 linear         // wet/dry blend (0=original, 1=full harmonics)
+// @param frequency 0.3 0 1 linear
+// @param harmonics 0.5 0 1 linear
+// @param intensity 0.5 0 1 linear
+// @param mix 0.5 0 1 linear
 
 class PsychoBass {
     constructor(sampleRate, blockSize) {

@@ -4,12 +4,12 @@
 // S = (L-R)/2 (stereo content: wide instruments, room ambience)
 // Independent gain and filter control per channel. Mastering staple.
 //
-// @param mid_gain linear 0.0 2.0 1.0       // mid channel gain (1=unity)
-// @param side_gain linear 0.0 2.0 1.0      // side channel gain (1=unity, >1=widen, <1=narrow)
-// @param mid_freq linear 20 2000 200       // mid highpass cutoff (Hz, 0=bypass)
-// @param side_freq linear 100 8000 2000    // side lowpass cutoff (Hz, removes harsh side content)
-// @param width linear 0.0 2.0 1.0          // stereo width (0=mono, 1=original, 2=double wide)
-// @param mix linear 0.0 1.0 1.0            // 0=bypass, 1=full M/S processing
+// @param mid_gain 0.0 2.0 1.0 linear  // mid channel gain (1=unity)
+// @param side_gain 0.0 2.0 1.0 linear  // side channel gain (1=unity, >1=widen, <1=narrow)
+// @param mid_freq 20 2000 200 linear  // mid highpass cutoff (Hz, 0=bypass)
+// @param side_freq 100 8000 2000 linear  // side lowpass cutoff (Hz, removes harsh side content)
+// @param width 0.0 2.0 1.0 linear  // stereo width (0=mono, 1=original, 2=double wide)
+// @param mix 0.0 1.0 1.0 linear  // 0=bypass, 1=full M/S processing
 //
 // Influences: Brainworx bx_digital, Dangerous MUSIC, SSL X-Phase
 

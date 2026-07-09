@@ -47,40 +47,50 @@ STEMS_DIR = "/mnt/c/Users/admin/Downloads"
 
 STEMS = [
     # (name, file_path, volume_db, panning, muted)
-    # Rebalanced: bass +3dB, guitars +2dB, vocal_2 -1dB (was too hot at -0.1dB peak)
-    ("anchor",  f"{STEMS_DIR}/Last Light of Summer(1).wav",                   -6.0,  0.0,  True),
-    ("vocal_1", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal)(2).wav",       -2.0, -0.3, False),
-    ("vocal_2", f"{STEMS_DIR}/Last Light of Summer (Lead Vocal)(3).wav",       -4.0,  0.3, False),
-    ("guitar_1",f"{STEMS_DIR}/Last Light of Summer (Guitar)(1).wav",           -3.0, -0.9, False),
-    ("guitar_2",f"{STEMS_DIR}/Last Light of Summer (Guitar)(2).wav",           -3.0,  0.9, False),
-    ("bass",    f"{STEMS_DIR}/Last Light of Summer (Bass)(1).wav",              0.0,  0.0, False),
-    ("drums",   f"{STEMS_DIR}/Last Light of Summer (Drum Kit)(1).wav",         -4.0,  0.0, False),
+    # Post-rock: vocal doubles L/R, guitar doubles hard L/R, bass +3dB foundation
+    # Analysis: vocal -18 LUFS, guitar -18.9, bass -23.5 (needs boost), drums -21.8
+    # vocal_1/vocal_2 are doubles — pan L/R, vocal_2 quieter
+    # guitar_1/guitar_2 are doubles — hard pan
+    ("anchor",  f"{STEMS_DIR}/Остаюсь с солью.wav",                       -10.0,  0.0,  True),
+    ("vocal_1", f"{STEMS_DIR}/Остаюсь с солью (Lead Vocal).wav",          -2.0,  -0.5, False),   # L
+    ("vocal_2", f"{STEMS_DIR}/Остаюсь с солью (Lead Vocal)(1).wav",       -4.0,   0.5, False),   # R, quieter
+    ("guitar_1",f"{STEMS_DIR}/Остаюсь с солью (Guitar).wav",              -3.0,  -0.85, False),  # hard L
+    ("guitar_2",f"{STEMS_DIR}/Остаюсь с солью (Guitar)(1).wav",           -3.0,   0.85, False),  # hard R
+    ("bass",    f"{STEMS_DIR}/Остаюсь с солью (Bass).wav",                 0.0,   0.0, False),   # foundation +3dB
+    ("drums",   f"{STEMS_DIR}/Остаюсь с солью (Drum Kit).wav",            -4.0,   0.0, False),   # center
 ]
 
 # Effects: (stem_index, effect_type, {param: value})
 # stem_index = position in STEMS list (0=anchor, 1=vocal_1, ...)
+# Post-rock premix v4: removed de-esser + guitar paraeq (killed body)
+# Kept: bass paraeq (fundamental), vocal comp, drum comp, reverb
 EFFECTS = [
-    # Vocals: compressor
-    (1, "Compressor", {"threshold": -18, "ratio": 3, "attack": 0.003, "release": 0.25}),
-    (2, "Compressor", {"threshold": -18, "ratio": 3, "attack": 0.003, "release": 0.25}),
-    # Drums: compressor
-    (6, "Compressor", {"threshold": -12, "ratio": 4, "attack": 0.001, "release": 0.15}),
-    # Reverb on vocals + acoustic
-    (1, "Reverb",     {"wet": 0.35, "dry": 0.8}),
-    (2, "Reverb",     {"wet": 0.35, "dry": 0.8}),
-    (3, "Reverb",     {"wet": 0.20, "dry": 0.8}),
+    # Vocals: compressor only (de-esser removed — killed vocal body)
+    (1, "Compressor", {"threshold": -22, "ratio": 4, "attack": 0.005, "release": 0.3}),
+    (2, "Compressor", {"threshold": -22, "ratio": 4, "attack": 0.005, "release": 0.3}),
+    # Bass: ParaEQ — boost 80Hz + cut 250Hz (mud). No HPF — keeps sub fundamental
+    (5, "Werkstatt", {"__script__": "paraeq", "hp_freq": 20, "band1_freq": 80, "band1_gain": 3.0, "band1_q": 1.0,
+                       "band2_freq": 250, "band2_gain": -2.0, "band2_q": 1.2,
+                       "band3_freq": 5000, "band3_gain": 0.0, "band3_q": 1.0}),
+    # Drums: compressor for punch
+    (6, "Compressor", {"threshold": -15, "ratio": 4, "attack": 0.002, "release": 0.12}),
+    # Reverb — post-rock BIG space
+    (1, "Reverb", {"wet": 0.40, "dry": 0.7}),
+    (2, "Reverb", {"wet": 0.40, "dry": 0.7}),
+    (3, "Reverb", {"wet": 0.25, "dry": 0.8}),
+    (4, "Reverb", {"wet": 0.25, "dry": 0.8}),
 ]
 
 # Mastering on primary bus (unit 0)
-# All EQ/air/limiter done in post_master.py (scipy) — Werkstatt on master bus
-# breaks offline render. Maximizer here is transparent (gain 0dB).
+# SSL bus comp (fixed 2026-07-08) + Maximizer
 MASTERING = [
+    ("Werkstatt", {"__script__": "ssl_bus_comp", "threshold": 0.4, "ratio": 0.3, "attack": 0.3, "release": 0.3, "makeup": 0.4, "mix": 0.6, "auto_release": 1.0}),
     ("Maximizer", {"ceiling": -0.5, "gain": 0.0}),
 ]
 
-OUTPUT_NAME = "last_light_of_summer"
+OUTPUT_NAME = "ostayus_solyu"
 OUTPUT_DESKTOP = True  # copy to Windows Desktop after render
-FAST_SECONDS = 0  # 0 = full render, >0 = trim output to first N seconds (for quick iteration)
+FAST_SECONDS = 30  # 0 = full render, >0 = trim output to first N seconds (for quick iteration)
 # === END EDIT SECTION ===
 
 
@@ -96,6 +106,7 @@ def _parse(r):
 
 def preflight_check_werkstatt():
     """Validate all Werkstatt scripts referenced in EFFECTS before render."""
+    import subprocess, sys as _sys
     scripts_dir = os.path.join(os.path.dirname(__file__), "scripts")
     checked = set()
     for _, etype, params in EFFECTS:
@@ -106,6 +117,7 @@ def preflight_check_werkstatt():
                 if m not in checked:
                     checked.add(m)
                     path = os.path.join(scripts_dir, m)
+                    # inline validation (faster than subprocess)
                     import re
                     NUM = r'[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?'
                     VALID = re.compile(rf'^//\s*@param\s+(\w+)\s+({NUM})\s+({NUM})\s+({NUM})(?:\s+(\w+))?(?:\s+(.+))?$')
@@ -252,6 +264,7 @@ async def main():
         print(f"  Has audio: {has_audio}, Max sample: {max_sample:.4f}")
 
         # ─── FAST RENDER TRIM ───────────────────────────────────
+        # If FAST_SECONDS > 0, trim output to first N seconds for quick iteration
         filepath = render_d.get("filepath", "")
         if filepath and FAST_SECONDS > 0:
             from scipy.io import wavfile as _wav
@@ -264,15 +277,23 @@ async def main():
                 _data = _data[:_cut]
                 _wav.write(filepath, _sr, _data)
                 print(f"  ✂️ Trimmed to first {FAST_SECONDS}s ({_cut} samples)")
+                render_d["samples"] = _cut
                 render_d["max_sample"] = float(_np.max(_np.abs(_data))) if _data.size > 0 else 0.0
                 render_d["has_audio"] = bool(_np.max(_np.abs(_data)) > 0.001) if _data.size > 0 else False
                 max_sample = render_d["max_sample"]
                 has_audio = render_d["has_audio"]
 
         # ─── SILENT RENDER GUARD ───────────────────────────────
+        # Detect empty/quiet output — usually means a broken effect killed the signal
+        # Fail fast instead of silently shipping silence
         if not has_audio or max_sample < 0.001:
             print(f"\n  ⛔ SILENT RENDER DETECTED — max_sample={max_sample:.6f}")
-            print(f"  Broken effect on signal chain. Output NOT copied to Desktop.")
+            print(f"  This usually means:")
+            print(f"    - A Werkstatt script failed silently on the master bus")
+            print(f"    - A paraeq/EQ parameter is out of range")
+            print(f"    - A compressor threshold is too aggressive")
+            print(f"  Check effect chain — remove suspicious effects and re-render.")
+            print(f"  Output file NOT copied to Desktop (preventing silent delivery).")
             await bridge.stop()
             sys.exit(1)
 

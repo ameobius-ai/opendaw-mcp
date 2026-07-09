@@ -3,11 +3,11 @@
 // Spring tank reverb with impulse-response modeling
 // Models the Accutronics Type 9 tank (long decay, 3-spring)
 // Distinctive metallic "boing" on transients, diffuse sustain
-// @param decay 0.4 exp       // tank decay (0.1=short, 0.9=long, maps to feedback)
-// @param damp 0.5 linear     // high-frequency damping (0=bright, 1=muffled)
-// @param spread 0.5 linear   // stereo spread of reflections
-// @param drive 0.3 linear    // input drive into the tank (saturation)
-// @param mix 0.3 linear      // wet/dry mix (0=dry, 1=full wet)
+// @param decay 0.4 0 1 exp
+// @param damp 0.5 0 1 linear
+// @param spread 0.5 0 1 linear
+// @param drive 0.3 0 1 linear
+// @param mix 0.3 0 1 linear
 
 class TankReverb {
     constructor(sampleRate, blockSize) {

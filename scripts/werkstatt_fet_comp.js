@@ -3,13 +3,13 @@
 // FET compressor (Urei 1176 style)
 // Field-effect transistor gain reduction element with fast attack/release
 // Signature: lightning-fast transient grabbing, aggressive character
-// @param input 0.5 linear      // input gain (drives threshold + character)
-// @param attack 0.3 linear     // attack time (0.02 to 4 ms — very fast)
-// @param release 0.5 linear    // release time (50 to 1100 ms)
-// @param ratio 0.5 linear      // ratio (4:1 or 12:1 selectable via mode)
-// @param mode 0.0 linear       // 0=4:1, 1=8:1, 2=12:1, 3=20:1 (all buttons in)
-// @param output 0.5 linear     // output gain (-12 to +24 dB)
-// @param mix 1.0 linear        // wet/dry mix (0=dry, 1=full compressed)
+// @param input 0.5 0 1 linear
+// @param attack 0.3 0 1 linear
+// @param release 0.5 0 1 linear
+// @param ratio 0.5 0 1 linear
+// @param mode 0.0 0 1 linear
+// @param output 0.5 -24 6 linear
+// @param mix 1.0 0 1 linear
 
 class FetComp {
     constructor(sampleRate, blockSize) {

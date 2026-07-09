@@ -3,12 +3,12 @@
 // Detects low-frequency transient bursts and dynamically applies highpass filtering
 // only when plosive energy is detected. Clean vocal passes through untouched.
 //
-// @param threshold linear 0.05 0.5 0.15   // detection threshold (lower = more sensitive)
-// @param freq linear 80 300 150           // highpass cutoff frequency (Hz) when active
-// @param attack linear 0.001 0.02 0.003   // filter engagement speed (fast = catches burst start)
-// @param release linear 0.05 0.5 0.15     // filter release speed (slow = natural recovery)
-// @param q linear 0.5 4.0 1.2             // filter resonance (higher = steeper cut)
-// @param mix linear 0.0 1.0 1.0           // 0=bypass, 1=full de-plosive
+// @param threshold 0.05 0.5 0.15 linear  // detection threshold (lower = more sensitive)
+// @param freq 80 300 150 linear  // highpass cutoff frequency (Hz) when active
+// @param attack 0.001 0.02 0.003 linear  // filter engagement speed (fast = catches burst start)
+// @param release 0.05 0.5 0.15 linear  // filter release speed (slow = natural recovery)
+// @param q 0.5 4.0 1.2 linear  // filter resonance (higher = steeper cut)
+// @param mix 0.0 1.0 1.0 linear  // 0=bypass, 1=full de-plosive
 //
 // Influences: Waves DeBreath, iZotope RX De-plosive, SPL De-esser adaptive mode
 

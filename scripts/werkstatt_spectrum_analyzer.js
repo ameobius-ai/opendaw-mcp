@@ -3,14 +3,14 @@
 // Real-time FFT spectrum analysis with octave-band readout
 // Reports peak frequency, spectral centroid, spectral rolloff, low/mid/high band levels
 // Read-only meter — no audio modification
-// @param peak_freq 0.0 linear     // Peak frequency in Hz (read-only)
-// @param centroid 0.0 linear      // Spectral centroid in Hz (brightness, read-only)
-// @param rolloff 0.0 linear       // Spectral rolloff 85% in Hz (read-only)
-// @param low_level 0.0 linear     // Low band level 20-250Hz (0-1, read-only)
-// @param mid_level 0.0 linear     // Mid band level 250-4000Hz (0-1, read-only)
-// @param high_level 0.0 linear    // High band level 4000-20000Hz (0-1, read-only)
-// @param crest 0.0 linear         // Crest factor (peak/rms ratio, read-only)
-// @param mix 0.0 linear           // Not used (meter only)
+// @param peak_freq 0.0 0 20000 linear
+// @param centroid 0.0 0 20000 linear
+// @param rolloff 0.0 0 20000 linear
+// @param low_level 0.0 0 1 linear
+// @param mid_level 0.0 0 1 linear
+// @param high_level 0.0 0 1 linear
+// @param crest 0.0 0 20 linear
+// @param mix 0.0 0 1 linear
 
 class SpectrumAnalyzer {
     constructor(sampleRate, blockSize) {

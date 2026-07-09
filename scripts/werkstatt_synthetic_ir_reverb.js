@@ -25,13 +25,13 @@
 //   mix        0-1     dry/wet mix
 //   output    -24..6 dB
 
-// @param room_size linear 0.5 0 1
-// @param decay linear 1.5 0.1 5
-// @param damping linear 0.5 0 1
-// @param predelay linear 0.02 0 0.1
-// @param width linear 0.7 0 1
-// @param mix linear 0.3 0 1
-// @param output exp 0 -24 6
+// @param room_size 0.5 0 1 linear
+// @param decay 1.5 0.1 5 linear
+// @param damping 0.5 0 1 linear
+// @param predelay 0.02 0 0.1 linear
+// @param width 0.7 0 1 linear
+// @param mix 0.3 0 1 linear
+// @param output 0 -24 6 exp
 
 class SyntheticIRReverb {
     constructor(sampleRate, blockSize) {

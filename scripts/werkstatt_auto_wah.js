@@ -2,12 +2,12 @@
 // Auto-wah — envelope-driven resonant filter sweep
 // Classic funk/disco quack: filter frequency follows input amplitude
 //
-// @param attack linear 0.001 0.1 0.005     // envelope rise (fast = snappy quack)
-// @param release linear 0.01 1.0 0.15      // envelope fall (slow = vocal, fast = staccato)
-// @param min_freq exp 100 2000 400         // lowest filter frequency (Hz)
-// @param max_freq exp 500 8000 2000        // highest filter frequency (Hz)
-// @param resonance linear 1 20 8           // filter Q (low = gentle, high = vocal quack)
-// @param mix linear 0.0 1.0 1.0            // 0=dry, 1=wet only
+// @param attack 0.001 0.1 0.005 linear  // envelope rise (fast = snappy quack)
+// @param release 0.01 1.0 0.15 linear  // envelope fall (slow = vocal, fast = staccato)
+// @param min_freq 100 2000 400 exp  // lowest filter frequency (Hz)
+// @param max_freq 500 8000 2000 exp  // highest filter frequency (Hz)
+// @param resonance 1 20 8 linear  // filter Q (low = gentle, high = vocal quack)
+// @param mix 0.0 1.0 1.0 linear  // 0=dry, 1=wet only
 //
 // Influences: Mu-Tron III, Cry Baby Wah, Boss AW-3, Bootsy Collins funk
 

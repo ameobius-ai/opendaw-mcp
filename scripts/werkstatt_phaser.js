@@ -1,11 +1,11 @@
 // @werkstatt phaser 1 1
-// @param rate linear 0.5 0.1 8 LFO rate (Hz)
-// @param depth linear 0.7 0 1 LFO depth (modulation amount)
-// @param stages int 4 2 12 allpass stages (2=gentle, 4=classic, 6=deep, 12=extreme)
-// @param base_freq exp 800 100 8000 base center frequency (Hz)
-// @param feedback linear 0.3 -0.95 0.95 resonance feedback
-// @param mix linear 0.5 0 1 dry/wet mix
-// @param stereo linear 0.5 0 1 stereo phase offset (0=mono, 1=180° offset)
+// @param rate 0.5 0.1 8 linear  LFO rate (Hz)
+// @param depth 0.7 0 1 linear  LFO depth (modulation amount)
+// @param stages 4 2 12 int  allpass stages (2=gentle, 4=classic, 6=deep, 12=extreme)
+// @param base_freq 800 100 8000 exp  base center frequency (Hz)
+// @param feedback 0.3 -0.95 0.95 linear  resonance feedback
+// @param mix 0.5 0 1 linear  dry/wet mix
+// @param stereo 0.5 0 1 linear  stereo phase offset (0=mono, 1=180° offset)
 
 // Phaser — cascaded first-order allpass filters with LFO-swept center frequency.
 // Classic 4-stage phaser sound (Small Stone, Phase 90).

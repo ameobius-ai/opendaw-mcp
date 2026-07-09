@@ -20,12 +20,12 @@
 //   mix        0.0-1.0  dry/wet mix
 //   output    -24..6 dB output gain
 
-// @param cab_type linear 0 0 1
-// @param resonance linear 0.5 0 1
-// @param presence linear 0.3 0 1
-// @param drive linear 0.3 0 1
-// @param mix linear 0.8 0 1
-// @param output exp 0 -24 6
+// @param cab_type 0 0 1 linear
+// @param resonance 0.5 0 1 linear
+// @param presence 0.3 0 1 linear
+// @param drive 0.3 0 1 linear
+// @param mix 0.8 0 1 linear
+// @param output 0 -24 6 exp
 
 class CabinetSim {
     constructor(sampleRate, blockSize) {

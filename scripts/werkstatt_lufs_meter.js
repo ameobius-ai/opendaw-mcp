@@ -3,12 +3,12 @@
 // Real-time integrated LUFS measurement per ITU-R BS.1770-4
 // K-weighting filter (shelving + highpass) + RMS + gating
 // Reports integrated, short-term (3s), and momentary (400ms) LUFS
-// @param integrated 0.0 linear     // Integrated LUFS (read-only output)
-// @param short_term 0.0 linear     // Short-term LUFS (3s window)
-// @param momentary 0.0 linear      // Momentary LUFS (400ms window)
-// @param true_peak 0.0 linear      // True peak (inter-sample, read-only)
-// @param range 0.0 linear          // Loudness range (LRA)
-// @param mix 0.0 linear            // Not used (meter only, no audio modification)
+// @param integrated 0.0 0 1 linear
+// @param short_term 0.0 0 1 linear
+// @param momentary 0.0 0 1 linear
+// @param true_peak 0.0 0 1 linear
+// @param range 0.0 0 1 linear
+// @param mix 0.0 0 1 linear
 
 class LufsMeter {
     constructor(sampleRate, blockSize) {

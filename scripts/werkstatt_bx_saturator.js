@@ -5,12 +5,12 @@
 // Mid band: tape-style soft clipping (3rd harmonic for presence)
 // High band: transformer-style harmonic shimmer (odd harmonics for air)
 // Blend control mixes saturated and dry signal
-// @param drive 0.3 linear     // overall saturation drive (0=clean, 1=heavy)
-// @param low_sat 0.4 linear   // low band saturation amount
-// @param mid_sat 0.3 linear   // mid band saturation amount
-// @param high_sat 0.2 linear  // high band saturation amount
-// @param blend 0.5 linear     // dry/wet blend (0=dry, 1=full saturated)
-// @param output 0.0 linear    // output trim (-24 to +6 dB)
+// @param drive 0.3 0 1 linear
+// @param low_sat 0.4 0 1 linear
+// @param mid_sat 0.3 0 1 linear
+// @param high_sat 0.2 0 1 linear
+// @param blend 0.5 0 1 linear
+// @param output 0.0 -24 6 linear
 
 class BxSaturator {
     constructor(sampleRate, blockSize) {
