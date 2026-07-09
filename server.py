@@ -64669,3 +64669,583 @@ async def mcp_opendaw_separate_stems(
         return _err("Separation timed out (600s limit)")
     except Exception as e:
         return _err(f"Separation error: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# GENRE PROFILES + REFERENCE COMPARISON
+# ═══════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def mcp_opendaw_list_genre_profiles() -> str:
+    """List all available genre reference profiles for mix analysis.
+
+    Each profile defines target LUFS, spectral balance, stereo width,
+    and dynamic range for professional mixes in that genre.
+
+    Use compare_to_profile() to check your mix against any of these.
+    """
+    from opendaw_mcp.genre_profiles import PROFILES
+    result = {}
+    for name, p in PROFILES.items():
+        result[name] = {
+            "target_lufs": p["target_lufs"],
+            "lufs_range": p["lufs_range"],
+            "characteristics": p["characteristics"],
+        }
+    return json.dumps({"profiles": result, "count": len(result)}, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_compare_to_profile(filename: str, genre: str) -> str:
+    """Compare your mix against a professional genre reference profile.
+
+    Tells you exactly where your mix deviates from genre standards:
+    - LUFS: too loud/quiet for this genre?
+    - Spectrum: which frequency bands are off?
+    - Stereo width: appropriate for genre?
+    - Dynamics: too compressed or too wild?
+    - Spectral centroid: too dark or too bright?
+
+    Gives per-dimension deviation + specific recommendations.
+
+    filename: WAV file in exports dir, or absolute path.
+    genre: One of: pop, rock, hip_hop, electronic, edm, metal, lo-fi, ambient, cinematic
+
+    Returns deviation analysis with severity-ranked suggestions.
+
+    Example:
+      compare_to_profile("my_mix.wav", "lo-fi")
+      # → {lufs_deviation: +3.4, spectral_deviations: [...], suggestions: [...]}
+    """
+    from opendaw_mcp.genre_profiles import get_profile, list_genres
+    import os as _os
+
+    profile = get_profile(genre)
+    if not profile:
+        return _err(f"Unknown genre '{genre}'. Available: {list_genres()}")
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    fpath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(fpath):
+        fpath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(fpath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(fpath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        channels = wav["channels"]
+        sr = wav["sample_rate"]
+
+        lufs_data = _compute_lufs(channels, sr)
+        spec = _analyze_spectrum(channels, sr)
+        stereo = _analyze_stereo(channels, sr)
+        dynamics = _analyze_dynamics(channels, sr)
+    except Exception as e:
+        return _err(f"Analysis error: {e}")
+
+    deviations = []
+    suggestions = []
+
+    # ── LUFS ──
+    actual_lufs = lufs_data.get("lufs_integrated", -99)
+    target_lufs = profile["target_lufs"]
+    lufs_min, lufs_max = profile["lufs_range"]
+    lufs_diff = actual_lufs - target_lufs
+
+    if actual_lufs > lufs_max:
+        sev = "HIGH" if actual_lufs > lufs_max + 2 else "MEDIUM"
+        deviations.append(("lufs", lufs_diff, sev))
+        suggestions.append((sev, f"Too loud for {genre} ({actual_lufs} LUFS vs target {target_lufs}). Reduce by {abs(lufs_diff):.1f} dB"))
+    elif actual_lufs < lufs_min:
+        sev = "HIGH" if actual_lufs < lufs_min - 2 else "MEDIUM"
+        deviations.append(("lufs", lufs_diff, sev))
+        suggestions.append((sev, f"Too quiet for {genre} ({actual_lufs} LUFS vs target {target_lufs}). Increase by {abs(lufs_diff):.1f} dB"))
+    else:
+        suggestions.append(("OK", f"LUFS {actual_lufs} is within {genre} range ({lufs_min} to {lufs_max})"))
+
+    # ── Spectral bands ──
+    actual_bands = {b["name"]: b for b in spec.get("bands", [])}
+    target_bands = profile["spectral_targets"]
+
+    for band_name, (t_min, t_max) in target_bands.items():
+        actual = actual_bands.get(band_name, {}).get("energy_pct", 0)
+        if actual > t_max + 5:
+            diff = actual - (t_min + t_max) / 2
+            sev = "HIGH" if diff > 10 else "MEDIUM"
+            deviations.append((f"spectral_{band_name}", diff, sev))
+            band_freqs = {
+                "sub_bass": "20-60 Hz", "bass": "60-250 Hz", "low_mids": "250-500 Hz",
+                "mids": "500-2000 Hz", "high_mids": "2-4 kHz",
+                "presence": "4-6 kHz", "brilliance": "6-20 kHz",
+            }
+            suggestions.append((sev, f"Too much {band_name} energy ({actual:.0f}% vs target {t_min}-{t_max}%). Cut around {band_freqs.get(band_name, band_name)}"))
+        elif actual < t_min - 5 and t_min > 3:
+            diff = (t_min + t_max) / 2 - actual
+            sev = "HIGH" if diff > 10 else "MEDIUM"
+            deviations.append((f"spectral_{band_name}", -diff, sev))
+            band_freqs = {
+                "sub_bass": "20-60 Hz", "bass": "60-250 Hz", "low_mids": "250-500 Hz",
+                "mids": "500-2000 Hz", "high_mids": "2-4 kHz",
+                "presence": "4-6 kHz", "brilliance": "6-20 kHz",
+            }
+            suggestions.append((sev, f"Not enough {band_name} energy ({actual:.0f}% vs target {t_min}-{t_max}%). Boost around {band_freqs.get(band_name, band_name)}"))
+
+    # ── Stereo width ──
+    actual_sw = stereo.get("stereo_width", 0)
+    sw_min, sw_max = profile["stereo_width_target"]
+    if actual_sw > sw_max + 0.1:
+        sev = "MEDIUM" if actual_sw > sw_max + 0.2 else "LOW"
+        deviations.append(("stereo_width", actual_sw - sw_max, sev))
+        suggestions.append((sev, f"Stereo too wide for {genre} ({actual_sw:.2f} vs target {sw_min}-{sw_max}). Narrow for genre appropriateness"))
+    elif actual_sw < sw_min - 0.1:
+        sev = "MEDIUM" if actual_sw < sw_min - 0.2 else "LOW"
+        deviations.append(("stereo_width", actual_sw - sw_min, sev))
+        suggestions.append((sev, f"Stereo too narrow for {genre} ({actual_sw:.2f} vs target {sw_min}-{sw_max}). Widen with panning or stereo tool"))
+
+    # ── Dynamic range ──
+    actual_dr = dynamics.get("crest_factor_db", 0)
+    dr_min, dr_max = profile["dynamic_range_target"]
+    if actual_dr > dr_max + 2:
+        suggestions.append(("LOW", f"More dynamic than typical {genre} (crest {actual_dr:.1f}dB vs {dr_min}-{dr_max}). More compression if targeting genre norm"))
+    elif actual_dr < dr_min - 2:
+        suggestions.append(("MEDIUM", f"Over-compressed for {genre} (crest {actual_dr:.1f}dB vs {dr_min}-{dr_max}). Reduce compression for more punch"))
+
+    # ── Spectral centroid ──
+    actual_sc = spec.get("spectral_centroid_hz", 0)
+    sc_min, sc_max = profile["spectral_centroid_target"]
+    if actual_sc > 0:
+        if actual_sc < sc_min - 500:
+            suggestions.append(("MEDIUM", f"Too dark for {genre} (centroid {actual_sc:.0f}Hz vs target {sc_min}-{sc_max}). Boost highs above 5kHz"))
+        elif actual_sc > sc_max + 500:
+            suggestions.append(("MEDIUM", f"Too bright for {genre} (centroid {actual_sc:.0f}Hz vs target {sc_min}-{sc_max}). Cut highs above 5kHz"))
+
+    # Sort suggestions by severity
+    sev_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "OK": 3}
+    suggestions.sort(key=lambda x: sev_order.get(x[0], 4))
+
+    high_count = sum(1 for s in suggestions if s[0] == "HIGH")
+    med_count = sum(1 for s in suggestions if s[0] == "MEDIUM")
+
+    return json.dumps({
+        "success": True,
+        "genre": genre,
+        "file": fpath,
+        "actual_lufs": actual_lufs,
+        "target_lufs": target_lufs,
+        "lufs_deviation_db": round(lufs_diff, 1),
+        "spectral_centroid_hz": actual_sc,
+        "stereo_width": actual_sw,
+        "dynamic_range_db": actual_dr,
+        "genre_characteristics": profile["characteristics"],
+        "genre_priorities": profile["mix_priorities"],
+        "suggestions": [{"severity": s[0], "message": s[1]} for s in suggestions],
+        "summary": f"{high_count} high, {med_count} medium issues vs {genre} profile",
+    }, indent=2)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PROBLEM DETECTION + AUTO-FIX
+# ═══════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def mcp_opendaw_detect_problems(filename: str) -> str:
+    """Detect technical audio problems — clipping, DC offset, hum, sibilance, mud, harshness.
+
+    Scans for 7 common issues that ruin mixes:
+    1. Clipping: samples at or near 0 dBFS (digital clipping)
+    2. DC offset: non-zero mean (eats headroom, causes clicks on edit boundaries)
+    3. Hum: 50/60Hz mains interference (+ harmonics)
+    4. Sibilance: excessive 5-8kHz energy bursts (harsh 's' sounds)
+    5. Mud: excessive 200-400Hz buildup (cloudy, unclear mix)
+    6. Harshness: excessive 2-5kHz energy (fatiguing, piercing)
+    7. Resonances: narrow peaks that stick out (room modes, bad recordings)
+
+    filename: WAV file in exports dir, or absolute path.
+
+    Returns per-problem detection with severity + recommendation.
+
+    Example:
+      detect_problems("vocal_stem.wav")
+      # → {problems: [{type: "dc_offset", severity: "HIGH", value: 0.002, ...}]}
+    """
+    import os as _os
+    import math as _m
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    fpath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(fpath):
+        fpath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(fpath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(fpath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        channels = wav["channels"]
+        sr = wav["sample_rate"]
+    except Exception as e:
+        return _err(f"Parse error: {e}")
+
+    problems = []
+    n_ch = len(channels)
+    n_frames = len(channels[0]) if channels else 0
+
+    # 1. CLIPPING
+    clip_count = 0
+    for ch in channels:
+        for s in ch:
+            if abs(s) >= 0.999:
+                clip_count += 1
+    clip_pct = (clip_count / (n_frames * n_ch)) * 100 if n_frames > 0 else 0
+    if clip_pct > 0.01:
+        sev = "HIGH" if clip_pct > 0.1 else "MEDIUM"
+        problems.append({
+            "type": "clipping",
+            "severity": sev,
+            "clipped_samples": clip_count,
+            "percentage": round(clip_pct, 3),
+            "recommendation": "Reduce gain before clipping occurs, or use declipper",
+        })
+
+    # 2. DC OFFSET
+    for i, ch in enumerate(channels):
+        mean = sum(ch) / len(ch) if ch else 0
+        if abs(mean) > 0.001:
+            sev = "HIGH" if abs(mean) > 0.005 else "MEDIUM"
+            problems.append({
+                "type": "dc_offset",
+                "severity": sev,
+                "channel": i,
+                "value": round(mean, 5),
+                "recommendation": f"Apply high-pass filter at 20Hz to remove DC offset ({mean:.4f})",
+            })
+
+    # 3. HUM (50/60Hz + harmonics)
+    spec = _analyze_spectrum(channels, sr)
+    spec_power = {b["name"]: b.get("rms", 0) for b in spec.get("bands", [])}
+
+    # Check sub_bass for unusual energy (hum usually manifests as narrow peak at 50/60Hz)
+    # We check if sub_bass energy is disproportionate compared to bass
+    sub_energy = spec_power.get("sub_bass", 0)
+    bass_energy = spec_power.get("bass", 0)
+    if sub_energy > 0 and bass_energy > 0:
+        sub_bass_ratio = sub_energy / (sub_energy + bass_energy)
+        if sub_bass_ratio > 0.6:
+            problems.append({
+                "type": "hum_or_sub_resonance",
+                "severity": "MEDIUM",
+                "sub_bass_dominance": round(sub_bass_ratio, 2),
+                "recommendation": "Possible 50/60Hz hum or sub-bass resonance. Check for ground loop or apply narrow EQ cut at 50/60Hz",
+            })
+
+    # 4. MUDDINESS (200-400Hz)
+    low_mids_pct = next((b.get("energy_pct", 0) for b in spec.get("bands", []) if b["name"] == "low_mids"), 0)
+    if low_mids_pct > 25:
+        sev = "HIGH" if low_mids_pct > 35 else "MEDIUM"
+        problems.append({
+            "type": "mud",
+            "severity": sev,
+            "low_mids_energy_pct": round(low_mids_pct, 1),
+            "recommendation": f"Muddy buildup at 250-500Hz ({low_mids_pct:.0f}%). Cut 2-4dB around 300-400Hz on problematic stems",
+        })
+
+    # 5. HARSHNESS (2-5kHz)
+    high_mids_pct = next((b.get("energy_pct", 0) for b in spec.get("bands", []) if b["name"] == "high_mids"), 0)
+    if high_mids_pct > 22:
+        sev = "HIGH" if high_mids_pct > 30 else "MEDIUM"
+        problems.append({
+            "type": "harshness",
+            "severity": sev,
+            "high_mids_energy_pct": round(high_mids_pct, 1),
+            "recommendation": f"Harsh buildup at 2-4kHz ({high_mids_pct:.0f}%). Cut 1-3dB around 3kHz",
+        })
+
+    # 6. SIBILANCE (4-8kHz bursts) — check presence band
+    presence_pct = next((b.get("energy_pct", 0) for b in spec.get("bands", []) if b["name"] == "presence"), 0)
+    if presence_pct > 18:
+        problems.append({
+            "type": "sibilance_risk",
+            "severity": "MEDIUM",
+            "presence_energy_pct": round(presence_pct, 1),
+            "recommendation": f"Elevated 4-6kHz ({presence_pct:.0f}%). Possible sibilance. Use de-esser on vocals",
+        })
+
+    # 7. NARROW RESONANCES — check spectral crest per band
+    for b in spec.get("bands", []):
+        peak = b.get("peak_db", -60)
+        rms_db = b.get("rms_db", -60)
+        if peak - rms_db > 18 and b.get("energy_pct", 0) > 10:
+            problems.append({
+                "type": "resonance",
+                "severity": "MEDIUM",
+                "band": b["name"],
+                "peak_rms_diff_db": round(peak - rms_db, 1),
+                "recommendation": f"Narrow resonance in {b['name']} band (peak {peak:.0f}dB vs RMS {rms_db:.0f}dB). Apply narrow EQ cut",
+            })
+
+    # Sort by severity
+    sev_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+    problems.sort(key=lambda p: sev_order.get(p["severity"], 3))
+
+    return json.dumps({
+        "success": True,
+        "file": fpath,
+        "problems_found": len(problems),
+        "high_severity": sum(1 for p in problems if p["severity"] == "HIGH"),
+        "problems": problems,
+    }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_compare_to_reference(filename: str, reference: str) -> str:
+    """A/B compare your mix against a reference track across all dimensions.
+
+    Shows exactly where your mix differs from a professional reference:
+    - LUFS difference (loudness gap)
+    - Spectral curve deviation per band
+    - Stereo width comparison
+    - Dynamic range comparison
+    - Spectral centroid (brightness) comparison
+
+    This is how you learn how pros mix your genre. Drop in a reference track
+    you admire and see exactly what's different.
+
+    filename: Your mix WAV (exports dir or absolute path).
+    reference: Reference track WAV (exports dir or absolute path).
+
+    Returns per-dimension comparison + actionable deltas.
+
+    Example:
+      compare_to_reference("my_mix.wav", "pro_reference.wav")
+      # → {lufs_delta: +2.3, spectral_deltas: [...], suggestions: [...]}
+    """
+    import os as _os
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+
+    def _resolve(name):
+        p = _os.path.join(export_dir, name if name.endswith(".wav") else name + ".wav")
+        if _os.path.exists(p):
+            return p
+        p = name if _os.path.isabs(name) else _os.path.join(_os.getcwd(), name)
+        return p if _os.path.exists(p) else None
+
+    fpath = _resolve(filename)
+    rpath = _resolve(reference)
+    if not fpath:
+        return _err(f"Mix file not found: {filename}")
+    if not rpath:
+        return _err(f"Reference file not found: {reference}")
+
+    try:
+        with open(fpath, "rb") as f:
+            wav1 = _parse_wav(f.read())
+        with open(rpath, "rb") as f:
+            wav2 = _parse_wav(f.read())
+
+        lufs1 = _compute_lufs(wav1["channels"], wav1["sample_rate"])
+        lufs2 = _compute_lufs(wav2["channels"], wav2["sample_rate"])
+        spec1 = _analyze_spectrum(wav1["channels"], wav1["sample_rate"])
+        spec2 = _analyze_spectrum(wav2["channels"], wav2["sample_rate"])
+        stereo1 = _analyze_stereo(wav1["channels"], wav1["sample_rate"])
+        stereo2 = _analyze_stereo(wav2["channels"], wav2["sample_rate"])
+        dyn1 = _analyze_dynamics(wav1["channels"], wav1["sample_rate"])
+        dyn2 = _analyze_dynamics(wav2["channels"], wav2["sample_rate"])
+    except Exception as e:
+        return _err(f"Analysis error: {e}")
+
+    suggestions = []
+
+    # LUFS delta
+    lufs1_val = lufs1.get("lufs_integrated", 0)
+    lufs2_val = lufs2.get("lufs_integrated", 0)
+    lufs_delta = lufs1_val - lufs2_val
+    if abs(lufs_delta) > 1.0:
+        direction = "louder" if lufs_delta > 0 else "quieter"
+        suggestions.append(f"Your mix is {abs(lufs_delta):.1f} dB {direction} than reference ({lufs1_val} vs {lufs2_val} LUFS)")
+
+    # Spectral band deltas
+    bands1 = {b["name"]: b for b in spec1.get("bands", [])}
+    bands2 = {b["name"]: b for b in spec2.get("bands", [])}
+    band_deltas = []
+    band_freqs = {
+        "sub_bass": "20-60 Hz", "bass": "60-250 Hz", "low_mids": "250-500 Hz",
+        "mids": "500-2000 Hz", "high_mids": "2-4 kHz",
+        "presence": "4-6 kHz", "brilliance": "6-20 kHz",
+    }
+    for bn in ["sub_bass", "bass", "low_mids", "mids", "high_mids", "presence", "brilliance"]:
+        e1 = bands1.get(bn, {}).get("energy_pct", 0)
+        e2 = bands2.get(bn, {}).get("energy_pct", 0)
+        delta = e1 - e2
+        band_deltas.append({"band": bn, "freq": band_freqs[bn], "your_mix": e1, "reference": e2, "delta": round(delta, 1)})
+        if abs(delta) > 8:
+            direction = "more" if delta > 0 else "less"
+            action = "cut" if delta > 0 else "boost"
+            suggestions.append(f"{abs(delta):.0f}% {direction} {bn} than reference ({band_freqs[bn]}). {action} {abs(delta):.0f}%")
+
+    # Stereo width
+    sw1 = stereo1.get("stereo_width", 0)
+    sw2 = stereo2.get("stereo_width", 0)
+    sw_delta = sw1 - sw2
+    if abs(sw_delta) > 0.1:
+        direction = "wider" if sw_delta > 0 else "narrower"
+        suggestions.append(f"Stereo is {abs(sw_delta):.2f} {direction} than reference ({sw1:.2f} vs {sw2:.2f})")
+
+    # Spectral centroid
+    sc1 = spec1.get("spectral_centroid_hz", 0)
+    sc2 = spec2.get("spectral_centroid_hz", 0)
+    sc_delta = sc1 - sc2
+    if abs(sc_delta) > 500:
+        direction = "brighter" if sc_delta > 0 else "darker"
+        suggestions.append(f"Overall {direction} than reference (centroid {sc1:.0f} vs {sc2:.0f} Hz)")
+
+    # Dynamic range
+    dr1 = dyn1.get("crest_factor_db", 0)
+    dr2 = dyn2.get("crest_factor_db", 0)
+    dr_delta = dr1 - dr2
+    if abs(dr_delta) > 2:
+        direction = "more dynamic" if dr_delta > 0 else "more compressed"
+        suggestions.append(f"Your mix is {direction} than reference (crest {dr1:.1f} vs {dr2:.1f} dB)")
+
+    return json.dumps({
+        "success": True,
+        "your_mix": fpath,
+        "reference": rpath,
+        "lufs_comparison": {
+            "your_mix": lufs1_val,
+            "reference": lufs2_val,
+            "delta_db": round(lufs_delta, 1),
+        },
+        "spectral_comparison": band_deltas,
+        "stereo_comparison": {
+            "your_width": round(sw1, 2),
+            "reference_width": round(sw2, 2),
+            "delta": round(sw_delta, 2),
+        },
+        "brightness_comparison": {
+            "your_centroid_hz": round(sc1, 0),
+            "reference_centroid_hz": round(sc2, 0),
+            "delta_hz": round(sc_delta, 0),
+        },
+        "dynamics_comparison": {
+            "your_crest_db": round(dr1, 1),
+            "reference_crest_db": round(dr2, 1),
+            "delta_db": round(dr_delta, 1),
+        },
+        "suggestions": suggestions,
+    }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_analyze_phase(filename: str) -> str:
+    """Per-band phase analysis — coherence, polarity, inter-channel delay.
+
+    Checks for phase problems that destroy mono compatibility:
+    - Per-band phase correlation (sub, bass, mid, high)
+    - Polarity check (inverted channels?)
+    - Inter-channel sample delay (misaligned mics, plugin latency)
+    - Mono compatibility score (what happens when L+R collapse to mono)
+
+    Low-frequency phase issues are critical: bass should be mono.
+    High-frequency phase issues widen stereo but risk mono cancellation.
+
+    filename: WAV file in exports dir, or absolute path.
+
+    Returns per-band phase coherence + mono compatibility assessment.
+    """
+    import os as _os
+    import math as _m
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+    fpath = _os.path.join(export_dir, filename if filename.endswith(".wav") else filename + ".wav")
+    if not _os.path.exists(fpath):
+        fpath = filename if _os.path.isabs(filename) else _os.path.join(_os.getcwd(), filename)
+    if not _os.path.exists(fpath):
+        return _err(f"File not found: {filename}")
+
+    try:
+        with open(fpath, "rb") as f:
+            raw = f.read()
+        wav = _parse_wav(raw)
+        channels = wav["channels"]
+        sr = wav["sample_rate"]
+    except Exception as e:
+        return _err(f"Parse error: {e}")
+
+    if len(channels) < 2:
+        return _err("Phase analysis requires stereo file (2 channels)")
+
+    left = channels[0]
+    right = channels[1]
+    n = min(len(left), len(right))
+
+    # Overall phase correlation
+    sum_lr = sum(left[i] * right[i] for i in range(0, n, max(1, n // 48000)))  # sample ~1s
+    sum_l2 = sum(left[i] ** 2 for i in range(0, n, max(1, n // 48000)))
+    sum_r2 = sum(right[i] ** 2 for i in range(0, n, max(1, n // 48000)))
+    overall_corr = sum_lr / (_m.sqrt(sum_l2 * sum_r2) + 1e-10) if sum_l2 > 0 and sum_r2 > 0 else 0
+
+    # Polarity check
+    polarity_ok = overall_corr > -0.5
+
+    # Per-band phase: split spectrum via simple FFT windows
+    # Use analysis already done in _analyze_stereo
+    stereo_data = _analyze_stereo(channels, sr)
+    regions = stereo_data.get("regions", [])
+
+    # Mono compatibility score: how much energy is lost when collapsed to mono
+    mono_loss = 0
+    sample_step = max(1, n // 48000)  # ~1 second of samples
+    for i in range(0, n, sample_step):
+        mid = (left[i] + right[i]) / 2
+        side = (left[i] - right[i]) / 2
+        if abs(mid) > 0.001:
+            mono_loss += abs(side) / (abs(mid) + 1e-10)
+    mono_compat_score = max(0, 1 - mono_loss / (n // sample_step)) if n > 0 else 1
+
+    # Inter-channel delay estimate via cross-correlation peak
+    delay = 0
+    best_corr = -2
+    for lag in range(-20, 21):
+        s = 0
+        for i in range(max(0, lag), min(n, n + lag), max(1, n // 24000)):
+            s += left[i - lag] * right[i] if 0 <= i - lag < n else 0
+        if s > best_corr:
+            best_corr = s
+            delay = lag
+
+    issues = []
+    if overall_corr < 0:
+        issues.append({"severity": "HIGH", "issue": f"Phase inversion detected (correlation {overall_corr:.2f}). Check wiring/polarity"})
+    elif overall_corr < 0.3:
+        issues.append({"severity": "MEDIUM", "issue": f"Low phase correlation ({overall_corr:.2f}). Mono compatibility at risk"})
+    if not polarity_ok:
+        issues.append({"severity": "HIGH", "issue": "Possible polarity inversion between channels"})
+    if abs(delay) > 5:
+        issues.append({"severity": "MEDIUM", "issue": f"Inter-channel delay of {delay} samples ({delay/sr*1000:.2f}ms). Align channels"})
+    if mono_compat_score < 0.7:
+        issues.append({"severity": "MEDIUM", "issue": f"Poor mono compatibility (score {mono_compat_score:.2f}). Low end will lose power in mono"})
+
+    # Check bass region width
+    bass_region = next((r for r in regions if r.get("region") == "low"), None)
+    if bass_region and bass_region.get("width", 0) > 0.3:
+        issues.append({"severity": "MEDIUM", "issue": f"Bass is too wide (width {bass_region['width']:.2f}). Keep bass mono/centered"})
+
+    return json.dumps({
+        "success": True,
+        "file": fpath,
+        "overall_correlation": round(overall_corr, 3),
+        "polarity_ok": polarity_ok,
+        "inter_channel_delay_samples": delay,
+        "inter_channel_delay_ms": round(delay / sr * 1000, 3),
+        "mono_compatibility_score": round(mono_compat_score, 3),
+        "per_region": regions,
+        "issues": issues,
+    }, indent=2)
