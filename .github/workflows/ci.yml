@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install mcp playwright pytest ruff
+        run: pip install mcp playwright pytest ruff numpy scipy
       - name: Python syntax check
         run: python -m py_compile server.py
       - name: AST tool count verification

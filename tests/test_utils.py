@@ -7099,7 +7099,7 @@ class TestHaasWidener:
     def test_delay_range_1_to_30_ms(self):
         import re
         code = self._read_script()
-        m = re.search(r"// @param delay linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        m = re.search(r"// @param delay ([\d.]+) ([\d.]+) ([\d.]+) linear", code)
         assert float(m.group(2)) == 1  # min 1ms
         assert float(m.group(3)) == 30  # max 30ms
         assert float(m.group(1)) == 5  # default 5ms
@@ -7107,25 +7107,25 @@ class TestHaasWidener:
     def test_width_default_08(self):
         import re
         code = self._read_script()
-        m = re.search(r"// @param width linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        m = re.search(r"// @param width ([\d.]+) ([\d.]+) ([\d.]+) linear", code)
         assert float(m.group(1)) == 0.8  # default 0.8 = wide
 
     def test_channel_is_int_type(self):
         import re
         code = self._read_script()
-        m = re.search(r"// @param channel (\w+)", code)
+        m = re.search(r"// @param channel \d+ \d+ \d+ (\w+)", code)
         assert m.group(1) == "int"
 
     def test_feedback_max_03(self):
         import re
         code = self._read_script()
-        m = re.search(r"// @param feedback linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        m = re.search(r"// @param feedback ([\d.]+) ([\d.]+) ([\d.]+) linear", code)
         assert float(m.group(3)) == 0.3  # max 0.3 — limited to avoid runaway
 
     def test_mix_default_full(self):
         import re
         code = self._read_script()
-        m = re.search(r"// @param mix linear ([\d.]+) ([\d.]+) ([\d.]+)", code)
+        m = re.search(r"// @param mix ([\d.]+) ([\d.]+) ([\d.]+) linear", code)
         assert float(m.group(1)) == 1.0  # default full Haas
 
     def test_has_process_audio(self):
