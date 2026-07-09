@@ -64412,3 +64412,260 @@ async def mcp_opendaw_read_meter(
         return result if isinstance(result, str) else json.dumps({"result": str(result)})
     except Exception as e:
         return json.dumps({"error": str(e)[:200]})
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PHANTOM-STYLE ANALYSIS TOOLS
+# ═══════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def mcp_opendaw_detect_frequency_masking(filenames: str) -> str:
+    """Detect frequency masking between stems — where instruments compete for the same frequency range.
+
+    The #1 mix problem. Bass and kick fight at 60-120Hz. Guitars and vocals mask
+    each other at 2-4kHz. This tool finds these conflicts by comparing the spectral
+    content of exported stems pairwise.
+
+    For each pair of stems, computes:
+    - overlap_score (0-1): how much their spectra overlap in the same band
+    - conflict_bands: which frequency bands have the most masking
+    - severity: LOW / MEDIUM / HIGH based on overlap and energy
+    - recommendation: specific EQ cut/boost suggestion
+
+    filenames: JSON array of stem filenames in exports dir, OR comma-separated list.
+               Example: '["bass.wav","kick.wav","vocals.wav"]' or "bass.wav,kick.wav"
+
+    Returns per-pair analysis + prioritized list of masking issues.
+
+    Example:
+      # Export stems first, then detect masking
+      export_stems("track")
+      detect_frequency_masking('["track_bass.wav","track_drums.wav","track_other.wav"]')
+      # → {masking_issues: [{pair: ["bass","drums"], band: "bass", severity: "HIGH", ...}]}
+    """
+    import os as _os
+
+    # Parse filenames
+    try:
+        names = json.loads(filenames) if filenames.strip().startswith("[") else [s.strip() for s in filenames.split(",")]
+    except Exception:
+        names = [s.strip() for s in filenames.split(",")]
+    if len(names) < 2:
+        return _err("Need at least 2 stems to detect masking")
+
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
+                                  _os.path.join(_os.path.dirname(__file__), "exports"))
+
+    # Load + analyze each stem
+    stem_spectra = {}
+    for name in names:
+        fname = name if name.endswith(".wav") else name + ".wav"
+        fpath = _os.path.join(export_dir, fname)
+        if not _os.path.exists(fpath):
+            fpath = name if _os.path.isabs(name) else _os.path.join(_os.getcwd(), name)
+        if not _os.path.exists(fpath):
+            return _err(f"Stem not found: {name}")
+        try:
+            with open(fpath, "rb") as f:
+                raw = f.read()
+            wav = _parse_wav(raw)
+            spec = _analyze_spectrum(wav["channels"], wav["sample_rate"])
+            stem_spectra[name] = spec
+        except Exception as e:
+            return _err(f"Error analyzing {name}: {e}")
+
+    # Band definitions matching analyze_spectrum
+    BAND_NAMES = ["sub_bass", "bass", "low_mids", "mids", "high_mids", "presence", "brilliance"]
+
+    # Compare all pairs
+    stem_names = list(stem_spectra.keys())
+    pairs = []
+    for i in range(len(stem_names)):
+        for j in range(i + 1, len(stem_names)):
+            n1, n2 = stem_names[i], stem_names[j]
+            s1, s2 = stem_spectra[n1], stem_spectra[n2]
+            b1 = {b["name"]: b for b in s1.get("bands", [])}
+            b2 = {b["name"]: b for b in s2.get("bands", [])}
+
+            pair_conflicts = []
+            max_severity = "LOW"
+            max_overlap = 0.0
+
+            for bn in BAND_NAMES:
+                e1 = b1.get(bn, {}).get("energy_pct", 0)
+                e2 = b2.get(bn, {}).get("energy_pct", 0)
+                # Overlap = product of energy percentages (both high = conflict)
+                overlap = (e1 / 100) * (e2 / 100) * 100  # 0-100 scale
+                if overlap > 5.0:  # meaningful overlap threshold
+                    severity = "HIGH" if overlap > 15 else ("MEDIUM" if overlap > 8 else "LOW")
+                    pair_conflicts.append({
+                        "band": bn,
+                        "stem1_energy_pct": round(e1, 1),
+                        "stem2_energy_pct": round(e2, 1),
+                        "overlap_score": round(overlap, 1),
+                        "severity": severity,
+                    })
+                    if severity == "HIGH":
+                        max_severity = "HIGH"
+                    elif severity == "MEDIUM" and max_severity != "HIGH":
+                        max_severity = "MEDIUM"
+                    max_overlap = max(max_overlap, overlap)
+
+            if pair_conflicts:
+                # Generate recommendation for worst conflict
+                worst = max(pair_conflicts, key=lambda c: c["overlap_score"])
+                band_freqs = {
+                    "sub_bass": "20-60 Hz", "bass": "60-250 Hz", "low_mids": "250-500 Hz",
+                    "mids": "500-2000 Hz", "high_mids": "2-4 kHz",
+                    "presence": "4-6 kHz", "brilliance": "6-20 kHz",
+                }
+                weaker = n1 if worst["stem1_energy_pct"] < worst["stem2_energy_pct"] else n2
+                rec = f"Cut {weaker} around {band_freqs.get(worst['band'], worst['band'])} to reduce masking"
+
+                pairs.append({
+                    "stems": [n1, n2],
+                    "max_severity": max_severity,
+                    "max_overlap": round(max_overlap, 1),
+                    "conflicts": sorted(pair_conflicts, key=lambda c: -c["overlap_score"]),
+                    "recommendation": rec,
+                })
+
+    # Sort by severity
+    sev_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+    pairs.sort(key=lambda p: (sev_order.get(p["max_severity"], 3), -p["max_overlap"]))
+
+    return json.dumps({
+        "success": True,
+        "stems_analyzed": len(stem_names),
+        "masking_issues": pairs,
+        "summary": f"{len(pairs)} masking conflict{'s' if len(pairs) != 1 else ''} found",
+        "high_priority": sum(1 for p in pairs if p["max_severity"] == "HIGH"),
+    }, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_render_and_analyze(
+    filename: str = "render_analysis",
+    sample_rate: int = 48000,
+    analysis_depth: str = "full",
+) -> str:
+    """Render the current project and run full audio analysis in one call.
+
+    Combines export_audio + analyze_mix into a single tool — the feedback loop
+    for iterative mixing. Agent renders, listens, and gets concrete numbers:
+    LUFS, spectrum, stereo, dynamics, and prioritized suggestions.
+
+    This is the 'ears' tool. After making mix changes, call this to verify:
+    1. Renders project to WAV via offline engine
+    2. Runs full mix analysis (LUFS, spectrum, stereo, dynamics)
+    3. Returns concrete numbers + prioritized suggestions
+
+    filename: Output filename (without .wav extension).
+    sample_rate: Render sample rate (48000 recommended).
+    analysis_depth: "full" (all analyses) or "quick" (LUFS + spectrum only).
+
+    Returns analysis JSON with mix_suggestions, master_check, and file path.
+
+    Example:
+      # After adjusting mix
+      result = render_and_analyze("my_mix")
+      # → {lufs: -14.2, spectrum: {...}, suggestions: [...], file: "..."}
+    """
+    # Step 1: Render
+    try:
+        render_result = await mcp_opendaw_export_audio(filename, sample_rate)
+        render_data = json.loads(render_result)
+        if not render_data.get("success"):
+            return json.dumps({"error": "Render failed", "details": render_result})
+    except Exception as e:
+        return _err(f"Render error: {e}")
+
+    # Step 2: Analyze
+    wav_name = filename if filename.endswith(".wav") else filename + ".wav"
+    try:
+        if analysis_depth == "quick":
+            analysis = await mcp_opendaw_measure_lufs(wav_name)
+            spec = await mcp_opendaw_analyze_spectrum(wav_name)
+            return json.dumps({
+                "success": True,
+                "render_file": wav_name,
+                "lufs": json.loads(analysis),
+                "spectrum": json.loads(spec),
+            }, indent=2)
+        else:
+            analysis = await mcp_opendaw_analyze_mix(wav_name)
+            return analysis
+    except Exception as e:
+        return _err(f"Analysis error: {e}")
+
+
+@mcp.tool()
+async def mcp_opendaw_separate_stems(
+    input_file: str,
+    model: str = "bs6",
+    output_dir: str = "",
+) -> str:
+    """Separate audio into stems using SOTA AI models — SCNet, BS-Roformer, PolarFormer.
+
+    Uses the creative-studio stem-splitter pipeline (much better than Demucs alone).
+    Models available:
+    - "ensemble": Max quality — HTDemucs FT + PolarFormer vocals + BS-Roformer (3 passes)
+    - "scnet": SCNet XL — best 4-stem (drums, bass, other, vocals), SDR 10.08
+    - "bs6": BS-Roformer 6-stem (bass, drums, other, vocals, guitar, piano) — fast
+    - "polarformer": Best vocal extraction (vocals + instrumental), SDR 11.00
+    - "dereverb": Remove reverb from vocals (dry + reverb)
+    - "drumsep": Separate drums into kick/snare/toms/cymbals
+    - "denoise": Clean noise from low-quality audio (128kbps MP3)
+
+    input_file: Path to audio file (absolute or relative to cwd).
+    model: Model name from the list above.
+    output_dir: Output directory (default: /tmp/stems).
+
+    Returns paths to separated stem files.
+
+    Example:
+      separate_stems("suno_track.wav", model="bs6")
+      # → {stems: {bass: "...", drums: "...", vocals: "...", ...}}
+    """
+    import subprocess as _sp
+    import os as _os
+
+    splitter = "/home/ameobius/projects/creative-studio/stem-splitter/sota_splitter.py"
+    if not _os.path.exists(splitter):
+        return _err(f"Stem splitter not found at {splitter}")
+
+    if not _os.path.isabs(input_file):
+        input_file = _os.path.join(_os.getcwd(), input_file)
+    if not _os.path.exists(input_file):
+        return _err(f"Input file not found: {input_file}")
+
+    out = output_dir or "/tmp/stems"
+    _os.makedirs(out, exist_ok=True)
+
+    try:
+        result = _sp.run(
+            ["python3", splitter, input_file, "-m", model, "-o", out],
+            capture_output=True, text=True, timeout=600,
+        )
+        if result.returncode != 0:
+            return _err(f"Separation failed: {result.stderr[-500:]}")
+
+        # List output stems
+        stems = {}
+        for f in sorted(_os.listdir(out)):
+            if f.endswith(".wav"):
+                stems[f.replace(".wav", "")] = _os.path.join(out, f)
+
+        return json.dumps({
+            "success": True,
+            "model": model,
+            "input": input_file,
+            "output_dir": out,
+            "stems": stems,
+            "stem_count": len(stems),
+            "stderr_tail": result.stderr[-200:] if result.stderr else "",
+        }, indent=2)
+    except _sp.TimeoutExpired:
+        return _err("Separation timed out (600s limit)")
+    except Exception as e:
+        return _err(f"Separation error: {e}")
