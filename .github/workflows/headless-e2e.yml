@@ -1,0 +1,133 @@
+name: Headless E2E Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Branch, tag, or commit SHA to test"
+        required: false
+        default: ""
+      pr_number:
+        description: "Pull request number to test (e.g. 1)"
+        required: false
+        default: ""
+  pull_request:
+    branches: [main]
+    paths:
+      - "server.py"
+      - "opendaw_mcp/**"
+      - "tests/e2e/**"
+      - "Dockerfile"
+      - "entrypoint.sh"
+      - ".github/workflows/headless-e2e.yml"
+
+jobs:
+  bridge-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Determine ref
+        id: ref
+        run: |
+          if [ -n "${{ inputs.pr_number }}" ]; then
+            echo "ref=refs/pull/${{ inputs.pr_number }}/head" >> "$GITHUB_OUTPUT"
+            echo "ref_type=pr" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ inputs.target_ref }}" ]; then
+            echo "ref=${{ inputs.target_ref }}" >> "$GITHUB_OUTPUT"
+            echo "ref_type=explicit" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+            echo "ref_type=default" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout at ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          pip install mcp playwright pytest ruff numpy scipy pyloudnorm
+
+      - name: Install Playwright Chromium
+        run: playwright install chromium
+
+      - name: Install Playwright system deps
+        run: playwright install-deps chromium
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "23"
+
+      - name: Install test host dependencies
+        run: |
+          cd tests/e2e/test_host
+          npm install
+
+      - name: Generate SSL certs for test host
+        run: |
+          cd tests/e2e/test_host
+          openssl req -x509 -newkey rsa:2048 -keyout localhost-key.pem \
+            -out localhost.pem -days 1 -nodes \
+            -subj "/CN=localhost" 2>/dev/null
+
+      - name: Start test host Vite server
+        run: |
+          cd tests/e2e/test_host
+          npx vite --port 5174 --host 0.0.0.0 > /tmp/vite_stdout.log 2>&1 &
+          VITE_PID=$!
+          echo "VITE_PID=$VITE_PID" >> $GITHUB_ENV
+          echo "Vite PID: $VITE_PID"
+
+          # Bounded readiness loop (60 seconds)
+          for i in $(seq 1 60); do
+            if curl -sk https://localhost:5174 > /dev/null 2>&1; then
+              echo "Vite is ready (after ${i}s)"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Vite failed to start within 60s"
+              echo "--- Vite logs ---"
+              cat /tmp/vite_stdout.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Run bridge smoke test
+        env:
+          OPENDAW_URL: https://localhost:5174
+          OPENDAW_EXPORT_DIR: /tmp/exports
+        run: |
+          mkdir -p /tmp/exports
+          python tests/e2e/test_bridge_smoke.py 2>&1 | tee /tmp/bridge_smoke.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Upload diagnostic logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-smoke-diagnostics
+          path: |
+            /tmp/bridge_smoke.log
+            /tmp/vite_stdout.log
+            /tmp/exports/
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Review finding #7: track spawned PID, avoid broad pkill
+          if [ -n "$VITE_PID" ]; then
+            kill $VITE_PID 2>/dev/null || true
+          fi
+          # Kill Playwright's chromium (spawned by the test process)
+          pkill -f "playwright.*chromium" 2>/dev/null || true
+          echo "Cleanup complete"

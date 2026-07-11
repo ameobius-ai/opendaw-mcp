@@ -3132,10 +3132,10 @@ Notes are added to the first clip on the track.
 
         const trackBox = noteTracks[trackIndex];
 
+        let regionBox = null;
         h.modify(() => {{
             // Find existing region on this track, or create one
             const existingRegions = h.regionBoxes(trackBox);
-            let regionBox = null;
             let collection = null;
 
             if (existingRegions.length > 0) {{
@@ -3175,13 +3175,18 @@ Notes are added to the first clip on the track.
                 box.cent.setValue(0);
                 box.events.refer(collBox.events);
             }});
+        }});
 
-            // Extend region duration if note extends beyond current
-            const noteEnd = notePos + noteDuration;
-            const currentDur = regionBox.duration.getValue();
-            if (noteEnd > currentDur) {{
-                regionBox.duration.setValue(noteEnd);
-                regionBox.loopDuration.setValue(noteEnd);
+        // Second modify() — region duration/loopDuration set inside NoteRegionBox.create()
+        // callback doesn't persist (box not yet in graph during callback). Set explicitly here.
+        const noteEnd = Math.round((startBeat + durationBeats) * Quarter);
+        h.modify(() => {{
+            if (regionBox) {{
+                const curDur = regionBox.duration.getValue();
+                if (noteEnd > curDur) {{
+                    regionBox.duration.setValue(noteEnd);
+                    regionBox.loopDuration.setValue(noteEnd);
+                }}
             }}
         }});
 
@@ -5817,14 +5822,14 @@ async def mcp_opendaw_render_full(filename: str = "full_mix", sample_rate: int =
                 // Option.None = no stems config → full mix (1 stem, all AUs mixed)
                 const progress = {{setValue: (v) => {{}}}};
                 console.time("project.copy");
-                // No project.copy() — OfflineEngineRenderer.start() manages loopArea
-                // internally (disables loop, restores after). Deep-copying 364MB of
-                // audio data was the #1 bottleneck. The worker gets its own snapshot
-                // via source.toArrayBuffer() inside create().
+                // project.copy() is required — without it, OfflineEngineRenderer
+                // fails with "Already connected" because the live engine's
+                // AudioWorkletNode is already connected to the live AudioContext.
+                const projectCopy = h.project.copy();
                 console.timeEnd("project.copy");
                 console.time("render");
                 const audioData = await OfflineEngineRenderer.start(
-                    h.project, Option.None, progress, undefined, {sample_rate}
+                    projectCopy, Option.None, progress, undefined, {sample_rate}
                 );
                 console.timeEnd("render");
                 console.time("encode");
@@ -64578,7 +64583,7 @@ async def mcp_opendaw_render_and_analyze(
     """
     # Step 1: Render
     try:
-        render_result = await mcp_opendaw_export_audio(filename, sample_rate)
+        render_result = await mcp_opendaw_render_full(filename, sample_rate)
         render_data = json.loads(render_result)
         if not render_data.get("success"):
             return json.dumps({"error": "Render failed", "details": render_result})
@@ -64635,7 +64640,7 @@ async def mcp_opendaw_separate_stems(
     import subprocess as _sp
     import os as _os
 
-    splitter = "/home/ameobius/projects/creative-studio/stem-splitter/sota_splitter.py"
+    splitter = _os.environ.get("SOTA_SPLITTER_PATH", "sota_splitter.py")
     if not _os.path.exists(splitter):
         return _err(f"Stem splitter not found at {splitter}")
 
@@ -64877,7 +64882,6 @@ async def mcp_opendaw_detect_problems(filename: str) -> str:
       # → {problems: [{type: "dc_offset", severity: "HIGH", value: 0.002, ...}]}
     """
     import os as _os
-    import math as _m
 
     export_dir = _os.environ.get("OPENDAW_EXPORT_DIR",
                                   _os.path.join(_os.path.dirname(__file__), "exports"))
@@ -65258,7 +65262,31 @@ async def mcp_opendaw_analyze_phase(filename: str) -> str:
 
 # ═══════════════════════════════════════════════════════════════════
 # MATCHERING + BATCH DIAGNOSTIC
-# ═══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+
+def _resolve_audio_file(name):
+    """Resolve an audio filename to an absolute path."""
+    import os as _os
+    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR", _os.path.join(_os.path.dirname(__file__), "exports"))
+    candidate = _os.path.join(export_dir, name if name.endswith(".wav") else name + ".wav")
+    if _os.path.exists(candidate):
+        return candidate
+    return _os.path.join(export_dir, name)
+
+def _load_wav_for_analysis(name):
+    """Load a WAV file and return (channels, sample_rate, raw_bytes)."""
+    import os as _os
+    import wave as _w
+    fpath = _resolve_audio_file(name)
+    if not _os.path.exists(fpath):
+        raise FileNotFoundError(f"Audio file not found: {fpath}")
+    with _w.open(fpath, "rb") as f:
+        frames = f.readframes(f.getnframes())
+        sr = f.getframerate()
+        n_ch = f.getnchannels()
+    import numpy as _np
+    channels = _np.frombuffer(frames, dtype=_np.int16).reshape(-1, n_ch).T.astype(float)
+    return channels, sr, frames
 
 @mcp.tool()
 async def mcp_opendaw_match_to_reference(
@@ -65304,7 +65332,6 @@ async def mcp_opendaw_match_to_reference(
 
     try:
         import numpy as _np
-        from scipy import signal as _sig
         from scipy.io import wavfile as _wv
     except ImportError:
         return _err("numpy+scipy required for matchering")
@@ -65384,11 +65411,11 @@ async def mcp_opendaw_match_to_reference(
                     band_gain_db = 20 * _m.log10(band_gain)
                     # Clamp to ±6 dB to avoid extreme corrections
                     band_gain_db = max(-6, min(6, band_gain_db))
-                    band_gain_linear = 10 ** (band_gain_db / 20.0)
+                    _band_gain_linear = 10 ** (band_gain_db / 20.0)
 
                     # Apply band-limited gain via frequency-domain filtering
-                    nyq = sr / 2
-                    center_freq = _m.sqrt(f_lo * f_hi)
+                    _nyq = sr / 2
+                    _center_freq = _m.sqrt(f_lo * f_hi)
                     # Simple approach: apply gain via butterworth band filter
                     # Too complex for pure numpy — just store recommendation
                     eq_corrections.append({
@@ -65479,7 +65506,6 @@ async def mcp_opendaw_batch_diagnostic(
       batch_diagnostic('["vocals.wav","bass.wav","drums.wav","mix.wav"]', genre="rock")
       # → {triage: [{stem: "vocals", severity: "significant", problems: [...]}]}
     """
-    import os as _os
 
     # Parse filenames
     try:
@@ -65502,7 +65528,6 @@ async def mcp_opendaw_batch_diagnostic(
         # 1. Problems
         try:
             channels, sr, _ = _load_wav_for_analysis(name)
-            wav = _parse_wav(open(fpath, "rb").read())
 
             # Clipping
             clip_count = sum(1 for ch in channels for s in ch if abs(s) >= 0.999)

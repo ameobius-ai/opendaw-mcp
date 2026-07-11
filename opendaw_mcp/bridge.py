@@ -45,14 +45,34 @@ class HeadlessDawBridge:
         self.page = await self.browser.new_page(ignore_https_errors=True)
         await self.page.goto(DAW_URL, timeout=15000)
         await self.page.wait_for_function(
-            "typeof window.opendaw !== 'undefined' && typeof window.opendaw.service !== 'undefined'",
+            "typeof window.opendaw !== 'undefined' && typeof window.opendaw.service !== 'undefined' && window.opendaw.service !== null",
             timeout=30000,
         )
         # Inject helper functions into DAW context — eliminates boilerplate in every tool
         await self.page.evaluate(
             """async () => {
             if (window.DAW_HELPERS) return;  // already injected
+
+            // Ensure a project is loaded — openDAW starts on dashboard, service is null until project created
+            if (!window.opendaw.service) {
+                // Try clicking "Clean Slate" (creates empty project) or "New Project"
+                const buttons = Array.from(document.querySelectorAll('button, [role="button"], a'));
+                const clickTarget = buttons.find(b => b.textContent.includes('Clean Slate'))
+                    || buttons.find(b => b.textContent.includes('New Project'));
+                if (clickTarget) {
+                    clickTarget.click();
+                } else {
+                    // Fallback: try direct API
+                    if (window.opendaw.createService) await window.opendaw.createService();
+                }
+                // Wait for service to appear
+                for (let i = 0; i < 30; i++) {
+                    if (window.opendaw.service) break;
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
             const service = window.opendaw.service;
+            if (!service) throw new Error('Failed to initialize openDAW service');
 
             // Ensure a project is loaded (create default if none)
             if (!service.hasProfile) {
@@ -157,8 +177,8 @@ class HeadlessDawBridge:
                 engine: p.engine,
                 primaryAudioUnitBox: p.primaryAudioUnitBox,
                 primaryAudioBusBox: p.primaryAudioBusBox,
-                uuid: p.rootBox.address.toString(),
-                ppqn: 384,
+                uuid: window.DAW_UUID || UUID,
+                ppqn: window.DAW_PPQN || PPQN,
             };
 
             // Compatibility shims — let existing tool code keep using old globals
