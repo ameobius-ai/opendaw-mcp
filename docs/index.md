@@ -23,7 +23,7 @@ Control every aspect of music production from your LLM agent: synths, effects, M
 - **226** Python examples
 - **134** DSP scripts (Werkstatt / Apparat / Spielwerk)
 - **12** agent skills
-- **3704** unit + E2E tests
+- **6139** unit + E2E tests
 - **0** ruff errors
 
 ## Install
