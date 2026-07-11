@@ -149,8 +149,21 @@ def _ok(data=None) -> str:
     return json.dumps(d)
 
 
-def _err(msg: str) -> str:
-    return json.dumps({"error": msg})
+def _err(msg: str, code: str | None = None, hint: str | None = None) -> str:
+    """Unified error response. Backward compatible — code/hint optional."""
+    d = {"error": msg}
+    if code:
+        d["error_code"] = code
+    if hint:
+        d["hint"] = hint
+    return json.dumps(d)
+
+
+# Common error codes for consistent error handling across tools
+ERR_BRIDGE = "BRIDGE_ERROR"
+ERR_NOT_FOUND = "NOT_FOUND"
+ERR_INVALID_PARAM = "INVALID_PARAMETER"
+ERR_TIMEOUT = "TIMEOUT"
 
 
 def _wrap_eval(result) -> str:
