@@ -90,3 +90,15 @@ jobs:
         run: |
           ruff check server.py opendaw_mcp tests/test_opendaw_mcp.py
           echo "Ruff lint passed"
+      - name: Generate SBOM
+        if: matrix.python-version == '3.11'
+        run: |
+          pip install pip-audit
+          pip-audit --format json --output sbom.json || true
+      - name: Upload SBOM
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 30
