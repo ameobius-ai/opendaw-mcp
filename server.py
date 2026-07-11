@@ -65262,33 +65262,9 @@ async def mcp_opendaw_analyze_phase(filename: str) -> str:
     }, indent=2)
 
 
-# ═══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # MATCHERING + BATCH DIAGNOSTIC
 # ══════════════════════════════════════════════════════════════════
-
-def _resolve_audio_file(name):
-    """Resolve an audio filename to an absolute path."""
-    import os as _os
-    export_dir = _os.environ.get("OPENDAW_EXPORT_DIR", _os.path.join(_os.path.dirname(__file__), "exports"))
-    candidate = _os.path.join(export_dir, name if name.endswith(".wav") else name + ".wav")
-    if _os.path.exists(candidate):
-        return candidate
-    return _os.path.join(export_dir, name)
-
-def _load_wav_for_analysis(name):
-    """Load a WAV file and return (channels, sample_rate, raw_bytes)."""
-    import os as _os
-    import wave as _w
-    fpath = _resolve_audio_file(name)
-    if not _os.path.exists(fpath):
-        raise FileNotFoundError(f"Audio file not found: {fpath}")
-    with _w.open(fpath, "rb") as f:
-        frames = f.readframes(f.getnframes())
-        sr = f.getframerate()
-        n_ch = f.getnchannels()
-    import numpy as _np
-    channels = _np.frombuffer(frames, dtype=_np.int16).reshape(-1, n_ch).T.astype(float)
-    return channels, sr, frames
 
 @mcp.tool()
 async def mcp_opendaw_match_to_reference(

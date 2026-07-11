@@ -1,6 +1,6 @@
 # opendaw-mcp
 
-**263 MCP tools** for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
+**543 MCP tools** for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
 
 Control every aspect of music production from your LLM agent: synths, effects, MIDI, mixing, automation, rendering, stem separation, DSP scripting, and more.
 
@@ -8,22 +8,22 @@ Control every aspect of music production from your LLM agent: synths, effects, M
 
 | Feature | opendaw-mcp | Generic MCP audio servers |
 |---------|-------------|---------------------------|
-| Tool count | 263 domain-specific | 5–20 generic |
+| Tool count | 543 domain-specific | 5–20 generic |
 | Browser bridge | Playwright + headless Chromium | Local CLI / API only |
 | Real-time DAW control | Full mixer, transport, arrangement | Playback only |
 | DSP scripting | Custom JS audio worklets | None |
 | Stem separation | 7 SOTA models, GPU-local | API-dependent |
 | Genre templates | 8 E2E-verified | None |
-| Agent skills | 8 bundled | None |
-| Orchestration tools | 8 high-level composers | None |
+| Agent skills | 12 bundled | None |
+| Orchestration tools | 80+ high-level composers | None |
 
 ## Quick numbers
 
-- **263** MCP tools (`mcp_opendaw_*` prefix)
-- **35** Python examples (8 genre templates)
-- **27** DSP scripts (Werkstatt / Apparat / Spielwerk)
-- **8** agent skills
-- **93** unit tests + 8 E2E tests
+- **543** MCP tools (`mcp_opendaw_*` prefix)
+- **226** Python examples
+- **134** DSP scripts (Werkstatt / Apparat / Spielwerk)
+- **12** agent skills
+- **3704** unit + E2E tests
 - **0** ruff errors
 
 ## Install
@@ -72,6 +72,6 @@ graph LR
     E --> F[WAV / MP3 / FLAC]
 ```
 
-The server connects to a headless Chromium instance running openDAW via Playwright. All 263 tools map to typed DAW operations through a bridge that injects typed helpers into the V8 context.
+The server connects to a headless Chromium instance running openDAW via Playwright. All 543 tools map to typed DAW operations through a bridge that injects typed helpers into the V8 context.
 
 → [Full architecture docs](architecture.md)

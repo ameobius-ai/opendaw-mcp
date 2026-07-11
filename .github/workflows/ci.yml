@@ -74,7 +74,8 @@ jobs:
 
       - name: Run unit tests
         run: python -m pytest tests/ -v
-
+      - name: Repo consistency check
+        run: python scripts/check_repo_consistency.py
       - name: Lint with ruff
         run: |
           ruff check server.py opendaw_mcp tests/test_opendaw_mcp.py

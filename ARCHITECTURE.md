@@ -16,7 +16,7 @@
 
 The entry point. Implements the [Model Context Protocol](https://modelcontextprotocol.io) using Python's `FastMCP` framework.
 
-- **250 tools** — each a function decorated with `@mcp.tool()`
+- **543 tools** — each a function decorated with `@mcp.tool()`
 - **Transport**: stdio (default) or SSE (`MCP_TRANSPORT=sse`)
 - **Lazy bridge init** — Chromium only launches when first tool is called
 - **DAW_HELPERS** — 17 JavaScript helper functions injected into the DAW's V8 context to reduce boilerplate
