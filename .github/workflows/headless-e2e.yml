@@ -21,6 +21,9 @@ on:
       - "entrypoint.sh"
       - ".github/workflows/headless-e2e.yml"
 
+permissions:
+  contents: read
+
 jobs:
   bridge-smoke:
     runs-on: ubuntu-latest
