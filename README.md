@@ -294,6 +294,19 @@ See `mcp.json` in the repo for a reference config.
 | `FASTMCP_HOST` | `127.0.0.1` | SSE server bind host |
 | `FASTMCP_PORT` | `8000` | SSE server bind port |
 
+## Publishing Identity Mapping
+
+This project uses a **hybrid identity scheme** — different namespaces for different registries.
+See [docs/identity-mapping.md](docs/identity-mapping.md) for the full mapping and rules.
+
+| Platform | Namespace |
+|---|---|
+| GitHub | `AMEOBIUS-team/opendaw-mcp` |
+| MCP Registry | `io.github.AMEBIUS/opendaw-mcp` |
+| GHCR | `ghcr.io/ameobius/opendaw-mcp` |
+| PyPI | `opendaw-mcp` |
+| Smithery | `@macar228228/opendaw-mcp` |
+
 ## Architecture
 
 ### HeadlessDawBridge
