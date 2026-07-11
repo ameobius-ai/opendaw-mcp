@@ -20,6 +20,7 @@ import os
 import atexit
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 # Infrastructure imported from opendaw_mcp package
 # All helpers re-exported for backward compatibility (tests, examples import from server)
@@ -71,7 +72,7 @@ def cleanup():
     except Exception: pass
 atexit.register(cleanup)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_project_state() -> str:
     """Get full project state: BPM, sample rate, playing status, track list, effects chain."""
     result = await bridge.evaluate("""() => {
@@ -251,7 +252,7 @@ label: Marker text (e.g. "Verse 1", "Chorus", "Drop").
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_markers() -> str:
     """List all timeline markers with positions and labels."""
     result = await bridge.evaluate("""() => {
@@ -315,7 +316,7 @@ frequency: A4 frequency in Hz. Default 440. Common alternatives: 432 (verdi), 41
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_marker(marker_index: int) -> str:
     """Delete a timeline marker by index.
 
@@ -586,7 +587,7 @@ Returns the created tempo event and full tempo map.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_tempo_changes() -> str:
     """List all tempo (BPM) changes on the timeline's tempo track.
 
@@ -632,7 +633,7 @@ The tempo track uses normalized values mapped to minBpm..maxBpm (default 60..240
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_signature_changes() -> str:
     """List all time signature changes on the timeline's signature track.
 
@@ -662,7 +663,7 @@ Returns each signature event with position (beats), numerator, and denominator.
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_signature_change(position_beats: int, index: int) -> str:
     """Delete a time signature change from the timeline.
 
@@ -1329,7 +1330,7 @@ state into the AudioWorklet processor, so all boxes must exist first.
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_effects() -> str:
     """List all available audio and MIDI effect types."""
     result = await bridge.evaluate("""() => {
@@ -1666,7 +1667,7 @@ level_db: Send level in dB.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_sends(unit_index: int) -> str:
     """List all aux sends on an audio unit.
 
@@ -1773,7 +1774,7 @@ routing: 'pre' (pre-fader, before volume/pan) or 'post' (post-fader, default).
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_audio_buses() -> str:
     """List all audio buses in the project (primary output + FX buses).
 
@@ -1941,7 +1942,7 @@ fx_unit_index: Alternative — the FX AU index returned by create_send.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_effect_parameters(unit_index: int, effect_index: int) -> str:
     """List all parameters of an effect on an audio unit.
 
@@ -2018,7 +2019,7 @@ Returns parameter names, current values, units, and ranges.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_effect_state(unit_index: int, effect_index: int) -> str:
     """Get full state of an effect: enabled, minimized, sidechain, all parameters.
 
@@ -2325,7 +2326,7 @@ effect_index: Effect position to remove (0-based).
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_midi_effects() -> str:
     """List all available MIDI effect types.
 
@@ -2416,7 +2417,7 @@ effect_index: MIDI effect position to remove (0-based).
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_midi_effect_chain(unit_index: int) -> str:
     """Get the MIDI effect chain for an audio unit.
 
@@ -2452,7 +2453,7 @@ Returns ordered list of MIDI effects with type, enabled state, and index.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_midi_effect_params(unit_index: int, effect_index: int) -> str:
     """List all parameters of a MIDI effect with current values.
 
@@ -2559,7 +2560,7 @@ Returns old and new values.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_vaporisateur_params(unit_index: int) -> str:
     """Get full Vaporisateur synthesizer state: oscillators, LFO, noise, main params.
 
@@ -2723,7 +2724,7 @@ Returns old and new values.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_instrument_params(unit_index: int) -> str:
     """List all parameters of the instrument connected to an audio unit.
 
@@ -2850,7 +2851,7 @@ Works with any instrument type. Returns old and new values.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_playfield_samples(unit_index: int) -> str:
     """List all drum pads (samples) on a Playfield drum machine.
 
@@ -3010,7 +3011,7 @@ Returns the new pad index and MIDI note.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_audio_unit(unit_index: int) -> str:
     """Delete an entire audio unit with all its tracks, effects, and sends.
 
@@ -3044,7 +3045,7 @@ unit_index: Audio unit to delete (must be >= 1, as index 0 is the master output)
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_effect_chain(unit_index: int) -> str:
     """Get the full effect chain for an audio unit.
 
@@ -4093,7 +4094,7 @@ async def mcp_opendaw_augment_notes(
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_note_region(unit_index: int, track_index: int, region_index: int) -> str:
     """Delete a note region from the timeline.
 
@@ -4138,7 +4139,7 @@ region_index: Region index to delete (0-based).
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_audio_region(unit_index: int, track_index: int, region_index: int) -> str:
     """Delete an audio region from the timeline.
 
@@ -4175,7 +4176,7 @@ region_index: Region index to delete (0-based).
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_note_regions(unit_index: int, track_index: int) -> str:
     """List all note regions with position, duration, and note count.
 
@@ -4235,7 +4236,7 @@ duration_beats, label, note_count.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_audio_regions(unit_index: int, track_index: int) -> str:
     """List all audio regions with file name, position, and duration.
 
@@ -4952,7 +4953,7 @@ Returns count of duplicated notes and shift in beats.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_notes(unit_index: int, track_index: int, region_index: int) -> str:
     """List all note events within a region.
 
@@ -5105,7 +5106,7 @@ Returns updated note properties.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_note(note_index: int, unit_index: int, track_index: int, region_index: int) -> str:
     """Delete a single note from a region.
 
@@ -5166,7 +5167,7 @@ Returns remaining note count.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_region(track_index: int, region_index: int, unit_index: int, region_type: str) -> str:
     """Delete a region from a track.
 
@@ -5459,7 +5460,7 @@ Returns old and new hue values.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_project_info() -> str:
     """Get a quick project overview: BPM, time signature, track/AU/effect counts, total duration.
 
@@ -6307,7 +6308,7 @@ Returns clip creation details.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_automation_events(unit_index: int, track_index: int) -> str:
     """List automation events (ValueEventBox) on a unit's automation tracks.
 
@@ -6383,7 +6384,7 @@ Returns list of tracks with their automation events.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_value_regions(unit_index: int, track_index: int) -> str:
     """List automation regions (ValueRegionBox) on value/automation tracks.
 
@@ -6571,7 +6572,7 @@ Returns updated clip properties.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_clip(unit_index: int, track_index: int, clip_index: int) -> str:
     """Delete a clip from a track (session view).
 
@@ -6611,7 +6612,7 @@ Returns remaining clip count.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_clips(unit_index: int, track_index: int) -> str:
     """List clips (session view / clip launcher) on tracks.
 
@@ -6719,7 +6720,7 @@ The target effect must be Compressor, Gate, Vocoder, or any effect with Pointers
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_reset_project() -> str:
     """Reset the project to a fresh state — removes all audio units, tracks, regions, effects.
 
@@ -6854,7 +6855,7 @@ enabled: true to enable, false to bypass.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_tracks() -> str:
     """List all tracks across all audio units with their type, effects, and regions.
 
@@ -6929,7 +6930,7 @@ async def mcp_opendaw_measure_lufs(filename: str) -> str:
     except Exception as e:
         return _err(f"LUFS measurement error: {e}")
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_detect_bpm(filename: str) -> str:
     """Detect BPM (tempo) of an exported WAV file using onset detection + autocorrelation.
 
@@ -6981,7 +6982,7 @@ async def mcp_opendaw_detect_bpm(filename: str) -> str:
     except Exception as e:
         return _err(f"BPM detection error: {e}")
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_detect_key(filename: str) -> str:
     """Detect musical key and mode of a WAV file using chroma features + Krumhansl-Schmuckler key profiles.
 
@@ -7035,7 +7036,7 @@ async def mcp_opendaw_detect_key(filename: str) -> str:
     except Exception as e:
         return _err(f"Key detection error: {e}")
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_track(filename: str) -> str:
     """Full audio analysis in one call — BPM + key + LUFS + duration + dynamic range.
 
@@ -7111,7 +7112,7 @@ async def mcp_opendaw_analyze_track(filename: str) -> str:
     except Exception as e:
         return _err(f"Track analysis error: {e}")
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_spectrum(filename: str) -> str:
     """Spectral analysis of audio across 7 ISO frequency bands.
 
@@ -7196,7 +7197,7 @@ async def mcp_opendaw_analyze_spectrum(filename: str) -> str:
     except Exception as e:
         return _err(f"Spectrum analysis error: {e}")
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_stereo(filename: str) -> str:
     """Stereo analysis of audio — width, L/R balance, mono compatibility, mid/side energy.
 
@@ -7276,7 +7277,7 @@ async def mcp_opendaw_analyze_stereo(filename: str) -> str:
     except Exception as e:
         return _err(f"Stereo analysis error: {e}")
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_dynamics(filename: str) -> str:
     """Dynamics analysis — crest factor, loudness range, transient density, segment RMS.
 
@@ -7349,7 +7350,7 @@ async def mcp_opendaw_analyze_dynamics(filename: str) -> str:
     except Exception as e:
         return _err(f"Dynamics analysis error: {e}")
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_mix(filename: str) -> str:
     """Complete mix diagnosis in one call — combines track + spectrum + stereo + dynamics.
 
@@ -8740,7 +8741,7 @@ async def mcp_opendaw_set_script_device_code(device_type: str, unit_index: int, 
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_script_device_code(device_type: str, unit_index: int, device_index: int) -> str:
     """Read the current user JavaScript code from a scriptable device.
 
@@ -8777,7 +8778,7 @@ Returns the full code string, header line, and code length.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_script_params(device_type: str, unit_index: int, device_index: int) -> str:
     """List @param declarations on a scriptable device with full mapping info.
 
@@ -8915,7 +8916,7 @@ async def mcp_opendaw_set_script_param(device_type: str, unit_index: int, device
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_script_samples(device_type: str, unit_index: int, device_index: int) -> str:
     """List @sample declaration slots on a scriptable device.
 
@@ -9062,7 +9063,7 @@ Returns the new unit index and details of what was copied.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_track(unit_index: int, track_index: int) -> str:
     """Delete a track from an audio unit. Removes all regions, clips, and notes on that track.
 
@@ -9204,7 +9205,7 @@ Returns the new bus index.
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_automation_event(unit_index: int, track_index: int, event_index: int) -> str:
     """Delete a single automation event (ValueEventBox) from an automation track.
 
@@ -9806,7 +9807,7 @@ async def mcp_opendaw_seconds_to_beats(seconds: float) -> str:
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_tempo_at(position_beats: float) -> str:
     """Get the BPM at a specific position, accounting for tempo automation.
 
@@ -9824,7 +9825,7 @@ async def mcp_opendaw_get_tempo_at(position_beats: float) -> str:
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_project_duration() -> str:
     """Get the total project duration — the end position of the last region across all tracks.
 
@@ -9880,7 +9881,7 @@ async def mcp_opendaw_validate_project() -> str:
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_samples() -> str:
     """List all audio file samples used in the project.
 
@@ -9897,7 +9898,7 @@ async def mcp_opendaw_list_samples() -> str:
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_unit_freeze_status(unit_index: int) -> str:
     """Check if an audio unit is frozen and whether it can be frozen.
 
@@ -10007,7 +10008,7 @@ async def mcp_opendaw_unfreeze_audiounit(unit_index: int) -> str:
 # Mixer & Region Advanced (148-150)
 # ─────────────────────────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_mixer_state() -> str:
     """Get the full mixer state — all audio units with volume, panning, mute, solo, and type.
 
@@ -10111,7 +10112,7 @@ async def mcp_opendaw_consolidate_region(unit_index: int, track_index: int, regi
 # Warp Markers & Region Play Mode (149-151)
 # ─────────────────────────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_warp_markers(unit_index: int, track_index: int, region_index: int) -> str:
     """List warp markers on a time-stretched or pitch-stretched audio region.
 
@@ -10152,7 +10153,7 @@ async def mcp_opendaw_list_warp_markers(unit_index: int, track_index: int, regio
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_region_play_mode(unit_index: int, track_index: int, region_index: int) -> str:
     """Get the play mode of an audio region — stretch type, playback rate, cents, transient mode.
 
@@ -10242,7 +10243,7 @@ async def mcp_opendaw_set_time_stretch_cents(unit_index: int, track_index: int, 
 # Automation Value & Audio File Info (152-153)
 # ─────────────────────────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_automation_value(unit_index: int, track_index: int, position_beats: float) -> str:
     """Get the automation value at a specific position on a value (automation) track.
 
@@ -10273,7 +10274,7 @@ async def mcp_opendaw_get_automation_value(unit_index: int, track_index: int, po
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_audio_file_info(unit_index: int, track_index: int, region_index: int) -> str:
     """Get metadata about the audio file referenced by an audio region.
 
@@ -10379,7 +10380,7 @@ async def mcp_opendaw_move_region_content(unit_index: int, track_index: int, reg
 # Inspection Helpers (155-157) — using DAW_HELPERS
 # ─────────────────────────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_track_info(unit_index: int, track_index: int) -> str:
     """Get detailed info about a track — type, regions, clips, enabled state, target.
 
@@ -10449,7 +10450,7 @@ async def mcp_opendaw_set_track_enabled(unit_index: int, track_index: int, enabl
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_full_project_state() -> str:
     """Get a complete snapshot of the project — all AUs, tracks, regions, effects, mixer state.
 
@@ -10499,7 +10500,7 @@ async def mcp_opendaw_get_full_project_state() -> str:
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_region_info(unit_index: int, track_index: int, region_index: int) -> str:
     """Get detailed info about a single region — position, duration, loop, mute, content.
 
@@ -10772,7 +10773,7 @@ async def mcp_opendaw_create_automation_event(unit_index: int, track_index: int,
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_automation_events_detail(unit_index: int, track_index: int) -> str:
     """List all automation events on a value track with full detail — position, value, interpolation.
 
@@ -10867,7 +10868,7 @@ async def mcp_opendaw_set_automation_interpolation(unit_index: int, track_index:
 # Note Collection Analysis (163-164)
 # ─────────────────────────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_note_range(unit_index: int, track_index: int, region_index: int) -> str:
     """Get the pitch range and max duration of notes in a note region.
 
@@ -11410,7 +11411,7 @@ async def mcp_opendaw_set_device_label(unit_index: int, effect_index: int, label
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_device_chain_detail(unit_index: int) -> str:
     """Get detailed info about all devices on an AU — instrument, audio effects, MIDI effects.
 
@@ -11486,7 +11487,7 @@ async def mcp_opendaw_ppqn_to_parts(position_ppqn: float) -> str:
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_bar_interval(position_ppqn: float) -> str:
     """Get the start and end PPQN of the bar containing the given position.
 
@@ -11661,7 +11662,7 @@ async def mcp_opendaw_duplicate_note_event(unit_index: int, track_index: int, re
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_neuralamp_model(unit_index: int, effect_index: int) -> str:
     """Get the NeuralAmp (Tone3000) model JSON for a NeuralAmp effect.
 
@@ -12113,7 +12114,7 @@ async def mcp_opendaw_set_revamp_filter(unit_index: int, effect_index: int, sect
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_transient_markers(unit_index: int, track_index: int, region_index: int) -> str:
     """List transient markers for an audio region's audio file.
 
@@ -12147,7 +12148,7 @@ async def mcp_opendaw_list_transient_markers(unit_index: int, track_index: int, 
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_signature_events() -> str:
     """List all time signature change events in the project.
 
@@ -12205,7 +12206,7 @@ async def mcp_opendaw_change_base_signature(nominator: int, denominator: int) ->
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_reset_playfield_params(unit_index: int, sample_index: int) -> str:
     """Reset all parameters of a Playfield drum sample to defaults.
 
@@ -12325,7 +12326,7 @@ async def mcp_opendaw_copy_region_to_track(src_unit: int, src_track: int, src_re
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_project_metadata() -> str:
     """Get project metadata: creation date, BPM, time signature, AU count, track count.
 
@@ -12355,7 +12356,7 @@ async def mcp_opendaw_get_project_metadata() -> str:
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_midi_output_devices() -> str:
     """List all MIDI output devices registered in the project (hardware MIDI outputs).
 
@@ -12434,7 +12435,7 @@ async def mcp_opendaw_set_bus_color(bus_index: int, hue: int) -> str:
 
 # ─── Modular System ──────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_modular_devices() -> str:
     """List all Modular audio effect devices in the project.
 
@@ -12470,7 +12471,7 @@ async def mcp_opendaw_list_modular_devices() -> str:
     }""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_modular_modules(au_index: int, effect_index: int) -> str:
     """List all modules in a Modular device.
 
@@ -12530,7 +12531,7 @@ async def mcp_opendaw_list_modular_modules(au_index: int, effect_index: int) -> 
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_modular_connections(au_index: int, effect_index: int) -> str:
     """List all connections (patch cables) in a Modular device.
 
@@ -12828,7 +12829,7 @@ async def mcp_opendaw_set_transpose(semitones: int) -> str:
     }}""")
     return _wrap_eval(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_piano_mode() -> str:
     """Get piano roll view settings.
 
@@ -12991,7 +12992,7 @@ async def mcp_opendaw_wait_for_condition(condition_js: str, timeout_ms: int = 10
     return json.dumps({"success": False, "condition_met": False, "elapsed_ms": elapsed, "timeout_ms": timeout_ms})
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_evaluate_raw(script: str) -> str:
     """Execute arbitrary JavaScript in the DAW V8 context and return the result.
     For power users and debugging — explore openDAW internals directly.
@@ -13094,7 +13095,7 @@ async def mcp_opendaw_capture_realtime(duration_seconds: float, filename: str) -
         result["filepath"] = filepath
     return json.dumps(result)
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_sample_info(sample_uuid: str) -> str:
     """Get detailed info about an audio sample by UUID.
 
@@ -13127,7 +13128,7 @@ async def mcp_opendaw_get_sample_info(sample_uuid: str) -> str:
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_studio_settings() -> str:
     """Get all studio preferences/settings (engine, visibility, editing, debug, storage, time-display, pointer).
 
@@ -13254,7 +13255,7 @@ async def mcp_opendaw_set_metronome(enabled: bool = None, gain: float = None, be
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_get_engine_status() -> str:
     """Get real-time engine status: playing state, position, BPM, CPU load, recording state.
 
@@ -13701,7 +13702,7 @@ async def mcp_opendaw_add_instrument_automation(unit_index: int, parameter_name:
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_automatable_fields(unit_index: int, sample_index: int = -1) -> str:
     """List all automatable parameter fields on an instrument (or specific Playfield sample).
 
@@ -13949,7 +13950,7 @@ async def mcp_opendaw_create_warp_marker(unit_index: int, track_index: int, regi
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_warp_marker(unit_index: int, track_index: int, region_index: int, marker_index: int) -> str:
     """Delete a warp marker from a time-stretched or pitch-stretched audio region.
 
@@ -17986,7 +17987,7 @@ async def mcp_opendaw_split_stems(input_path: str, mode: str = "bs6", output_dir
         return json.dumps({"error": str(e)})
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_split_modes() -> str:
     """List available stem separation modes with descriptions.
 
@@ -22143,7 +22144,7 @@ async def mcp_opendaw_identify_chords(
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_harmonic_rhythm(
     unit_index: int,
     track_index: int,
@@ -22714,7 +22715,7 @@ async def mcp_opendaw_extract_motifs(
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_melody(
     unit_index: int,
     track_index: int,
@@ -22916,7 +22917,7 @@ async def mcp_opendaw_analyze_melody(
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_detect_scale_from_notes(
     unit_index: int,
     track_index: int,
@@ -23468,7 +23469,7 @@ async def mcp_opendaw_apply_rhythm_pattern(
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_song_structure(
     unit_index: int = -1,
     bars_per_segment: int = 4,
@@ -54458,7 +54459,7 @@ async def mcp_opendaw_move_section(from_beat: float, to_beat: float, target_beat
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_delete_section(from_beat: float, to_beat: float, unit_indices: str = "") -> str:
     """Delete all regions within a beat range across all tracks.
 
@@ -54898,7 +54899,7 @@ async def mcp_opendaw_reorder_sections(
     return _wrap_eval(result)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(destructiveHint=True))
 async def mcp_opendaw_clear_region_notes(unit_index: int, track_index: int, region_index: int = -1) -> str:
     """Clear all notes from a region while keeping the region on the timeline.
 
@@ -64430,7 +64431,7 @@ async def mcp_opendaw_read_meter(
 # PHANTOM-STYLE ANALYSIS TOOLS
 # ═══════════════════════════════════════════════════════════════════
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_detect_frequency_masking(filenames: str) -> str:
     """Detect frequency masking between stems — where instruments compete for the same frequency range.
 
@@ -64687,7 +64688,7 @@ async def mcp_opendaw_separate_stems(
 # GENRE PROFILES + REFERENCE COMPARISON
 # ═══════════════════════════════════════════════════════════════════
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_genre_profiles() -> str:
     """List all available genre reference profiles for mix analysis.
 
@@ -64862,7 +64863,7 @@ async def mcp_opendaw_compare_to_profile(filename: str, genre: str) -> str:
 # PROBLEM DETECTION + AUTO-FIX
 # ═══════════════════════════════════════════════════════════════════
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_detect_problems(filename: str) -> str:
     """Detect technical audio problems — clipping, DC offset, hum, sibilance, mud, harshness.
 
@@ -65153,7 +65154,7 @@ async def mcp_opendaw_compare_to_reference(filename: str, reference: str) -> str
     }, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_analyze_phase(filename: str) -> str:
     """Per-band phase analysis — coherence, polarity, inter-channel delay.
 
