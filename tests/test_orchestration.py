@@ -16,7 +16,7 @@ class TestDrumFillPatternGeneration:
     def _generate_fill(self, fill_type: str, bars: int, density: str):
         """Replicate the pattern generation logic from create_drum_fill."""
         import random
-        rng = random.Random(hash(fill_type + density) & 0xFFFFFFFF)
+        rng = random.Random(42)  # deterministic seed (hash() varies across runs)
         total_steps = bars * 16
         kick, snare, hihat, perc = [], [], [], []
         density_factor = {"sparse": 0.15, "medium": 0.35, "dense": 0.6}[density]
