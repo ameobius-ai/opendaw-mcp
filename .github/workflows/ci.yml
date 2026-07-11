@@ -86,6 +86,14 @@ jobs:
         run: python -m pytest tests/ -v
       - name: Repo consistency check
         run: python scripts/check_repo_consistency.py
+      - name: Tool reference up-to-date
+        run: |
+          cp docs/tools/reference.md /tmp/ref_before.md
+          python scripts/gen_tool_docs.py
+          diff /tmp/ref_before.md docs/tools/reference.md || {
+            echo "Tool reference is stale. Run: python scripts/gen_tool_docs.py"
+            exit 1
+          }
       - name: Lint with ruff
         run: |
           ruff check server.py opendaw_mcp tests/test_opendaw_mcp.py
