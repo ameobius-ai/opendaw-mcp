@@ -129,6 +129,22 @@ jobs:
           python tests/e2e/test_bridge_smoke.py 2>&1 | tee /tmp/bridge_smoke.log
           exit ${PIPESTATUS[0]}
 
+      - name: Run bridge latency benchmark
+        env:
+          OPENDAW_URL: https://localhost:5174
+          OPENDAW_EXPORT_DIR: /tmp/exports
+          BENCH_ITERATIONS: "5"
+          BENCH_OUTPUT: /tmp/bench_results.json
+        run: python scripts/bench_bridge.py 2>&1 | tee /tmp/bench.log
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-benchmark
+          path: /tmp/bench_results.json
+          retention-days: 30
+
       - name: Upload diagnostic logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
