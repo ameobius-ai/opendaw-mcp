@@ -35,6 +35,7 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _compute_lufs,
     _ok,
     _err,
+    _stable_seed,
     _wrap_eval,
     _unwrap_eval,
     _safe_filename,
@@ -14914,7 +14915,7 @@ Returns the total notes created and pitches used.
     chord_pitches = [base_pitch + iv for iv in intervals]
 
     import random
-    random.seed(hash(chord + pattern) % (2**32))
+    random.seed(_stable_seed(chord, pattern))
 
     note_list = []
     for i in range(steps):
@@ -18310,7 +18311,7 @@ async def mcp_opendaw_create_drum_fill(unit_index: int = -1, fill_type: str = "b
 
     # Generate fill patterns in Python
     import random
-    rng = random.Random(hash(fill_type + density) & 0xFFFFFFFF)
+    rng = random.Random(_stable_seed(fill_type, density))
 
     total_steps = bars * 16
     kick, snare, hihat, perc = [], [], [], []
@@ -21692,7 +21693,7 @@ async def mcp_opendaw_generate_melody(
         return "Error: scale produces too few pitches in this octave range"
 
     import random as _random
-    rng = _random.Random(hash(root + scale + contour + rhythm + str(bars)) % 2**32)
+    rng = _random.Random(_stable_seed(root, scale, contour, rhythm, str(bars)))
 
     # Generate rhythm positions (in beats) for the melody
     beats_per_bar = 4

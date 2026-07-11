@@ -7,6 +7,7 @@ filename sanitization, and path traversal protection.
 
 import json
 import os
+import hashlib
 
 
 def _parse_wav(raw: bytes) -> dict:
@@ -164,6 +165,12 @@ ERR_BRIDGE = "BRIDGE_ERROR"
 ERR_NOT_FOUND = "NOT_FOUND"
 ERR_INVALID_PARAM = "INVALID_PARAMETER"
 ERR_TIMEOUT = "TIMEOUT"
+
+
+def _stable_seed(*parts: str) -> int:
+    """Deterministic seed from string parts. Uses SHA-256 (not hash()) for reproducibility."""
+    h = hashlib.sha256("|".join(str(p) for p in parts).encode()).hexdigest()
+    return int(h[:8], 16)
 
 
 def _wrap_eval(result) -> str:
