@@ -12,7 +12,9 @@ Each profile defines:
 - characteristics: textual description
 """
 
-PROFILES = {
+from typing import Any
+
+PROFILES: dict[str, dict[str, Any]] = {
     "pop": {
         "target_lufs": -10,
         "lufs_range": (-10, -7),
@@ -178,11 +180,11 @@ PROFILES = {
 }
 
 
-def get_profile(genre: str) -> dict:
+def get_profile(genre: str) -> dict[str, Any] | None:
     """Get genre profile by name (case-insensitive)."""
     return PROFILES.get(genre.lower().replace("-", "_").replace(" ", "_"))
 
 
-def list_genres() -> list:
+def list_genres() -> list[str]:
     """List all available genre profiles."""
     return sorted(PROFILES.keys())

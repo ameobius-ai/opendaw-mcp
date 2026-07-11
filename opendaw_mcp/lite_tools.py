@@ -13,7 +13,7 @@ auto_master, add_genre_effects, read_meter) are internal functions called
 by decorated tools — they don't need @mcp.tool() decorators.
 """
 
-LITE_TOOLS = [
+LITE_TOOLS: list[str] = [
     # Project & info (4)
     "mcp_opendaw_get_full_project_state",
     "mcp_opendaw_get_project_info",

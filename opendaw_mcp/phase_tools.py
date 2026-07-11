@@ -14,7 +14,7 @@ auto_master) are available in ALL phases since they chain multiple phases.
 """
 
 # Tools available in each phase
-PHASE_TOOLS = {
+PHASE_TOOLS: dict[str, set[str]] = {
     "inspect": {
         "mcp_opendaw_get_full_project_state", "mcp_opendaw_get_project_info",
         "mcp_opendaw_list_tracks", "mcp_opendaw_list_note_regions",
@@ -122,10 +122,10 @@ PHASE_TOOLS = {
 }
 
 # Meta-tools available in all phases
-ALL_PHASE_TOOLS = {
+ALL_PHASE_TOOLS: set[str] = {
     "mcp_opendaw_get_full_project_state", "mcp_opendaw_evaluate_raw",
     "mcp_opendaw_switch_phase",
 }
 
 # Current phase (mutable)
-_current_phase = "compose"
+_current_phase: str = "compose"

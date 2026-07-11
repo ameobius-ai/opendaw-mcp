@@ -46,6 +46,8 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     _analyze_spectrum,
     _analyze_stereo,
     _analyze_dynamics,
+    _resolve_audio_file,
+    _load_wav_for_analysis,
     NOTE_TO_PITCH,
     CHORD_INTERVALS,
     SCALE_INTERVALS,
@@ -65411,11 +65413,7 @@ async def mcp_opendaw_match_to_reference(
                     band_gain_db = 20 * _m.log10(band_gain)
                     # Clamp to ±6 dB to avoid extreme corrections
                     band_gain_db = max(-6, min(6, band_gain_db))
-                    _band_gain_linear = 10 ** (band_gain_db / 20.0)
-
                     # Apply band-limited gain via frequency-domain filtering
-                    _nyq = sr / 2
-                    _center_freq = _m.sqrt(f_lo * f_hi)
                     # Simple approach: apply gain via butterworth band filter
                     # Too complex for pure numpy — just store recommendation
                     eq_corrections.append({
@@ -65506,7 +65504,6 @@ async def mcp_opendaw_batch_diagnostic(
       batch_diagnostic('["vocals.wav","bass.wav","drums.wav","mix.wav"]', genre="rock")
       # → {triage: [{stem: "vocals", severity: "significant", problems: [...]}]}
     """
-
     # Parse filenames
     try:
         names = json.loads(filenames) if filenames.strip().startswith("[") else [s.strip() for s in filenames.split(",")]
