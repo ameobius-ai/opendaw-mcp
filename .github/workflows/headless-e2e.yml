@@ -145,6 +145,21 @@ jobs:
           path: /tmp/bench_results.json
           retention-days: 30
 
+      - name: Run agent eval harness
+        env:
+          OPENDAW_URL: https://localhost:5174
+          OPENDAW_EXPORT_DIR: /tmp/exports
+          EVAL_OUTPUT: /tmp/eval_results.json
+        run: python scripts/eval_harness.py 2>&1 | tee /tmp/eval.log
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-eval
+          path: /tmp/eval_results.json
+          retention-days: 30
+
       - name: Upload diagnostic logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

@@ -57,21 +57,29 @@ await server.mcp_opendaw_render_full(output_path="beat.wav")
 
 ## Why opendaw-mcp?
 
-**The only MCP server that gives an AI agent full DAW control — not just file conversion or playback.**
+**The only fully headless, zero-license MCP server for music production.** No DAW license, no desktop, no GUI — runs in Docker, CI, and cloud.
 
-| Feature | opendaw-mcp | Other audio MCPs |
-|---------|-------------|-------------------|
-| Full DAW control (543 tools) | ✅ | ❌ (1-10 tools) |
-| Scriptable DSP (write custom JS effects) | ✅ | ❌ |
-| SOTA stem separation (7 models, GPU local) | ✅ | ❌ |
-| Suno → DAW E2E pipeline | ✅ | ❌ |
-| Genre templates (8 genres) | ✅ | ❌ |
-| Agent skills with decision points | ✅ (10 skills) | ❌ |
-| Offline render with LUFS targeting | ✅ | ❌ |
-| Preset save/load (.opb) | ✅ | ❌ |
-| dawproject interchange (Ableton/Bitwig) | ✅ | ❌ |
+### Comparison with Ableton-MCP competitors
 
-**Unique workflow:** Suno generates → SOTA stem split → openDAW import → mix/master → export. No other tool does this.
+| Feature | opendaw-mcp | ahujasid/ableton-mcp | Producer Pal | OSC-based MCPs |
+|---|---|---|---|---|
+| **License required** | None (free) | Ableton Live 10+ ($99+) | Ableton Live | Varies |
+| **Headless / server** | ✅ Docker, CI, cloud | ❌ Desktop only | ❌ Desktop only | ⚠️ Needs Live running |
+| **Tool count** | 543 | ~10 | ~15 | ~5-10 |
+| **Tool annotations** | ✅ readOnly + destructive | ❌ | ❌ | ❌ |
+| **Scriptable DSP** | ✅ Custom JS effects | ❌ | ❌ | ❌ |
+| **Stem separation** | ✅ 7 models (GPU local) | ❌ | ❌ | ❌ |
+| **Suno → DAW pipeline** | ✅ End-to-end | ❌ | ❌ | ❌ |
+| **Genre templates** | ✅ 8 genres | ❌ | ❌ | ❌ |
+| **Agent skills** | ✅ 12 skills | ❌ | ❌ | ❌ |
+| **Render with LUFS target** | ✅ (-14, -16, custom) | ❌ | ❌ | ❌ |
+| **dawproject export** | ✅ Ableton/Bitwig | ❌ | ❌ | ❌ |
+| **Lite agent profile** | ✅ 39 tools | ❌ | ❌ | ❌ |
+| **Phase-based tool loading** | ✅ inspect/compose/mix/render | ❌ | ❌ | ❌ |
+| **Bridge benchmarks** | ✅ p50/p95 in CI | ❌ | ❌ | ❌ |
+| **GitHub stars** | — | 2.8k | — | — |
+
+**Our moat:** fully headless, zero-cost, 543 tools, runs anywhere. Every competitor requires a paid DAW running on a desktop.
 
 ## How It Works
 
