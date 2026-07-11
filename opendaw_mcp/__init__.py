@@ -15,7 +15,11 @@ from .constants import (
     WAVESHAPER_FUNCS,
     REVAMP_SECTIONS,
 )
-from .bridge import HeadlessDawBridge, DAW_URL
+try:
+    from .bridge import HeadlessDawBridge, DAW_URL
+except ImportError:
+    HeadlessDawBridge = None  # playwright not installed
+    DAW_URL = "http://localhost:5174"
 from .utils import (
     _parse_wav,
     _compute_lufs,
