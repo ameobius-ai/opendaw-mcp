@@ -1,0 +1,59 @@
+{
+  "name": "opendaw-mcp",
+  "description": "543 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation. Fully headless, zero-license music production.",
+  "version": "1.386.0",
+  "registry_id": "io.github.AMEBIUS",
+  "repository": {
+    "url": "https://github.com/AMEBIUS-team/opendaw-mcp",
+    "source": "github"
+  },
+  "homepage": "https://github.com/AMEBIUS-team/opendaw-mcp",
+  "license": "Apache-2.0",
+  "keywords": [
+    "music",
+    "audio",
+    "daw",
+    "midi",
+    "synth",
+    "production",
+    "render",
+    "stems",
+    "suno",
+    "ai-agent"
+  ],
+  "authors": [
+    {
+      "name": "AMEBIUS-team",
+      "url": "https://github.com/AMEBIUS-team"
+    }
+  ],
+  "categories": [
+    "Music & Audio",
+    "Creative Tools",
+    "Developer Tools"
+  ],
+  "installations": {
+    "pip": {
+      "command": "pip install opendaw-mcp",
+      "url": "https://pypi.org/project/opendaw-mcp/"
+    },
+    "docker": {
+      "image": "ghcr.io/ameobius/opendaw-mcp",
+      "note": "Building blocked on upstream openDAW WASM compilation"
+    }
+  },
+  "capabilities": {
+    "tools": 543,
+    "resources": false,
+    "prompts": false
+  },
+  "metadata": {
+    "protocol_version": "2025-06-18",
+    "sdk_version": "mcp>=1.27,<2",
+    "python_versions": ["3.10", "3.11", "3.12", "3.13"],
+    "tool_annotations": true,
+    "structured_logging": true,
+    "deterministic": true,
+    "sbom": true
+  }
+}

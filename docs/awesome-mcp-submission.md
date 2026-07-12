@@ -21,7 +21,11 @@
 - dawproject export (Ableton/Bitwig interchange)
 - Lite agent profile (39 tools) + phase-based loading
 - Tool annotations (readOnly/destructive) for agent safety
-- Headless E2E tests in CI, bridge latency benchmarks
+- MCP spec 2025-06-18 compliant, SDK 1.28
+- Eval harness: 5 scenarios with real LUFS (ITU-R BS.1770-4) + sidechain
+- Deterministic seeds (SHA-256) for reproducible renders
+- OpenSSF Scorecard, SBOM, pip-audit in CI
+- 6139 tests, 0 flaky
 
 **Category:** Music / Audio / Creative Tools
 
