@@ -29,12 +29,15 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
 
   # Job 2: Build and publish Docker image to GHCR
   publish-ghcr:
     runs-on: ubuntu-latest
     permissions:
       packages: write
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
