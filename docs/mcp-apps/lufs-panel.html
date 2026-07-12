@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>opendaw-mcp — LUFS Panel</title>
+  <!--
+    MCP Apps prototype: sandboxed HTML UI for read-only audio metrics.
+
+    Security model:
+    - No <script> tags loading external resources
+    - No eval() or Function() constructor
+    - No network requests (all data passed via postMessage)
+    - CSP: default-src 'self'; script-src 'none'; connect-src 'none'
+
+    The host MCP client renders this in a sandboxed iframe and sends
+    tool results via postMessage. The panel displays them read-only.
+  -->
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --card: #16213e;
+      --accent: #0f3460;
+      --text: #e0e0e0;
+      --green: #4ecca3;
+      --yellow: #f2a65a;
+      --red: #e94560;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      min-height: 100vh;
+    }
+    .panel {
+      background: var(--card);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .panel h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--yellow);
+      margin-bottom: 12px;
+    }
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--accent);
+    }
+    .metric:last-child { border-bottom: none; }
+    .metric .label { color: #8899aa; font-size: 13px; }
+    .metric .value { font-weight: bold; font-size: 16px; }
+    .value.good { color: var(--green); }
+    .value.warn { color: var(--yellow); }
+    .value.bad { color: var(--red); }
+    .bar {
+      width: 100%;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 3px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--green);
+      transition: width 0.3s ease;
+    }
+    .spectrum {
+      display: flex;
+      gap: 2px;
+      height: 60px;
+      align-items: flex-end;
+      margin-top: 8px;
+    }
+    .spectrum-bar {
+      flex: 1;
+      background: var(--accent);
+      border-radius: 1px 1px 0 0;
+      min-height: 2px;
+    }
+    .empty { color: #555; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2>LUFS Measurement</h2>
+    <div id="lufs-empty" class="empty">Waiting for render data...</div>
+    <div id="lufs-content" style="display:none">
+      <div class="metric">
+        <span class="label">Integrated LUFS</span>
+        <span class="value" id="lufs-value">—</span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="lufs-bar" style="width:0%"></div></div>
+      <div class="metric">
+        <span class="label">True Peak</span>
+        <span class="value" id="true-peak">—</span>
+      </div>
+      <div class="metric">
+        <span class="label">Max Sample</span>
+        <span class="value" id="max-sample">—</span>
+      </div>
+      <div class="metric">
+        <span class="label">Target</span>
+        <span class="value" id="target">-14.0 dB (Spotify)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Spectral Balance</h2>
+    <div id="spectrum-empty" class="empty">No spectrum data...</div>
+    <div id="spectrum-content" style="display:none">
+      <div class="spectrum" id="spectrum-bars"></div>
+      <div style="display:flex; justify-content:space-between; font-size:11px; color:#666; margin-top:4px">
+        <span>20Hz</span><span>200</span><span>2k</span><span>20kHz</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Render Info</h2>
+    <div class="metric">
+      <span class="label">Duration</span>
+      <span class="value" id="duration">—</span>
+    </div>
+    <div class="metric">
+      <span class="label">Sample Rate</span>
+      <span class="value" id="sample-rate">—</span>
+    </div>
+    <div class="metric">
+      <span class="label">Samples</span>
+      <span class="value" id="samples">—</span>
+    </div>
+  </div>
+
+  <!--
+    Data received via postMessage from MCP host.
+    Expected format: { type: 'render_result', data: { lufs_integrated, true_peak_db, ... } }
+  -->
+  <script>
+    // NOTE: This script runs in a sandboxed iframe (allow-scripts, NOT allow-same-origin).
+    // It cannot access parent DOM, cookies, or make network requests.
+    window.addEventListener('message', function(event) {
+      var msg = event.data;
+      if (!msg || !msg.type) return;
+
+      if (msg.type === 'render_result') {
+        showLufs(msg.data);
+        showRenderInfo(msg.data);
+      } else if (msg.type === 'spectrum_result') {
+        showSpectrum(msg.data);
+      }
+    });
+
+    function showLufs(data) {
+      document.getElementById('lufs-empty').style.display = 'none';
+      document.getElementById('lufs-content').style.display = '';
+
+      var lufs = data.lufs_integrated;
+      var el = document.getElementById('lufs-value');
+      el.textContent = lufs ? lufs.toFixed(1) + ' dB' : 'N/A';
+
+      // Color: green if within ±2 of -14, yellow if ±5, red otherwise
+      var diff = Math.abs(lufs - (-14));
+      el.className = 'value ' + (diff <= 2 ? 'good' : diff <= 5 ? 'warn' : 'bad');
+
+      // Bar: -30 to 0 LUFS range
+      var pct = Math.max(0, Math.min(100, ((lufs + 30) / 30) * 100));
+      document.getElementById('lufs-bar').style.width = pct + '%';
+
+      document.getElementById('true-peak').textContent = data.true_peak_db ? data.true_peak_db.toFixed(2) + ' dB' : '—';
+      document.getElementById('max-sample').textContent = data.max_sample ? data.max_sample.toFixed(4) : '—';
+    }
+
+    function showRenderInfo(data) {
+      var sr = data.sample_rate || 44100;
+      var samples = data.samples || 0;
+      document.getElementById('sample-rate').textContent = sr + ' Hz';
+      document.getElementById('samples').textContent = samples.toLocaleString();
+      document.getElementById('duration').textContent = samples > 0 ? (samples / sr).toFixed(1) + 's' : '—';
+    }
+
+    function showSpectrum(data) {
+      document.getElementById('spectrum-empty').style.display = 'none';
+      document.getElementById('spectrum-content').style.display = '';
+      var container = document.getElementById('spectrum-bars');
+      container.innerHTML = '';
+      var bands = data.bands || [];
+      bands.forEach(function(energy) {
+        var bar = document.createElement('div');
+        bar.className = 'spectrum-bar';
+        bar.style.height = Math.max(2, energy) + '%';
+        container.appendChild(bar);
+      });
+    }
+  </script>
+</body>
+</html>
