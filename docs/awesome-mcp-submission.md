@@ -22,10 +22,13 @@
 - Lite agent profile (39 tools) + phase-based loading
 - Tool annotations (readOnly/destructive) for agent safety
 - MCP spec 2025-06-18 compliant, SDK 1.28
-- Eval harness: 5 scenarios with real LUFS (ITU-R BS.1770-4) + sidechain
+- Eval harness: 7 scenarios with real LUFS (ITU-R BS.1770-4) + sidechain
 - Deterministic seeds (SHA-256) for reproducible renders
 - OpenSSF Scorecard, SBOM, pip-audit in CI
 - 6139 tests, 0 flaky
+- Showcase demos: techno, ambient, Suno→DAW pipeline
+- MCP Tasks spike (long-ops API, feature flag)
+- MCP Apps prototype (sandboxed LUFS panel)
 
 **Category:** Music / Audio / Creative Tools
 
