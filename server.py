@@ -58,8 +58,42 @@ from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
     parse_melody_pattern,
 )
 
-logging.basicConfig(level=logging.INFO)
+_LOG_FORMAT_JSON = os.environ.get("OPENDAW_MCP_LOG_JSON", "")
+if _LOG_FORMAT_JSON:
+    class _JsonFormatter(logging.Formatter):
+        import json as _json
+        def format(self, record):
+            import json as _json, time as _time
+            log = {
+                "ts": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime()),
+                "level": record.levelname,
+                "logger": record.name,
+                "msg": record.getMessage(),
+            }
+            if hasattr(record, "tool"):
+                log["tool"] = record.tool
+            if hasattr(record, "duration_ms"):
+                log["duration_ms"] = record.duration_ms
+            if hasattr(record, "success"):
+                log["success"] = record.success
+            return _json.dumps(log)
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(_JsonFormatter())
+    logging.basicConfig(level=logging.INFO, handlers=[_handler])
+else:
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _log_tool_call(tool_name: str):
+    """Context manager/decator for structured tool call logging."""
+    import time as _time
+    start = _time.perf_counter()
+    def _finish(success: bool):
+        elapsed_ms = round((_time.perf_counter() - start) * 1000, 1)
+        extra = {"tool": tool_name, "duration_ms": elapsed_ms, "success": success}
+        logger.info(f"tool_call: {tool_name}", extra=extra)
+    return _finish
 
 mcp = FastMCP("opendaw-mcp")
 __version__ = "1.385.0"
@@ -160,11 +194,13 @@ async def mcp_opendaw_set_position(position: int) -> str:
 @mcp.tool()
 async def mcp_opendaw_set_bpm(bpm: int) -> str:
     """Set the project tempo in BPM."""
+    _finish = _log_tool_call("set_bpm")
     result = await bridge.evaluate(f"""() => {{
         const h = window.DAW_HELPERS;
         h.modify(() => h.api.setBpm({bpm}));
         return {{success: true, bpm: h.timelineBox?.bpm?.getValue?.()}};
     }}""")
+    _finish(True)
     return _wrap_eval(result)
 
 @mcp.tool()
