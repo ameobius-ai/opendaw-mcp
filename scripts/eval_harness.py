@@ -243,6 +243,53 @@ async def run_scenarios():
             "has_audio": lambda r: r.get("samples", 0) >= 44100,
         }))
 
+        # === Scenario 6: Stereo width ===
+        async def stereo_scenario():
+            await server.mcp_opendaw_set_bpm(110)
+            await server.mcp_opendaw_create_synth_track("Lead")
+            await server.mcp_opendaw_create_synth_track("Counter")
+            # lead: panned center
+            await server.mcp_opendaw_create_note(1, 0, 60, 0.0, 4.0)
+            # counter: panned right
+            await server.mcp_opendaw_create_note(2, 0, 64, 0.0, 4.0)
+            await server.mcp_opendaw_add_effect(2, "Stereo")
+            await server.mcp_opendaw_set_effect_parameter(2, 0, "width", 0.8)
+            r = await server.mcp_opendaw_render_full("eval_stereo.wav", 44100)
+            return json.loads(r)
+
+        stereo_result = await stereo_scenario()
+        results.append(_score_scenario("stereo_width", stereo_result, {
+            "non_silent": lambda r: r.get("max_sample", 0) >= 0.01,
+            "finite": lambda r: not _has_non_finite(r),
+            "render_success": lambda r: r.get("success") is True,
+            "has_audio": lambda r: r.get("samples", 0) >= 44100,
+        }))
+
+        # === Scenario 7: Multi-effect chain ===
+        async def fx_chain_scenario():
+            await server.mcp_opendaw_set_bpm(128)
+            await server.mcp_opendaw_create_synth_track("FxChain")
+            await server.mcp_opendaw_create_note(1, 0, 48, 0.0, 2.0)
+            # chain: distortion → filter → delay → reverb
+            await server.mcp_opendaw_add_effect(1, "Distortion")
+            await server.mcp_opendaw_set_effect_parameter(1, 0, "drive", 0.5)
+            await server.mcp_opendaw_add_effect(1, "Filter")
+            await server.mcp_opendaw_set_effect_parameter(1, 1, "cutoff", 0.6)
+            await server.mcp_opendaw_add_effect(1, "Delay")
+            await server.mcp_opendaw_set_effect_parameter(1, 2, "time", 0.375)
+            await server.mcp_opendaw_add_effect(1, "Reverb")
+            await server.mcp_opendaw_set_effect_parameter(1, 3, "mix", 0.3)
+            r = await server.mcp_opendaw_render_full("eval_fxchain.wav", 44100)
+            return json.loads(r)
+
+        fx_result = await fx_chain_scenario()
+        results.append(_score_scenario("multi_fx_chain", fx_result, {
+            "non_silent": lambda r: r.get("max_sample", 0) >= 0.01,
+            "finite": lambda r: not _has_non_finite(r),
+            "render_success": lambda r: r.get("success") is True,
+            "has_audio": lambda r: r.get("samples", 0) >= 44100,
+        }))
+
     finally:
         await server.bridge.stop()
 
@@ -251,13 +298,35 @@ async def run_scenarios():
     overall = round(total_passed / total_checks, 2) if total_checks > 0 else 0
 
     output = {
-        "benchmark": "agent_eval_harness_v1.1",
+        "benchmark": "agent_eval_harness_v1.2",
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "scenarios": results,
         "overall_score": overall,
         "total_passed": total_passed,
         "total_checks": total_checks,
+        "scenario_count": len(results),
     }
+
+    # Score history: append to history file if EVAL_HISTORY set
+    history_path = os.environ.get("EVAL_HISTORY", "/tmp/eval_history.json")
+    history = []
+    if os.path.exists(history_path):
+        try:
+            history = json.loads(open(history_path).read())
+        except Exception:
+            history = []
+    history.append({
+        "timestamp": output["timestamp"],
+        "version": "v1.2",
+        "overall_score": overall,
+        "total_passed": total_passed,
+        "total_checks": total_checks,
+        "scenario_count": len(results),
+    })
+    # Keep last 50 runs
+    history = history[-50:]
+    with open(history_path, "w") as f:
+        json.dump(history, f, indent=2)
 
     print(json.dumps(output, indent=2))
 
