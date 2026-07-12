@@ -396,6 +396,18 @@ The `scripts/` directory contains 30 example DSP scripts (19 Werkstatt + 5 Appar
 | `spielwerk_velocity.js` | Spielwerk | Velocity scaler with curve, offset, and min/max clamp |
 | `spielwerk_mididelay.js` | Spielwerk | MIDI delay with feedback, transpose per repeat, and decay |
 
+## Showcase
+
+Three demos proving end-to-end audio production:
+
+| Demo | Command | What it shows |
+|------|---------|---------------|
+| Techno in 30s | `python examples/showcase/01_techno_30s.py` | Genre preset → master → -14 LUFS WAV |
+| Ambient pad | `python examples/showcase/02_ambient_pad.py` | Manual synthesis, reverb, filter sweep |
+| Suno → DAW | `python examples/showcase/03_suno_to_daw.py track.wav` | Stem separation, remix, re-render |
+
+See [docs/showcase/](docs/showcase/) for details.
+
 ## Examples
 
 The `examples/` directory contains 73 Python scripts demonstrating the full workflow:
