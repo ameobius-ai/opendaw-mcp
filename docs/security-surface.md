@@ -1,6 +1,6 @@
 # Security Surface
 
-Companion to [SECURITY.md](../SECURITY.md) — covers tool safety, sandboxing,
+Companion to [SECURITY.md](https://github.com/AMEOBIUS-team/opendaw-mcp/blob/main/SECURITY.md) — covers tool safety, sandboxing,
 and supply chain protections in opendaw-mcp.
 
 ## Tool annotations
