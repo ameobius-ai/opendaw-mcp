@@ -1,7 +1,7 @@
 {
   "name": "opendaw-mcp",
   "description": "543 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation. Fully headless, zero-license music production.",
-  "version": "1.386.0",
+  "version": "1.387.0",
   "registry_id": "io.github.AMEBIUS",
   "repository": {
     "url": "https://github.com/AMEBIUS-team/opendaw-mcp",
