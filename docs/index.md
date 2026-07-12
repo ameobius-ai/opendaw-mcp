@@ -1,6 +1,6 @@
 # opendaw-mcp
 
-**543 MCP tools** for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
+**547 MCP tools** for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.
 
 Control every aspect of music production from your LLM agent: synths, effects, MIDI, mixing, automation, rendering, stem separation, DSP scripting, and more.
 
@@ -8,7 +8,7 @@ Control every aspect of music production from your LLM agent: synths, effects, M
 
 | Feature | opendaw-mcp | Generic MCP audio servers |
 |---------|-------------|---------------------------|
-| Tool count | 543 domain-specific | 5–20 generic |
+| Tool count | 547 domain-specific | 5–20 generic |
 | Browser bridge | Playwright + headless Chromium | Local CLI / API only |
 | Real-time DAW control | Full mixer, transport, arrangement | Playback only |
 | DSP scripting | Custom JS audio worklets | None |
@@ -19,7 +19,7 @@ Control every aspect of music production from your LLM agent: synths, effects, M
 
 ## Quick numbers
 
-- **543** MCP tools (`mcp_opendaw_*` prefix)
+- **547** MCP tools (`mcp_opendaw_*` prefix)
 - **226** Python examples
 - **134** DSP scripts (Werkstatt / Apparat / Spielwerk)
 - **12** agent skills
@@ -72,6 +72,6 @@ graph LR
     E --> F[WAV / MP3 / FLAC]
 ```
 
-The server connects to a headless Chromium instance running openDAW via Playwright. All 543 tools map to typed DAW operations through a bridge that injects typed helpers into the V8 context.
+The server connects to a headless Chromium instance running openDAW via Playwright. All 547 tools map to typed DAW operations through a bridge that injects typed helpers into the V8 context.
 
 → [Full architecture docs](architecture.md)

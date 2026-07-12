@@ -1,25 +1,28 @@
 """
-MCP Tasks spike — experimental long-ops API for opendaw-mcp.
+MCP Tasks — production long-ops API for opendaw-mcp.
 
-MCP 2025-06-18 introduces Tasks extension for long-running operations.
-This module provides a Tasks-shaped API for render/stem operations:
-
+Wraps slow operations (render, stems) as async tasks with:
 1. create_task — returns a task handle immediately
 2. get_task — poll status (pending → running → completed/failed/cancelled)
 3. cancel_task — request cancellation
 
-Design: wraps existing async tools with a task registry. Default stdio
-path unchanged. Enable with OPENDAW_MCP_TASKS=1.
+Design: in-process task registry with progress callbacks.
+Default stdio path unchanged. Enable with OPENDAW_MCP_TASKS=1.
 
 Compatible with current MCP clients — tasks are an extension, not a
 replacement for synchronous tool calls.
 """
 import asyncio
+import os
 import time
 import uuid
 from enum import Enum
 
-# Task registry (in-process; for multi-process use Redis/db)
+# Max tasks to keep in memory (older pruned)
+_MAX_TASKS = int(os.environ.get("OPENDAW_MCP_TASKS_MAX", "100"))
+# Task TTL in seconds (completed tasks pruned after this)
+_TASK_TTL = float(os.environ.get("OPENDAW_MCP_TASKS_TTL", "3600"))
+
 _tasks: dict[str, dict] = {}
 
 
@@ -31,8 +34,27 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+def _prune_old() -> None:
+    """Remove completed/failed tasks older than TTL."""
+    now = time.time()
+    to_remove = [
+        tid for tid, t in _tasks.items()
+        if t["status"] in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED)
+        and t["completed_at"] is not None
+        and (now - t["completed_at"]) > _TASK_TTL
+    ]
+    for tid in to_remove:
+        del _tasks[tid]
+    # Hard cap on total tasks
+    if len(_tasks) > _MAX_TASKS:
+        oldest = sorted(_tasks.values(), key=lambda x: x["created_at"])[:len(_tasks) - _MAX_TASKS]
+        for t in oldest:
+            _tasks.pop(t["id"], None)
+
+
 def create_task(tool_name: str, args: dict) -> str:
     """Create a task handle for a long-running operation."""
+    _prune_old()
     task_id = str(uuid.uuid4())
     _tasks[task_id] = {
         "id": task_id,
@@ -49,8 +71,11 @@ def create_task(tool_name: str, args: dict) -> str:
     return task_id
 
 
-async def run_task(task_id: str, coro_factory):
-    """Execute a task asynchronously, updating status."""
+async def run_task(task_id: str, coro_factory, progress_callback=None):
+    """Execute a task asynchronously, updating status.
+
+    progress_callback: optional callable(float) accepting 0.0–1.0 progress.
+    """
     if task_id not in _tasks:
         raise KeyError(f"Unknown task: {task_id}")
     task = _tasks[task_id]
@@ -58,8 +83,14 @@ async def run_task(task_id: str, coro_factory):
         return
     task["status"] = TaskStatus.RUNNING
     task["started_at"] = time.time()
+
+    def _update_progress(p: float):
+        if task_id in _tasks and _tasks[task_id]["status"] == TaskStatus.RUNNING:
+            _tasks[task_id]["progress"] = max(0.0, min(1.0, p))
+
+    cb = progress_callback or _update_progress
     try:
-        result = await coro_factory()
+        result = await coro_factory(cb)
         if _tasks[task_id]["status"] == TaskStatus.CANCELLED:
             return
         task["result"] = result
@@ -105,6 +136,7 @@ def cancel_task(task_id: str) -> bool:
 
 def list_tasks() -> list[dict]:
     """List all tasks (most recent first)."""
+    _prune_old()
     return [
         {
             "id": t["id"],

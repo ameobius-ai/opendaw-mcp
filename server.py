@@ -65639,3 +65639,58 @@ async def mcp_opendaw_batch_diagnostic(
         "triage": all_issues,
         "per_stem": results,
     }, indent=2)
+
+
+# === MCP Tasks: long-ops API (OPENDAW_MCP_TASKS=1) ===
+
+_TASKS_ENABLED = os.environ.get("OPENDAW_MCP_TASKS", "0") == "1"
+
+if _TASKS_ENABLED:
+    from opendaw_mcp.tasks import create_task, run_task, get_task, cancel_task, list_tasks
+
+    @mcp.tool(annotations=ToolAnnotations(read_only_hint=True))
+    async def mcp_opendaw_task_get(task_id: str) -> str:
+        """Poll the status of a long-running task (render, stems).
+
+        Returns: { id, tool, status, progress, result, error, elapsed_s }
+        status: pending → running → completed | failed | cancelled
+        """
+        try:
+            return json.dumps(get_task(task_id), indent=2)
+        except KeyError:
+            return json.dumps({"error": f"Unknown task: {task_id}"})
+
+    @mcp.tool(annotations=ToolAnnotations(read_only_hint=True))
+    async def mcp_opendaw_task_list() -> str:
+        """List all tasks (most recent first).
+
+        Returns: [{ id, tool, status, progress }, ...]
+        """
+        return json.dumps(list_tasks(), indent=2)
+
+    @mcp.tool(annotations=ToolAnnotations(destructive_hint=True))
+    async def mcp_opendaw_task_cancel(task_id: str) -> str:
+        """Request cancellation of a running task.
+
+        Only affects pending or running tasks.
+        Returns: { cancelled: true|false }
+        """
+        return json.dumps({"cancelled": cancel_task(task_id)})
+
+    @mcp.tool(annotations=ToolAnnotations(destructive_hint=True))
+    async def mcp_opendaw_task_render_full(filename: str = "full_mix", sample_rate: int = 48000) -> str:
+        """Start async render of the full project mix.
+
+        Returns task_id immediately. Poll with task_get.
+        This is the non-blocking version of render_full.
+        """
+        task_id = create_task("render_full", {"filename": filename, "sample_rate": sample_rate})
+
+        async def _do_render(cb):
+            cb(0.1)
+            result = await mcp_opendaw_render_full(filename, sample_rate)
+            cb(1.0)
+            return json.loads(result)
+
+        asyncio.create_task(run_task(task_id, _do_render))
+        return json.dumps({"task_id": task_id, "status": "pending", "poll": f"task_get(task_id=\"{task_id}\")"})

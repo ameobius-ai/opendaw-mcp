@@ -1,4 +1,8 @@
-# MCP 2025-07-28 Tasks Spike — Design
+# MCP Tasks — Design
+
+## Status: production (feature flag)
+
+Spike upgraded to production. Tools wired to server.py behind `OPENDAW_MCP_TASKS=1`.
 
 ## Problem
 

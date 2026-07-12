@@ -1,12 +1,12 @@
 # Tool Reference
 
-Auto-generated from `server.py`. **543 MCP tools.**
+Auto-generated from `server.py`. **547 MCP tools.**
 
 | Category | Count |
 |---|---|
 | Create / Modify | 303 |
 | Destructive | 15 |
-| Other | 137 |
+| Other | 141 |
 | Read-only | 74 |
 | Render / Export | 14 |
 
@@ -464,6 +464,10 @@ Auto-generated from `server.py`. **543 MCP tools.**
 | `mcp_opendaw_subdivide_notes` |  | `unit_index`, `track_index`, `region_index`, `subdivisions`, `pitch_pattern`, `velocity_pattern`, `accent_first`, `dest_track_index` | Subdivide each note in a region into N smaller notes. |
 | `mcp_opendaw_swap_sections` |  | `section1_start`, `section1_end`, `section2_start`, `section2_end`, `unit_indices` | Swap two sections of the arrangement — exchange their positions on the timeline. |
 | `mcp_opendaw_switch_phase` |  | `phase` | Switch the active tool phase for phase-based tool loading. |
+| `mcp_opendaw_task_cancel` |  | `task_id` | Request cancellation of a running task. |
+| `mcp_opendaw_task_get` |  | `task_id` | Poll the status of a long-running task (render, stems). |
+| `mcp_opendaw_task_list` |  | — | List all tasks (most recent first). |
+| `mcp_opendaw_task_render_full` |  | `filename`, `sample_rate` | Start async render of the full project mix. |
 | `mcp_opendaw_thin_notes` |  | `unit_index`, `track_index`, `region_index`, `strategy`, `interval`, `velocity_threshold`, `random_chance`, `preserve_strong_beats` | Thin out notes in a region — reduce note density for cleaner patterns. |
 | `mcp_opendaw_time_warp_notes` |  | `unit_index`, `track_index`, `region_index`, `warp_factor`, `origin` | Warp note positions and durations by a factor — half-time / double-time / custom stretch. |
 | `mcp_opendaw_transcribe_audio` |  | `filename`, `bpm`, `unit_index`, `drum_track`, `melody_track` | Transcribe a full audio track — drums + melody — into MIDI notes in one call. |
