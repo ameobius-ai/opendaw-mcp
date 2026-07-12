@@ -1,6 +1,6 @@
 [project]
 name = "opendaw-mcp"
-version = "1.385.0"
+version = "1.386.0"
 description = "543 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -23,16 +23,16 @@ classifiers = [
 ]
 dependencies = [
     "playwright>=1.40",
-    "mcp>=0.3",
+    "mcp>=1.27,<2",
     "uvicorn>=0.20",
 ]
 
 [project.urls]
-Homepage = "https://github.com/aaameobius-crypto/opendaw-mcp"
-Documentation = "https://aaameobius-crypto.github.io/opendaw-mcp/"
-Repository = "https://github.com/aaameobius-crypto/opendaw-mcp"
-Issues = "https://github.com/aaameobius-crypto/opendaw-mcp/issues"
-Changelog = "https://aaameobius-crypto.github.io/opendaw-mcp/changelog/"
+Homepage = "https://github.com/AMEBIUS-team/opendaw-mcp"
+Documentation = "https://ameobius.github.io/opendaw-mcp/"
+Repository = "https://github.com/AMEBIUS-team/opendaw-mcp"
+Issues = "https://github.com/AMEBIUS-team/opendaw-mcp/issues"
+Changelog = "https://ameobius.github.io/opendaw-mcp/changelog/"
 
 [project.scripts]
 opendaw-mcp = "server:main"
