@@ -61,7 +61,7 @@ jobs:
   # Job 3: Create GitHub Release with notes
   github-release:
     runs-on: ubuntu-latest
-    needs: [publish-pypi, publish-ghcr]
+    needs: [publish-pypi]
     steps:
       - uses: actions/checkout@v4
         with:
