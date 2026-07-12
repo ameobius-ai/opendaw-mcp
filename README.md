@@ -2,10 +2,11 @@
 <!-- REPO-METRICS: tools=543 skills=12 dsp=134 examples=226 -->
 # openDAW MCP
 
-[![CI](https://github.com/AMEOBIUS-team/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEOBIUS-team/opendaw-mcp/actions/workflows/ci.yml)
-[![Docs](https://github.com/AMEOBIUS-team/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://AMEOBIUS-team.github.io/opendaw-mcp/)
+[![CI](https://github.com/AMEBIUS-team/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEBIUS-team/opendaw-mcp/actions/workflows/ci.yml)
+[![Docs](https://github.com/AMEBIUS-team/opendaw-mcp/actions/workflows/docs.yml/badge.svg)](https://AMEOBIUS-team.github.io/opendaw-mcp/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/github.com/AMEBIUS-team/opendaw-mcp/badge)](https://securityscorecards.dev/viewer/?uri=github.com/AMEBIUS-team/opendaw-mcp)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-543-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-12-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-134-orange)](scripts/)

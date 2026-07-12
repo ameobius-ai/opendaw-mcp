@@ -160,6 +160,12 @@ jobs:
           path: /tmp/eval_results.json
           retention-days: 30
 
+      - name: Golden-file render check
+        env:
+          OPENDAW_URL: https://localhost:5174
+          OPENDAW_EXPORT_DIR: /tmp/exports
+        run: python scripts/golden_render.py 2>&1 | tee /tmp/golden.log
+
       - name: Upload diagnostic logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

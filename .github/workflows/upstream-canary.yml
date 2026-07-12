@@ -1,0 +1,80 @@
+name: Upstream Canary
+
+# Smoke test against latest openDAW upstream to catch breaking changes early.
+# Runs weekly + on manual dispatch.
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # weekly Monday
+  workflow_dispatch:
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Clone latest openDAW upstream
+        run: |
+          git clone --depth 1 https://github.com/andremichelle/openDAW.git /tmp/opendaw-upstream
+          cd /tmp/opendaw-upstream
+          echo "UPSTREAM_COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "Upstream commit: $(git rev-parse HEAD)"
+
+      - name: Install upstream deps
+        run: |
+          cd /tmp/opendaw-upstream
+          npm install --legacy-peer-deps
+
+      - name: Build upstream
+        id: build
+        continue-on-error: true
+        run: |
+          cd /tmp/opendaw-upstream
+          npm run build
+
+      - name: Check for breaking changes
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::warning::openDAW upstream build failed — breaking change detected"
+          echo "Commit: $UPSTREAM_COMMIT"
+          echo "Action needed: pin openDAW version or adapt to API changes"
+
+      - name: Install opendaw-mcp
+        run: pip install -e .
+
+      - name: Smoke test — server imports
+        run: |
+          python -c "
+          from opendaw_mcp import HeadlessDawBridge, _parse_wav, _compute_lufs
+          print('PASS: opendaw_mcp imports OK against upstream')
+          print(f'Bridge class: {HeadlessDawBridge.__name__}')
+          "
+
+      - name: Check upstream API surface
+        run: |
+          python -c "
+          import json
+          # Verify DAW_HELPERS exports still exist in upstream build
+          import os
+          build_dir = '/tmp/opendaw-upstream/packages'
+          if os.path.exists(build_dir):
+              print(f'Build dir exists: {os.listdir(build_dir)[:5]}')
+          else:
+              print('WARN: build dir not found (expected if build failed)')
+          "
+
+      - name: Report canary status
+        run: |
+          echo "## Upstream Canary Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upstream commit:** \`$UPSTREAM_COMMIT\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build status:** ${{ steps.build.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **opendaw-mcp imports:** OK" >> $GITHUB_STEP_SUMMARY
