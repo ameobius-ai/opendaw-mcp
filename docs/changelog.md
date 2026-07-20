@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.391.0 — process history (last-N mix passes)
+
+- Process history on lineage `kind=mix_pass` edges (`docs/process-history-spec.md`)
+- New MCP tools: `record_mix_pass`, `list_mix_history`, `diff_mix_passes`
+- Canonical metric keys: `lufs_integrated`, `true_peak_db`, `sub_pct`, `presence_pct`, `air_pct`, `crest`
+- `list_mix_history` returns consecutive metric diffs (pass_n vs pass_n-1)
+- Tests: `tests/test_process_history.py` (synthetic 5-pass chain, presence +0.4 after HS)
+- Kanban: `t_30120c46` (depends on P1 lineage)
+
+## 1.390.0 — smart export (platform bounce)
+
+- New module `opendaw_mcp/smart_export.py`: platform LUFS + TP ceiling presets
+- MCP tool: `export_for_platform` (file-only path, no DAW bridge; dry_run supported)
+- Platforms: spotify/youtube/tidal/soundcloud (-14/-1), apple (-16/-1), club (-9/-0.3)
+- Fails if true peak exceeds platform ceiling; records lineage `kind=export` / `op=export`
+- Spec: `docs/smart-export-spec.md` · Tests: `tests/test_smart_export.py`
+
+## 1.389.0 — prompt inference (songsee → suno package)
+
+- New module `opendaw_mcp/prompt_inference.py`: map BPM/key/spectrum/dynamics → KB style packages
+- Packages: `darksynth_coldwave`, `folk_horror`, `cloud_bedroom` (+ generic low-confidence fallback)
+- MCP tool: `infer_suno_prompt` (pure analysis path, no DAW bridge)
+- Optional lineage: `kind=analysis` → `kind=prompt` with `op=prompt_infer`
+- Spec: `docs/prompt-inference-spec.md` · Tests: `tests/test_prompt_inference.py`
+
+## 1.388.0 — lineage / provenance store
+
+- Added file-backed lineage schema (`docs/lineage-schema.md`) and `opendaw_mcp/lineage.py`
+- New MCP tools: `record_lineage`, `trace_lineage`, `list_descendants`, `list_lineage_nodes`
+- Default store: `$OPENDAW_EXPORT_DIR/lineage/lineage.json` (override `OPENDAW_LINEAGE_PATH`)
+- Tests: `tests/test_lineage.py` (14 passed)
+- Source: theDAW LEARN ideas → agent-native memory without kitchen-sink UI
+
+
 ## v1.385.0 (2026-07-06)
 
 - **Tool exposure audit complete** — All 3 token optimization modes documented in README: full (505 tools), lite (39, 92% savings), phase (10-55, 90% savings). Output sandbox (`OPENDAW_MCP_OUTPUT_LIMIT`) documented. `--help` updated with all env vars and modes. Stale "258 tools" CLI text fixed. 7 refactor kanban tasks completed.

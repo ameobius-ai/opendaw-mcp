@@ -96,7 +96,7 @@ def _log_tool_call(tool_name: str):
     return _finish
 
 mcp = FastMCP("opendaw-mcp")
-__version__ = "1.387.0"
+__version__ = "1.391.0"
 DAW_HOST_DIR = os.environ.get("OPENDAW_HOST_DIR", os.path.join(os.path.dirname(__file__), "..", "headless-daw"))
 EXPORT_DIR = os.environ.get("OPENDAW_EXPORT_DIR", os.path.join(os.path.dirname(__file__), "..", "exports"))
 os.makedirs(EXPORT_DIR, exist_ok=True)
@@ -65639,6 +65639,307 @@ async def mcp_opendaw_batch_diagnostic(
         "triage": all_issues,
         "per_stem": results,
     }, indent=2)
+
+
+
+# === Lineage / provenance (theDAW LEARN-inspired, file-backed) ===
+
+def _lineage_store():
+    from opendaw_mcp.lineage import get_store
+    return get_store()
+
+
+@mcp.tool()
+async def mcp_opendaw_record_lineage(
+    kind: str = "audio",
+    path: str = "",
+    parent_id: str = "",
+    op: str = "other",
+    params_json: str = "{}",
+    metrics_json: str = "{}",
+    provenance_json: str = "{}",
+    label: str = "",
+    node_id: str = "",
+) -> str:
+    """Record a lineage node and optional parent→child edge.
+
+    Builds agent-native memory for suno→stems→eq→bounce→export pipelines.
+    File: $OPENDAW_EXPORT_DIR/lineage/lineage.json (or OPENDAW_LINEAGE_PATH).
+
+    kind: audio|render|stem|mix_pass|export|prompt|external|analysis
+    path: file path or logical id of the artifact
+    parent_id: existing node to attach as parent (empty = root)
+    op: import|generate|stem_split|eq|master|bounce|export|cover|remix|other
+    params_json: JSON object of operation params (eq recipe, model, platform)
+    metrics_json: JSON object (lufs_integrated, true_peak_db, sub_pct, presence_pct)
+    provenance_json: JSON object (source, model, prompt, style, seed, chain_hash)
+    label: optional human label
+    node_id: optional fixed id (auto-generated if empty)
+
+    Example:
+      record_lineage(kind="external", path="suno.wav", provenance_json='{"source":"suno","model":"chirp-v5-5"}')
+      record_lineage(kind="mix_pass", path="v2.wav", parent_id="n_xxx", op="eq",
+                     params_json='{"recipe":"LS-2.5@100"}', metrics_json='{"presence_pct":4.9}')
+    """
+    import json as _json
+    try:
+        params = _json.loads(params_json or "{}")
+        metrics = _json.loads(metrics_json or "{}")
+        provenance = _json.loads(provenance_json or "{}")
+    except _json.JSONDecodeError as e:
+        return _err(f"Invalid JSON: {e}", code="INVALID_PARAMETER")
+    if not isinstance(params, dict) or not isinstance(metrics, dict) or not isinstance(provenance, dict):
+        return _err("params/metrics/provenance must be JSON objects", code="INVALID_PARAMETER")
+
+    result = _lineage_store().record(
+        kind=kind or "audio",
+        path=path or None,
+        parent_id=parent_id or None,
+        op=op or "other",
+        params=params,
+        metrics=metrics,
+        provenance=provenance,
+        node_id=node_id or None,
+        label=label or None,
+    )
+    return _json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+async def mcp_opendaw_trace_lineage(node_id: str, max_depth: int = 32) -> str:
+    """Trace ancestors of a lineage node toward roots.
+
+    Returns the full parent chain with edges (op/params) and node metrics.
+    Use after many mix passes to answer: where did this export come from?
+
+    node_id: id from record_lineage
+    max_depth: walk limit (default 32)
+
+    Returns: { success, node, ancestors[{depth,edge,parent,child}], roots, depth }
+    """
+    import json as _json
+    if not node_id:
+        return _err("node_id required", code="INVALID_PARAMETER")
+    result = _lineage_store().trace_ancestors(node_id, max_depth=max(1, min(int(max_depth), 256)))
+    return _json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+async def mcp_opendaw_list_descendants(node_id: str, max_depth: int = 32) -> str:
+    """List descendant nodes from a lineage root/branch.
+
+    Opposite of trace_lineage — walks children (remixes, stems, masters, exports).
+
+    node_id: parent node id
+    max_depth: walk limit (default 32)
+
+    Returns: { success, node, descendants[{depth,edge,parent,child}], leaves, depth }
+    """
+    import json as _json
+    if not node_id:
+        return _err("node_id required", code="INVALID_PARAMETER")
+    result = _lineage_store().list_descendants(node_id, max_depth=max(1, min(int(max_depth), 256)))
+    return _json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+async def mcp_opendaw_list_lineage_nodes(kind: str = "", limit: int = 50) -> str:
+    """List recent lineage nodes, optionally filtered by kind.
+
+    kind: empty = all, or audio|render|stem|mix_pass|export|prompt|external|analysis
+    limit: 1-500 (default 50)
+
+    Returns: { success, total, shown, nodes, path }
+    """
+    import json as _json
+    result = _lineage_store().list_nodes(kind=kind or None, limit=limit)
+    return _json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def mcp_opendaw_record_mix_pass(
+    parent_id: str,
+    path: str = "",
+    op: str = "eq",
+    params_json: str = "{}",
+    metrics_json: str = "{}",
+    label: str = "",
+    node_id: str = "",
+) -> str:
+    """Record a mix pass (kind=mix_pass) under parent for process history.
+
+    Wrapper over record_lineage for iterative mix/master loops. Stores metrics
+    so list_mix_history / diff_mix_passes can show last-N deltas.
+
+    parent_id: previous node (required)
+    path: bounce/export path for this pass
+    op: eq|compress|saturate|reverb|delay|master|bounce|other
+    params_json: op params e.g. {"recipe":"LS-2.5@100 + HS+4@3k"}
+    metrics_json: lufs_integrated, true_peak_db, sub_pct, presence_pct, air_pct, crest
+    label: optional human label (pass3_hs)
+    node_id: optional fixed id
+
+    Example:
+      record_mix_pass(parent_id="n_xxx", path="v2.wav", op="eq",
+                     params_json='{"recipe":"HS+4@3k"}',
+                     metrics_json='{"presence_pct":4.9,"sub_pct":48}')
+    """
+    import json as _json
+    if not parent_id:
+        return _err("parent_id required", code="INVALID_PARAMETER")
+    try:
+        params = _json.loads(params_json or "{}")
+        metrics = _json.loads(metrics_json or "{}")
+    except _json.JSONDecodeError as e:
+        return _err(f"Invalid JSON: {e}", code="INVALID_PARAMETER")
+    if not isinstance(params, dict) or not isinstance(metrics, dict):
+        return _err("params/metrics must be JSON objects", code="INVALID_PARAMETER")
+
+    result = _lineage_store().record_mix_pass(
+        parent_id=parent_id,
+        path=path or None,
+        op=op or "eq",
+        params=params,
+        metrics=metrics,
+        label=label or None,
+        node_id=node_id or None,
+    )
+    return _json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+async def mcp_opendaw_list_mix_history(node_id: str, limit: int = 8) -> str:
+    """Last-N mix_pass nodes on the chain through node_id with metric diffs.
+
+    Answers: what changed vs 3 passes ago? Returns consecutive
+    pass_n vs pass_n-1 deltas for sub_pct / presence_pct / air_pct / lufs / tp.
+
+    node_id: any node on the chain (root, intermediate, or leaf)
+    limit: how many recent mix passes (default 8, max 100)
+
+    Returns: { success, passes[{id,label,op,params,metrics,diff_from_prev}], total_mix_passes }
+    """
+    import json as _json
+    if not node_id:
+        return _err("node_id required", code="INVALID_PARAMETER")
+    result = _lineage_store().list_mix_history(node_id, limit=limit)
+    return _json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+async def mcp_opendaw_diff_mix_passes(node_a: str, node_b: str) -> str:
+    """Numeric metric delta between two lineage nodes (b − a).
+
+    Use to compare any two mix passes or master bounces.
+
+    node_a: baseline node id
+    node_b: compare-to node id
+
+    Returns: { success, metrics_a, metrics_b, diff{presence_pct, sub_pct, ...} }
+    """
+    import json as _json
+    if not node_a or not node_b:
+        return _err("node_a and node_b required", code="INVALID_PARAMETER")
+    result = _lineage_store().diff_mix_passes(node_a, node_b)
+    return _json.dumps(result, indent=2)
+
+
+
+@mcp.tool()
+async def mcp_opendaw_infer_suno_prompt(
+    filename: str = "",
+    genre_hint: str = "",
+    compact: bool = True,
+    record_lineage: bool = False,
+    parent_id: str = "",
+    label: str = "",
+) -> str:
+    """Infer a Suno style package from a WAV via pure analysis (no DAW bridge).
+
+    Pipeline: detect_bpm + detect_key + analyze_spectrum + analyze_dynamics (+ LUFS)
+    → map metrics to KB packages (darksynth_coldwave / folk_horror / cloud_bedroom)
+    or generic low-confidence tags. Optional lineage nodes: analysis → prompt
+    (kind=prompt, op=prompt_infer).
+
+    filename: exports-relative name or absolute WAV path
+    genre_hint: optional soft bias (coldwave, folk, cloud, lofi, darksynth, ...)
+    compact: True = short Style tags; False = full package Style block
+    record_lineage: if True, write analysis+prompt nodes to lineage store
+    parent_id: optional existing lineage node (e.g. suno import) as parent
+    label: optional human label for lineage nodes
+
+    Returns: { success, bpm, key, style, negatives, confidence, package_id,
+               low_confidence, ranking, analysis, lineage? }
+
+    Examples:
+      infer_suno_prompt("suno_track.wav")
+      infer_suno_prompt("mix.wav", genre_hint="coldwave", record_lineage=True)
+    """
+    import json as _json
+    from opendaw_mcp.prompt_inference import infer_suno_prompt as _infer
+
+    if not (filename or "").strip():
+        return _err("filename required", code="INVALID_PARAMETER",
+                    hint="Pass exports-relative name or absolute WAV path")
+
+    result = _infer(
+        filename=filename.strip(),
+        genre_hint=genre_hint.strip() or None,
+        compact=bool(compact),
+        record_lineage=bool(record_lineage),
+        parent_id=parent_id.strip() or None,
+        label=label.strip() or None,
+    )
+    return _json.dumps(result, indent=2)
+
+
+
+@mcp.tool()
+async def mcp_opendaw_export_for_platform(
+    platform: str = "spotify",
+    filename: str = "",
+    parent_id: str = "",
+    dry_run: bool = False,
+    output_name: str = "",
+) -> str:
+    """Platform bounce: LUFS + true-peak ceiling + optional lineage edge.
+
+    File-only post-master path — no DAW bridge required (dry-run or real export).
+    Platforms: spotify(-14/-1), apple(-16/-1), youtube(-14/-1), tidal(-14/-1),
+    soundcloud(-14/-1), club(-9/-0.3 dBTP).
+
+    Pipeline:
+      1. load WAV from OPENDAW_EXPORT_DIR or absolute path
+      2. gain toward platform LUFS
+      3. soft-clip to platform TP ceiling
+      4. measure + fail if TP exceeds ceiling
+      5. write exports/<name>_<platform>.wav
+      6. record_lineage(kind=export, op=export)
+
+    platform: spotify | apple | youtube | tidal | soundcloud | club
+    filename: input WAV name in exports/ or absolute path
+    parent_id: lineage parent node (empty = root export node still recorded)
+    dry_run: plan only — no write, no lineage
+    output_name: optional basename (without .wav); default <input>_<platform>
+
+    Example:
+      export_for_platform(platform="spotify", filename="mix.wav", dry_run=True)
+      export_for_platform(platform="apple", filename="mix.wav", parent_id="n_xxx")
+    """
+    import json as _json
+    from opendaw_mcp.smart_export import export_for_platform as _export
+
+    if not filename:
+        return _err("filename required", code="INVALID_PARAMETER",
+                    hint="Pass a WAV in OPENDAW_EXPORT_DIR or absolute path")
+    result = _export(
+        platform=platform or "spotify",
+        filename=filename,
+        parent_id=parent_id or "",
+        dry_run=bool(dry_run),
+        output_name=output_name or "",
+    )
+    return _json.dumps(result, indent=2)
 
 
 # === MCP Tasks: long-ops API (OPENDAW_MCP_TASKS=1) ===
