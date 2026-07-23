@@ -1,14 +1,14 @@
 # Tool Reference
 
-Auto-generated from `server.py`. **547 MCP tools.**
+Auto-generated from `server.py`. **556 MCP tools.**
 
 | Category | Count |
 |---|---|
 | Create / Modify | 303 |
 | Destructive | 15 |
-| Other | 141 |
-| Read-only | 74 |
-| Render / Export | 14 |
+| Other | 146 |
+| Read-only | 77 |
+| Render / Export | 15 |
 
 ## Create / Modify
 
@@ -371,6 +371,7 @@ Auto-generated from `server.py`. **547 MCP tools.**
 | `mcp_opendaw_copy_region_fades` |  | `src_unit`, `src_track`, `src_region`, `dst_unit`, `dst_track`, `dst_region` | Copy fade in/out settings from one audio region to another. |
 | `mcp_opendaw_copy_region_to_track` |  | `src_unit`, `src_track`, `src_region`, `dst_unit`, `dst_track`, `position` | Copy a region to a different track (or same track at new position). |
 | `mcp_opendaw_diatonic_transpose_notes` |  | `unit_index`, `track_index`, `region_index`, `steps`, `root_note`, `scale` | Transpose notes by scale steps (diatonic) instead of semitones (chromatic). |
+| `mcp_opendaw_diff_mix_passes` | `readOnly` | `node_a`, `node_b` | Numeric metric delta between two lineage nodes (b − a). |
 | `mcp_opendaw_displace_rhythm` |  | `unit_index`, `track_index`, `region_index`, `offset`, `mode` | Displace all notes in a region by a fixed rhythmic offset — laid-back, |
 | `mcp_opendaw_double_melody` |  | `unit_index`, `track_index`, `interval`, `region_index`, `diatonic`, `root`, `scale`, `velocity_scale`, `dest_track_index`, `dest_unit_index`, `time_offset` | Double a melody at a parallel interval — thickening and harmonization. |
 | `mcp_opendaw_download_audio` |  | `url`, `filename`, `output_dir` | Download an audio file from a URL (e.g. Suno CDN) to local disk. |
@@ -399,6 +400,7 @@ Auto-generated from `server.py`. **547 MCP tools.**
 | `mcp_opendaw_humanize_notes` |  | `unit_index`, `track_index`, `velocity_amount`, `timing_amount`, `duration_amount`, `swing`, `seed` | Add human-like variation to existing notes — velocity, timing, duration, and swing. |
 | `mcp_opendaw_humanize_pitch` |  | `unit_index`, `track_index`, `region_index`, `cents_depth`, `bias`, `seed` | Add micro-detune (cents) to notes — intonation humanization. |
 | `mcp_opendaw_identify_chords` |  | `unit_index`, `track_index`, `region_index`, `group_tolerance`, `min_notes` | Identify chords from existing notes in a region — harmonic analysis / reverse engineering. |
+| `mcp_opendaw_infer_suno_prompt` |  | `filename`, `genre_hint`, `compact`, `record_lineage`, `parent_id`, `label` | Infer a Suno style package from a WAV via pure analysis (no DAW bridge). |
 | `mcp_opendaw_insert_rests` |  | `unit_index`, `track_index`, `region_index`, `rest_positions`, `tolerance_beats`, `mode`, `shorten_neighbors` | Insert rests at specified beat positions by removing notes. |
 | `mcp_opendaw_invert_chord_notes` |  | `unit_index`, `track_index`, `region_index`, `chord_position`, `inversion`, `direction` | Invert a chord at a specific position — move bottom N notes up an octave (or top N down). |
 | `mcp_opendaw_invert_notes` |  | `unit_index`, `track_index`, `region_index`, `axis` | Invert melody around a pitch axis — mirror reflection. |
@@ -428,6 +430,8 @@ Auto-generated from `server.py`. **547 MCP tools.**
 | `mcp_opendaw_query_loading_complete` |  | — | Check if all audio samples are loaded and ready for playback. |
 | `mcp_opendaw_randomize_note_chance` |  | `unit_index`, `track_index`, `region_index`, `min_chance`, `max_chance`, `mode`, `seed` | Randomize note playback probability (chance) — generative variation. |
 | `mcp_opendaw_randomize_note_durations` |  | `unit_index`, `track_index`, `region_index`, `variation`, `distribution`, `min_duration_beats`, `max_duration_beats`, `preserve_total`, `seed` | Randomize note durations with controllable distribution. |
+| `mcp_opendaw_record_lineage` |  | `kind`, `path`, `parent_id`, `op`, `params_json`, `metrics_json`, `provenance_json`, `label`, `node_id` | Record a lineage node and optional parent→child edge. |
+| `mcp_opendaw_record_mix_pass` |  | `parent_id`, `path`, `op`, `params_json`, `metrics_json`, `label`, `node_id` | Record a mix pass (kind=mix_pass) under parent for process history. |
 | `mcp_opendaw_redo` |  | — | Redo the last undone operation. |
 | `mcp_opendaw_reharmonize_progression` |  | `progression`, `technique`, `intensity`, `target_chord` | Reharmonize a chord progression — substitute chords with functionally |
 | `mcp_opendaw_remix_track` |  | `filename`, `genre`, `style`, `stem_mode`, `master_lufs`, `add_harmony`, `add_counter_melody`, `bars` | Full Suno remix pipeline in one call — analyze → import → harmony → mix → master. |
@@ -470,6 +474,7 @@ Auto-generated from `server.py`. **547 MCP tools.**
 | `mcp_opendaw_task_render_full` |  | `filename`, `sample_rate` | Start async render of the full project mix. |
 | `mcp_opendaw_thin_notes` |  | `unit_index`, `track_index`, `region_index`, `strategy`, `interval`, `velocity_threshold`, `random_chance`, `preserve_strong_beats` | Thin out notes in a region — reduce note density for cleaner patterns. |
 | `mcp_opendaw_time_warp_notes` |  | `unit_index`, `track_index`, `region_index`, `warp_factor`, `origin` | Warp note positions and durations by a factor — half-time / double-time / custom stretch. |
+| `mcp_opendaw_trace_lineage` | `readOnly` | `node_id`, `max_depth` | Trace ancestors of a lineage node toward roots. |
 | `mcp_opendaw_transcribe_audio` |  | `filename`, `bpm`, `unit_index`, `drum_track`, `melody_track` | Transcribe a full audio track — drums + melody — into MIDI notes in one call. |
 | `mcp_opendaw_transcribe_drums` |  | `filename`, `bpm`, `sensitivity`, `unit_index`, `track_index` | Transcribe drum onsets from an audio file into MIDI notes on a DAW track. |
 | `mcp_opendaw_transcribe_melody` |  | `filename`, `bpm`, `unit_index`, `track_index` | Transcribe monophonic melody from an audio file into MIDI notes on a DAW track. |
@@ -535,14 +540,17 @@ Auto-generated from `server.py`. **547 MCP tools.**
 | `mcp_opendaw_list_automation_events` | `readOnly` | `unit_index`, `track_index` | List automation events (ValueEventBox) on a unit's automation tracks. |
 | `mcp_opendaw_list_automation_events_detail` | `readOnly` | `unit_index`, `track_index` | List all automation events on a value track with full detail — position, value, interpolation. |
 | `mcp_opendaw_list_clips` | `readOnly` | `unit_index`, `track_index` | List clips (session view / clip launcher) on tracks. |
+| `mcp_opendaw_list_descendants` | `readOnly` | `node_id`, `max_depth` | List descendant nodes from a lineage root/branch. |
 | `mcp_opendaw_list_effect_parameters` | `readOnly` | `unit_index`, `effect_index` | List all parameters of an effect on an audio unit. |
 | `mcp_opendaw_list_effects` | `readOnly` | — | List all available audio and MIDI effect types. |
 | `mcp_opendaw_list_genre_profiles` | `readOnly` | — | List all available genre reference profiles for mix analysis. |
 | `mcp_opendaw_list_instrument_params` | `readOnly` | `unit_index` | List all parameters of the instrument connected to an audio unit. |
+| `mcp_opendaw_list_lineage_nodes` | `readOnly` | `kind`, `limit` | List recent lineage nodes, optionally filtered by kind. |
 | `mcp_opendaw_list_markers` | `readOnly` | — | List all timeline markers with positions and labels. |
 | `mcp_opendaw_list_midi_effect_params` | `readOnly` | `unit_index`, `effect_index` | List all parameters of a MIDI effect with current values. |
 | `mcp_opendaw_list_midi_effects` | `readOnly` | — | List all available MIDI effect types. |
 | `mcp_opendaw_list_midi_output_devices` | `readOnly` | — | List all MIDI output devices registered in the project (hardware MIDI outputs). |
+| `mcp_opendaw_list_mix_history` | `readOnly` | `node_id`, `limit` | Last-N mix_pass nodes on the chain through node_id with metric diffs. |
 | `mcp_opendaw_list_modular_connections` | `readOnly` | `au_index`, `effect_index` | List all connections (patch cables) in a Modular device. |
 | `mcp_opendaw_list_modular_devices` | `readOnly` | — | List all Modular audio effect devices in the project. |
 | `mcp_opendaw_list_modular_modules` | `readOnly` | `au_index`, `effect_index` | List all modules in a Modular device. |
@@ -570,6 +578,7 @@ Auto-generated from `server.py`. **547 MCP tools.**
 | `mcp_opendaw_export_dawproject` |  | `filename` | Export the current project as a .dawproject file (Bitwig/Ableton/rePitch compatible format). |
 | `mcp_opendaw_export_dry_stem` |  | `unit_index`, `filename`, `sample_rate` | Export a single audio unit as a DRY stem (instrument output, no effects/channel strip). |
 | `mcp_opendaw_export_effect_chain` |  | `unit_index`, `effect_type` | Export an effect chain (audio or MIDI) from an AU as a base64 preset. |
+| `mcp_opendaw_export_for_platform` |  | `platform`, `filename`, `parent_id`, `dry_run`, `output_name` | Platform bounce: LUFS + true-peak ceiling + optional lineage edge. |
 | `mcp_opendaw_export_midi` |  | `filename`, `unit_index`, `track_index`, `region_index` | Export a note region's notes as a standard MIDI file (.mid). |
 | `mcp_opendaw_export_mix` |  | `filename`, `sample_rate`, `method` | Render the full project mix to a WAV file. |
 | `mcp_opendaw_export_preset` |  | `unit_index`, `include_timeline` | Export an audio unit as a preset (base64-encoded binary). |

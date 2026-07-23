@@ -1,5 +1,5 @@
 <!-- mcp-name: io.github.AMEBIUS/opendaw-mcp -->
-<!-- REPO-METRICS: tools=547 skills=12 dsp=134 examples=226 -->
+<!-- REPO-METRICS: tools=556 skills=12 dsp=134 examples=226 -->
 # openDAW MCP
 
 [![CI](https://github.com/AMEBIUS-team/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AMEBIUS-team/opendaw-mcp/actions/workflows/ci.yml)
@@ -7,7 +7,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI](https://img.shields.io/pypi/v/opendaw-mcp.svg)](https://pypi.org/project/opendaw-mcp/)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/github.com/AMEBIUS-team/opendaw-mcp/badge)](https://securityscorecards.dev/viewer/?uri=github.com/AMEBIUS-team/opendaw-mcp)
-[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-547-brightgreen)](TOOL_CATALOG.md)
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-556-brightgreen)](TOOL_CATALOG.md)
 [![Skills](https://img.shields.io/badge/Agent%20Skills-12-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-134-orange)](scripts/)
 [![Tests](https://img.shields.io/badge/Tests-6139%20unit%20%2B%20E2E-brightgreen)](tests/)
@@ -20,7 +20,7 @@
 [![LangChain + AutoGen + CrewAI](https://img.shields.io/badge/LangChain%20%2B%20AutoGen%20%2B%20CrewAI-Ready-blue)](opendaw_mcp/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-☕-ea4aaa)](https://github.com/sponsors/aaameobius-crypto)
 
-**547 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
+**556 MCP tools for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation.**
 
 This project wraps openDAW's internal box system and project API behind a [Model Context Protocol](https://modelcontextprotocol.io) server, allowing AI agents (Claude, GPT, Hermes, etc.) to create and manipulate music projects programmatically — tracks, instruments, effects, MIDI, automation, audio regions, rendering, and more.
 
@@ -30,7 +30,7 @@ This project wraps openDAW's internal box system and project API behind a [Model
 
 | | |
 |---|---|
-| **547** MCP tools | **226** Python examples |
+| **556** MCP tools | **226** Python examples |
 | **134** DSP scripts | **12** agent skills |
 | **3** framework wrappers | **6139** unit + E2E tests |
 | **7** stem separation modes | **0** ruff errors |
@@ -80,7 +80,7 @@ await server.mcp_opendaw_render_full(output_path="beat.wav")
 | **Bridge benchmarks** | ✅ p50/p95 in CI | ❌ | ❌ | ❌ |
 | **GitHub stars** | — | 2.8k | — | — |
 
-**Our moat:** fully headless, zero-cost, 547 tools, runs anywhere. Every competitor requires a paid DAW running on a desktop.
+**Our moat:** fully headless, zero-cost, 556 tools, runs anywhere. Every competitor requires a paid DAW running on a desktop.
 
 ## How It Works
 
@@ -114,14 +114,14 @@ The MCP server launches a headless Chromium instance loaded with openDAW, then c
 
 ## Agent Skills
 
-The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 547 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
+The `skills/` directory contains structured skill files for AI agents (Hermes, Claude, etc.) that describe how to use the 556 MCP tools effectively. Each skill covers a specific domain and includes decision points so the agent can adapt to any genre or workflow.
 
 | Skill | Domain | Description |
 |-------|--------|-------------|
 | `adaptive-mix-mastering` | Mix → Master pipeline | Universal pipeline with decision points: genre detection, stem strategy, effect chain selection, LUFS targeting, mastering approach. Adapts to coldwave, techno, hip-hop, ambient, rock, pop. Includes `references/decision-tree.md`. |
 | `suno-to-opendaw` | Suno → openDAW E2E | Killer workflow: Suno AI generation → SOTA stem separation (7 modes) → openDAW import → arrange → mix → master → export. 6-stage pipeline from prompt to finished track. Unique value prop — no other MCP server offers this. |
 | `dsp-script-authoring` | Custom DSP writing | How to author custom Werkstatt/Apparat/Spielwerk DSP scripts. Processor API, @param/@sample declarations, DSP patterns (filters, saturation, reverb, LFO, envelope), validation workflow, 8 critical pitfalls. For writing new DSP, not using existing. |
-| `opendaw-automation` | API reference | 547 MCP tools full reference, bridge architecture, pitfalls, DSP script library (134 scripts), CodeRabbit review patterns. The base skill — others cross-reference it. |
+| `opendaw-automation` | API reference | 556 MCP tools full reference, bridge architecture, pitfalls, DSP script library (134 scripts), CodeRabbit review patterns. The base skill — others cross-reference it. |
 | `opendaw-track-architecture` | Track structure | Tracks, regions, clips, notes, tempo, time signature, markers, groove, song form. 50+ tools for building the skeleton of a track. |
 | `opendaw-sound-design` | Instruments + DSP | Built-in instruments (Vaporisateur, Playfield, Nano, Tape, Soundfont) + 33 scriptable DSP scripts (Werkstatt/Apparat/Spielwerk) with full API reference and choosing guide. |
 | `opendaw-genres` | Genre templates | Concrete parameters per genre — BPM, track layout, drum patterns, bass lines, chords, effect chains, pan, LUFS targets. 8 genres: techno, coldwave, hip-hop, ambient, DnB, house, lofi, trap. Not theory — actual tool calls and values. |
@@ -218,7 +218,7 @@ MCP_TRANSPORT=sse FASTMCP_HOST=0.0.0.0 FASTMCP_PORT=8080 python server.py
 
 ### Token Optimization Modes
 
-opendaw-mcp ships 547 MCP tools. For token-sensitive environments, three modes reduce schema payload:
+opendaw-mcp ships 556 MCP tools. For token-sensitive environments, three modes reduce schema payload:
 
 | Mode | Env var | Tools | Savings | When to use |
 |------|---------|-------|---------|-------------|
@@ -520,7 +520,7 @@ See [`examples/crewai_integration.py`](examples/crewai_integration.py) for a ful
 
 ## Tool Catalog
 
-See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 547 tools with parameters and descriptions.
+See [`TOOL_CATALOG.md`](TOOL_CATALOG.md) for the complete list of 556 tools with parameters and descriptions.
 
 ### Orchestration Tools
 
