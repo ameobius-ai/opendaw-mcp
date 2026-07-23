@@ -39,9 +39,17 @@ else:
     if _pw_cache.exists():
         _chrome_ok = any(_pw_cache.glob("chromium*"))
 
+# These tests share a global Playwright bridge + live DAW state — skip under
+# pytest-xdist (parallel workers corrupt each other's state).
+_running_under_xdist = "PYTEST_XDIST_WORKER" in os.environ
+
 pytestmark = pytest.mark.skipif(
-    not (_daw_reachable and _chrome_ok),
-    reason=f"Need DAW at {DAW_URL} and Playwright chromium",
+    not (_daw_reachable and _chrome_ok) or _running_under_xdist,
+    reason=(
+        "Skipped under xdist (requires serial execution)"
+        if _running_under_xdist
+        else f"Need DAW at {DAW_URL} and Playwright chromium"
+    ),
 )
 
 _bridge = None
