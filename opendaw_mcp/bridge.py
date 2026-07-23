@@ -44,9 +44,16 @@ class HeadlessDawBridge:
         self.browser = await self.playwright.chromium.launch(**launch_opts)
         self.page = await self.browser.new_page(ignore_https_errors=True)
         await self.page.goto(DAW_URL, timeout=15000)
+        # Wait until a Project is reachable via any supported host surface and the
+        # box/factory/enum globals used by the helper are present. Two hosts are
+        # supported: creative-studio headless-daw (window.DAW + deferred
+        # DAW_startEngine) and the repo tests/e2e test_host
+        # (window.opendaw.service.project + an auto-started engine). We therefore do
+        # not hard-require window.DAW or DAW_startEngine here.
         await self.page.wait_for_function(
-            "typeof window.DAW !== 'undefined'"
-            " && typeof window.DAW_startEngine === 'function'"
+            "(typeof window.DAW !== 'undefined'"
+            " || (window.opendaw && window.opendaw.service && window.opendaw.service.project)"
+            " || typeof window.DAW_project !== 'undefined')"
             " && typeof window.DAW_NoteEventBox !== 'undefined'"
             " && typeof window.DAW_InstrumentFactories !== 'undefined'"
             " && typeof window.DAW_UUID !== 'undefined'"
@@ -54,16 +61,23 @@ class HeadlessDawBridge:
             timeout=30000,
         )
         # Inject helper functions into DAW context — eliminates boilerplate in every tool.
-        # headless-daw exposes the Project directly as window.DAW (+ DAW_* globals),
-        # replacing the old window.opendaw.service API. The audio engine is deferred:
-        # DAW_startEngine() is invoked by engine/render tools, never here — boxes
-        # created before engine start are serialized into the worklet buffer.
+        # The Project is exposed differently per host: creative-studio headless-daw
+        # publishes it as window.DAW (+ DAW_* globals, engine deferred via
+        # DAW_startEngine), while the repo test_host publishes it as
+        # window.opendaw.service.project / window.DAW_project (engine auto-started).
+        # Render/export tools use OfflineEngineRenderer, so the live engine is not
+        # required here.
         await self.page.evaluate(
             """async () => {
             if (window.DAW_HELPERS) return;  // already injected
 
-            const p = window.DAW;
-            if (!p) throw new Error('window.DAW (project) not available');
+            // Locate the Project across supported hosts. Read opendaw.service.project
+            // before DAW_project, since this bridge overwrites window.DAW_project with
+            // the helper object below.
+            const p = window.DAW
+                || (window.opendaw && window.opendaw.service && window.opendaw.service.project)
+                || window.DAW_project;
+            if (!p) throw new Error('openDAW project not available (window.DAW / window.opendaw.service.project / window.DAW_project)');
             const InstrumentFactories = window.DAW_InstrumentFactories;
             const H = {
                 // Get AU adapter by index (sorted by index field)
