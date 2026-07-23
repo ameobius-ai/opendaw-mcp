@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
 
-DAW_URL = os.environ.get("OPENDAW_URL", "https://localhost:8082")
+DAW_URL = os.environ.get("OPENDAW_URL", "http://localhost:5174")
 
 
 class HeadlessDawBridge:
@@ -45,43 +45,27 @@ class HeadlessDawBridge:
         self.page = await self.browser.new_page(ignore_https_errors=True)
         await self.page.goto(DAW_URL, timeout=15000)
         await self.page.wait_for_function(
-            "typeof window.opendaw !== 'undefined' && typeof window.opendaw.service !== 'undefined' && window.opendaw.service !== null",
+            "typeof window.DAW !== 'undefined'"
+            " && typeof window.DAW_startEngine === 'function'"
+            " && typeof window.DAW_NoteEventBox !== 'undefined'"
+            " && typeof window.DAW_InstrumentFactories !== 'undefined'"
+            " && typeof window.DAW_UUID !== 'undefined'"
+            " && typeof window.DAW_PPQN !== 'undefined'",
             timeout=30000,
         )
-        # Inject helper functions into DAW context — eliminates boilerplate in every tool
+        # Inject helper functions into DAW context — eliminates boilerplate in every tool.
+        # headless-daw exposes the Project directly as window.DAW (+ DAW_* globals),
+        # replacing the old window.opendaw.service API. The audio engine is deferred:
+        # DAW_startEngine() is invoked by engine/render tools, never here — boxes
+        # created before engine start are serialized into the worklet buffer.
         await self.page.evaluate(
             """async () => {
             if (window.DAW_HELPERS) return;  // already injected
 
-            // Ensure a project is loaded — openDAW starts on dashboard, service is null until project created
-            if (!window.opendaw.service) {
-                // Try clicking "Clean Slate" (creates empty project) or "New Project"
-                const buttons = Array.from(document.querySelectorAll('button, [role="button"], a'));
-                const clickTarget = buttons.find(b => b.textContent.includes('Clean Slate'))
-                    || buttons.find(b => b.textContent.includes('New Project'));
-                if (clickTarget) {
-                    clickTarget.click();
-                } else {
-                    // Fallback: try direct API
-                    if (window.opendaw.createService) await window.opendaw.createService();
-                }
-                // Wait for service to appear
-                for (let i = 0; i < 30; i++) {
-                    if (window.opendaw.service) break;
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-            }
-            const service = window.opendaw.service;
-            if (!service) throw new Error('Failed to initialize openDAW service');
-
-            // Ensure a project is loaded (create default if none)
-            if (!service.hasProfile) {
-                await service.newProject();
-            }
-
-            const p = service.project;
-            const InstrumentFactories = window.opendaw.InstrumentFactories;
-            window.DAW_HELPERS = {
+            const p = window.DAW;
+            if (!p) throw new Error('window.DAW (project) not available');
+            const InstrumentFactories = window.DAW_InstrumentFactories;
+            const H = {
                 // Get AU adapter by index (sorted by index field)
                 au: (i) => {
                     const aus = p.rootBoxAdapter.audioUnits.adapters();
@@ -90,14 +74,14 @@ class HeadlessDawBridge:
                 },
                 // Get track adapter by AU index + track index
                 track: (auIdx, trackIdx) => {
-                    const au = window.DAW_HELPERS.au(auIdx);
+                    const au = H.au(auIdx);
                     const tracks = au.tracks.collection.adapters();
                     if (trackIdx >= tracks.length) throw new Error('No track ' + trackIdx + ' on AU ' + auIdx);
                     return tracks[trackIdx];
                 },
                 // Get region adapter by AU/track/region index
                 region: (auIdx, trackIdx, regIdx) => {
-                    const track = window.DAW_HELPERS.track(auIdx, trackIdx);
+                    const track = H.track(auIdx, trackIdx);
                     const regions = track.regions.collection.asArray();
                     if (regIdx >= regions.length) throw new Error('No region ' + regIdx);
                     return regions[regIdx];
@@ -164,7 +148,6 @@ class HeadlessDawBridge:
                 // Instrument factories for api.createInstrument()
                 factories: InstrumentFactories,
                 // Project shortcuts
-                service,
                 project: p,
                 api: p.api,
                 boxGraph: p.boxGraph,
@@ -177,31 +160,51 @@ class HeadlessDawBridge:
                 engine: p.engine,
                 primaryAudioUnitBox: p.primaryAudioUnitBox,
                 primaryAudioBusBox: p.primaryAudioBusBox,
-                uuid: window.DAW_UUID || UUID,
-                ppqn: window.DAW_PPQN || PPQN,
+                uuid: window.DAW_UUID,
+                ppqn: window.DAW_PPQN,
+                // Box factory classes (exposed by headless-daw from studio-boxes)
+                NoteEventBox: window.DAW_NoteEventBox,
+                NoteRegionBox: window.DAW_NoteRegionBox,
+                TrackBox: window.DAW_TrackBox,
+                // All note-track boxes across every AU (flat, index-sorted per AU)
+                noteTracks: () => H.allAUBoxes().flatMap(au => H.noteTrackBoxes(au)),
+                // Alias for allAUBoxes (AU boxes sorted by index)
+                audioUnitBoxes: () => H.allAUBoxes(),
+                // Audio region boxes for an AU (across all its tracks)
+                audioRegionBoxes: (au) => H.trackBoxes(au)
+                    .flatMap(t => H.regionBoxes(t))
+                    .filter(r => r && r.constructor && r.constructor.name === 'AudioRegionBox'),
+                // Create a note event in a collection (positional args)
+                createNote: (coll, pos, dur, pitch, vel) =>
+                    window.DAW_NoteEventBox.create(p.boxGraph, window.DAW_UUID.generate(), (box) => {
+                        box.position.setValue(pos);
+                        box.duration.setValue(dur);
+                        box.pitch.setValue(pitch);
+                        box.velocity.setValue(vel);
+                        if (coll && coll.events) box.events.refer(coll.events);
+                    }),
+                // Create a note event from options ({pitch, position, duration, velocity, cent?, chance?})
+                createNoteEvent: (coll, opts) =>
+                    window.DAW_NoteEventBox.create(p.boxGraph, window.DAW_UUID.generate(), (box) => {
+                        box.position.setValue(opts.position);
+                        box.duration.setValue(opts.duration);
+                        box.pitch.setValue(opts.pitch);
+                        box.velocity.setValue(opts.velocity);
+                        if (opts.cent !== undefined && box.cent) box.cent.setValue(opts.cent);
+                        if (opts.chance !== undefined && box.chance) box.chance.setValue(opts.chance);
+                        if (coll && coll.events) box.events.refer(coll.events);
+                    }),
             };
 
-            // Compatibility shims — let existing tool code keep using old globals
-            if (!window.DAW) window.DAW = p;
-            if (!window.DAW_UUID) {
-                window.DAW_UUID = {
-                    generate: () => {
-                        const bytes = new Uint8Array(16);
-                        crypto.getRandomValues(bytes);
-                        return bytes;
-                    },
-                    toString: (bytes) => {
-                        const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
-                        return hex.slice(0,8) + '-' + hex.slice(8,12) + '-' + hex.slice(12,16) + '-' + hex.slice(16,20) + '-' + hex.slice(20);
-                    },
-                };
-            }
-            if (!window.DAW_PPQN) window.DAW_PPQN = 960;
-            if (!window.DAW_InstrumentFactories) window.DAW_InstrumentFactories = InstrumentFactories;
-            if (!window.DAW_EffectFactories) window.DAW_EffectFactories = window.opendaw.EffectFactories;
+            // headless-daw tool code references the helper under four alias names —
+            // point them all at the single rich helper object.
+            window.DAW_HELPERS = H;
+            window.DAW_HeadlessBridgeHelper = H;
+            window.DAW_HeadlessBridge = H;
+            window.DAW_project = H;
         }"""
         )
-        logging.info("DAW engine ready!")
+        logging.info("DAW helpers injected — engine deferred (DAW_startEngine on demand)")
 
     async def evaluate(self, script, timeout=30000):
         """Execute JS in the DAW context. All errors caught and returned."""
