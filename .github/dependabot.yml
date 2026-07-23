@@ -1,31 +1,18 @@
 version: 2
 updates:
-  # GitHub Actions
-  - package-ecosystem: github-actions
-    directory: /
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: "weekly"
     labels:
-      - dependencies
-      - github-actions
-
-  # npm (test host)
-  - package-ecosystem: npm
-    directory: /tests/e2e/test_host
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: "weekly"
     labels:
-      - dependencies
-      - npm
-
-  # Python
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - python
+      - "dependencies"
+    commit-message:
+      prefix: "ci(deps)"
