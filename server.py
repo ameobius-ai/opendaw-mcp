@@ -1354,8 +1354,17 @@ state into the AudioWorklet processor, so all boxes must exist first.
     result = await bridge.evaluate("""() => {
         return new Promise(async (resolve) => {
             try {
-                if (window.DAW_engineStarted && window.DAW_engineStarted()) {
+                // DAW_engineStarted is a function on creative-studio (returns bool),
+                // a plain boolean on the repo test_host (engine auto-started).
+                const started = typeof window.DAW_engineStarted === 'function'
+                    ? window.DAW_engineStarted()
+                    : !!window.DAW_engineStarted;
+                if (started) {
                     resolve({success: true, message: "Engine already started"});
+                    return;
+                }
+                if (typeof window.DAW_startEngine !== 'function') {
+                    resolve({error: "DAW_startEngine not available and engine not started"});
                     return;
                 }
                 await window.DAW_startEngine();
