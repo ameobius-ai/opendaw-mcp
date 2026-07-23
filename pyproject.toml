@@ -1,7 +1,7 @@
 [project]
 name = "opendaw-mcp"
 version = "1.391.0"
-description = "550 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation"
+description = "556 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
@@ -25,6 +25,16 @@ dependencies = [
     "playwright>=1.40",
     "mcp>=1.27,<2",
     "uvicorn>=0.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-xdist>=3.0",
+    "ruff>=0.4",
+    "numpy",
+    "scipy",
+    "pyloudnorm",
 ]
 
 [project.urls]
