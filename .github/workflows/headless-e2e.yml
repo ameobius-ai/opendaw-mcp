@@ -63,7 +63,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install mcp playwright pytest ruff numpy scipy pyloudnorm
+          pip install "mcp>=1.27,<2" playwright pytest ruff numpy scipy pyloudnorm
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
