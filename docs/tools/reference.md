@@ -1,12 +1,12 @@
 # Tool Reference
 
-Auto-generated from `server.py`. **556 MCP tools.**
+Auto-generated from `server.py`. **557 MCP tools.**
 
 | Category | Count |
 |---|---|
 | Create / Modify | 303 |
 | Destructive | 15 |
-| Other | 146 |
+| Other | 147 |
 | Read-only | 77 |
 | Render / Export | 15 |
 
@@ -464,6 +464,7 @@ Auto-generated from `server.py`. **556 MCP tools.**
 | `mcp_opendaw_split_stems` |  | `input_path`, `mode`, `output_dir`, `import_to_daw` | Split an audio file into stems using SOTA open-source separation models. |
 | `mcp_opendaw_spread_voicing` |  | `unit_index`, `track_index`, `region_index`, `chord_position`, `mode`, `spread_octaves` | Spread or compact a chord voicing — open vs close harmony. |
 | `mcp_opendaw_start_engine` |  | — | Start the audio engine (AudioWorklet) after setting up tracks and regions. |
+| `mcp_opendaw_stop_browser` |  | — | Stop Playwright Chromium and release RAM (~2GB+ if engine was hot). |
 | `mcp_opendaw_strum_notes` |  | `unit_index`, `track_index`, `region_index`, `direction`, `speed`, `jitter` | Strum simultaneous notes — convert block chords into guitar-style strums. |
 | `mcp_opendaw_subdivide_notes` |  | `unit_index`, `track_index`, `region_index`, `subdivisions`, `pitch_pattern`, `velocity_pattern`, `accent_first`, `dest_track_index` | Subdivide each note in a region into N smaller notes. |
 | `mcp_opendaw_swap_sections` |  | `section1_start`, `section1_end`, `section2_start`, `section2_end`, `unit_indices` | Swap two sections of the arrangement — exchange their positions on the timeline. |
