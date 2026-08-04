@@ -13,7 +13,7 @@
     "@opendaw/lib-std": "^0.0.80",
     "@opendaw/studio-adapters": "^0.0.119",
     "@opendaw/studio-core": "^0.1.4",
-    "@opendaw/studio-sdk": "^0.0.157",
+    "@opendaw/studio-sdk": "^0.0.163",
     "vite-plugin-cross-origin-isolation": "^0.1.6"
   },
   "devDependencies": {
