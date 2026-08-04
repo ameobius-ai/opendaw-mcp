@@ -1376,6 +1376,21 @@ state into the AudioWorklet processor, so all boxes must exist first.
     }""")
     return _wrap_eval(result)
 
+@mcp.tool()
+async def mcp_opendaw_stop_browser() -> str:
+    """Stop Playwright Chromium and release RAM (~2GB+ if engine was hot).
+
+Call after render/export when the DAW session is done for a while.
+Next tool that needs the page will relaunch via bridge.ensure/start.
+Does NOT delete project state on disk — only kills the headless browser.
+"""
+    try:
+        await bridge.stop()
+        return _ok({"stopped": True, "message": "Playwright browser stopped; RAM released"})
+    except Exception as e:
+        return _err(str(e))
+
+
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
 async def mcp_opendaw_list_effects() -> str:
     """List all available audio and MIDI effect types."""
