@@ -1,6 +1,6 @@
 # Tool Reference
 
-556 MCP tools for headless openDAW control. All tools use the `mcp_opendaw_` prefix.
+557 MCP tools for headless openDAW control. All tools use the `mcp_opendaw_` prefix.
 
 ## Categories
 
