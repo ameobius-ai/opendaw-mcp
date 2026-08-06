@@ -1,5 +1,12 @@
 # opendaw-mcp
 
+<!-- REPO-METRICS: tools=557 skills=12 dsp=134 examples=226 -->
+
+[![MCP Tools](https://img.shields.io/badge/MCP%20Tools-557-brightgreen)](TOOL_CATALOG.md)
+[![Agent Skills](https://img.shields.io/badge/Agent%20Skills-12-blue)](skills/)
+[![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-134-orange)](scripts/)
+[![Examples](https://img.shields.io/badge/Examples-226-blue)](examples/)
+
 MCP server for agent-native control of [openDAW](https://github.com/andremichelle/openDAW) — a browser-based digital audio workstation. Exposes 550+ tools (tracks, notes, effects, mixing, rendering) over the Model Context Protocol for AI agents (Claude, GPT, etc.).
 
 ```
