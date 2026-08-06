@@ -14,6 +14,41 @@ logger = logging.getLogger(__name__)
 
 DAW_URL = os.environ.get("OPENDAW_URL", "http://localhost:5174")
 
+# Chromium launch flags tuned for low-RAM / weak machines. openDAW renders
+# audio via OfflineAudioContext, so --mute-audio and --disable-gpu do not
+# affect exports.
+_LOW_MEM_ARGS = [
+    "--no-sandbox",
+    "--use-fake-ui-for-media-stream",
+    "--autoplay-policy=no-user-gesture-required",
+    "--disable-dev-shm-usage",  # write to /tmp instead of /dev/shm (Docker default shm: 64 MB)
+    "--disable-gpu",  # headless rendering needs no GPU
+    "--mute-audio",  # no realtime audio output in headless mode
+    "--disable-extensions",
+    "--disable-background-networking",
+    "--disable-sync",
+    "--disable-translate",
+    "--disable-features=Translate,OptimizationHints",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--js-flags=--max-old-space-size=512",  # cap V8 heap; override via OPENDAW_V8_HEAP_MB
+]
+
+
+def _chromium_args() -> list[str]:
+    """Build Chromium launch args, with environment overrides.
+
+    OPENDAW_V8_HEAP_MB — V8 heap cap in MB (default: 512)
+    OPENDAW_CHROMIUM_ARGS — extra args, space-separated, appended last
+    """
+    heap_mb = os.environ.get("OPENDAW_V8_HEAP_MB", "512")
+    args = [
+        a.replace("--max-old-space-size=512", f"--max-old-space-size={heap_mb}")
+        for a in _LOW_MEM_ARGS
+    ]
+    extra = os.environ.get("OPENDAW_CHROMIUM_ARGS", "").split()
+    return args + extra
+
 
 class HeadlessDawBridge:
     """Playwright bridge to headless openDAW."""
@@ -31,11 +66,7 @@ class HeadlessDawBridge:
         self.playwright = await async_playwright().start()
         launch_opts = dict(
             headless=True,
-            args=[
-                "--no-sandbox",
-                "--use-fake-ui-for-media-stream",
-                "--autoplay-policy=no-user-gesture-required",
-            ],
+            args=_chromium_args(),
         )
         # Allow system chromium via env var
         chrome_path = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", "")
