@@ -37,6 +37,8 @@ ENV OPENDAW_HOST_DIR=/opendaw/headless-daw
 ENV OPENDAW_URL=http://localhost:5174
 ENV OPENDAW_EXPORT_DIR=/app/exports
 ENV NODE_BIN_DIR=/usr/local/bin
+# Cap Node/Vite heap so the dev server fits small containers (weak machines)
+ENV NODE_OPTIONS=--max-old-space-size=512
 ENV HOST=0.0.0.0
 ENV PORT=8080
 

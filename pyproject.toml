@@ -38,11 +38,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/AMEOBIUS-space/opendaw-mcp"
-Documentation = "https://ameobius-space.github.io/opendaw-mcp/"
-Repository = "https://github.com/AMEOBIUS-space/opendaw-mcp"
-Issues = "https://github.com/AMEOBIUS-space/opendaw-mcp/issues"
-Changelog = "https://ameobius-space.github.io/opendaw-mcp/changelog/"
+Homepage = "https://github.com/ameobius-ai/opendaw-mcp"
+Documentation = "https://ameobius-ai.github.io/opendaw-mcp/"
+Repository = "https://github.com/ameobius-ai/opendaw-mcp"
+Issues = "https://github.com/ameobius-ai/opendaw-mcp/issues"
+Changelog = "https://ameobius-ai.github.io/opendaw-mcp/changelog/"
 
 [project.scripts]
 opendaw-mcp = "server:main"
