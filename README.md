@@ -2,6 +2,7 @@
 
 <!-- REPO-METRICS: tools=557 skills=12 dsp=134 examples=226 -->
 
+[![CI](https://github.com/ameobius-ai/opendaw-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/ameobius-ai/opendaw-mcp/actions/workflows/ci.yml)
 [![MCP Tools](https://img.shields.io/badge/MCP%20Tools-557-brightgreen)](TOOL_CATALOG.md)
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-12-blue)](skills/)
 [![DSP Scripts](https://img.shields.io/badge/DSP%20Scripts-134-orange)](scripts/)
