@@ -6,12 +6,18 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs on the same ref (push storms queue dozens otherwise)
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
