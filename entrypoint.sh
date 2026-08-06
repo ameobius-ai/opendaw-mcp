@@ -1,16 +1,22 @@
 #!/bin/bash
 set -e
 
-# Start Vite dev server for openDAW headless-daw
-cd /opendaw/headless-daw
-node node_modules/vite/bin/vite.js --port 5174 --host 0.0.0.0 &
-VITE_PID=$!
+# Serve the openDAW headless host on :5174.
+# OPENDAW_SERVE_MODE=static uses the zero-dependency Python static server
+# (requires a pre-built host in OPENDAW_STATIC_DIR). Default: Vite dev server.
+if [ "${OPENDAW_SERVE_MODE:-vite}" = "static" ]; then
+    echo "Static mode: serving ${OPENDAW_STATIC_DIR:-/opendaw/headless-daw/dist}"
+    python3 /app/opendaw-mcp/scripts/serve_static.py &
+else
+    cd /opendaw/headless-daw
+    node node_modules/vite/bin/vite.js --port 5174 --host 0.0.0.0 &
+fi
 
-# Wait for Vite to be ready
-echo "Waiting for Vite dev server..."
+# Wait for the host server to be ready
+echo "Waiting for the host server..."
 for i in $(seq 1 30); do
     if curl -s http://localhost:5174 > /dev/null 2>&1; then
-        echo "Vite is ready"
+        echo "Host server is ready"
         break
     fi
     sleep 1
