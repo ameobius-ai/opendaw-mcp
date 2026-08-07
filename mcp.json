@@ -2,11 +2,23 @@
   "mcpServers": {
     "opendaw": {
       "command": "python",
-      "args": ["server.py"],
+      "args": [
+        "server.py"
+      ],
       "env": {
         "OPENDAW_HOST_DIR": "../headless-daw",
         "OPENDAW_URL": "http://localhost:5174",
         "OPENDAW_EXPORT_DIR": "../exports"
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
     }
   }
