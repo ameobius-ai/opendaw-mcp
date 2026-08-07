@@ -1,0 +1,110 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Sundays at 10:00 UTC
+    - cron: '0 10 * * 0'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install psutil  # For memory monitoring
+      
+      - name: Run benchmarks (lite mode)
+        run: |
+          python scripts/benchmark_performance.py --output benchmark_results_lite.json
+        env:
+          OPENDAW_MCP_MODE: lite
+      
+      - name: Run benchmarks (full mode)
+        run: |
+          python scripts/benchmark_performance.py --output benchmark_results_full.json
+        env:
+          OPENDAW_MCP_MODE: full
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark_results_lite.json
+            benchmark_results_full.json
+          retention-days: 90
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read benchmark results
+            let liteResults, fullResults;
+            try {
+              liteResults = JSON.parse(fs.readFileSync('benchmark_results_lite.json', 'utf8'));
+              fullResults = JSON.parse(fs.readFileSync('benchmark_results_full.json', 'utf8'));
+            } catch (e) {
+              console.log('Could not read benchmark results');
+              return;
+            }
+            
+            const latestLite = liteResults[liteResults.length - 1];
+            const latestFull = fullResults[fullResults.length - 1];
+            
+            // Create comment
+            const comment = `## 🚀 Performance Benchmarks
+            
+            ### Lite Mode (Default)
+            | Metric | Value |
+            |--------|-------|
+            | Import time | \${latestLite.benchmarks.import_time_seconds}s |
+            | Memory (peak) | \${latestLite.benchmarks.memory.peak_mb} MB |
+            | Tools | \${latestLite.benchmarks.tool_count} |
+            
+            ### Full Mode
+            | Metric | Value |
+            |--------|-------|
+            | Import time | \${latestFull.benchmarks.import_time_seconds}s |
+            | Memory (peak) | \${latestFull.benchmarks.memory.peak_mb} MB |
+            | Tools | \${latestFull.benchmarks.tool_count} |
+            
+            <details>
+            <summary>📊 Full Results</summary>
+            
+            \`\`\`json
+            \${JSON.stringify(latestLite, null, 2)}
+            \`\`\`
+            
+            </details>
+            
+            ---
+            *Automated benchmark run*`;
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
