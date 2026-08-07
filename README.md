@@ -51,6 +51,9 @@ Client config example:
 
 Full mode registers 557 tools; every tool schema costs tokens on each agent turn. Lite mode registers a curated set of 39 essential tools — about 92% less schema payload and a faster startup:
 
+
+> **Note:** Lite mode is now the default. You only need to set `OPENDAW_MCP_MODE=full` if you want all tools.
+
 ```bash
 OPENDAW_MCP_MODE=lite python server.py
 ```
@@ -71,12 +74,15 @@ In Docker, `OPENDAW_SERVE_MODE=static` replaces the Vite dev server with a zero-
 
 ## Environment variables
 
+> **Note:** As of this update, `OPENDAW_MCP_MODE=lite` is now the default mode for better token efficiency. Use `OPENDAW_MCP_MODE=full` to enable all 500+ tools.
+
+
 | Variable | Default | Description |
 |---|---|---|
 | `OPENDAW_URL` | `http://localhost:5174` | URL of the served openDAW host |
 | `OPENDAW_HOST_DIR` | `../headless-daw` | Path to headless DAW host directory |
 | `OPENDAW_EXPORT_DIR` | `../exports` | Rendered audio output directory |
-| `OPENDAW_MCP_MODE` | `full` | `lite` = 39 tools, `full` = all tools |
+| `OPENDAW_MCP_MODE` | `lite` | `lite` = 39 tools (default), `full` = all tools |
 | `OPENDAW_SERVE_MODE` | `vite` | Docker: `static` = serve a pre-built host via `scripts/serve_static.py` (no Node) |
 | `OPENDAW_STATIC_DIR` | `/opendaw/headless-daw/dist` | Directory served in static mode |
 | `MCP_TRANSPORT` | `stdio` | `stdio` or `sse` |

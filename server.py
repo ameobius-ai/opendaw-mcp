@@ -30794,7 +30794,7 @@ def main():
     import sys
     if len(sys.argv) > 1:
         if sys.argv[1] in ("--version", "-v"):
-            mode = os.environ.get("OPENDAW_MCP_MODE", "full")
+            mode = os.environ.get("OPENDAW_MCP_MODE", "lite")
             print(f"opendaw-mcp {__version__} — {len(LITE_TOOLS) if mode == 'lite' else '504'} MCP tools (mode: {mode})")
             return
         if sys.argv[1] in ("--list-tools", "-l"):
@@ -30829,7 +30829,7 @@ def main():
             return
 
     # Lite mode: remove non-essential tools
-    mode = os.environ.get("OPENDAW_MCP_MODE", "full")
+    mode = os.environ.get("OPENDAW_MCP_MODE", "lite")
     if mode == "lite":
         import asyncio
         all_tools = asyncio.run(mcp.list_tools())
