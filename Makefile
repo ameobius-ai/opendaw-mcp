@@ -54,3 +54,16 @@ lint:
 
 clean:
 	rm -f $(EXPORTS)/*.wav
+
+# Pre-commit hooks
+.PHONY: precommit-install precommit-run precommit-update
+
+precommit-install:
+	pip install pre-commit
+	pre-commit install
+
+precommit-run:
+	pre-commit run --all-files
+
+precommit-update:
+	pre-commit autoupdate

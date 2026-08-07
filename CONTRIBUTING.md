@@ -117,6 +117,49 @@ Scriptable device scripts (Werkstatt/Apparat/Spielwerk) live in `scripts/`. See 
 3. Push and open a PR with a clear description
 4. Ensure CI passes (syntax check + tool count verification)
 
+
+## Code Quality
+
+This project uses [pre-commit](https://pre-commit.com/) to enforce code quality standards.
+
+### Setup
+
+Install pre-commit hooks:
+
+    make precommit-install
+
+This will install hooks that run automatically before each commit.
+
+### Running Checks Manually
+
+Run all checks on all files:
+
+    make precommit-run
+
+### What Gets Checked
+
+- **Trailing whitespace**: Removes trailing whitespace
+- **End of file**: Ensures files end with newline
+- **YAML/TOML syntax**: Validates configuration files
+- **Large files**: Prevents committing files >1MB
+- **Merge conflicts**: Detects unresolved merge conflicts
+- **Debug statements**: Catches print(), breakpoint(), etc.
+- **Ruff**: Python linting and formatting
+- **Secrets detection**: Prevents committing API keys, tokens, etc.
+
+### Updating Hooks
+
+Update hooks to latest versions:
+
+    make precommit-update
+
+### Skipping Hooks (Emergency Only)
+
+If you need to bypass hooks temporarily:
+
+    git commit --no-verify -m "emergency commit"
+
+**Warning**: This should be rare. CI will still run these checks.
 ## License
 
 By contributing, you agree your contributions are licensed under Apache-2.0.
