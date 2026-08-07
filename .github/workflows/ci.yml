@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write  # allow posting pytest failure logs to the tracking issue
 
 jobs:
   test:
@@ -89,7 +90,26 @@ jobs:
           "
 
       - name: Run unit tests
-        run: python -m pytest tests/ -v
+        run: |
+          python -m pytest tests/ -q --tb=short -rfE 2>&1 | tee /tmp/pytest.log
+
+      - name: Comment pytest failure log on tracking issue
+        if: failure() && matrix.python-version == '3.12'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "**CI diagnostic**: pytest failed on \`${{ github.sha }}\` (run #${{ github.run_number }}, python ${{ matrix.python-version }})."
+            echo
+            echo '<details><summary>pytest tail</summary>'
+            echo
+            echo '```'
+            tail -n 150 /tmp/pytest.log
+            echo '```'
+            echo '</details>'
+          } > /tmp/comment.md
+          gh issue comment 16 --repo ameobius-ai/opendaw-mcp --body-file /tmp/comment.md
+
       - name: Repo consistency check
         run: python scripts/check_repo_consistency.py
       - name: Tool reference up-to-date
