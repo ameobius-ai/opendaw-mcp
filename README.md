@@ -18,14 +18,23 @@ The server drives a real openDAW instance in headless Chromium via `page.evaluat
 
 ## Quick start
 
-Requirements: Python 3.10+, Node.js 20+ (to serve the openDAW host), Chromium via Playwright.
+Requirements: Python 3.10+, Node.js 20+ (only to build the openDAW host once), Chromium via Playwright.
 
 ```bash
 pip install -r requirements.txt
 playwright install chromium
 
-# Serve the openDAW headless host on http://localhost:5174 in a separate terminal
-# (see https://github.com/andremichelle/openDAW)
+# Build the openDAW headless host once — it is a separate, small Vite app
+# (NOT the openDAW monorepo, which has no headless-daw directory):
+git clone --depth 1 https://github.com/andremichelle/openDAW-headless ../headless-daw
+cd ../headless-daw
+# its vite.config.ts readFileSync()s these certs at config load, even for `vite build`
+openssl req -x509 -newkey rsa:2048 -keyout localhost-key.pem -out localhost.pem -days 365 -nodes -subj "/CN=localhost"
+npm install && npm run build
+cd ..
+
+# Serve the built host statically on http://localhost:5174 (no Node needed at runtime):
+OPENDAW_STATIC_DIR=../headless-daw/dist python scripts/serve_static.py &
 
 python server.py   # stdio transport
 ```
@@ -64,7 +73,7 @@ Lite covers: project state, tracks, instruments, notes, regions, effects, mixing
 
 Chromium is launched with low-RAM flags by default: `--disable-dev-shm-usage` (safe on Docker's 64 MB `/dev/shm`), `--disable-gpu`, `--mute-audio`, a V8 heap cap, and no background networking. Offline rendering is unaffected.
 
-In Docker, `OPENDAW_SERVE_MODE=static` replaces the Vite dev server with a zero-dependency Python static server (`scripts/serve_static.py`, ~10 MB RAM instead of ~300–500 MB for Node + Vite). Requires a pre-built host directory; Vite remains the default until the image builds one (see issue #12).
+In Docker, `OPENDAW_SERVE_MODE=static` (the default in the image) replaces the Vite dev server with a zero-dependency Python static server (`scripts/serve_static.py`, ~10 MB RAM instead of ~300–500 MB for Node + Vite). The image builds the headless host at build time, so no Node.js is needed at runtime.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -83,11 +92,11 @@ In Docker, `OPENDAW_SERVE_MODE=static` replaces the Vite dev server with a zero-
 | `OPENDAW_HOST_DIR` | `../headless-daw` | Path to headless DAW host directory |
 | `OPENDAW_EXPORT_DIR` | `../exports` | Rendered audio output directory |
 | `OPENDAW_MCP_MODE` | `lite` | `lite` = 39 tools (default), `full` = all tools |
-| `OPENDAW_SERVE_MODE` | `vite` | Docker: `static` = serve a pre-built host via `scripts/serve_static.py` (no Node) |
+| `OPENDAW_SERVE_MODE` | `static` (Docker image) | `static` = serve a pre-built host via `scripts/serve_static.py` (no Node); `vite` = Vite dev server |
 | `OPENDAW_STATIC_DIR` | `/opendaw/headless-daw/dist` | Directory served in static mode |
 | `MCP_TRANSPORT` | `stdio` | `stdio` or `sse` |
 | `FASTMCP_HOST` / `FASTMCP_PORT` | `127.0.0.1` / `8000` | SSE bind address |
-| `NODE_BIN_DIR` | — | Prepended to PATH for Vite lookup |
+| `NODE_BIN_DIR` | — | Prepended to PATH for Vite lookup (vite mode only) |
 
 ## Docker
 
@@ -96,7 +105,7 @@ docker build -t opendaw-mcp .
 docker run --rm -p 8080:8080 opendaw-mcp
 ```
 
-The image builds openDAW from source, serves the headless host, and runs the server in SSE mode on `:8080`. Node's heap is capped via `NODE_OPTIONS` for small containers; give the container at least 1 GB RAM for comfortable rendering.
+The image builds the openDAW headless host ([openDAW-headless](https://github.com/andremichelle/openDAW-headless)) from source, serves its static build via `scripts/serve_static.py`, and runs the server in SSE mode on `:8080`. There is no Node.js in the runtime image; give the container at least 1 GB RAM for comfortable rendering.
 
 ## Development
 
