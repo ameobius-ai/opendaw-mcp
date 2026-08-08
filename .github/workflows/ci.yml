@@ -68,8 +68,8 @@ jobs:
 
       - name: Check for hardcoded paths
         run: |
-          if grep -r "/home/" server.py --include="*.py"; then
-            echo "Found hardcoded /home/ paths in server.py!"
+          if grep -rn "/home/" server.py opendaw_mcp/ --include="*.py"; then
+            echo "Found hardcoded /home/ paths!"
             exit 1
           fi
           echo "No hardcoded paths found"
