@@ -1,8 +1,8 @@
 site_name: opendaw-mcp
-site_description: 543 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation
-site_url: https://aaameobius-crypto.github.io/opendaw-mcp/
-repo_url: https://github.com/AMEBIUS-team/opendaw-mcp
-repo_name: AMEBIUS-team/opendaw-mcp
+site_description: 557 MCP tools for agent-native control of openDAW — a browser-based digital audio workstation
+site_url: https://ameobius-ai.github.io/opendaw-mcp/
+repo_url: https://github.com/ameobius-ai/opendaw-mcp
+repo_name: ameobius-ai/opendaw-mcp
 edit_uri: edit/main/docs/
 
 theme:
@@ -101,7 +101,7 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/AMEBIUS-team/opendaw-mcp
+      link: https://github.com/ameobius-ai/opendaw-mcp
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/opendaw-mcp/
   generator: false
