@@ -423,8 +423,7 @@ def _fft_radix2(re: list, im: list) -> None:
                 v_re = re[i + k + half] * w_re - im[i + k + half] * w_im
                 v_im = re[i + k + half] * w_im + im[i + k + half] * w_re
                 re[i + k] = u_re + v_re
-                im[i + k] = u_im + v_im
-                re[i + k + half] = u_re - v_re
+                im[i + k + half] = u_re - v_re
                 im[i + k + half] = u_im - v_im
                 nw_re = w_re * wlen_re - w_im * wlen_im
                 w_im = w_re * wlen_im + w_im * wlen_re
@@ -1259,7 +1258,7 @@ def _analyze_dynamics(channels: list, sample_rate: int) -> dict:
         return {
             "crest_factor_db": 0.0, "loudness_range_db": 0.0,
             "transient_density": 0.0, "dynamic_range_db": 0.0,
-            "segment_rms variation": 0.0, "segments": [],
+            "segment_variation_db": 0.0, "segments": [],
             "sample_rate": sample_rate,
         }
 
