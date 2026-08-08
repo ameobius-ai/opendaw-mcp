@@ -181,8 +181,17 @@ PROFILES: dict[str, dict[str, Any]] = {
 
 
 def get_profile(genre: str) -> dict[str, Any] | None:
-    """Get genre profile by name (case-insensitive)."""
-    return PROFILES.get(genre.lower().replace("-", "_").replace(" ", "_"))
+    """Get genre profile by name (case-insensitive, hyphen/space/underscore agnostic)."""
+    key = genre.lower()
+    candidates = (
+        key,
+        key.replace("-", "_").replace(" ", "_"),
+        key.replace("_", "-"),
+    )
+    for cand in candidates:
+        if cand in PROFILES:
+            return PROFILES[cand]
+    return None
 
 
 def list_genres() -> list[str]:
