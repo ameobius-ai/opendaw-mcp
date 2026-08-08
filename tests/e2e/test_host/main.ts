@@ -118,6 +118,47 @@ function setStatus(msg: string) {
   console.log(`[test-host] ${msg}`)
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Boot failure reporting
+//
+// Failures used to end up in the status line and nowhere else. Nothing reads
+// that line, so bridge.py could only observe that the DAW_* globals never
+// appeared and report a 30 s timeout — which names the symptom and hides the
+// cause. Record the real error where the bridge can read it. See issue #57.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+type BootError = {
+  message: string
+  stack: string | null
+  phase: string
+  at: string
+}
+
+function recordBootError(phase: string, err: unknown) {
+  const w = window as any
+  const record: BootError = {
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack ?? null : null,
+    phase,
+    at: new Date().toISOString(),
+  }
+  // Keep the first failure. Anything after it is usually a consequence, and
+  // overwriting would hide the one that actually matters.
+  if (!w.DAW_BOOT_ERROR) {
+    w.DAW_BOOT_ERROR = record
+  }
+  console.error(`[test-host] ${phase} failed:`, err)
+}
+
+// A throw at module scope, or a rejection nobody awaited, never reaches
+// boot()'s catch — without these it would leave no trace at all.
+window.addEventListener("error", (event) => {
+  recordBootError("window.onerror", event.error ?? event.message)
+})
+window.addEventListener("unhandledrejection", (event) => {
+  recordBootError("unhandledrejection", event.reason)
+})
+
 async function boot() {
   setStatus("Booting...")
 
@@ -263,6 +304,6 @@ async function boot() {
 }
 
 boot().catch((err) => {
-  setStatus(`ERROR: ${err.message}`)
-  console.error("[test-host] boot failed:", err)
+  recordBootError("boot", err)
+  setStatus(`ERROR: ${err instanceof Error ? err.message : String(err)}`)
 })

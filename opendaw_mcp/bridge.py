@@ -110,16 +110,24 @@ class HeadlessDawBridge:
         # DAW_startEngine) and the repo tests/e2e test_host
         # (window.opendaw.service.project + an auto-started engine). We therefore do
         # not hard-require window.DAW or DAW_startEngine here.
-        await self.page.wait_for_function(
-            "(typeof window.DAW !== 'undefined'"
-            " || (window.opendaw && window.opendaw.service && window.opendaw.service.project)"
-            " || typeof window.DAW_project !== 'undefined')"
-            " && typeof window.DAW_NoteEventBox !== 'undefined'"
-            " && typeof window.DAW_InstrumentFactories !== 'undefined'"
-            " && typeof window.DAW_UUID !== 'undefined'"
-            " && typeof window.DAW_PPQN !== 'undefined'",
-            timeout=30000,
-        )
+        try:
+            await self.page.wait_for_function(
+                "(typeof window.DAW !== 'undefined'"
+                " || (window.opendaw && window.opendaw.service && window.opendaw.service.project)"
+                " || typeof window.DAW_project !== 'undefined')"
+                " && typeof window.DAW_NoteEventBox !== 'undefined'"
+                " && typeof window.DAW_InstrumentFactories !== 'undefined'"
+                " && typeof window.DAW_UUID !== 'undefined'"
+                " && typeof window.DAW_PPQN !== 'undefined'",
+                timeout=30000,
+            )
+        except Exception as exc:
+            # A bare timeout names the symptom (globals absent) and hides the
+            # cause. Ask the page what actually went wrong. See issue #57.
+            details = await self._describe_boot_failure()
+            raise RuntimeError(
+                f"openDAW host at {DAW_URL} never became ready: {details}"
+            ) from exc
         # Inject helper functions into DAW context — eliminates boilerplate in every tool.
         # The Project is exposed differently per host: creative-studio headless-daw
         # publishes it as window.DAW (+ DAW_* globals, engine deferred via
@@ -279,6 +287,53 @@ class HeadlessDawBridge:
         }"""
         )
         logger.info("DAW helpers injected — engine deferred (DAW_startEngine on demand)")
+
+    async def _describe_boot_failure(self) -> str:
+        """Ask the page why it never finished booting.
+
+        The test host records its first failure on window.DAW_BOOT_ERROR
+        (see tests/e2e/test_host/main.ts). Read that when available; otherwise
+        report enough page state to tell "boot threw" apart from "the module
+        never loaded at all".
+        """
+        try:
+            info = await self.page.evaluate(
+                """() => {
+                    const el = document.getElementById('status');
+                    return {
+                        bootError: window.DAW_BOOT_ERROR || null,
+                        status: el ? el.textContent : null,
+                        hasOpendaw: typeof window.opendaw !== 'undefined',
+                        hasProject: !!(window.DAW || window.DAW_project),
+                        globals: Object.keys(window).filter(k => k.indexOf('DAW_') === 0).length,
+                    };
+                }"""
+            )
+        except Exception as exc:
+            return f"the page could not be queried for diagnostics ({exc})"
+
+        boot_error = info.get("bootError")
+        if boot_error:
+            phase = boot_error.get("phase", "boot")
+            message = boot_error.get("message")
+            stack = boot_error.get("stack")
+            described = f"the host raised during {phase}: {message}"
+            if stack:
+                described = f"{described}\n{stack}"
+            return described
+
+        if not info.get("status"):
+            return (
+                "the host reported no error and its status line is empty, so the "
+                "page script never ran. Check the Vite server log for a resolve "
+                "or transform error."
+            )
+
+        return (
+            "the host reported no error, so boot is still in progress. "
+            f"status={info.get('status')!r}, opendaw={info.get('hasOpendaw')}, "
+            f"project={info.get('hasProject')}, DAW_* globals={info.get('globals')}"
+        )
 
     async def evaluate(self, script, timeout=30000):
         """Execute JS in the DAW context. All errors caught and returned."""
