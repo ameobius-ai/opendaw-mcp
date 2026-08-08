@@ -35,7 +35,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install psutil  # For memory monitoring
+          # The benchmark script imports server.py, which pulls in the full
+          # runtime stack. requirements.txt alone is not enough — mirror the
+          # package set ci.yml installs for its test job.
+          pip install psutil numpy scipy pyloudnorm
 
       - name: Run benchmarks (lite mode)
         run: |
