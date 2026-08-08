@@ -20,7 +20,6 @@ from typing import Any
 
 KB_PACKAGES_DIR_CANDIDATES = (
     Path(os.environ.get("OPENDAW_KB_DIR", "")).expanduser() if os.environ.get("OPENDAW_KB_DIR") else None,
-    Path("/home/ameobius/projects/creative-studio/kb"),
     Path(__file__).resolve().parents[3] / "kb",  # agent-daw/../kb if layout matches
     Path(__file__).resolve().parents[2].parent / "kb",
 )
