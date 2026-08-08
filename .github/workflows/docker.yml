@@ -30,6 +30,7 @@ on:
 
 permissions:
   contents: read
+  issues: write  # allow posting docker logs to the PR when smoke fails
 
 jobs:
   build:
@@ -55,24 +56,64 @@ jobs:
         run: docker build -t opendaw-mcp:ci .
 
       - name: Start container
-        run: docker run -d --name smoke -p 5174:5174 -p 8080:8080 opendaw-mcp:ci
+        run: |
+          docker run -d --name smoke -p 5174:5174 -p 8080:8080 opendaw-mcp:ci
+          sleep 5
+          if ! docker ps --filter name=smoke --filter status=running -q | grep -q .; then
+            echo "Container exited within 5s of start"
+            docker logs smoke 2>&1 || true
+            exit 1
+          fi
 
       - name: Wait for static host on :5174
-        run: curl --retry 30 --retry-delay 1 --retry-connrefused -fsS -o /dev/null http://localhost:5174/
+        run: |
+          # any HTTP response (even 4xx) proves the server is up; 000 means connection refused
+          code=$(curl --retry 60 --retry-delay 1 --retry-connrefused -s -o /dev/null -w '%{http_code}' http://localhost:5174/)
+          echo "static host / HTTP status: $code"
+          if [ "$code" = "000" ]; then
+            echo "Static host did not come up on :5174"
+            exit 1
+          fi
 
       - name: Assert MCP server responds on :8080
         run: |
-          # any HTTP response (even 4xx) proves the server is up; 000 means connection refused
-          code=$(curl --retry 30 --retry-delay 1 --retry-connrefused -s -o /dev/null -w '%{http_code}' http://localhost:8080/sse)
-          echo "MCP /sse HTTP status: $code"
-          if [ "$code" = "000" ]; then
-            echo "MCP server did not come up on :8080"
+          # TCP probe: server.py is a 2.8 MB module — boot can take a while (see #15)
+          ok=0
+          for i in $(seq 1 120); do
+            if timeout 1 bash -c 'echo > /dev/tcp/127.0.0.1/8080' 2>/dev/null; then
+              ok=1
+              echo "MCP port 8080 open after ~${i}s"
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" != "1" ]; then
+            echo "MCP server did not open :8080 within 120s"
+            docker logs smoke 2>&1 || true
             exit 1
           fi
 
       - name: Dump container logs on failure
         if: failure()
-        run: docker logs smoke || true
+        run: docker logs smoke 2>&1 || true
+
+      - name: Comment docker logs on the PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker logs smoke > /tmp/smoke.log 2>&1 || true
+          {
+            echo "**Container smoke failed** (run #${{ github.run_number }}). \`docker logs smoke\` tail:"
+            echo
+            echo '<details><summary>docker logs</summary>'
+            echo
+            echo '```'
+            tail -n 80 /tmp/smoke.log
+            echo '```'
+            echo '</details>'
+          } > /tmp/comment.md
+          gh pr comment ${{ github.event.pull_request.number }} --repo ameobius-ai/opendaw-mcp --body-file /tmp/comment.md
 
       - name: Cleanup
         if: always()
