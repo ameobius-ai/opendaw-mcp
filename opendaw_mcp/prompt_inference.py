@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from opendaw_mcp.errors import enrich_error
+
 # ---------------------------------------------------------------------------
 # KB package fingerprints (synced with creative-studio/kb/suno/packages/*)
 # Spectral/tempo priors are soft — not genre locks for mix advice.
@@ -432,10 +434,10 @@ def infer_from_metrics(
     Does not hallucinate vendor hype; low-confidence fields are labeled.
     """
     if not isinstance(metrics, dict):
-        return {
+        return enrich_error({
             "error": "metrics must be a dict",
             "error_code": "INVALID_PARAMETER",
-        }
+        })
 
     hint_id = _resolve_hint(genre_hint)
     scored: list[tuple[float, dict, list[str]]] = []
@@ -685,17 +687,17 @@ def infer_suno_prompt(
     """
     if metrics is None:
         if not filename:
-            return {
+            return enrich_error({
                 "error": "filename or metrics required",
                 "error_code": "INVALID_PARAMETER",
-            }
+            })
         metrics = analyze_file_metrics(filename)
         if "error" in metrics:
-            return metrics
+            return enrich_error(metrics)
 
     result = infer_from_metrics(metrics, genre_hint=genre_hint, compact=compact)
     if "error" in result:
-        return result
+        return enrich_error(result)
 
     result["file"] = metrics.get("file") or filename
 

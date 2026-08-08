@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from opendaw_mcp.utils import _compute_lufs, _parse_wav, _safe_filename
+from opendaw_mcp.errors import enrich_error
 
 # Spec table (docs/smart-export-spec.md). Club is -9 / -0.3 (export), not auto_master's -8.
 PLATFORM_PRESETS: dict[str, dict[str, float]] = {
@@ -184,11 +185,11 @@ def export_for_platform(
     try:
         preset = get_platform_preset(platform)
     except ValueError as e:
-        return {
+        return enrich_error({
             "error": str(e),
             "error_code": "INVALID_PARAMETER",
             "hint": f"Valid platforms: {sorted(VALID_PLATFORMS)}",
-        }
+        })
 
     target_lufs = float(preset["target_lufs"])
     ceiling_dbtp = float(preset["ceiling_dbtp"])
@@ -198,19 +199,19 @@ def export_for_platform(
     try:
         in_path = resolve_input_path(filename)
     except FileNotFoundError as e:
-        return {
+        return enrich_error({
             "error": str(e),
             "error_code": "NOT_FOUND",
             "hint": "Pass a WAV in OPENDAW_EXPORT_DIR or an absolute path",
-        }
+        })
 
     try:
         measured_in = measure_file(in_path)
     except Exception as e:
-        return {
+        return enrich_error({
             "error": f"Measure failed: {e}",
             "error_code": "INVALID_PARAMETER",
-        }
+        })
 
     wav = measured_in.pop("_wav")
     in_metrics = {
@@ -275,7 +276,7 @@ def export_for_platform(
 
     # Hard fail before write when TP exceeds ceiling (acceptance: fails if TP above ceiling)
     if strict_ceiling and tp > ceiling_dbtp + _TP_EPS:
-        return {
+        return enrich_error({
             "error": (
                 f"True peak {tp:.2f} dBTP exceeds ceiling "
                 f"{ceiling_dbtp:.1f} dBTP for platform={platform_key}"
@@ -288,7 +289,7 @@ def export_for_platform(
                 "max_sample": out_metrics["max_sample"],
             },
             "plan": plan,
-        }
+        })
 
     write_float32_wav(out_path, channels, wav["sample_rate"])
 
