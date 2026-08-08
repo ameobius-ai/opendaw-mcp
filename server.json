@@ -3,7 +3,7 @@
   "name": "io.github.ameobius-ai/opendaw-mcp",
   "title": "openDAW MCP",
   "description": "557 MCP tools (39 in the default lite mode) for agent-native control of openDAW — instruments/effects, scriptable DSP, stem splitting, preset management, offline render",
-  "version": "1.390.0",
+  "version": "1.391.0",
   "repository": {
     "url": "https://github.com/ameobius-ai/opendaw-mcp",
     "source": "github"
@@ -11,7 +11,7 @@
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/ameobius-ai/opendaw-mcp:1.390.0",
+      "identifier": "ghcr.io/ameobius-ai/opendaw-mcp:1.391.0",
       "transport": {
         "type": "stdio"
       },
