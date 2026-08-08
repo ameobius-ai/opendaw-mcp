@@ -23,6 +23,8 @@ on:
 
 permissions:
   contents: read
+  issues: write  # gh issue comment (PR comments use the issues API) — bridge-smoke diagnostics (#44)
+  pull-requests: write
 
 jobs:
   bridge-smoke:
@@ -176,6 +178,37 @@ jobs:
             /tmp/vite_stdout.log
             /tmp/exports/
           retention-days: 7
+
+      # Debug iteration (#44): always post, so the comment channel itself is
+      # verified regardless of job outcome; flip back to failure() once the
+      # root cause is fixed.
+      - name: Comment diagnostics on the PR
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "**bridge-smoke diagnostics** (run #${{ github.run_number }}, ref ${{ steps.ref.outputs.ref }})."
+            echo
+            if [ -f /tmp/bridge_smoke.log ]; then
+              echo "bridge smoke test ran (see tail below)."
+            else
+              echo "bridge smoke test never ran — failure happened in an earlier step (setup/vite)."
+            fi
+            echo
+            for f in /tmp/vite_stdout.log /tmp/bridge_smoke.log /tmp/bench.log /tmp/eval.log /tmp/golden.log; do
+              if [ -f "$f" ]; then
+                echo "<details><summary>$(basename $f)</summary>"
+                echo
+                echo '```'
+                tail -n 60 "$f"
+                echo '```'
+                echo '</details>'
+                echo
+              fi
+            done
+          } > /tmp/e2e_comment.md
+          gh issue comment ${{ github.event.pull_request.number }} --repo ameobius-ai/opendaw-mcp --body-file /tmp/e2e_comment.md
 
       - name: Cleanup
         if: always()
