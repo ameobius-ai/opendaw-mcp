@@ -1,9 +1,10 @@
 /**
  * Minimal openDAW test host — creates Project programmatically, no dashboard/UI.
  *
- * Based on naomiaro/opendaw-test projectSetup.ts pattern:
- *   Workers.install → AudioWorklets.install → OfflineEngineRenderer.install
- *   → AudioContext → Project.new → engine.isReady
+ * Boot order (each step depends on the previous one):
+ *   Workers.install → AudioWorklets.install → AudioContext
+ *   → AudioWorklets.createFor → WasmEngine.install → WasmEngine.ensureReady
+ *   → Project.new → startAudioWorklet → engine.isReady
  *
  * Exposes window.opendaw.service + window.DAW_* globals compatible with
  * opendaw_mcp/bridge.py DAW_HELPERS and server.py tool functions.
@@ -33,6 +34,8 @@ import {
   StudioPreferences,
 } from "@opendaw/studio-core"
 import type { SoundfontService } from "@opendaw/studio-core"
+
+import { WasmEngine } from "@opendaw/studio-core-wasm"
 
 import {
   SampleMetaData,
@@ -83,22 +86,22 @@ import {
 
 // Vite worker/url imports — resolved at build time.
 //
-// @opendaw/studio-core also advertises "./offline-engine.js" in its export map
-// and lists it in `files`, but that file ships in no published tarball. As of
-// 0.1.4, 0.1.5 and 0.1.6 — every version in our ^0.1.4 range — dist/ contains
-// processors.js, workers-main.js and OfflineEngineRenderer.js, and no
-// offline-engine.js.
+// Every specifier here must be a file npm actually ships. A subpath in a
+// package's export map is NOT evidence of that: #44 was caused by importing
+// "@opendaw/studio-core/offline-engine.js", which studio-core advertises in
+// both `exports` and `files` yet publishes at no version in our ^0.1.4 range.
+// Vite fails such an import during transform, which aborts the entire module:
+// boot() never runs, no DAW_* global is assigned, and the bridge can only
+// report a 30 s timeout. Verify a file exists in the published tarball before
+// importing it.
 //
-// Importing it statically fails Vite's import analysis at transform time, and
-// that aborts the entire module: boot() never runs and not one DAW_* global is
-// assigned, so bridge.py waits 30 s and times out. That was the cause of #44.
-//
-// Several openDAW-derived projects do use this specifier, but they build inside
-// the openDAW monorepo where the file exists as a build artifact. Do not
-// re-add the import without first confirming the file is actually published —
-// its presence in the export map is not evidence that it is.
+// The wasm artifacts below were checked against studio-core-wasm@0.0.8:
+// dist/wasm-processor.js, dist/wasm-offline-worker.js and dist/wasm/ are all
+// present.
 import WorkersUrl from "@opendaw/studio-core/workers-main.js?worker&url"
 import WorkletsUrl from "@opendaw/studio-core/processors.js?url"
+import WasmProcessorUrl from "@opendaw/studio-core-wasm/wasm-processor.js?url"
+import WasmOfflineWorkerUrl from "@opendaw/studio-core-wasm/wasm-offline-worker.js?url"
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Boot
@@ -106,12 +109,9 @@ import WorkletsUrl from "@opendaw/studio-core/processors.js?url"
 
 const statusEl = document.getElementById("status")!
 
-// Offline rendering cannot be installed while upstream omits the worker entry
-// point. Keep the reason as a string so render/export tools can surface
-// something precise rather than an opaque failure deep in the renderer.
-const OFFLINE_ENGINE_UNAVAILABLE_REASON =
-  "@opendaw/studio-core does not publish dist/offline-engine.js, so " +
-  "OfflineEngineRenderer has no worker entry point to install (see issue #44)"
+// The base URL serving the wasm binaries. Must match the /wasm-engine route in
+// vite.config.ts, which serves node_modules/@opendaw/studio-core-wasm/dist/wasm.
+const WASM_ENGINE_URL = "/wasm-engine"
 
 function setStatus(msg: string) {
   statusEl.textContent = msg
@@ -171,13 +171,53 @@ async function boot() {
   setStatus("Installing workers...")
   await Workers.install(WorkersUrl)
   AudioWorklets.install(WorkletsUrl)
-  console.warn(`[test-host] offline rendering disabled: ${OFFLINE_ENGINE_UNAVAILABLE_REASON}`)
 
   setStatus("Creating AudioContext...")
   const audioContext = new AudioContext({ latencyHint: 0 })
 
   setStatus("Installing audio worklets...")
   await AudioWorklets.createFor(audioContext)
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // WASM engine
+  //
+  // studio-core ships no built-in engine. EngineWorklet resolves
+  // EngineVariant.current() at construction time, and the provider it looks up
+  // is registered by WasmEngine.install. studio-core cannot import
+  // studio-core-wasm — that package depends on studio-core — so the engine is
+  // injected, and its artifacts arrive as host-served URLs.
+  //
+  // Skipping this is exactly what left the host broken after #56: boot() got as
+  // far as startAudioWorklet() and panicked with "No engine installed
+  // (WasmEngine.install must run before an engine boots)".
+  //
+  // install() also wires the offline render path for us — internally it calls
+  // OfflineEngineRenderer.install(offlineWorkerUrl, {wasmUrl}) — so mixdown,
+  // stems, freeze and benchmarks go through this same call.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  setStatus("Installing WASM engine...")
+  WasmEngine.install({
+    processorUrl: WasmProcessorUrl,
+    offlineWorkerUrl: WasmOfflineWorkerUrl,
+    wasmUrl: WASM_ENGINE_URL,
+  })
+
+  // ensureReady compiles the wasm modules and registers the processor module.
+  // It reports failure by returning false rather than throwing, and there is no
+  // fallback engine — so treat false as fatal here. Carrying on would surface
+  // later as a panic from deep inside the EngineVariant provider
+  // ("WasmEngine.ensureReady must succeed before an engine boots"), far from
+  // the actual reason.
+  setStatus("Compiling WASM engine modules...")
+  if (!(await WasmEngine.ensureReady(audioContext))) {
+    throw new Error(
+      "WasmEngine.ensureReady() returned false: the wasm engine artifacts could " +
+        `not be compiled or fetched. Check that ${WASM_ENGINE_URL} serves ` +
+        "@opendaw/studio-core-wasm/dist/wasm (see the wasm-engine-assets plugin " +
+        "in vite.config.ts) and look for a preceding \"WASM engine unavailable\" " +
+        "warning with the underlying error.",
+    )
+  }
 
   const sampleProvider: SampleProvider = {
     fetch: async (_uuid: UUID.Bytes, _progress: Progress.Handler): Promise<[AudioData, SampleMetaData]> => {
@@ -286,11 +326,12 @@ async function boot() {
   w.DAW_TransferAudioUnits = TransferAudioUnits
   w.DAW_TransferRegions = TransferRegions
   w.DAW_OfflineEngineRenderer = OfflineEngineRenderer
+  w.DAW_WasmEngine = WasmEngine
 
-  // Offline rendering is deliberately not installed — see the note above the
-  // worker imports. Expose the state so tools can fail with a real reason.
-  w.DAW_offlineEngineAvailable = false
-  w.DAW_offlineEngineUnavailableReason = OFFLINE_ENGINE_UNAVAILABLE_REASON
+  // Offline rendering is wired by WasmEngine.install (it calls
+  // OfflineEngineRenderer.install internally), so it is available whenever the
+  // engine booted at all.
+  w.DAW_offlineEngineAvailable = true
 
   // Runtime state globals
   w.DAW_project = project
