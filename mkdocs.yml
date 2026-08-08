@@ -95,6 +95,7 @@ nav:
   - DSP Scripts: dsp-scripts.md
   - Music Theory: music-theory.md
   - Agent Skills: skills.md
+  - Error Codes: error-codes.md
   - Changelog: changelog.md
 
 extra:
