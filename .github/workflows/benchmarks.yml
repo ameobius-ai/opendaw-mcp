@@ -42,15 +42,32 @@ jobs:
 
       - name: Run benchmarks (lite mode)
         run: |
-          python scripts/benchmark_performance.py --output benchmark_results_lite.json
+          python scripts/benchmark_performance.py --output benchmark_results_lite.json 2>&1 | tee bench_lite.log
         env:
           OPENDAW_MCP_MODE: lite
 
       - name: Run benchmarks (full mode)
         run: |
-          python scripts/benchmark_performance.py --output benchmark_results_full.json
+          python scripts/benchmark_performance.py --output benchmark_results_full.json 2>&1 | tee bench_full.log
         env:
           OPENDAW_MCP_MODE: full
+
+      # Self-diagnostics: the job-logs endpoint is not always reachable via
+      # API, so on failure post the captured output to the PR (same pattern
+      # as ci.yml's pytest log tail). Gives the real traceback in one run.
+      - name: Comment failure log on the PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo "### ❌ Benchmark job failed — captured output"
+            echo '```'
+            tail -n 100 bench_lite.log bench_full.log 2>/dev/null || echo "(no logs captured)"
+            echo '```'
+          } > bench_failure.md
+          gh pr comment "$PR_NUMBER" --body-file bench_failure.md
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
@@ -60,10 +77,13 @@ jobs:
           path: |
             benchmark_results_lite.json
             benchmark_results_full.json
+            bench_lite.log
+            bench_full.log
           retention-days: 90
+          if-no-files-found: warn
 
       - name: Comment PR with results
-        if: github.event_name == 'pull_request'
+        if: success() && github.event_name == 'pull_request'
         continue-on-error: true  # advisory: a failed comment must not fail the job
         uses: actions/github-script@v7
         with:
