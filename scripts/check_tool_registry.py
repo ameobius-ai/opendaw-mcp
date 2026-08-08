@@ -20,6 +20,15 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from pathlib import Path
+
+# ``server.py`` lives at the repository root, but running this file as
+# ``python scripts/check_tool_registry.py`` puts *this* directory on sys.path
+# rather than the working directory. Resolve the root from __file__ so the
+# script behaves identically from any CWD.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 # Kept identical to the threshold the old AST gate enforced, so this change is
 # behaviour-preserving. Raise it in a reviewed commit rather than by editing a
@@ -38,7 +47,17 @@ REQUIRED_TOOLS = (
 
 
 def main() -> int:
-    import server
+    try:
+        import server
+    except ModuleNotFoundError as exc:
+        if exc.name != "server":
+            raise
+        print(
+            f"FAIL: could not import server.py from {REPO_ROOT}. "
+            "Run this from a checkout of the repository.",
+            file=sys.stderr,
+        )
+        return 1
 
     tools = asyncio.run(server.mcp.list_tools())
     names = {tool.name for tool in tools}
