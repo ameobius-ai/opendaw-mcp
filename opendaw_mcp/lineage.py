@@ -21,6 +21,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from opendaw_mcp.errors import enrich_error
+
 SCHEMA_VERSION = 1
 
 VALID_KINDS = frozenset(
@@ -200,35 +202,35 @@ class LineageStore:
         """
         kind = (kind or "audio").strip().lower()
         if kind not in VALID_KINDS:
-            return {
+            return enrich_error({
                 "error": f"Invalid kind: {kind}",
                 "error_code": "INVALID_PARAMETER",
                 "hint": f"Valid kinds: {sorted(VALID_KINDS)}",
-            }
+            })
         op = (op or "other").strip().lower()
         if op not in VALID_OPS:
-            return {
+            return enrich_error({
                 "error": f"Invalid op: {op}",
                 "error_code": "INVALID_PARAMETER",
                 "hint": f"Valid ops: {sorted(VALID_OPS)}",
-            }
+            })
 
         with _lock:
             data = self.load()
             if parent_id and parent_id not in data["nodes"]:
-                return {
+                return enrich_error({
                     "error": f"Unknown parent_id: {parent_id}",
                     "error_code": "NOT_FOUND",
                     "hint": "Record parent first or omit parent_id",
-                }
+                })
 
             nid = node_id or _new_id("n")
             if nid in data["nodes"]:
-                return {
+                return enrich_error({
                     "error": f"Node already exists: {nid}",
                     "error_code": "INVALID_PARAMETER",
                     "hint": "Use a new node_id or omit to auto-generate",
-                }
+                })
 
             prov = dict(provenance or {})
             if params and "chain_hash" not in prov:
@@ -276,10 +278,10 @@ class LineageStore:
         with _lock:
             data = self.load()
             if node_id not in data["nodes"]:
-                return {
+                return enrich_error({
                     "error": f"Unknown node_id: {node_id}",
                     "error_code": "NOT_FOUND",
-                }
+                })
 
             # parent_id -> edges from parent to child where child is current
             parents_of: dict[str, list[dict]] = {}
@@ -334,10 +336,10 @@ class LineageStore:
         with _lock:
             data = self.load()
             if node_id not in data["nodes"]:
-                return {
+                return enrich_error({
                     "error": f"Unknown node_id: {node_id}",
                     "error_code": "NOT_FOUND",
-                }
+                })
 
             children_of: dict[str, list[dict]] = {}
             for e in data["edges"]:
@@ -429,18 +431,18 @@ class LineageStore:
     ) -> dict[str, Any]:
         """Wrapper: record kind=mix_pass under parent with mix op/metrics."""
         if not parent_id:
-            return {
+            return enrich_error({
                 "error": "parent_id required for mix_pass",
                 "error_code": "INVALID_PARAMETER",
                 "hint": "Pass the previous mix/root node id",
-            }
+            })
         op = (op or "eq").strip().lower()
         if op not in VALID_OPS:
-            return {
+            return enrich_error({
                 "error": f"Invalid op: {op}",
                 "error_code": "INVALID_PARAMETER",
                 "hint": f"Valid ops: {sorted(VALID_OPS)}",
-            }
+            })
         metrics = dict(metrics or {})
         # Keep only known metric keys when present; allow extras but prefer canonical
         return self.record(
@@ -471,10 +473,10 @@ class LineageStore:
         """
         data = self.load()
         if node_id not in data["nodes"]:
-            return {
+            return enrich_error({
                 "error": f"Unknown node_id: {node_id}",
                 "error_code": "NOT_FOUND",
-            }
+            })
 
         parents_of: dict[str, list[dict]] = {}
         children_of: dict[str, list[dict]] = {}
@@ -560,10 +562,10 @@ class LineageStore:
         (pass_n vs pass_n-1) for canonical metric keys.
         """
         if not node_id:
-            return {
+            return enrich_error({
                 "error": "node_id required",
                 "error_code": "INVALID_PARAMETER",
-            }
+            })
         limit = max(1, min(int(limit), 100))
 
         with _lock:
@@ -639,23 +641,23 @@ class LineageStore:
     def diff_mix_passes(self, node_a: str, node_b: str) -> dict[str, Any]:
         """Numeric delta of metrics between two nodes (b - a)."""
         if not node_a or not node_b:
-            return {
+            return enrich_error({
                 "error": "node_a and node_b required",
                 "error_code": "INVALID_PARAMETER",
-            }
+            })
         with _lock:
             a = self.get_node(node_a)
             b = self.get_node(node_b)
             if a is None:
-                return {
+                return enrich_error({
                     "error": f"Unknown node_id: {node_a}",
                     "error_code": "NOT_FOUND",
-                }
+                })
             if b is None:
-                return {
+                return enrich_error({
                     "error": f"Unknown node_id: {node_b}",
                     "error_code": "NOT_FOUND",
-                }
+                })
             ma = dict(a.get("metrics") or {})
             mb = dict(b.get("metrics") or {})
             return {
