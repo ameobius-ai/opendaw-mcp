@@ -37,7 +37,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       packages: write
-    continue-on-error: true
+    # No continue-on-error here: a broken image must fail the release loudly.
+    # The Docker Build workflow (docker.yml) already guards PRs/pushes, so a
+    # red build should never reach this job.
     steps:
       - uses: actions/checkout@v4
 
