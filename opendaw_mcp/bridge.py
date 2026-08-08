@@ -5,6 +5,7 @@ Manages browser lifecycle, page navigation, and JS evaluation in the
 DAW's V8 context where the project model lives.
 """
 
+import asyncio
 import logging
 import os
 
@@ -34,6 +35,15 @@ _LOW_MEM_ARGS = [
     "--js-flags=--max-old-space-size=512",  # cap V8 heap; override via OPENDAW_V8_HEAP_MB
 ]
 
+# Playwright error markers meaning the browser/page is gone for good and the
+# only recovery is a relaunch (e.g. V8 OOM kill on a low-RAM container).
+_DEAD_TARGET_MARKERS = (
+    "Target crashed",
+    "Target closed",
+    "browser has been closed",
+    "Connection closed",
+)
+
 
 def _chromium_args() -> list[str]:
     """Build Chromium launch args, with environment overrides.
@@ -57,12 +67,31 @@ class HeadlessDawBridge:
         self.page = None
         self.playwright = None
         self.browser = None
+        self._start_lock = asyncio.Lock()
 
     async def start(self):
-        env = dict(os.environ)
+        # Guard against concurrent tool calls racing to launch the browser:
+        # a double Chromium launch on a weak machine is an OOM, not an
+        # inconvenience.
+        async with self._start_lock:
+            if self.page is not None and not self.page.is_closed():
+                return  # another call won the race and started us up
+            try:
+                await self._launch()
+            except Exception:
+                # Never leave a half-started browser behind: without cleanup a
+                # failing host would leak one Chromium per tool call until OOM.
+                await self._teardown()
+                raise
+
+    async def _launch(self):
         node_dir = os.environ.get("NODE_BIN_DIR", "")
         if node_dir:
-            env["PATH"] = node_dir + ":" + env.get("PATH", "")
+            # The Playwright driver is spawned as a child process and inherits
+            # this process's env — so mutate it for real. (The previous version
+            # built a copied `env` dict and never passed it anywhere, which made
+            # NODE_BIN_DIR a silent no-op.)
+            os.environ["PATH"] = node_dir + os.pathsep + os.environ.get("PATH", "")
         self.playwright = await async_playwright().start()
         launch_opts = dict(
             headless=True,
@@ -249,24 +278,45 @@ class HeadlessDawBridge:
             window.DAW_project = H;
         }"""
         )
-        logging.info("DAW helpers injected — engine deferred (DAW_startEngine on demand)")
+        logger.info("DAW helpers injected — engine deferred (DAW_startEngine on demand)")
 
     async def evaluate(self, script, timeout=30000):
         """Execute JS in the DAW context. All errors caught and returned."""
-        if self.page is None:
+        if self.page is None or self.page.is_closed():
             await self.start()
         wrapped = f"""async () => {{ try {{ return await ({script})(); }} catch (e) {{ return {{ __error: e.message, __stack: e.stack }}; }} }}"""
         self.page.set_default_timeout(timeout)
-        result = await self.page.evaluate(wrapped)
+        try:
+            result = await self.page.evaluate(wrapped)
+        except Exception as e:
+            if not any(m in str(e) for m in _DEAD_TARGET_MARKERS):
+                raise
+            # A crashed target (e.g. V8 OOM kill on a weak machine) used to kill
+            # every subsequent tool call too. Relaunch the browser and retry once.
+            logger.warning("Browser target died (%s) — relaunching and retrying once", e)
+            await self.stop()
+            await self.start()
+            self.page.set_default_timeout(timeout)
+            result = await self.page.evaluate(wrapped)
         if isinstance(result, dict) and "__error" in result:
             return {"error": result["__error"], "stack": result.get("__stack", "")}
         return result
 
     async def stop(self):
-        if self.browser:
-            await self.browser.close()
-        if self.playwright:
-            await self.playwright.stop()
-        self.playwright = None
+        await self._teardown()
+
+    async def _teardown(self):
+        # Detach first so a failing close can't be retried into a second one.
+        browser, self.browser = self.browser, None
+        playwright, self.playwright = self.playwright, None
         self.page = None
-        self.browser = None
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
