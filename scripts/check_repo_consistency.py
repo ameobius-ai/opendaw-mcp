@@ -4,7 +4,9 @@ Repo consistency checker.
 
 Verifies that documented metrics in key doc surfaces match actual
 filesystem counts. Reads the ground-truth marker from README.md and
-checks that each tracked surface is in sync.
+checks that each tracked surface is in sync. Also verifies that the
+package version stays in sync across pyproject.toml and server.json
+(registry manifest + OCI tag).
 
 Usage:
     python scripts/check_repo_consistency.py [--repo-root PATH]
@@ -99,6 +101,54 @@ def surface_check(label: str, path: str, pattern: str, expected: int) -> str | N
 
 
 # ---------------------------------------------------------------------------
+# Version sync (pyproject.toml vs server.json registry manifest)
+# ---------------------------------------------------------------------------
+
+def read_pyproject_version(root: str) -> str | None:
+    path = os.path.join(root, "pyproject.toml")
+    try:
+        content = open(path).read()
+    except FileNotFoundError:
+        return None
+    m = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+    return m.group(1) if m else None
+
+
+def read_server_json_versions(root: str) -> tuple[str | None, str | None]:
+    """Return (server.json "version", OCI identifier tag). (None, None) if unreadable."""
+    import json as _json
+
+    path = os.path.join(root, "server.json")
+    try:
+        data = _json.loads(open(path).read())
+    except (FileNotFoundError, ValueError):
+        return None, None
+    version = data.get("version")
+    oci_tag = None
+    for pkg in data.get("packages", []):
+        ident = str(pkg.get("identifier", ""))
+        if ":" in ident:
+            oci_tag = ident.rsplit(":", 1)[1]
+    return version, oci_tag
+
+
+def version_sync_errors(root: str) -> list[str]:
+    """Errors when the release version drifts between pyproject.toml and server.json."""
+    errors: list[str] = []
+    py_ver = read_pyproject_version(root)
+    sj_ver, sj_oci = read_server_json_versions(root)
+    if py_ver and sj_ver and py_ver != sj_ver:
+        errors.append(
+            f"  version drift: pyproject.toml={py_ver}, server.json version={sj_ver}"
+        )
+    if py_ver and sj_oci and py_ver != sj_oci:
+        errors.append(
+            f"  version drift: pyproject.toml={py_ver}, server.json OCI tag={sj_oci}"
+        )
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -185,6 +235,9 @@ def main() -> None:
         err = surface_check(label, path, pat, e)
         if err:
             errors.append(err)
+
+    # --- Version sync (pyproject.toml vs server.json) ---
+    errors.extend(version_sync_errors(root))
 
     # --- Result ---
     if errors:
