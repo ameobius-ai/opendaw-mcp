@@ -25,6 +25,8 @@ from mcp.types import ToolAnnotations
 # Infrastructure imported from opendaw_mcp package
 # All helpers re-exported for backward compatibility (tests, examples import from server)
 from opendaw_mcp import (  # noqa: F401 — re-exported for backward compat
+# Health check server for monitoring
+from opendaw_mcp.health_checks import HealthCheckServer
     HeadlessDawBridge,
     DAW_URL,
     TIDAL_RATE_MAP,
@@ -30846,6 +30848,19 @@ def main():
         print(f"Phase mode: compose phase active ({len(PHASE_TOOLS['compose'])} tools). Call switch_phase to change.", file=sys.stderr)
 
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    # Start health check server for monitoring
+    health_port = int(os.environ.get("HEALTH_CHECK_PORT", "8081"))
+    health_server = HealthCheckServer(port=health_port, bridge=bridge)
+    health_server.start()
+    
+    # Register cleanup for health server
+    def cleanup_health():
+        try:
+            health_server.stop()
+        except Exception:
+            pass
+    atexit.register(cleanup_health)
+    
     mcp.run(transport=transport)
 
 

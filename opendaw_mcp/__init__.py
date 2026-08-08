@@ -91,3 +91,6 @@ __all__ = [
     "scale_to_pitches",
     "parse_melody_pattern",
 ]
+
+# Health check server
+from opendaw_mcp.health_checks import HealthCheckServer
