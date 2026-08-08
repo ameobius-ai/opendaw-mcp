@@ -1,0 +1,39 @@
+name: Docker Build
+
+# Build-only smoke check: the image was never built in CI, which let a broken
+# Dockerfile (wrong upstream repo) land unnoticed. This builds the image on
+# changes to the packaging files so build failures surface before merge.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "entrypoint.sh"
+      - "requirements.txt"
+      - "scripts/serve_static.py"
+      - ".github/workflows/docker.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "entrypoint.sh"
+      - "requirements.txt"
+      - "scripts/serve_static.py"
+      - ".github/workflows/docker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build the image (no push)
+        run: docker build -t opendaw-mcp:ci .

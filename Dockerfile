@@ -1,19 +1,29 @@
+# ---- Builder stage: build the headless openDAW host ----
+# The headless host is a small standalone Vite app (andremichelle/openDAW-headless)
+# that pulls @opendaw/studio-sdk from npm. It is NOT part of the openDAW
+# monorepo — andremichelle/openDAW has no headless-daw directory, so cloning
+# it here produced an image with no host at all (the COPY below failed).
 FROM node:23-slim AS opendaw-builder
 
-# Build openDAW from source
-RUN apt-get update && apt-get install -y git python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-RUN git clone --depth 1 https://github.com/andremichelle/openDAW.git .
+RUN git clone --depth 1 https://github.com/andremichelle/openDAW-headless.git .
 
-# Install deps and build
+# vite.config.ts eagerly readFileSync()s localhost-key.pem / localhost.pem at
+# config load — even for `vite build` — so a fresh clone fails with ENOENT.
+# Generate throwaway certs (only used by the dev server we never run here).
+RUN openssl req -x509 -newkey rsa:2048 -keyout localhost-key.pem \
+    -out localhost.pem -days 1 -nodes -subj "/CN=localhost" 2>/dev/null
+
+# Install deps and build the static host (outputs to /build/dist)
 RUN npm install --legacy-peer-deps
 RUN npm run build
 
-# Runtime stage
+# ---- Runtime stage ----
 FROM python:3.12-slim AS runtime
 
-# Install Python dependencies only (no Node.js needed)
+# Chromium runtime libraries only (no Node.js needed at runtime)
 RUN apt-get update && apt-get install -y \
     libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
@@ -21,8 +31,8 @@ RUN apt-get update && apt-get install -y \
     libnspr4 libnss3 fonts-liberation curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy built openDAW (only dist folder)
-COPY --from=opendaw-builder /build/headless-daw/dist /opendaw/headless-daw/dist
+# Copy built headless host (Vite dist output, self-contained incl. dist/wasm)
+COPY --from=opendaw-builder /build/dist /opendaw/headless-daw/dist
 
 # Copy opendaw-mcp
 COPY . /app/opendaw-mcp
