@@ -48,3 +48,33 @@ def test_prompt_inference_errors_are_enriched():
     assert res["error_code"] == "INVALID_PARAMETER"
     assert res["error_ref"] == "E3001"
     assert res["hint"]  # catalog default filled in
+
+
+def test_lineage_errors_are_enriched(tmp_path):
+    from opendaw_mcp.lineage import LineageStore
+
+    store = LineageStore(tmp_path / "lineage.json")
+
+    bad_kind = store.record(kind="nope")
+    assert bad_kind["error_ref"] == "E3001"
+    assert "Valid kinds" in bad_kind["hint"]  # specific hint wins
+
+    missing = store.trace_ancestors("n_missing")
+    assert missing["error_code"] == "NOT_FOUND"
+    assert missing["error_ref"] == "E4001"
+    assert missing["hint"]  # catalog default filled in
+
+    desc = store.list_descendants("n_missing")
+    assert desc["error_ref"] == "E4001"
+
+    diff = store.diff_mix_passes("", "x")
+    assert diff["error_ref"] == "E3001"
+    assert diff["hint"]
+
+    hist = store.list_mix_history("")
+    assert hist["error_ref"] == "E3001"
+
+    dup_a = store.record(kind="export", path="/tmp/a.wav", node_id="n_dup")
+    assert dup_a.get("success")
+    dup_b = store.record(kind="export", path="/tmp/b.wav", node_id="n_dup")
+    assert dup_b["error_ref"] == "E3001"
