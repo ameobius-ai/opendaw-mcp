@@ -45,19 +45,6 @@ jobs:
       - name: Python syntax check
         run: python -m py_compile server.py
 
-      - name: AST tool count verification
-        run: |
-          python -c "
-          import ast
-          tree = ast.parse(open('server.py').read())
-          tools = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith('mcp_opendaw_')]
-          count = len(tools)
-          print(f'MCP tools found: {count}')
-          assert count >= 520, f'Expected at least 520 tools, got {count}'
-          print(f'MCP tools found: {count} (threshold: 520)')
-          print('Tool count verification passed!')
-          "
-
       - name: Validate DSP scripts exist and syntax
         run: |
           for f in $(find scripts -name '*.js'); do
@@ -74,20 +61,12 @@ jobs:
           fi
           echo "No hardcoded paths found"
 
-      - name: Smoke test — server imports and tool registration
-        run: |
-          python -c "
-          import server
-          mcp = server.mcp
-          import asyncio
-          tools = asyncio.run(mcp.list_tools())
-          print(f'Registered MCP tools: {len(tools)}')
-          assert len(tools) >= 500, f'Expected >=500 registered tools, got {len(tools)}'
-          tool_names = {t.name for t in tools}
-          for required in ['mcp_opendaw_get_project_info', 'mcp_opendaw_create_synth_track', 'mcp_opendaw_add_effect', 'mcp_opendaw_export_mix', 'mcp_opendaw_transport']:
-              assert required in tool_names, f'Missing required tool: {required}'
-          print('Smoke test passed — all tools registered correctly')
-          "
+      # Replaces the former "AST tool count verification" step, which parsed
+      # server.py and counted `async def mcp_opendaw_*`. That measured where the
+      # source text lived rather than what the server exposes, so it blocked the
+      # module split tracked in #15. See #58.
+      - name: Smoke test — server imports and tool registry
+        run: python scripts/check_tool_registry.py
 
       - name: Run unit tests
         run: |
