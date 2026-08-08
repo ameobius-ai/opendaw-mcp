@@ -1,10 +1,10 @@
 """Lite mode essential tools — curated list of 39 tools.
 
 When OPENDAW_MCP_MODE=lite, only these tools are registered with the MCP server.
-This reduces the tool schema payload by ~92% (504→39 tools), saving tokens
+This reduces the tool schema payload by ~93% (557→39 tools), saving tokens
 for agents that only need basic track production capabilities.
 
-Full mode (default) registers all 504 decorated tools including advanced
+Full mode registers all 557 decorated tools including advanced
 orchestration, DSP scripting, stem separation, genre arrangements, and
 composition tools.
 
