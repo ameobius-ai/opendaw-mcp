@@ -81,16 +81,37 @@ import {
   WarpMarkerBox,
 } from "@opendaw/studio-boxes"
 
-// Vite worker/url imports — resolved at build time
+// Vite worker/url imports — resolved at build time.
+//
+// @opendaw/studio-core also advertises "./offline-engine.js" in its export map
+// and lists it in `files`, but that file ships in no published tarball. As of
+// 0.1.4, 0.1.5 and 0.1.6 — every version in our ^0.1.4 range — dist/ contains
+// processors.js, workers-main.js and OfflineEngineRenderer.js, and no
+// offline-engine.js.
+//
+// Importing it statically fails Vite's import analysis at transform time, and
+// that aborts the entire module: boot() never runs and not one DAW_* global is
+// assigned, so bridge.py waits 30 s and times out. That was the cause of #44.
+//
+// Several openDAW-derived projects do use this specifier, but they build inside
+// the openDAW monorepo where the file exists as a build artifact. Do not
+// re-add the import without first confirming the file is actually published —
+// its presence in the export map is not evidence that it is.
 import WorkersUrl from "@opendaw/studio-core/workers-main.js?worker&url"
 import WorkletsUrl from "@opendaw/studio-core/processors.js?url"
-import OfflineEngineUrl from "@opendaw/studio-core/offline-engine.js?worker&url"
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Boot
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const statusEl = document.getElementById("status")!
+
+// Offline rendering cannot be installed while upstream omits the worker entry
+// point. Keep the reason as a string so render/export tools can surface
+// something precise rather than an opaque failure deep in the renderer.
+const OFFLINE_ENGINE_UNAVAILABLE_REASON =
+  "@opendaw/studio-core does not publish dist/offline-engine.js, so " +
+  "OfflineEngineRenderer has no worker entry point to install (see issue #44)"
 
 function setStatus(msg: string) {
   statusEl.textContent = msg
@@ -109,7 +130,7 @@ async function boot() {
   setStatus("Installing workers...")
   await Workers.install(WorkersUrl)
   AudioWorklets.install(WorkletsUrl)
-  OfflineEngineRenderer.install(OfflineEngineUrl)
+  console.warn(`[test-host] offline rendering disabled: ${OFFLINE_ENGINE_UNAVAILABLE_REASON}`)
 
   setStatus("Creating AudioContext...")
   const audioContext = new AudioContext({ latencyHint: 0 })
@@ -224,6 +245,11 @@ async function boot() {
   w.DAW_TransferAudioUnits = TransferAudioUnits
   w.DAW_TransferRegions = TransferRegions
   w.DAW_OfflineEngineRenderer = OfflineEngineRenderer
+
+  // Offline rendering is deliberately not installed — see the note above the
+  // worker imports. Expose the state so tools can fail with a real reason.
+  w.DAW_offlineEngineAvailable = false
+  w.DAW_offlineEngineUnavailableReason = OFFLINE_ENGINE_UNAVAILABLE_REASON
 
   // Runtime state globals
   w.DAW_project = project

@@ -8,16 +8,11 @@
     "preview": "vite preview --port 5174"
   },
   "dependencies": {
-    "@opendaw/lib-box": "^0.0.90",
     "@opendaw/lib-dom": "^0.0.87",
-    "@opendaw/lib-dsp": "^0.0.88",
-    "@opendaw/lib-midi": "^0.0.70",
-    "@opendaw/lib-std": "^0.0.82",
+    "@opendaw/lib-dsp": "^0.0.86",
+    "@opendaw/lib-std": "^0.0.80",
     "@opendaw/studio-adapters": "^0.1.4",
-    "@opendaw/studio-boxes": "^0.0.102",
     "@opendaw/studio-core": "^0.1.4",
-    "@opendaw/studio-core-wasm": "^0.0.8",
-    "@opendaw/studio-enums": "^0.0.83",
     "@opendaw/studio-sdk": "^0.0.163",
     "vite-plugin-cross-origin-isolation": "^0.1.6"
   },
