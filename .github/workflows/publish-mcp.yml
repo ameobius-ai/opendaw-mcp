@@ -36,8 +36,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/ameobius/opendaw-mcp:${{ steps.version.outputs.VERSION }}
-            ghcr.io/ameobius/opendaw-mcp:latest
+            ghcr.io/ameobius-ai/opendaw-mcp:${{ steps.version.outputs.VERSION }}
+            ghcr.io/ameobius-ai/opendaw-mcp:latest
 
       - name: Update version in server.json
         run: |
@@ -47,7 +47,7 @@ jobs:
           with open('server.json') as f:
               data = json.load(f)
           data['version'] = '$VERSION'
-          data['packages'][0]['identifier'] = f'ghcr.io/ameobius/opendaw-mcp:$VERSION'
+          data['packages'][0]['identifier'] = f'ghcr.io/ameobius-ai/opendaw-mcp:$VERSION'
           with open('server.json', 'w') as f:
               json.dump(data, f, indent=2)
           "

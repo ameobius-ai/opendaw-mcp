@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.aaameobius-crypto/opendaw-mcp",
+  "name": "io.github.ameobius-ai/opendaw-mcp",
   "title": "openDAW MCP",
-  "description": "407 MCP tools for agent-native control of openDAW \u2014 21 instruments/effects, scriptable DSP, stem splitting, preset management, offline render",
+  "description": "557 MCP tools (39 in the default lite mode) for agent-native control of openDAW — instruments/effects, scriptable DSP, stem splitting, preset management, offline render",
   "version": "1.390.0",
   "repository": {
-    "url": "https://github.com/aaameobius-crypto/opendaw-mcp",
+    "url": "https://github.com/ameobius-ai/opendaw-mcp",
     "source": "github"
   },
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/aaameobius-crypto/opendaw-mcp:1.13.1",
+      "identifier": "ghcr.io/ameobius-ai/opendaw-mcp:1.390.0",
       "transport": {
         "type": "stdio"
       },
@@ -24,7 +24,7 @@
           "name": "OPENDAW_HOST_DIR"
         },
         {
-          "description": "URL of the running openDAW Vite dev server",
+          "description": "URL of the served openDAW host",
           "isRequired": true,
           "format": "string",
           "isSecret": false,

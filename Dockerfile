@@ -52,7 +52,7 @@ ENV OPENDAW_STATIC_DIR=/opendaw/headless-daw/dist
 # Create exports directory
 RUN mkdir -p /app/exports
 
-LABEL io.modelcontextprotocol.server.name="io.github.AMEOBIUS/opendaw-mcp"
+LABEL io.modelcontextprotocol.server.name="io.github.ameobius-ai/opendaw-mcp"
 
 EXPOSE 8080
 

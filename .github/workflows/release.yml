@@ -60,8 +60,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/ameobius/opendaw-mcp:latest
-            ghcr.io/ameobius/opendaw-mcp:${{ steps.version.outputs.VERSION }}
+            ghcr.io/ameobius-ai/opendaw-mcp:latest
+            ghcr.io/ameobius-ai/opendaw-mcp:${{ steps.version.outputs.VERSION }}
 
   # Job 3: Create GitHub Release with notes
   github-release:
@@ -101,7 +101,7 @@ jobs:
 
             ### Published to
             - **PyPI:** `pip install opendaw-mcp`
-            - **GHCR:** `docker pull ghcr.io/ameobius/opendaw-mcp:${{ steps.version.outputs.VERSION }}`
-            - **MCP Registry:** `io.github.AMEBIUS/opendaw-mcp`
+            - **GHCR:** `docker pull ghcr.io/ameobius-ai/opendaw-mcp:${{ steps.version.outputs.VERSION }}`
+            - **MCP Registry:** `io.github.ameobius-ai/opendaw-mcp`
           draft: false
           prerelease: false
