@@ -5,3 +5,29 @@ __pycache__/
 .worktrees/
 exports/
 test_*.py
+
+# --- Image slimming -----------------------------------------------------
+# The runtime image only needs the server, the opendaw_mcp package, the
+# scripts/ tooling (serve_static.py, DSP scripts), and packaging metadata.
+# Everything below is dev/CI material that only bloats the build context
+# and the final layer (COPY . /app/opendaw-mcp).
+
+# Tests (note: bare `test_*.py` above only matches the repo root)
+tests/
+**/test_*.py
+
+# Docs and CI config are not needed at runtime
+docs/
+.github/
+
+# Local secrets / generated certs
+*.pem
+.secrets.baseline
+
+# Benchmark and local-run artifacts
+benchmark_results*.json
+bench_*.log
+
+# Packaging files are consumed by the build, not needed inside the image
+Dockerfile
+.dockerignore

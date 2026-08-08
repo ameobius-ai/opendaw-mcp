@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+      - ".dockerignore"
       - "entrypoint.sh"
       - "requirements.txt"
       - "scripts/serve_static.py"
@@ -17,6 +18,7 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+      - ".dockerignore"
       - "entrypoint.sh"
       - "requirements.txt"
       - "scripts/serve_static.py"
