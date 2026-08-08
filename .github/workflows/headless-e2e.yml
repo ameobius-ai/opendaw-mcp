@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  issues: write  # allow posting bridge-smoke diagnostics to the PR on failure (#44)
 
 jobs:
   bridge-smoke:
@@ -176,6 +177,28 @@ jobs:
             /tmp/vite_stdout.log
             /tmp/exports/
           retention-days: 7
+
+      - name: Comment diagnostics on the PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "**bridge-smoke failed** (run #${{ github.run_number }}, ref ${{ steps.ref.outputs.ref }}). Log tails:"
+            echo
+            for f in /tmp/vite_stdout.log /tmp/bridge_smoke.log /tmp/bench.log /tmp/eval.log /tmp/golden.log; do
+              if [ -f "$f" ]; then
+                echo "<details><summary>$(basename $f)</summary>"
+                echo
+                echo '```'
+                tail -n 60 "$f"
+                echo '```'
+                echo '</details>'
+                echo
+              fi
+            done
+          } > /tmp/e2e_comment.md
+          gh pr comment ${{ github.event.pull_request.number }} --repo ameobius-ai/opendaw-mcp --body-file /tmp/e2e_comment.md
 
       - name: Cleanup
         if: always()
